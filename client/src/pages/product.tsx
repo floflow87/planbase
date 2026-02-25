@@ -586,7 +586,7 @@ export default function Product() {
               >
                 <CardHeader className="flex flex-row items-start justify-between gap-2 p-3 pb-1">
                   <div className="flex-1 min-w-0">
-                    <CardTitle className="text-xs font-light truncate">{backlog.name}</CardTitle>
+                    <CardTitle className="text-xs font-bold text-primary truncate">{backlog.name}</CardTitle>
                     {backlog.description && (
                       <CardDescription className="line-clamp-1 mt-0.5 text-xs">
                         {backlog.description}
@@ -655,9 +655,43 @@ export default function Product() {
                     </div>
                   )}
                   
-                  <div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground">
-                    <Calendar className="h-2.5 w-2.5" />
-                    {format(new Date(backlog.createdAt), "d MMM yyyy", { locale: fr })}
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <Calendar className="h-2.5 w-2.5" />
+                      {format(new Date(backlog.createdAt), "d MMM yyyy", { locale: fr })}
+                    </div>
+                    {(() => {
+                      const total = backlog.ticketCounts?.total || 0;
+                      const done = backlog.ticketCounts?.done || 0;
+                      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                      const r = 12;
+                      const circ = 2 * Math.PI * r;
+                      const dash = (pct / 100) * circ;
+                      const gid = `bp-${backlog.id}`;
+                      return (
+                        <svg width="32" height="32" viewBox="0 0 32 32" className="shrink-0" data-testid={`progress-ring-${backlog.id}`}>
+                          <defs>
+                            <linearGradient id={gid} x1="0%" y1="0%" x2="100%" y2="100%">
+                              <stop offset="0%" stopColor="#22d3ee" />
+                              <stop offset="100%" stopColor="#8b5cf6" />
+                            </linearGradient>
+                          </defs>
+                          <circle cx="16" cy="16" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                          {pct > 0 && (
+                            <circle cx="16" cy="16" r={r} fill="none"
+                              stroke={`url(#${gid})`} strokeWidth="3"
+                              strokeDasharray={`${dash} ${circ}`}
+                              strokeLinecap="round"
+                              transform="rotate(-90 16 16)"
+                            />
+                          )}
+                          <text x="16" y="19.5" textAnchor="middle" fontSize="7" fontWeight="600"
+                            style={{ fill: 'hsl(var(--foreground))' }}>
+                            {pct}%
+                          </text>
+                        </svg>
+                      );
+                    })()}
                   </div>
                 </CardContent>
               </Card>

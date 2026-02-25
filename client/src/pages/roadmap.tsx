@@ -92,7 +92,7 @@ export default function RoadmapPage() {
     const saved = localStorage.getItem("roadmap-view-mode");
     return (saved as ViewMode) || "gantt";
   });
-  const [activeMainTab, setActiveMainTab] = useState("roadmap");
+  const [activeMainTab, setActiveMainTab] = useState("accueil");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [createStep, setCreateStep] = useState<1 | 2>(1);
   const [newRoadmapName, setNewRoadmapName] = useState("");
@@ -119,6 +119,10 @@ export default function RoadmapPage() {
   const [filterType, setFilterType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [homeSearchQuery, setHomeSearchQuery] = useState("");
+  const [createFromHome, setCreateFromHome] = useState(false);
+  const [newCreateProjectId, setNewCreateProjectId] = useState<string | null>(null);
+  const [homeCreateProjectOpen, setHomeCreateProjectOpen] = useState(false);
   
   const [itemForm, setItemForm] = useState({
     title: "",
@@ -262,6 +266,23 @@ export default function RoadmapPage() {
     return backlogTasks.filter(task => !task.userStoryId);
   }, [backlogTasks]);
 
+  const { data: allRoadmaps = [] } = useQuery<Roadmap[]>({
+    queryKey: ['/api/roadmaps', 'all'],
+    queryFn: async () => {
+      const res = await apiRequest('/api/roadmaps', 'GET');
+      return res.json();
+    },
+  });
+
+  const filteredHomeRoadmaps = useMemo(() => {
+    if (!homeSearchQuery.trim()) return allRoadmaps;
+    const q = homeSearchQuery.toLowerCase();
+    return allRoadmaps.filter(r => {
+      const proj = projects.find(p => p.id === r.projectId);
+      return r.name.toLowerCase().includes(q) || (proj?.name || "").toLowerCase().includes(q);
+    });
+  }, [allRoadmaps, homeSearchQuery, projects]);
+
   const availableVersions = useMemo(() => {
     const tags = new Set<string>();
     roadmapItems.forEach(item => {
@@ -323,10 +344,11 @@ export default function RoadmapPage() {
   }, [selectedProjectId, roadmaps]);
 
   const createRoadmapMutation = useMutation({
-    mutationFn: async (data: { name: string; horizon?: string; type?: string; importEpics?: boolean; importTickets?: boolean }) => {
+    mutationFn: async (data: { name: string; horizon?: string; type?: string; importEpics?: boolean; importTickets?: boolean; fromHome?: boolean; fromProjectId?: string | null }) => {
+      const projectId = data.fromHome ? (data.fromProjectId || null) : (isUnlinkedMode ? null : selectedProjectId);
       const res = await apiRequest('/api/roadmaps', 'POST', {
         accountId,
-        projectId: isUnlinkedMode ? null : selectedProjectId,
+        projectId,
         name: data.name,
         type: data.type || "feature_based",
         horizon: data.horizon || null,
@@ -343,14 +365,23 @@ export default function RoadmapPage() {
       setCreateStep(1);
       setImportEpics(false);
       setImportTickets(false);
+      setCreateFromHome(false);
+      setNewCreateProjectId(null);
     },
-    onSuccess: (newRoadmap: Roadmap) => {
-      if (isUnlinkedMode) {
+    onSuccess: (newRoadmap: Roadmap, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', 'all'] });
+      if (variables.fromHome && newRoadmap.projectId) {
+        queryClient.invalidateQueries({ queryKey: [`/api/projects/${newRoadmap.projectId}/roadmaps`] });
+        setSelectedProjectId(newRoadmap.projectId);
+        setSelectedRoadmapId(newRoadmap.id);
+        setActiveMainTab("roadmap");
+      } else if (isUnlinkedMode) {
         queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', { unlinked: true }] });
+        setSelectedRoadmapId(newRoadmap.id);
       } else {
         queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
+        setSelectedRoadmapId(newRoadmap.id);
       }
-      setSelectedRoadmapId(newRoadmap.id);
       toast({
         title: "Roadmap créée",
         description: `La roadmap "${newRoadmap.name}" a été créée avec succès.`,
@@ -371,6 +402,7 @@ export default function RoadmapPage() {
       return apiRequest(`/api/roadmaps/${id}`, 'PATCH', { name });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', 'all'] });
       if (isUnlinkedMode) {
         queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', { unlinked: true }] });
       } else {
@@ -445,6 +477,7 @@ export default function RoadmapPage() {
       });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', 'all'] });
       if (isUnlinkedMode) {
         queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', { unlinked: true }] });
       } else {
@@ -452,6 +485,7 @@ export default function RoadmapPage() {
       }
     },
     onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', 'all'] });
       if (isUnlinkedMode) {
         queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', { unlinked: true }] });
       } else {
@@ -473,6 +507,8 @@ export default function RoadmapPage() {
       horizon: newRoadmapHorizon.trim() || undefined,
       importEpics: newRoadmapType === "feature_based" ? importEpics : false,
       importTickets: newRoadmapType === "feature_based" ? importTickets : false,
+      fromHome: createFromHome,
+      fromProjectId: newCreateProjectId,
     });
   };
 
@@ -997,6 +1033,10 @@ export default function RoadmapPage() {
 
         <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="w-full">
           <TabsList className="mb-4">
+            <TabsTrigger value="accueil" className="gap-1.5 text-[12px]" data-testid="tab-accueil-main">
+              <LayoutGrid className="h-4 w-4" />
+              Accueil
+            </TabsTrigger>
             <TabsTrigger value="roadmap" className="gap-1.5 text-[12px]" data-testid="tab-roadmap-main">
               <Map className="h-4 w-4" />
               Roadmap
@@ -1006,6 +1046,169 @@ export default function RoadmapPage() {
               OKR
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="accueil" className="mt-0">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Rechercher une roadmap ou un projet..."
+                    value={homeSearchQuery}
+                    onChange={(e) => setHomeSearchQuery(e.target.value)}
+                    className="pl-9 h-9"
+                    data-testid="input-search-home-roadmaps"
+                  />
+                  {homeSearchQuery && (
+                    <button
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setHomeSearchQuery("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                {canCreate && (
+                  <Button
+                    onClick={() => {
+                      setCreateFromHome(true);
+                      setNewCreateProjectId(null);
+                      setIsCreateDialogOpen(true);
+                    }}
+                    data-testid="button-create-roadmap-home"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nouvelle roadmap
+                  </Button>
+                )}
+              </div>
+
+              {filteredHomeRoadmaps.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-lg">
+                  <Map className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-base font-semibold mb-2">
+                    {homeSearchQuery.trim() ? "Aucun résultat" : "Aucune roadmap"}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mb-6 max-w-md">
+                    {homeSearchQuery.trim()
+                      ? `Aucune roadmap ne correspond à "${homeSearchQuery}".`
+                      : "Créez votre première roadmap pour commencer à planifier vos projets."}
+                  </p>
+                  {!homeSearchQuery.trim() && canCreate && (
+                    <Button onClick={() => { setCreateFromHome(true); setNewCreateProjectId(null); setIsCreateDialogOpen(true); }} data-testid="button-create-first-roadmap-home">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Créer une roadmap
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-0">
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-muted/50">
+                          <tr className="text-left text-xs font-medium text-muted-foreground border-b">
+                            <th className="px-4 py-3">Nom</th>
+                            <th className="px-4 py-3 hidden sm:table-cell">Projet</th>
+                            <th className="px-4 py-3 hidden md:table-cell">Type</th>
+                            <th className="px-4 py-3 hidden md:table-cell">Statut</th>
+                            <th className="px-4 py-3 hidden lg:table-cell">Créé le</th>
+                            <th className="px-4 py-3 w-[60px]"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {filteredHomeRoadmaps.map((roadmap) => {
+                            const proj = projects.find(p => p.id === roadmap.projectId);
+                            const statusInfo = ROADMAP_STATUS_LABELS[(roadmap as any).status || "planned"] || ROADMAP_STATUS_LABELS.planned;
+                            const typeLabel = (roadmap as any).type === "now_next_later" ? "Now/Next/Later" : "Feature-based";
+                            return (
+                              <tr
+                                key={roadmap.id}
+                                className="hover:bg-muted/30 cursor-pointer group"
+                                onClick={() => {
+                                  if (roadmap.projectId) setSelectedProjectId(roadmap.projectId);
+                                  setSelectedRoadmapId(roadmap.id);
+                                  setActiveMainTab("roadmap");
+                                }}
+                                data-testid={`row-roadmap-${roadmap.id}`}
+                              >
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <Map className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <span className="text-sm font-medium truncate max-w-[200px]">{roadmap.name}</span>
+                                    {(roadmap as any).type === "now_next_later" && (
+                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">NNL</Badge>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 hidden sm:table-cell">
+                                  {proj ? (
+                                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <FolderKanban className="h-3 w-3" />
+                                      {proj.name}
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground italic">Sans projet</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 hidden md:table-cell">
+                                  <span className="text-xs text-muted-foreground">{typeLabel}</span>
+                                </td>
+                                <td className="px-4 py-3 hidden md:table-cell">
+                                  <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${statusInfo.color}`}>
+                                    {statusInfo.label}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 hidden lg:table-cell">
+                                  <span className="text-xs text-muted-foreground">
+                                    {format(new Date(roadmap.createdAt), "d MMM yyyy", { locale: fr })}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100" data-testid={`button-home-roadmap-menu-${roadmap.id}`}>
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => {
+                                        if (roadmap.projectId) setSelectedProjectId(roadmap.projectId);
+                                        setSelectedRoadmapId(roadmap.id);
+                                        setActiveMainTab("roadmap");
+                                      }} data-testid={`button-home-open-roadmap-${roadmap.id}`}>
+                                        <ArrowRight className="h-4 w-4 mr-2" />
+                                        Ouvrir
+                                      </DropdownMenuItem>
+                                      {canUpdate && (
+                                        <DropdownMenuItem onClick={() => handleOpenRename(roadmap)} data-testid={`button-home-rename-roadmap-${roadmap.id}`}>
+                                          <Pencil className="h-4 w-4 mr-2" />
+                                          Renommer
+                                        </DropdownMenuItem>
+                                      )}
+                                      {canDelete && (
+                                        <>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem className="text-destructive" onClick={() => handleOpenDelete(roadmap)} data-testid={`button-home-delete-roadmap-${roadmap.id}`}>
+                                            <Trash2 className="h-4 w-4 mr-2" />
+                                            Supprimer
+                                          </DropdownMenuItem>
+                                        </>
+                                      )}
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
 
           <TabsContent value="roadmap" className="mt-0">
             {!selectedProjectId ? (
@@ -1387,6 +1590,9 @@ export default function RoadmapPage() {
           setNewRoadmapType("feature_based");
           setImportEpics(false);
           setImportTickets(false);
+          setCreateFromHome(false);
+          setNewCreateProjectId(null);
+          setHomeCreateProjectOpen(false);
         }
       }}>
         <SheetContent className="w-[450px] sm:max-w-[450px] overflow-y-auto bg-white dark:bg-slate-900">
@@ -1404,6 +1610,46 @@ export default function RoadmapPage() {
           <div className="py-4">
             {createStep === 1 ? (
               <div className="space-y-4">
+                {createFromHome && (
+                  <div className="space-y-2">
+                    <Label>Projet associé</Label>
+                    <Popover open={homeCreateProjectOpen} onOpenChange={setHomeCreateProjectOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between text-sm"
+                          data-testid="select-create-project-home"
+                        >
+                          {newCreateProjectId
+                            ? projects.find(p => p.id === newCreateProjectId)?.name || "Projet sélectionné"
+                            : "Sélectionner un projet (optionnel)"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <Command shouldFilter={false}>
+                          <CommandInput placeholder="Rechercher un projet..." data-testid="input-create-project-search" />
+                          <CommandList>
+                            <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem value="__none__" onSelect={() => { setNewCreateProjectId(null); setHomeCreateProjectOpen(false); }}>
+                                <Check className={`mr-2 h-4 w-4 ${!newCreateProjectId ? "opacity-100" : "opacity-0"}`} />
+                                Sans projet
+                              </CommandItem>
+                              {projects.map((p) => (
+                                <CommandItem key={p.id} value={p.id} onSelect={() => { setNewCreateProjectId(p.id); setHomeCreateProjectOpen(false); }}>
+                                  <Check className={`mr-2 h-4 w-4 ${newCreateProjectId === p.id ? "opacity-100" : "opacity-0"}`} />
+                                  {p.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label>Type de roadmap</Label>
                   <div className="grid grid-cols-2 gap-3">

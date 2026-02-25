@@ -3549,6 +3549,18 @@ export default function Projects() {
                       !completedColumn || t.columnId !== completedColumn.id
                     ).length;
 
+                    const cdcProgress = (() => {
+                      if (project.stage === "termine") return 100;
+                      if (!project.startDate || !project.endDate) return 0;
+                      const start = new Date(project.startDate).getTime();
+                      const end = new Date(project.endDate).getTime();
+                      const now = Date.now();
+                      const total = end - start;
+                      if (total <= 0) return 0;
+                      return Math.min(100, Math.max(0, Math.round((now - start) / total * 100)));
+                    })();
+                    const taskPct = calculateProjectProgress(project.id);
+
                     return (
                       <Card
                         key={project.id}
@@ -3682,6 +3694,47 @@ export default function Projects() {
                                 {project.description}
                               </p>
                             )}
+
+                            <div className="flex items-center gap-2 mt-2" data-testid={`progress-section-${project.id}`}>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-[10px] text-muted-foreground">Avancement</span>
+                                  <span className="text-[10px] font-medium text-foreground">{cdcProgress}%</span>
+                                </div>
+                                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                                  <div className="h-full rounded-full transition-all" style={{ width: `${cdcProgress}%`, background: 'linear-gradient(to right, #22d3ee, #8b5cf6)' }} />
+                                </div>
+                              </div>
+                              {(() => {
+                                const r = 12;
+                                const circ = 2 * Math.PI * r;
+                                const dash = (taskPct / 100) * circ;
+                                const gid = `pp-${project.id}`;
+                                return (
+                                  <svg width="32" height="32" viewBox="0 0 32 32" className="shrink-0" data-testid={`task-progress-ring-${project.id}`}>
+                                    <defs>
+                                      <linearGradient id={gid} x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stopColor="#22d3ee" />
+                                        <stop offset="100%" stopColor="#8b5cf6" />
+                                      </linearGradient>
+                                    </defs>
+                                    <circle cx="16" cy="16" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                                    {taskPct > 0 && (
+                                      <circle cx="16" cy="16" r={r} fill="none"
+                                        stroke={`url(#${gid})`} strokeWidth="3"
+                                        strokeDasharray={`${dash} ${circ}`}
+                                        strokeLinecap="round"
+                                        transform="rotate(-90 16 16)"
+                                      />
+                                    )}
+                                    <text x="16" y="19.5" textAnchor="middle" fontSize="7" fontWeight="600"
+                                      style={{ fill: 'hsl(var(--foreground))' }}>
+                                      {taskPct}%
+                                    </text>
+                                  </svg>
+                                );
+                              })()}
+                            </div>
 
                             <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-2 border-t">
                               <div className="flex items-center gap-1">
