@@ -1503,10 +1503,13 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
                             {item.type !== "milestone" && (
                               <div className="absolute inset-0 flex items-center px-3 overflow-hidden pointer-events-none">
                                 {isParent && <Folder className="h-3 w-3 mr-1 text-amber-600 dark:text-amber-400 flex-shrink-0" />}
-                                <span className={cn(
-                                  "text-xs font-medium truncate",
-                                  isParent ? "text-amber-700 dark:text-amber-300" : typeColors.text
-                                )}>
+                                <span
+                                  className={cn(
+                                    "text-xs font-medium truncate",
+                                    isParent ? "text-amber-700 dark:text-amber-300" : (!item.epicColor ? typeColors.text : undefined)
+                                  )}
+                                  style={item.epicColor && !isParent ? { color: item.epicColor } : undefined}
+                                >
                                   {item.title}
                                 </span>
                               </div>

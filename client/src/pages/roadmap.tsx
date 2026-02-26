@@ -6,7 +6,7 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable 
 import { CSS } from "@dnd-kit/utilities";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket, Search, Filter, FileUp, Target, Columns, ChevronLeft, Lightbulb } from "lucide-react";
+import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket, Search, Filter, FileUp, Target, Columns, ChevronLeft, ChevronDown, Lightbulb } from "lucide-react";
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,6 +60,12 @@ const ROADMAP_STATUS_LABELS: { [key: string]: { label: string; color: string } }
   in_progress: { label: "En cours", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" },
   closed: { label: "Clôturée", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
 };
+
+const ROADMAP_STATUS_OPTIONS = [
+  { value: "planned", label: "Planifiée", bgColor: "#BFDBFE", textColor: "#1E40AF" },
+  { value: "in_progress", label: "En cours", bgColor: "#FDE68A", textColor: "#92400E" },
+  { value: "closed", label: "Clôturée", bgColor: "#A7F3D0", textColor: "#065F46" },
+];
 
 const TYPE_LABELS: { [key: string]: string } = {
   deliverable: "Livrable",
@@ -122,6 +128,7 @@ export default function RoadmapPage() {
   const [renameValue, setRenameValue] = useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [roadmapToManage, setRoadmapToManage] = useState<Roadmap | null>(null);
+  const [isStatusPopoverOpen, setIsStatusPopoverOpen] = useState(false);
   const [detailItem, setDetailItem] = useState<RoadmapItem | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   
@@ -997,26 +1004,43 @@ export default function RoadmapPage() {
             {(activeRoadmap || selectedRoadmapRef) && (() => {
               const rm = activeRoadmap || (selectedRoadmapRef as any);
               const currentStatus = rm?.status || "planned";
+              const statusOpt = ROADMAP_STATUS_OPTIONS.find(o => o.value === currentStatus) || ROADMAP_STATUS_OPTIONS[0];
               return (
-                <Select
-                  value={currentStatus}
-                  onValueChange={(v) => {
-                    if (canUpdate && activeRoadmap) {
-                      updateRoadmapStatusMutation.mutate({ id: activeRoadmap.id, status: v });
-                    }
-                  }}
-                >
-                  <SelectTrigger className="w-auto h-7 text-xs gap-1 px-2 bg-white dark:bg-card border border-border shadow-sm rounded-md" data-testid="select-roadmap-status-header">
-                    <Badge className={`text-xs pointer-events-none ${ROADMAP_STATUS_LABELS[currentStatus]?.color || ""}`}>
-                      {ROADMAP_STATUS_LABELS[currentStatus]?.label || "Planifiée"}
+                <Popover open={isStatusPopoverOpen} onOpenChange={setIsStatusPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Badge
+                      className="shrink-0 cursor-pointer border-transparent font-medium flex items-center gap-1"
+                      style={{ backgroundColor: statusOpt.bgColor, color: statusOpt.textColor }}
+                      data-testid="badge-roadmap-status"
+                    >
+                      {statusOpt.label}
+                      <ChevronDown className="h-3 w-3 ml-0.5" />
                     </Badge>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="planned">Planifiée</SelectItem>
-                    <SelectItem value="in_progress">En cours</SelectItem>
-                    <SelectItem value="closed">Clôturée</SelectItem>
-                  </SelectContent>
-                </Select>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-44 p-1" align="start">
+                    <div className="space-y-0.5">
+                      {ROADMAP_STATUS_OPTIONS.map(option => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            if (canUpdate && activeRoadmap) {
+                              updateRoadmapStatusMutation.mutate({ id: activeRoadmap.id, status: option.value });
+                            }
+                            setIsStatusPopoverOpen(false);
+                          }}
+                          className={cn(
+                            "flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded-sm hover-elevate transition-colors",
+                            currentStatus === option.value && "bg-muted"
+                          )}
+                          data-testid={`option-roadmap-status-${option.value}`}
+                        >
+                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: option.bgColor, border: `1px solid ${option.textColor}40` }} />
+                          <span>{option.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               );
             })()}
           </div>
