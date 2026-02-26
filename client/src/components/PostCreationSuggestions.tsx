@@ -115,7 +115,7 @@ export function PostCreationSuggestions({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
               onClick={() => setLocation(`/roadmap?projectId=${project.id}`)}
-              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-white to-violet-50 dark:from-gray-800 dark:to-violet-950/20 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:to-violet-100 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
+              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/20 dark:to-violet-800/30 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:from-violet-100 hover:to-violet-150 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
               data-testid="button-suggestion-roadmap"
             >
               <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/30">
@@ -129,7 +129,7 @@ export function PostCreationSuggestions({
 
             <button
               onClick={() => setLocation(`/backlog?projectId=${project.id}`)}
-              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-white to-violet-50 dark:from-gray-800 dark:to-violet-950/20 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:to-violet-100 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
+              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/20 dark:to-violet-800/30 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:from-violet-100 hover:to-violet-150 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
               data-testid="button-suggestion-backlog"
             >
               <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/30">
@@ -143,7 +143,7 @@ export function PostCreationSuggestions({
 
             <button
               onClick={() => setLocation(`/projects/${project.id}?tab=time`)}
-              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-white to-violet-50 dark:from-gray-800 dark:to-violet-950/20 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:to-violet-100 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
+              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/20 dark:to-violet-800/30 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:from-violet-100 hover:to-violet-150 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
               data-testid="button-suggestion-time-tracking"
             >
               <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/30">
@@ -207,7 +207,7 @@ export function PostCreationSuggestions({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
             onClick={onOpenCdcWizard}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-white to-violet-50 dark:from-gray-800 dark:to-violet-950/20 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:to-violet-100 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
+            className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/20 dark:to-violet-800/30 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:from-violet-100 hover:to-violet-150 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
             data-testid="button-suggestion-cdc"
           >
             <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/30">
@@ -221,7 +221,7 @@ export function PostCreationSuggestions({
 
           <button
             onClick={() => setLocation(`/projects/${project.id}?tab=billing`)}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-white to-violet-50 dark:from-gray-800 dark:to-violet-950/20 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:to-violet-100 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
+            className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/20 dark:to-violet-800/30 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:from-violet-100 hover:to-violet-150 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
             data-testid="button-suggestion-billing"
           >
             <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/30">
@@ -235,7 +235,7 @@ export function PostCreationSuggestions({
 
           <button
             onClick={() => setLocation(`/projects/${project.id}?tab=time`)}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-white to-violet-50 dark:from-gray-800 dark:to-violet-950/20 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:to-violet-100 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
+            className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/20 dark:to-violet-800/30 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:from-violet-100 hover:to-violet-150 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
             data-testid="button-suggestion-hypotheses"
           >
             <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/30">

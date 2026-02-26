@@ -467,6 +467,12 @@ function CustomRevenueTooltip({ active, payload, label }: any) {
           </div>
         </>
       )}
+      {prospects.length > 0 && confirmed.length > 0 && (
+        <div className="flex items-center justify-between gap-3 mt-2 pt-2 border-t-2 border-border font-bold text-foreground">
+          <span className="text-xs">Total global</span>
+          <span className="text-xs">{fmt(revenue + hypothesesRevenue)}</span>
+        </div>
+      )}
       {confirmed.length === 0 && prospects.length === 0 && (
         <div className="text-xs text-muted-foreground">Aucun projet</div>
       )}
@@ -1326,20 +1332,47 @@ export default function Dashboard() {
         }
       });
     } else {
-      // Default mode: use project budget at start date (no prospection)
+      // Default mode: use PAID payment dates (same distribution as forecast, but only encaissed)
+      const paymentsByProjectNormal: Record<string, ProjectPayment[]> = {};
+      payments.forEach(p => {
+        if (!paymentsByProjectNormal[p.projectId]) paymentsByProjectNormal[p.projectId] = [];
+        paymentsByProjectNormal[p.projectId].push(p);
+      });
+
       projects.forEach(project => {
         if (project.stage === "prospection") return;
-        const effectiveBudget = project.totalBilled || project.budget;
-        if (project.startDate && effectiveBudget) {
-          const startDate = new Date(project.startDate);
-          if (revenuePeriod === "projection" && startDate < tomorrow) return;
-          const matchingMonth = months.find(
-            m => m.monthIndex === startDate.getMonth() && m.year === startDate.getFullYear()
-          );
-          if (matchingMonth) {
-            addProjectToMonth(matchingMonth.key, project.name, Number(effectiveBudget) || 0);
+        const projectPaymentList = paymentsByProjectNormal[project.id] || [];
+        const paidPayments = projectPaymentList.filter(p => p.isPaid);
+
+        if (paidPayments.length > 0) {
+          // Distribute paid payments at their payment dates
+          paidPayments.forEach(payment => {
+            const payDate = new Date(payment.paymentDate);
+            if (revenuePeriod === "projection" && payDate < tomorrow) return;
+            const matchingMonth = months.find(m => m.monthIndex === payDate.getMonth() && m.year === payDate.getFullYear());
+            if (matchingMonth) {
+              const amount = Number(payment.amount) || 0;
+              monthlyBudgets[matchingMonth.key] += amount;
+              const alreadyCounted = monthlyProjectDetails[matchingMonth.key].some(d => d.name === project.name && !d.isProspect);
+              if (!alreadyCounted) monthlyProjectCounts[matchingMonth.key] += 1;
+              monthlyProjectDetails[matchingMonth.key].push({ name: project.name, amount });
+            }
+          });
+        } else if (projectPaymentList.length === 0) {
+          // No payment schedule defined at all: fall back to project start date with full budget
+          const effectiveBudget = project.totalBilled || project.budget;
+          if (project.startDate && effectiveBudget) {
+            const startDate = new Date(project.startDate);
+            if (revenuePeriod === "projection" && startDate < tomorrow) return;
+            const matchingMonth = months.find(
+              m => m.monthIndex === startDate.getMonth() && m.year === startDate.getFullYear()
+            );
+            if (matchingMonth) {
+              addProjectToMonth(matchingMonth.key, project.name, Number(effectiveBudget) || 0);
+            }
           }
         }
+        // If payments exist but none paid yet → contributes 0 to normal mode (appears only in prévisionnel)
       });
     }
     
