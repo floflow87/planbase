@@ -480,6 +480,12 @@ function CustomRevenueTooltip({ active, payload, label }: any) {
           <span className="text-xs">{fmt(revenue + hypothesesRevenue)}</span>
         </div>
       )}
+      {cumulative > 0 && (
+        <div className="flex items-center justify-between gap-3 mt-2 pt-2 border-t border-border font-semibold text-foreground">
+          <span className="text-xs">CA cumulé (année)</span>
+          <span className="text-xs text-primary">{fmt(cumulative)}</span>
+        </div>
+      )}
       {confirmed.length === 0 && prospects.length === 0 && (
         <div className="text-xs text-muted-foreground">Aucun projet</div>
       )}
@@ -489,10 +495,6 @@ function CustomRevenueTooltip({ active, payload, label }: any) {
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs text-muted-foreground">Seuil franchise</span>
             <span className="text-xs font-medium">{fmt(seuilTVA)}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-xs text-muted-foreground">CA cumulé (année)</span>
-            <span className="text-xs font-medium">{fmt(cumulative)}</span>
           </div>
           {seuilCrossedThisMonth && (
             <div className="flex items-center justify-between gap-3 mt-1 pt-1 border-t border-orange-300 dark:border-orange-700 font-semibold text-orange-600 dark:text-orange-400">
@@ -1446,25 +1448,39 @@ export default function Dashboard() {
     const seuilTVA = tvaConfig?.seuilTVA || 0;
     const tauxTVA = tvaConfig?.tauxTVA || 20;
     const cumulativeByYear: Record<number, number> = {};
+    const cumulativeHypByYear: Record<number, number> = {};
     return revenueData.map(entry => {
       const yr = entry.year;
       if (!cumulativeByYear[yr]) cumulativeByYear[yr] = 0;
+      if (!cumulativeHypByYear[yr]) cumulativeHypByYear[yr] = 0;
       cumulativeByYear[yr] += entry.revenue;
+      cumulativeHypByYear[yr] += entry.revenue + (entry.hypothesesRevenue || 0);
       return {
         ...entry,
         cumulative: cumulativeByYear[yr],
+        cumulativeWithHyp: cumulativeHypByYear[yr],
         seuilTVA,
         tauxTVA
       };
     });
   }, [revenueData, tvaConfig]);
 
-  // Find the month where TVA threshold is crossed (for ReferenceLine)
-  const tvaCrossingMonth = useMemo(() => {
+  // Find month where real confirmed revenue crosses TVA threshold → orange vif
+  const tvaCrossingMonthReal = useMemo(() => {
     const seuilTVA = tvaConfig?.seuilTVA || 0;
     if (!seuilTVA) return null;
     return revenueDataWithTVA.find(e => e.cumulative >= seuilTVA && (e.cumulative - e.revenue) < seuilTVA)?.month ?? null;
   }, [revenueDataWithTVA, tvaConfig]);
+
+  // Find month where forecast (confirmed + opportunités) crosses TVA threshold → orange clair (only if different from real)
+  const tvaCrossingMonthForecast = useMemo(() => {
+    const seuilTVA = tvaConfig?.seuilTVA || 0;
+    if (!seuilTVA) return null;
+    const forecastMonth = revenueDataWithTVA.find(e =>
+      e.cumulativeWithHyp >= seuilTVA && (e.cumulativeWithHyp - e.revenue - (e.hypothesesRevenue || 0)) < seuilTVA
+    )?.month ?? null;
+    return forecastMonth !== tvaCrossingMonthReal ? forecastMonth : null;
+  }, [revenueDataWithTVA, tvaConfig, tvaCrossingMonthReal]);
 
   // Chiffre d'affaires dynamique basé sur la période sélectionnée
   // Il doit être la somme des revenus mensuels affichés dans le graphique
@@ -2174,9 +2190,18 @@ export default function Dashboard() {
                     {showHypotheses && (
                       <Bar dataKey="hypothesesRevenue" stackId="a" radius={[4, 4, 0, 0]} fill="rgb(6, 182, 212)" opacity={0.45} />
                     )}
-                    {tvaCrossingMonth && (
+                    {tvaCrossingMonthForecast && (
                       <ReferenceLine
-                        x={tvaCrossingMonth}
+                        x={tvaCrossingMonthForecast}
+                        stroke="#fdba74"
+                        strokeWidth={2}
+                        strokeDasharray="4 2"
+                        label={{ value: "Seuil TVA (prév.)", position: "insideTopRight", fontSize: 9, fill: "#fdba74" }}
+                      />
+                    )}
+                    {tvaCrossingMonthReal && (
+                      <ReferenceLine
+                        x={tvaCrossingMonthReal}
                         stroke="#f97316"
                         strokeWidth={2}
                         strokeDasharray="4 2"

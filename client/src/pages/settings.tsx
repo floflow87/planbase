@@ -1014,7 +1014,7 @@ export default function Settings() {
       return apiRequest(`/api/config/${key}`, "PUT", { value });
     },
     onSuccess: () => {
-      toast({ title: "Configuration mise à jour" });
+      toast({ title: "Configuration mise à jour", variant: "success" });
       refetchConfig();
     },
     onError: (error: any) => {
