@@ -132,7 +132,7 @@ export function GlobalSearch() {
         </Button>
       ) : (
         <div
-          className="flex items-center gap-2 bg-white dark:bg-card border-2 border-primary rounded-md px-3 py-1.5"
+          className="flex items-center gap-2 bg-white dark:bg-card border border-primary/40 rounded-md px-3 py-1.5"
           style={{ animation: "searchExpand 180ms cubic-bezier(0.4,0,0.2,1) forwards" }}
         >
           <Search className="w-3.5 h-3.5 text-primary shrink-0" />

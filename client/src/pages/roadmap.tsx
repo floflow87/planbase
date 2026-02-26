@@ -1169,7 +1169,7 @@ export default function RoadmapPage() {
                               ),
                               status: (
                                 <td key="status" className="px-4 py-3 hidden md:table-cell">
-                                  <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${statusInfo.color}`}>
+                                  <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium ${statusInfo.color}`}>
                                     {statusInfo.label}
                                   </span>
                                 </td>

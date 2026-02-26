@@ -443,20 +443,20 @@ function QuickCreateMenu() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48 bg-card" data-testid="dropdown-quick-create">
-          <DropdownMenuItem onClick={() => setIsClientSheetOpen(true)} className="cursor-pointer" data-testid="dropdown-new-client">
-            <Users className="w-4 h-4 mr-2" />
+          <DropdownMenuItem onClick={() => setIsClientSheetOpen(true)} className="cursor-pointer py-1 text-xs" data-testid="dropdown-new-client">
+            <Users className="w-3.5 h-3.5 mr-2" />
             Nouveau client
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setIsProjectSheetOpen(true)} className="cursor-pointer" data-testid="dropdown-new-project">
-            <FolderKanban className="w-4 h-4 mr-2" />
+          <DropdownMenuItem onClick={() => setIsProjectSheetOpen(true)} className="cursor-pointer py-1 text-xs" data-testid="dropdown-new-project">
+            <FolderKanban className="w-3.5 h-3.5 mr-2" />
             Nouveau projet
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setIsTaskSheetOpen(true)} className="cursor-pointer" data-testid="dropdown-new-task">
-            <CheckSquare className="w-4 h-4 mr-2" />
+          <DropdownMenuItem onClick={() => setIsTaskSheetOpen(true)} className="cursor-pointer py-1 text-xs" data-testid="dropdown-new-task">
+            <CheckSquare className="w-3.5 h-3.5 mr-2" />
             Nouvelle tâche
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setIsNoteSheetOpen(true)} className="cursor-pointer" data-testid="dropdown-new-note">
-            <StickyNote className="w-4 h-4 mr-2" />
+          <DropdownMenuItem onClick={() => setIsNoteSheetOpen(true)} className="cursor-pointer py-1 text-xs" data-testid="dropdown-new-note">
+            <StickyNote className="w-3.5 h-3.5 mr-2" />
             Nouvelle note
           </DropdownMenuItem>
         </DropdownMenuContent>
