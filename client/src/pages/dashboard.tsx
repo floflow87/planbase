@@ -424,6 +424,56 @@ interface GoogleEvent {
   location?: string;
 }
 
+function CustomRevenueTooltip({ active, payload, label }: any) {
+  if (!active || !payload || !payload.length) return null;
+  const data = payload[0]?.payload;
+  if (!data) return null;
+  const revenue = data.revenue || 0;
+  const hypothesesRevenue = data.hypothesesRevenue || 0;
+  const details: Array<{ name: string; amount: number; isProspect?: boolean }> = data.projectDetails || [];
+  const confirmed = details.filter(d => !d.isProspect);
+  const prospects = details.filter(d => d.isProspect);
+  const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(n) + ' €';
+  return (
+    <div className="bg-card border border-border rounded-md shadow-md p-3 text-sm min-w-[180px] max-w-[260px]">
+      <div className="font-semibold text-foreground mb-2">{label}</div>
+      {confirmed.length > 0 && (
+        <>
+          <div className="text-xs text-muted-foreground uppercase font-medium mb-1">Confirmé</div>
+          {confirmed.map((d, i) => (
+            <div key={i} className="flex items-center justify-between gap-3 text-foreground">
+              <span className="truncate text-xs">{d.name}</span>
+              <span className="text-xs font-medium shrink-0">{fmt(d.amount)}</span>
+            </div>
+          ))}
+          <div className="flex items-center justify-between gap-3 mt-1 pt-1 border-t border-border font-semibold">
+            <span className="text-xs">Total</span>
+            <span className="text-xs text-violet-600 dark:text-violet-400">{fmt(revenue)}</span>
+          </div>
+        </>
+      )}
+      {prospects.length > 0 && (
+        <>
+          <div className="text-xs text-muted-foreground uppercase font-medium mb-1 mt-2">Prospection</div>
+          {prospects.map((d, i) => (
+            <div key={i} className="flex items-center justify-between gap-3 text-muted-foreground">
+              <span className="truncate text-xs">{d.name}</span>
+              <span className="text-xs font-medium shrink-0">{fmt(d.amount)}</span>
+            </div>
+          ))}
+          <div className="flex items-center justify-between gap-3 mt-1 pt-1 border-t border-border font-medium text-muted-foreground">
+            <span className="text-xs">Hypothèse</span>
+            <span className="text-xs text-cyan-600 dark:text-cyan-400">{fmt(hypothesesRevenue)}</span>
+          </div>
+        </>
+      )}
+      {confirmed.length === 0 && prospects.length === 0 && (
+        <div className="text-xs text-muted-foreground">Aucun projet</div>
+      )}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -450,13 +500,20 @@ export default function Dashboard() {
   const [showForecast, setShowForecast] = useState(() => {
     return localStorage.getItem("dashboard_show_forecast") === "true";
   });
+  const [showHypotheses, setShowHypotheses] = useState(() => {
+    return localStorage.getItem("dashboard_show_hypotheses") === "true";
+  });
   
   useEffect(() => {
     localStorage.setItem("dashboard_revenue_period", revenuePeriod);
   }, [revenuePeriod]);
   useEffect(() => {
     localStorage.setItem("dashboard_show_forecast", String(showForecast));
+    if (!showForecast) setShowHypotheses(false);
   }, [showForecast]);
+  useEffect(() => {
+    localStorage.setItem("dashboard_show_hypotheses", String(showHypotheses));
+  }, [showHypotheses]);
   useEffect(() => {
     localStorage.setItem("dashboard_my_day_filter", myDayFilter);
   }, [myDayFilter]);
@@ -1179,19 +1236,38 @@ export default function Dashboard() {
       }
     }
     
-    // Initialize monthly budgets and project counts using unique keys
+    // Initialize monthly budgets, project counts, and project details
     const monthlyBudgets: Record<string, number> = {};
     const monthlyProjectCounts: Record<string, number> = {};
+    const monthlyProjectDetails: Record<string, Array<{ name: string; amount: number; isProspect?: boolean }>> = {};
+    const monthlyHypothesesBudgets: Record<string, number> = {};
     months.forEach(({ key }) => {
       monthlyBudgets[key] = 0;
       monthlyProjectCounts[key] = 0;
+      monthlyProjectDetails[key] = [];
+      monthlyHypothesesBudgets[key] = 0;
     });
     
-    // Sum budgets and count projects by start month (excluding prospection stage)
-    // Pour le mode projection, on prend uniquement les projets à partir de demain
+    // Sum budgets and count projects by start month
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
+
+    const addProjectToMonth = (
+      key: string,
+      projectName: string,
+      amount: number,
+      isProspect = false
+    ) => {
+      if (isProspect) {
+        monthlyHypothesesBudgets[key] += amount;
+        monthlyProjectDetails[key].push({ name: projectName, amount, isProspect: true });
+      } else {
+        monthlyBudgets[key] += amount;
+        monthlyProjectCounts[key] += 1;
+        monthlyProjectDetails[key].push({ name: projectName, amount });
+      }
+    };
     
     if (showForecast) {
       // Forecast mode: distribute revenue across payment dates (all payments, including planned)
@@ -1201,12 +1277,15 @@ export default function Dashboard() {
         paymentsByProject[p.projectId].push(p);
       });
 
-      projects.forEach(project => {
-        if (project.stage === "prospection") return;
+      const projectsToProcess = showHypotheses
+        ? projects
+        : projects.filter(p => p.stage !== "prospection");
+
+      projectsToProcess.forEach(project => {
+        const isProspect = project.stage === "prospection";
         const projectPaymentList = paymentsByProject[project.id] || [];
 
         if (projectPaymentList.length > 0) {
-          let counted = false;
           projectPaymentList.forEach(payment => {
             const payDate = new Date(payment.paymentDate);
             const payMonth = payDate.getMonth();
@@ -1214,8 +1293,17 @@ export default function Dashboard() {
             if (revenuePeriod === "projection" && payDate < tomorrow) return;
             const matchingMonth = months.find(m => m.monthIndex === payMonth && m.year === payYear);
             if (matchingMonth) {
-              monthlyBudgets[matchingMonth.key] += Number(payment.amount) || 0;
-              if (!counted) { monthlyProjectCounts[matchingMonth.key] += 1; counted = true; }
+              const amount = Number(payment.amount) || 0;
+              if (isProspect) {
+                monthlyHypothesesBudgets[matchingMonth.key] += amount;
+                monthlyProjectDetails[matchingMonth.key].push({ name: project.name, amount, isProspect: true });
+              } else {
+                monthlyBudgets[matchingMonth.key] += amount;
+                // Only count the project once per month
+                const alreadyCounted = monthlyProjectDetails[matchingMonth.key].some(d => d.name === project.name && !d.isProspect);
+                if (!alreadyCounted) monthlyProjectCounts[matchingMonth.key] += 1;
+                monthlyProjectDetails[matchingMonth.key].push({ name: project.name, amount });
+              }
             }
           });
         } else {
@@ -1226,32 +1314,24 @@ export default function Dashboard() {
             if (revenuePeriod === "projection" && startDate < tomorrow) return;
             const matchingMonth = months.find(m => m.monthIndex === startDate.getMonth() && m.year === startDate.getFullYear());
             if (matchingMonth) {
-              monthlyBudgets[matchingMonth.key] += Number(effectiveBudget) || 0;
-              monthlyProjectCounts[matchingMonth.key] += 1;
+              addProjectToMonth(matchingMonth.key, project.name, Number(effectiveBudget) || 0, isProspect);
             }
           }
         }
       });
     } else {
-      // Default mode: use project budget at start date
+      // Default mode: use project budget at start date (no prospection)
       projects.forEach(project => {
+        if (project.stage === "prospection") return;
         const effectiveBudget = project.totalBilled || project.budget;
-        if (project.startDate && effectiveBudget && project.stage !== "prospection") {
+        if (project.startDate && effectiveBudget) {
           const startDate = new Date(project.startDate);
-          const projectMonth = startDate.getMonth();
-          const projectYear = startDate.getFullYear();
-
-          if (revenuePeriod === "projection") {
-            if (startDate < tomorrow) return;
-          }
-
+          if (revenuePeriod === "projection" && startDate < tomorrow) return;
           const matchingMonth = months.find(
-            m => m.monthIndex === projectMonth && m.year === projectYear
+            m => m.monthIndex === startDate.getMonth() && m.year === startDate.getFullYear()
           );
-
           if (matchingMonth) {
-            monthlyBudgets[matchingMonth.key] += Number(effectiveBudget) || 0;
-            monthlyProjectCounts[matchingMonth.key] += 1;
+            addProjectToMonth(matchingMonth.key, project.name, Number(effectiveBudget) || 0);
           }
         }
       });
@@ -1259,6 +1339,7 @@ export default function Dashboard() {
     
     return months.map(({ month, key, year }) => {
       const revenue = monthlyBudgets[key];
+      const hypothesesRevenue = monthlyHypothesesBudgets[key];
       // Calculate violet gradient color based on budget (max 20K)
       const intensity = Math.min(revenue / 20000, 1);
       // Violet gradient from light (#E9D5FF) to dark (#7C3AED)
@@ -1276,11 +1357,13 @@ export default function Dashboard() {
       return {
         month: monthLabel,
         revenue,
+        hypothesesRevenue,
         projectCount: monthlyProjectCounts[key],
+        projectDetails: monthlyProjectDetails[key],
         fill
       };
     });
-  }, [projects, payments, revenuePeriod, showForecast]);
+  }, [projects, payments, revenuePeriod, showForecast, showHypotheses]);
 
   // Chiffre d'affaires dynamique basé sur la période sélectionnée
   // Il doit être la somme des revenus mensuels affichés dans le graphique
@@ -1940,7 +2023,7 @@ export default function Dashboard() {
                 Revenus Mensuels
               </CardTitle>
               <div className="flex items-center gap-3 flex-wrap">
-                <label className="flex items-center gap-1.5 cursor-pointer select-none" data-testid="toggle-forecast">
+                <label className="flex items-center gap-1.5 cursor-pointer select-none" data-testid="toggle-forecast" title="Répartit le CA selon les échéances de paiement planifiées">
                   <Switch
                     checked={showForecast}
                     onCheckedChange={setShowForecast}
@@ -1948,6 +2031,16 @@ export default function Dashboard() {
                   />
                   <span className="text-xs text-muted-foreground whitespace-nowrap">Prévisionnels</span>
                 </label>
+                {showForecast && (
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none" data-testid="toggle-hypotheses" title="Inclut les projets en prospection (cyan) en hypothèse de CA">
+                    <Switch
+                      checked={showHypotheses}
+                      onCheckedChange={setShowHypotheses}
+                      id="toggle-hypotheses"
+                    />
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">Hypothèses</span>
+                  </label>
+                )}
                 <Select value={revenuePeriod} onValueChange={(value: "full_year" | "last_year" | "until_this_month" | "projection" | "6months" | "quarter") => setRevenuePeriod(value)}>
                   <SelectTrigger className="w-[180px] bg-card" data-testid="select-revenue-period">
                     <SelectValue />
@@ -1970,31 +2063,15 @@ export default function Dashboard() {
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="month" tick={{ fill: "hsl(var(--muted-foreground))" }} />
                     <YAxis tick={{ fill: "hsl(var(--muted-foreground))" }} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                      }}
-                      formatter={(value: number, name: string, props: any) => {
-                        const projectCount = props.payload?.projectCount || 0;
-                        if (name === 'revenue') {
-                          return [
-                            `${new Intl.NumberFormat('fr-FR').format(value)} €`,
-                            'CA'
-                          ];
-                        }
-                        return [value, name];
-                      }}
-                      labelFormatter={(label) => {
-                        const item = revenueData.find(d => d.month === label);
-                        return `${label} - ${item?.projectCount || 0} projet${(item?.projectCount || 0) > 1 ? 's' : ''}`;
-                      }}
-                    />
-                    <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
+                    <Tooltip content={<CustomRevenueTooltip />} />
+                    <Bar dataKey="revenue" stackId="a" radius={showHypotheses ? [0, 0, 0, 0] : [4, 4, 0, 0]}>
                       {revenueData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
                     </Bar>
+                    {showHypotheses && (
+                      <Bar dataKey="hypothesesRevenue" stackId="a" radius={[4, 4, 0, 0]} fill="rgb(6, 182, 212)" opacity={0.45} />
+                    )}
                   </BarChart>
                 </ResponsiveContainer>
               </div>

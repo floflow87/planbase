@@ -115,43 +115,43 @@ export function PostCreationSuggestions({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
               onClick={() => setLocation(`/roadmap?projectId=${project.id}`)}
-              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]"
+              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-white to-violet-50 dark:from-gray-800 dark:to-violet-950/20 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:to-violet-100 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
               data-testid="button-suggestion-roadmap"
             >
-              <div className="p-3 rounded-full bg-white/20">
-                <Map className="h-5 w-5 text-white" />
+              <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/30">
+                <Map className="h-5 w-5 text-violet-600 dark:text-violet-400" />
               </div>
               <div>
-                <div className="font-medium text-sm text-white">Roadmap</div>
-                <div className="text-xs text-white/80 mt-1">Visualiser les phases et milestones du projet</div>
+                <div className="font-medium text-sm text-foreground">Roadmap</div>
+                <div className="text-xs text-muted-foreground mt-1">Visualiser les phases et milestones du projet</div>
               </div>
             </button>
 
             <button
               onClick={() => setLocation(`/backlog?projectId=${project.id}`)}
-              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]"
+              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-white to-violet-50 dark:from-gray-800 dark:to-violet-950/20 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:to-violet-100 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
               data-testid="button-suggestion-backlog"
             >
-              <div className="p-3 rounded-full bg-white/20">
-                <ListTodo className="h-5 w-5 text-white" />
+              <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/30">
+                <ListTodo className="h-5 w-5 text-violet-600 dark:text-violet-400" />
               </div>
               <div>
-                <div className="font-medium text-sm text-white">Backlog</div>
-                <div className="text-xs text-white/80 mt-1">Gérer les tickets et sprints</div>
+                <div className="font-medium text-sm text-foreground">Backlog</div>
+                <div className="text-xs text-muted-foreground mt-1">Gérer les tickets et sprints</div>
               </div>
             </button>
 
             <button
               onClick={() => setLocation(`/projects/${project.id}?tab=time`)}
-              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]"
+              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-white to-violet-50 dark:from-gray-800 dark:to-violet-950/20 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:to-violet-100 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
               data-testid="button-suggestion-time-tracking"
             >
-              <div className="p-3 rounded-full bg-white/20">
-                <Clock className="h-5 w-5 text-white" />
+              <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/30">
+                <Clock className="h-5 w-5 text-violet-600 dark:text-violet-400" />
               </div>
               <div>
-                <div className="font-medium text-sm text-white">Temps vs CDC</div>
-                <div className="text-xs text-white/80 mt-1">Suivre le temps passé vs estimé</div>
+                <div className="font-medium text-sm text-foreground">Temps vs CDC</div>
+                <div className="text-xs text-muted-foreground mt-1">Suivre le temps passé vs estimé</div>
               </div>
             </button>
           </div>
@@ -207,43 +207,43 @@ export function PostCreationSuggestions({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
             onClick={onOpenCdcWizard}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]"
+            className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-white to-violet-50 dark:from-gray-800 dark:to-violet-950/20 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:to-violet-100 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
             data-testid="button-suggestion-cdc"
           >
-            <div className="p-3 rounded-full bg-white/20">
-              <FileText className="h-5 w-5 text-white" />
+            <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/30">
+              <FileText className="h-5 w-5 text-violet-600 dark:text-violet-400" />
             </div>
             <div>
-              <div className="font-medium text-sm text-white">CDC guidé</div>
-              <div className="text-xs text-white/80 mt-1">Structure et estime l'effort</div>
+              <div className="font-medium text-sm text-foreground">CDC guidé</div>
+              <div className="text-xs text-muted-foreground mt-1">Structure et estime l'effort</div>
             </div>
           </button>
 
           <button
             onClick={() => setLocation(`/projects/${project.id}?tab=billing`)}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]"
+            className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-white to-violet-50 dark:from-gray-800 dark:to-violet-950/20 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:to-violet-100 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
             data-testid="button-suggestion-billing"
           >
-            <div className="p-3 rounded-full bg-white/20">
-              <Calculator className="h-5 w-5 text-white" />
+            <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/30">
+              <Calculator className="h-5 w-5 text-violet-600 dark:text-violet-400" />
             </div>
             <div>
-              <div className="font-medium text-sm text-white">Facturation</div>
-              <div className="text-xs text-white/80 mt-1">{BILLING_MODE_LABELS[billingMode]} (modifiable)</div>
+              <div className="font-medium text-sm text-foreground">Facturation</div>
+              <div className="text-xs text-muted-foreground mt-1">{BILLING_MODE_LABELS[billingMode]} (modifiable)</div>
             </div>
           </button>
 
           <button
             onClick={() => setLocation(`/projects/${project.id}?tab=time`)}
-            className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]"
+            className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-white to-violet-50 dark:from-gray-800 dark:to-violet-950/20 border border-violet-200 dark:border-violet-700 text-foreground hover:border-violet-400 dark:hover:border-violet-500 hover:to-violet-100 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
             data-testid="button-suggestion-hypotheses"
           >
-            <div className="p-3 rounded-full bg-white/20">
-              <BarChart3 className="h-5 w-5 text-white" />
+            <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/30">
+              <BarChart3 className="h-5 w-5 text-violet-600 dark:text-violet-400" />
             </div>
             <div>
-              <div className="font-medium text-sm text-white">Hypothèses</div>
-              <div className="text-xs text-white/80 mt-1">TJM, part facturable, risque</div>
+              <div className="font-medium text-sm text-foreground">Hypothèses</div>
+              <div className="text-xs text-muted-foreground mt-1">TJM, part facturable, risque</div>
             </div>
           </button>
         </div>

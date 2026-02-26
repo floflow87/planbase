@@ -847,7 +847,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                 </TooltipTrigger>
                 <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Niveau de titre</TooltipContent>
               </Tooltip>
-              <DropdownMenuContent align="start" className="bg-popover">
+              <DropdownMenuContent align="start" className="bg-white dark:bg-gray-900">
                 <DropdownMenuItem
                   onClick={() => editor.chain().focus().setParagraph().run()}
                   className={!editor.isActive('heading') ? 'bg-accent' : ''}
@@ -1004,7 +1004,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                     </TooltipTrigger>
                     <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Alignement du texte</TooltipContent>
                   </Tooltip>
-                  <DropdownMenuContent align="start" className="bg-popover">
+                  <DropdownMenuContent align="start" className="bg-white dark:bg-gray-900">
                     <DropdownMenuItem
                       onClick={() => editor.chain().focus().setTextAlign('left').run()}
                       className={editor.isActive({ textAlign: 'left' }) ? 'bg-accent' : ''}
@@ -1194,7 +1194,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                 </TooltipTrigger>
                 <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Type de liste</TooltipContent>
               </Tooltip>
-              <DropdownMenuContent align="start" className="bg-popover">
+              <DropdownMenuContent align="start" className="bg-white dark:bg-gray-900">
                 <DropdownMenuItem
                   onClick={() => editor.chain().focus().toggleBulletList().run()}
                   className={editor.isActive('bulletList') ? 'bg-accent' : ''}

@@ -1274,19 +1274,19 @@ export default function NoteDetail() {
                       placeholder="Sans titre"
                       data-testid="input-note-title-header"
                     />
-                    <Badge 
-                      variant="outline" 
-                      className={`shrink-0 ${
-                        status === "draft" 
-                          ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
-                          : status === "archived"
-                          ? "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800"
-                          : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
-                      }`}
-                      data-testid="badge-status"
-                    >
-                      {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Active"}
-                    </Badge>
+                    {status !== "draft" && (
+                      <Badge 
+                        variant="outline" 
+                        className={`shrink-0 ${
+                          status === "archived"
+                            ? "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800"
+                            : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+                        }`}
+                        data-testid="badge-status"
+                      >
+                        {status === "archived" ? "Archivée" : "Active"}
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     {/* Project selector */}
