@@ -483,36 +483,39 @@ function CustomRevenueTooltip({ active, payload, label }: any) {
       {confirmed.length === 0 && prospects.length === 0 && (
         <div className="text-xs text-muted-foreground">Aucun projet</div>
       )}
-      {hasTVA && (
-        <div className="mt-2 pt-2 border-t border-border">
-          <div className="text-xs text-muted-foreground uppercase font-medium mb-1">TVA</div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-xs text-muted-foreground">Seuil franchise</span>
-            <span className="text-xs font-medium">{fmt(seuilTVA)}</span>
-          </div>
-          {!seuilCrossedThisMonth && !alreadyOverSeuil && (
-            <div className="flex items-center justify-between gap-3 mt-0.5">
-              <span className="text-xs text-muted-foreground">Reste avant franchise</span>
-              <span className="text-xs font-medium text-green-600 dark:text-green-400">{fmt(Math.max(0, seuilTVA - cumulative))}</span>
-            </div>
-          )}
-          {seuilCrossedThisMonth && (
-            <div className="flex items-center justify-between gap-3 mt-1 pt-1 border-t border-orange-300 dark:border-orange-700 font-semibold text-orange-600 dark:text-orange-400">
-              <span className="text-xs">Seuil dépassé — TVA à déclarer</span>
-              <span className="text-xs">{fmt(revenue * tauxTVA / 100)}</span>
-            </div>
-          )}
-          {alreadyOverSeuil && (
-            <div className="mt-1 text-xs text-orange-600 dark:text-orange-400 font-medium">
-              Seuil dépassé depuis un mois précédent
-            </div>
-          )}
-        </div>
-      )}
       <div className="flex items-center justify-between gap-3 mt-2 pt-2 border-t border-border font-semibold text-foreground">
         <span className="text-xs">CA réel cumulé</span>
         <span className="text-xs text-primary">{fmt(cumulative)}</span>
       </div>
+      {hasTVA && (
+        <>
+          <hr className="my-2 border-border/40" />
+          <div>
+            <div className="text-xs text-muted-foreground uppercase font-medium mb-1">TVA</div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs text-muted-foreground">Seuil franchise</span>
+              <span className="text-xs font-medium">{fmt(seuilTVA)}</span>
+            </div>
+            {!seuilCrossedThisMonth && !alreadyOverSeuil && (
+              <div className="flex items-center justify-between gap-3 mt-0.5">
+                <span className="text-xs text-muted-foreground">Reste avant franchise</span>
+                <span className="text-xs font-medium text-green-600 dark:text-green-400">{fmt(Math.max(0, seuilTVA - cumulative))}</span>
+              </div>
+            )}
+            {seuilCrossedThisMonth && (
+              <div className="flex items-center justify-between gap-3 mt-1 pt-1 border-t border-orange-300 dark:border-orange-700 font-semibold text-orange-600 dark:text-orange-400">
+                <span className="text-xs">Seuil dépassé — TVA à déclarer</span>
+                <span className="text-xs">{fmt(revenue * tauxTVA / 100)}</span>
+              </div>
+            )}
+            {alreadyOverSeuil && (
+              <div className="mt-1 text-xs text-orange-600 dark:text-orange-400 font-medium">
+                Seuil dépassé depuis un mois précédent
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

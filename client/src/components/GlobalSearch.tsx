@@ -31,7 +31,7 @@ export function GlobalSearch() {
   const { data: projects = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/projects"] });
   const { data: notes = [] } = useQuery<{ id: string; title: string }[]>({ queryKey: ["/api/notes"] });
   const { data: backlogs = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/backlogs"] });
-  const { data: documents = [] } = useQuery<{ id: string; title: string }[]>({ queryKey: ["/api/documents"] });
+  const { data: documents = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/documents"] });
   const { data: roadmaps = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/roadmaps"] });
 
   const q = query.trim().toLowerCase();
@@ -68,9 +68,9 @@ export function GlobalSearch() {
     {
       category: "documents",
       results: documents
-        .filter(d => !q || d.title?.toLowerCase().includes(q))
+        .filter(d => !q || d.name?.toLowerCase().includes(q))
         .slice(0, 4)
-        .map(d => ({ id: d.id, label: d.title, category: "documents", href: `/documents/${d.id}` })),
+        .map(d => ({ id: d.id, label: d.name, category: "documents", href: `/documents/${d.id}` })),
     },
     {
       category: "roadmaps",
@@ -131,14 +131,18 @@ export function GlobalSearch() {
           <Search className="w-4 h-4 text-muted-foreground" />
         </Button>
       ) : (
-        <div className="flex items-center gap-1 bg-muted/50 border border-border rounded-md px-2 py-0.5 w-56">
+        <div
+          className="flex items-center gap-1 bg-muted/50 border border-border rounded-md px-2 py-0.5"
+          style={{ animation: "searchExpand 180ms cubic-bezier(0.4,0,0.2,1) forwards" }}
+        >
           <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           <input
             ref={inputRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Rechercher…"
-            className="bg-transparent text-xs outline-none placeholder:text-muted-foreground w-full text-foreground"
+            className="bg-transparent text-xs outline-none placeholder:text-muted-foreground w-full text-foreground min-w-0"
+            style={{ width: "13rem" }}
             data-testid="input-global-search"
             onKeyDown={e => e.key === "Escape" && setOpen(false)}
           />

@@ -325,9 +325,16 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
         </div>
       )}
       
-      <span className="flex-1 truncate text-xs font-medium" data-testid={`ticket-title-${ticket.id}`}>
-        {ticket.title}
-      </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="flex-1 min-w-0 truncate text-xs font-medium" data-testid={`ticket-title-${ticket.id}`}>
+            {ticket.title}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md max-w-xs">
+          <p className="text-xs">{ticket.title}</p>
+        </TooltipContent>
+      </Tooltip>
       
       {/* Right columns container with larger spacing */}
       <div className="flex items-center gap-4">
@@ -1440,7 +1447,7 @@ export function SprintSection({
               onClearSelection={onClearSelection}
             />
           )}
-          <div className="divide-y divide-border/50">
+          <div className="divide-y divide-border/50 overflow-x-hidden">
             {tickets.map(ticket => (
               <TicketRow 
                 key={`${ticket.type}-${ticket.id}`}
@@ -1680,7 +1687,7 @@ export function BacklogPool({
               onClearSelection={onClearSelection}
             />
           )}
-          <div className="divide-y divide-border/50">
+          <div className="divide-y divide-border/50 overflow-x-hidden">
             {tickets.map(ticket => (
               <TicketRow 
                 key={`${ticket.type}-${ticket.id}`}

@@ -611,3 +611,14 @@
     animation: none;
   }
 }
+
+@keyframes searchExpand {
+  from {
+    width: 2rem;
+    opacity: 0.5;
+  }
+  to {
+    width: 15rem;
+    opacity: 1;
+  }
+}
