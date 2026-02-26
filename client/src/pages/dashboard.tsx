@@ -2149,7 +2149,7 @@ export default function Dashboard() {
 
         {/* Revenue Chart */}
         {isBlockVisible('revenueChart') && (
-          <Card className={`${getBlockColSpanById('revenueChart')} overflow-hidden flex flex-col`} style={{ order: getBlockOrder('revenueChart') }}>
+          <Card className={`${getBlockColSpanById('revenueChart')} flex flex-col`} style={{ order: getBlockOrder('revenueChart') }}>
             <CardHeader className="pb-0 space-y-0">
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="text-base font-heading font-semibold">
@@ -2190,13 +2190,13 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent className="min-w-0 text-[12px] flex-1 flex flex-col justify-end pt-2">
-              <div className="w-full overflow-hidden">
+              <div className="w-full overflow-visible">
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={revenueDataWithTVA}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="month" tick={{ fill: "hsl(var(--muted-foreground))" }} />
                     <YAxis tick={{ fill: "hsl(var(--muted-foreground))" }} />
-                    <Tooltip content={<CustomRevenueTooltip />} allowEscapeViewBox={{ x: false, y: true }} />
+                    <Tooltip content={<CustomRevenueTooltip />} allowEscapeViewBox={{ x: true, y: true }} wrapperStyle={{ zIndex: 200, pointerEvents: 'none' }} />
                     <Bar dataKey="revenue" stackId="a" radius={showHypotheses ? [0, 0, 0, 0] : [4, 4, 0, 0]}>
                       {revenueDataWithTVA.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />

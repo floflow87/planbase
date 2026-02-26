@@ -158,16 +158,16 @@ export function GlobalSearch() {
               const meta = CATEGORY_META[group.category];
               const Icon = meta.icon;
               return (
-                <div key={group.category}>
-                  <div className="flex items-center gap-1.5 px-3 pt-2.5 pb-1">
+                <div key={group.category} className="mb-1">
+                  <div className="flex items-center gap-1.5 px-3 pt-3 pb-1">
                     <Icon className={`w-3 h-3 ${meta.color}`} />
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{meta.label}</span>
+                    <span className={`text-[10px] font-bold uppercase tracking-wide ${meta.color}`}>{meta.label}</span>
                   </div>
                   {group.results.map(result => (
                     <button
                       key={result.id}
                       onClick={() => handleSelect(result.href)}
-                      className="w-full text-left px-3 py-1.5 text-xs text-foreground hover-elevate rounded-none flex items-center gap-2 truncate"
+                      className="w-full text-left px-4 py-1.5 text-xs text-foreground hover-elevate rounded-none flex items-center gap-2 truncate"
                       data-testid={`search-result-${result.category}-${result.id}`}
                     >
                       <span className="truncate">{result.label}</span>
