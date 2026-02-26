@@ -480,12 +480,6 @@ function CustomRevenueTooltip({ active, payload, label }: any) {
           <span className="text-xs">{fmt(revenue + hypothesesRevenue)}</span>
         </div>
       )}
-      {cumulative > 0 && (
-        <div className="flex items-center justify-between gap-3 mt-2 pt-2 border-t border-border font-semibold text-foreground">
-          <span className="text-xs">CA cumulé (année)</span>
-          <span className="text-xs text-primary">{fmt(cumulative)}</span>
-        </div>
-      )}
       {confirmed.length === 0 && prospects.length === 0 && (
         <div className="text-xs text-muted-foreground">Aucun projet</div>
       )}
@@ -509,6 +503,10 @@ function CustomRevenueTooltip({ active, payload, label }: any) {
           )}
         </div>
       )}
+      <div className="flex items-center justify-between gap-3 mt-2 pt-2 border-t border-border font-semibold text-foreground">
+        <span className="text-xs">CA cumulé (année)</span>
+        <span className="text-xs text-primary">{fmt(cumulative)}</span>
+      </div>
     </div>
   );
 }
@@ -1413,7 +1411,7 @@ export default function Dashboard() {
       });
     }
     
-    return months.map(({ month, key, year }) => {
+    return months.map(({ month, key, year, monthIndex }) => {
       const revenue = monthlyBudgets[key];
       const hypothesesRevenue = monthlyHypothesesBudgets[key];
       // Calculate violet gradient color based on budget (max 20K)
@@ -1432,6 +1430,7 @@ export default function Dashboard() {
       
       return {
         month: monthLabel,
+        monthIndex,
         year,
         revenue,
         hypothesesRevenue,
@@ -1442,44 +1441,112 @@ export default function Dashboard() {
     });
   }, [projects, payments, revenuePeriod, showForecast, showHypotheses]);
 
-  // Enrich revenueData with TVA cumulative and threshold info per year
+  // Pre-compute confirmed revenue per year-month covering ALL months of each year
+  // (independent of chart period — used for proper TVA year-to-date cumulative)
+  const confirmedRevenueByYearMonth = useMemo(() => {
+    const result: Record<string, number> = {};
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    projects.forEach(project => {
+      if (project.stage === "prospection") return;
+      const projectPayments = payments.filter(p => p.projectId === project.id);
+      if (projectPayments.length > 0) {
+        projectPayments.forEach(p => {
+          const payDate = new Date(p.paymentDate);
+          if (!p.isPaid && payDate > today) return;
+          const key = `${payDate.getFullYear()}-${payDate.getMonth()}`;
+          result[key] = (result[key] || 0) + (Number(p.amount) || 0);
+        });
+      } else {
+        const effectiveBudget = Number((project as any).totalBilled || project.budget) || 0;
+        if (project.startDate && effectiveBudget) {
+          const d = new Date(project.startDate);
+          const key = `${d.getFullYear()}-${d.getMonth()}`;
+          result[key] = (result[key] || 0) + effectiveBudget;
+        }
+      }
+    });
+    return result;
+  }, [projects, payments]);
+
+  // Pre-compute forecast revenue (confirmed + hypotheses) per year-month covering ALL months
+  const forecastRevenueByYearMonth = useMemo(() => {
+    const result: Record<string, number> = {};
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    projects.forEach(project => {
+      const projectPayments = payments.filter(p => p.projectId === project.id);
+      const isProspect = project.stage === "prospection";
+      if (projectPayments.length > 0) {
+        projectPayments.forEach(p => {
+          const payDate = new Date(p.paymentDate);
+          // For confirmed: same as normal mode; for prospects: include all future
+          if (!isProspect && !p.isPaid && payDate > today) return;
+          const key = `${payDate.getFullYear()}-${payDate.getMonth()}`;
+          result[key] = (result[key] || 0) + (Number(p.amount) || 0);
+        });
+      } else {
+        const effectiveBudget = Number((project as any).totalBilled || project.budget) || 0;
+        if (project.startDate && effectiveBudget) {
+          const d = new Date(project.startDate);
+          const key = `${d.getFullYear()}-${d.getMonth()}`;
+          result[key] = (result[key] || 0) + effectiveBudget;
+        }
+      }
+    });
+    return result;
+  }, [projects, payments]);
+
+  // Enrich revenueData with TVA cumulative from Jan 1 of each year (not just chart start)
   const tvaConfig = (thresholds as any)?.tva as { typeEntreprise?: string; seuilTVA?: number; tauxTVA?: number } | undefined;
   const revenueDataWithTVA = useMemo(() => {
     const seuilTVA = tvaConfig?.seuilTVA || 0;
     const tauxTVA = tvaConfig?.tauxTVA || 20;
-    const cumulativeByYear: Record<number, number> = {};
-    const cumulativeHypByYear: Record<number, number> = {};
     return revenueData.map(entry => {
       const yr = entry.year;
-      if (!cumulativeByYear[yr]) cumulativeByYear[yr] = 0;
-      if (!cumulativeHypByYear[yr]) cumulativeHypByYear[yr] = 0;
-      cumulativeByYear[yr] += entry.revenue;
-      cumulativeHypByYear[yr] += entry.revenue + (entry.hypothesesRevenue || 0);
+      const mo = (entry as any).monthIndex as number;
+      // Sum confirmed revenue from January (month 0) to current month inclusive
+      let cumulative = 0;
+      for (let m = 0; m <= mo; m++) {
+        cumulative += confirmedRevenueByYearMonth[`${yr}-${m}`] || 0;
+      }
+      // Sum forecast revenue (confirmed + hypotheses) from January to current month
+      let cumulativeWithHyp = 0;
+      for (let m = 0; m <= mo; m++) {
+        cumulativeWithHyp += forecastRevenueByYearMonth[`${yr}-${m}`] || 0;
+      }
       return {
         ...entry,
-        cumulative: cumulativeByYear[yr],
-        cumulativeWithHyp: cumulativeHypByYear[yr],
+        cumulative,
+        cumulativeWithHyp,
         seuilTVA,
         tauxTVA
       };
     });
-  }, [revenueData, tvaConfig]);
+  }, [revenueData, tvaConfig, confirmedRevenueByYearMonth, forecastRevenueByYearMonth]);
 
   // Find month where real confirmed revenue crosses TVA threshold → orange vif
   const tvaCrossingMonthReal = useMemo(() => {
     const seuilTVA = tvaConfig?.seuilTVA || 0;
     if (!seuilTVA) return null;
-    return revenueDataWithTVA.find(e => e.cumulative >= seuilTVA && (e.cumulative - e.revenue) < seuilTVA)?.month ?? null;
+    for (let i = 0; i < revenueDataWithTVA.length; i++) {
+      const e = revenueDataWithTVA[i];
+      const prev = i > 0 ? revenueDataWithTVA[i - 1].cumulative : 0;
+      if (e.cumulative >= seuilTVA && prev < seuilTVA) return e.month;
+    }
+    return null;
   }, [revenueDataWithTVA, tvaConfig]);
 
-  // Find month where forecast (confirmed + opportunités) crosses TVA threshold → orange clair (only if different from real)
+  // Find month where forecast (confirmed + hypotheses) crosses TVA threshold → orange clair
   const tvaCrossingMonthForecast = useMemo(() => {
     const seuilTVA = tvaConfig?.seuilTVA || 0;
     if (!seuilTVA) return null;
-    const forecastMonth = revenueDataWithTVA.find(e =>
-      e.cumulativeWithHyp >= seuilTVA && (e.cumulativeWithHyp - e.revenue - (e.hypothesesRevenue || 0)) < seuilTVA
-    )?.month ?? null;
-    return forecastMonth !== tvaCrossingMonthReal ? forecastMonth : null;
+    for (let i = 0; i < revenueDataWithTVA.length; i++) {
+      const e = revenueDataWithTVA[i];
+      const prev = i > 0 ? revenueDataWithTVA[i - 1].cumulativeWithHyp : 0;
+      if (e.cumulativeWithHyp >= seuilTVA && prev < seuilTVA) {
+        return e.month !== tvaCrossingMonthReal ? e.month : null;
+      }
+    }
+    return null;
   }, [revenueDataWithTVA, tvaConfig, tvaCrossingMonthReal]);
 
   // Chiffre d'affaires dynamique basé sur la période sélectionnée
