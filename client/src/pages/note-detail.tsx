@@ -47,7 +47,7 @@ interface TicketItem {
 }
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useDebounce } from "@/hooks/use-debounce";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, X } from "lucide-react";
@@ -1265,13 +1265,18 @@ export default function NoteDetail() {
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-xl font-bold text-foreground truncate mb-2">
-                    {title || "Sans titre"}
-                  </h1>
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 min-w-0 mb-2">
+                    <input
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      className="flex-1 min-w-0 text-xl font-bold bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground"
+                      placeholder="Sans titre"
+                      data-testid="input-note-title-header"
+                    />
                     <Badge 
                       variant="outline" 
-                      className={`${
+                      className={`shrink-0 ${
                         status === "draft" 
                           ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
                           : status === "archived"
@@ -1282,12 +1287,14 @@ export default function NoteDetail() {
                     >
                       {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Active"}
                     </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
                     {/* Project selector */}
                     <div className="flex items-center">
                       <Button
                         variant="outline"
                         size="sm"
-                        className={`h-6 px-2 text-xs gap-1 ${currentProject ? 'rounded-none border-r-0' : ''}`}
+                        className={`h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900 ${currentProject ? 'rounded-none border-r-0' : ''}`}
                         onClick={() => {
                           setEntitySelectorTab("project");
                           setEntitySelectorOpen(true);
@@ -1331,7 +1338,7 @@ export default function NoteDetail() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className={`h-6 px-2 text-xs gap-1 ${currentClient ? 'rounded-r-none border-r-0' : ''}`}
+                        className={`h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900 ${currentClient ? 'rounded-r-none border-r-0' : ''}`}
                         onClick={() => {
                           setEntitySelectorTab("client");
                           setEntitySelectorOpen(true);
@@ -1467,7 +1474,7 @@ export default function NoteDetail() {
                           selected={note?.noteDate ? new Date(note.noteDate) : undefined}
                           onSelect={(date) => {
                             if (date) {
-                              updateNoteDateMutation.mutate(date.toISOString().split('T')[0]);
+                              updateNoteDateMutation.mutate(format(date, 'yyyy-MM-dd'));
                             }
                           }}
                           initialFocus
@@ -1877,8 +1884,6 @@ export default function NoteDetail() {
             ref={editorRef}
             content={content}
             onChange={setContent}
-            title={title}
-            onTitleChange={setTitle}
             editable={isEditMode}
             placeholder="Commencez à écrire votre note..."
           />

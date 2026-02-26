@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, Check, ChevronsUpDown, X, Star, ChevronDown, Users, Eye } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, Check, X, Star, ChevronDown, Users, Eye, FolderKanban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -18,7 +18,7 @@ import NoteEditor, { type NoteEditorRef } from "@/components/NoteEditor";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { InsertNote, Project } from "@shared/schema";
+import type { InsertNote, Project, Client } from "@shared/schema";
 import { useDebounce } from "@/hooks/use-debounce";
 import { VoiceRecordingButton } from "@/components/VoiceRecordingButton";
 
@@ -38,10 +38,15 @@ export default function NoteNew() {
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
   const [isEditMode, setIsEditMode] = useState(true);
   const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
+  const [clientSelectorOpen, setClientSelectorOpen] = useState(false);
+  const [pendingProject, setPendingProject] = useState<Project | null>(null);
+  const [pendingClient, setPendingClient] = useState<Client | null>(null);
 
   // Stable ref for noteId to avoid autosave race conditions
   const noteIdRef = useRef<string | null>(null);
   const isCreatingRef = useRef(false);
+  const pendingProjectIdRef = useRef<string | null>(null);
+  const pendingClientIdRef = useRef<string | null>(null);
 
   // Editor ref for voice recording
   const editorRef = useRef<NoteEditorRef>(null);
@@ -90,6 +95,11 @@ export default function NoteNew() {
     queryKey: ["/api/projects"],
   });
 
+  // Fetch clients for linking
+  const { data: clients = [] } = useQuery<Client[]>({
+    queryKey: ["/api/clients"],
+  });
+
   // Debounced values for autosave
   const debouncedTitle = useDebounce(title, 1000);
   const debouncedContent = useDebounce(content, 1000);
@@ -101,7 +111,6 @@ export default function NoteNew() {
       return await response.json();
     },
     onSuccess: (data) => {
-      // Set noteIdRef FIRST before updating any state
       noteIdRef.current = data.id;
       setNoteId(data.id);
       isCreatingRef.current = false;
@@ -110,7 +119,24 @@ export default function NoteNew() {
       setIsSaving(false);
       setIsManualSaving(false);
       
-      // Redirect to edit mode to prevent duplicate creation
+      // Link pending project/client (fire and forget)
+      if (pendingProjectIdRef.current) {
+        apiRequest("/api/entity-links", "POST", {
+          sourceId: data.id,
+          sourceType: "note",
+          targetId: pendingProjectIdRef.current,
+          targetType: "project",
+        });
+      }
+      if (pendingClientIdRef.current) {
+        apiRequest("/api/entity-links", "POST", {
+          sourceId: data.id,
+          sourceType: "note",
+          targetId: pendingClientIdRef.current,
+          targetType: "client",
+        });
+      }
+
       navigate(`/notes/${data.id}`);
     },
     onError: (error: any) => {
@@ -377,22 +403,139 @@ export default function NoteNew() {
                 </Button>
               </Link>
               <div className="flex-1 min-w-0">
-                <h1 className="text-2xl font-bold text-foreground truncate mb-2">
-                  {title || "Nouvelle note"}
-                </h1>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0 mb-2">
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="flex-1 min-w-0 text-xl font-bold bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground"
+                    placeholder="Nouvelle note"
+                    data-testid="input-note-title-header"
+                    autoFocus
+                  />
                   <Badge 
                     variant="outline" 
-                    className={
+                    className={`shrink-0 ${
                       status === "draft" 
                         ? "bg-gray-100 text-gray-700 border-gray-200"
                         : status === "archived"
                         ? "bg-orange-50 text-orange-700 border-orange-200"
                         : "bg-green-50 text-green-700 border-green-200"
-                    }
+                    }`}
                   >
                     {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Active"}
                   </Badge>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Project selector */}
+                  <div className="flex items-center">
+                    <Popover open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={`h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900 ${pendingProject ? 'rounded-r-none border-r-0' : ''}`}
+                          data-testid="button-select-project"
+                        >
+                          <FolderKanban className="w-3 h-3 text-violet-500" />
+                          <span className="truncate max-w-[100px]">
+                            {pendingProject ? pendingProject.name : "Projet"}
+                          </span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[280px] p-0 bg-white dark:bg-background" align="start">
+                        <Command>
+                          <CommandInput placeholder="Rechercher un projet..." />
+                          <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                          <CommandGroup className="max-h-[300px] overflow-y-auto">
+                            {projects.map((project) => (
+                              <CommandItem
+                                key={project.id}
+                                onSelect={() => {
+                                  setPendingProject(project);
+                                  pendingProjectIdRef.current = project.id;
+                                  setProjectSelectorOpen(false);
+                                }}
+                                data-testid={`option-project-${project.id}`}
+                              >
+                                <Check className={`w-3 h-3 mr-2 ${pendingProject?.id === project.id ? 'opacity-100' : 'opacity-0'}`} />
+                                <div className="font-medium truncate">{project.name}</div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    {pendingProject && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 w-6 p-0 rounded-l-none"
+                        onClick={() => {
+                          setPendingProject(null);
+                          pendingProjectIdRef.current = null;
+                        }}
+                        data-testid="button-unselect-project"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                  {/* Client selector */}
+                  <div className="flex items-center">
+                    <Popover open={clientSelectorOpen} onOpenChange={setClientSelectorOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={`h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900 ${pendingClient ? 'rounded-r-none border-r-0' : ''}`}
+                          data-testid="button-select-client"
+                        >
+                          <Users className="w-3 h-3 text-cyan-500" />
+                          <span className="truncate max-w-[100px]">
+                            {pendingClient ? pendingClient.name : "Client"}
+                          </span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[280px] p-0 bg-white dark:bg-background" align="start">
+                        <Command>
+                          <CommandInput placeholder="Rechercher un client..." />
+                          <CommandEmpty>Aucun client trouvé.</CommandEmpty>
+                          <CommandGroup className="max-h-[300px] overflow-y-auto">
+                            {clients.map((client) => (
+                              <CommandItem
+                                key={client.id}
+                                onSelect={() => {
+                                  setPendingClient(client);
+                                  pendingClientIdRef.current = client.id;
+                                  setClientSelectorOpen(false);
+                                }}
+                                data-testid={`option-client-${client.id}`}
+                              >
+                                <Check className={`w-3 h-3 mr-2 ${pendingClient?.id === client.id ? 'opacity-100' : 'opacity-0'}`} />
+                                <div className="font-medium truncate">{client.name}</div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    {pendingClient && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 w-6 p-0 rounded-l-none"
+                        onClick={() => {
+                          setPendingClient(null);
+                          pendingClientIdRef.current = null;
+                        }}
+                        data-testid="button-unselect-client"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                  {/* Visibility + save status */}
                   
                   {/* Visibility Dropdown */}
                   <DropdownMenu>
@@ -546,48 +689,6 @@ export default function NoteNew() {
             </div>
           </div>
 
-          {/* Project Selector */}
-          <div className="flex items-center gap-2">
-            <Label className="text-sm text-muted-foreground">Projet:</Label>
-            <Popover open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={projectSelectorOpen}
-                  className="justify-between min-w-[200px]"
-                  data-testid="button-select-project"
-                >
-                  Sélectionner un projet
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-0 bg-white dark:bg-background">
-                <Command>
-                  <CommandInput placeholder="Rechercher un projet..." />
-                  <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
-                  <CommandGroup className="max-h-[300px] overflow-y-auto bg-[#ffffff]">
-                    {projects.map((project) => (
-                      <CommandItem
-                        key={project.id}
-                        onSelect={() => setProjectSelectorOpen(false)}
-                        data-testid={`option-project-${project.id}`}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{project.name}</div>
-                          {project.description && (
-                            <div className="text-xs text-muted-foreground truncate">
-                              {project.description}
-                            </div>
-                          )}
-                        </div>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
         </div>
       </div>
 
@@ -599,8 +700,6 @@ export default function NoteNew() {
             ref={editorRef}
             content={content}
             onChange={setContent}
-            title={title}
-            onTitleChange={setTitle}
             editable={isEditMode}
           />
         </div>

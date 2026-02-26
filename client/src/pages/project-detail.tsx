@@ -5202,7 +5202,7 @@ export default function ProjectDetail() {
                     </p>
                   ) : (
                     <div className="space-y-2">
-                      {payments.map((payment) => (
+                      {[...payments].sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()).map((payment) => (
                         <div
                           key={payment.id}
                           className="flex items-center justify-between p-3 rounded-lg border bg-card hover-elevate"
