@@ -15,7 +15,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format as formatDate } from "date-fns";
 import { fr } from "date-fns/locale";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
+import { useConfig } from "@/hooks/useConfig";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { useForm } from "react-hook-form";
@@ -433,9 +434,15 @@ function CustomRevenueTooltip({ active, payload, label }: any) {
   const details: Array<{ name: string; amount: number; isProspect?: boolean }> = data.projectDetails || [];
   const confirmed = details.filter(d => !d.isProspect);
   const prospects = details.filter(d => d.isProspect);
-  const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(n) + ' €';
+  const cumulative: number = data.cumulative ?? 0;
+  const seuilTVA: number = data.seuilTVA ?? 0;
+  const tauxTVA: number = data.tauxTVA ?? 20;
+  const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' €';
+  const hasTVA = seuilTVA > 0;
+  const seuilCrossedThisMonth = hasTVA && cumulative >= seuilTVA && (cumulative - revenue) < seuilTVA;
+  const alreadyOverSeuil = hasTVA && cumulative >= seuilTVA && !seuilCrossedThisMonth;
   return (
-    <div className="bg-card border border-border rounded-md shadow-md p-3 text-sm min-w-[180px] max-w-[260px]">
+    <div className="bg-card border border-border rounded-md shadow-md p-3 text-sm min-w-[180px] max-w-[280px]">
       <div className="font-semibold text-foreground mb-2">{label}</div>
       {confirmed.length > 0 && (
         <>
@@ -448,7 +455,7 @@ function CustomRevenueTooltip({ active, payload, label }: any) {
           ))}
           <div className="flex items-center justify-between gap-3 mt-1 pt-1 border-t border-border font-semibold">
             <span className="text-xs">Total</span>
-            <span className="text-xs text-violet-600 dark:text-violet-400">{fmt(revenue)}</span>
+            <span className="text-xs text-primary">{fmt(revenue)}</span>
           </div>
         </>
       )}
@@ -463,7 +470,7 @@ function CustomRevenueTooltip({ active, payload, label }: any) {
           ))}
           <div className="flex items-center justify-between gap-3 mt-1 pt-1 border-t border-border font-medium text-muted-foreground">
             <span className="text-xs">Total opportunités</span>
-            <span className="text-xs text-cyan-600 dark:text-cyan-400">{fmt(hypothesesRevenue)}</span>
+            <span className="text-xs text-violet-400 dark:text-violet-300">{fmt(hypothesesRevenue)}</span>
           </div>
         </>
       )}
@@ -475,6 +482,30 @@ function CustomRevenueTooltip({ active, payload, label }: any) {
       )}
       {confirmed.length === 0 && prospects.length === 0 && (
         <div className="text-xs text-muted-foreground">Aucun projet</div>
+      )}
+      {hasTVA && (
+        <div className="mt-2 pt-2 border-t border-border">
+          <div className="text-xs text-muted-foreground uppercase font-medium mb-1">TVA</div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs text-muted-foreground">Seuil franchise</span>
+            <span className="text-xs font-medium">{fmt(seuilTVA)}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs text-muted-foreground">CA cumulé (année)</span>
+            <span className="text-xs font-medium">{fmt(cumulative)}</span>
+          </div>
+          {seuilCrossedThisMonth && (
+            <div className="flex items-center justify-between gap-3 mt-1 pt-1 border-t border-orange-300 dark:border-orange-700 font-semibold text-orange-600 dark:text-orange-400">
+              <span className="text-xs">Seuil dépassé — TVA à déclarer</span>
+              <span className="text-xs">{fmt(revenue * tauxTVA / 100)}</span>
+            </div>
+          )}
+          {alreadyOverSeuil && (
+            <div className="mt-1 text-xs text-orange-600 dark:text-orange-400 font-medium">
+              Seuil dépassé depuis un mois précédent
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -509,6 +540,8 @@ export default function Dashboard() {
   const [showHypotheses, setShowHypotheses] = useState(() => {
     return localStorage.getItem("dashboard_show_hypotheses") === "true";
   });
+
+  const { thresholds } = useConfig();
   
   useEffect(() => {
     localStorage.setItem("dashboard_revenue_period", revenuePeriod);
@@ -1397,6 +1430,7 @@ export default function Dashboard() {
       
       return {
         month: monthLabel,
+        year,
         revenue,
         hypothesesRevenue,
         projectCount: monthlyProjectCounts[key],
@@ -1405,6 +1439,32 @@ export default function Dashboard() {
       };
     });
   }, [projects, payments, revenuePeriod, showForecast, showHypotheses]);
+
+  // Enrich revenueData with TVA cumulative and threshold info per year
+  const tvaConfig = (thresholds as any)?.tva as { typeEntreprise?: string; seuilTVA?: number; tauxTVA?: number } | undefined;
+  const revenueDataWithTVA = useMemo(() => {
+    const seuilTVA = tvaConfig?.seuilTVA || 0;
+    const tauxTVA = tvaConfig?.tauxTVA || 20;
+    const cumulativeByYear: Record<number, number> = {};
+    return revenueData.map(entry => {
+      const yr = entry.year;
+      if (!cumulativeByYear[yr]) cumulativeByYear[yr] = 0;
+      cumulativeByYear[yr] += entry.revenue;
+      return {
+        ...entry,
+        cumulative: cumulativeByYear[yr],
+        seuilTVA,
+        tauxTVA
+      };
+    });
+  }, [revenueData, tvaConfig]);
+
+  // Find the month where TVA threshold is crossed (for ReferenceLine)
+  const tvaCrossingMonth = useMemo(() => {
+    const seuilTVA = tvaConfig?.seuilTVA || 0;
+    if (!seuilTVA) return null;
+    return revenueDataWithTVA.find(e => e.cumulative >= seuilTVA && (e.cumulative - e.revenue) < seuilTVA)?.month ?? null;
+  }, [revenueDataWithTVA, tvaConfig]);
 
   // Chiffre d'affaires dynamique basé sur la période sélectionnée
   // Il doit être la somme des revenus mensuels affichés dans le graphique
@@ -2101,18 +2161,27 @@ export default function Dashboard() {
             <CardContent className="min-w-0 text-[12px] flex-1 flex flex-col justify-end pt-2">
               <div className="w-full overflow-hidden">
                 <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={revenueData}>
+                  <BarChart data={revenueDataWithTVA}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="month" tick={{ fill: "hsl(var(--muted-foreground))" }} />
                     <YAxis tick={{ fill: "hsl(var(--muted-foreground))" }} />
                     <Tooltip content={<CustomRevenueTooltip />} />
                     <Bar dataKey="revenue" stackId="a" radius={showHypotheses ? [0, 0, 0, 0] : [4, 4, 0, 0]}>
-                      {revenueData.map((entry, index) => (
+                      {revenueDataWithTVA.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
                     </Bar>
                     {showHypotheses && (
                       <Bar dataKey="hypothesesRevenue" stackId="a" radius={[4, 4, 0, 0]} fill="rgb(6, 182, 212)" opacity={0.45} />
+                    )}
+                    {tvaCrossingMonth && (
+                      <ReferenceLine
+                        x={tvaCrossingMonth}
+                        stroke="#f97316"
+                        strokeWidth={2}
+                        strokeDasharray="4 2"
+                        label={{ value: "Seuil TVA", position: "insideTopRight", fontSize: 10, fill: "#f97316" }}
+                      />
                     )}
                   </BarChart>
                 </ResponsiveContainer>

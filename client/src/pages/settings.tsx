@@ -87,6 +87,11 @@ interface ThresholdConfig {
   project?: {
     overdueWarningDays?: number;
   };
+  tva?: {
+    typeEntreprise?: "BNC" | "BIC";
+    seuilTVA?: number;
+    tauxTVA?: number;
+  };
 }
 
 function ConfigEditor({ 
@@ -511,6 +516,9 @@ function ThresholdEditor({
   const [billingWarning, setBillingWarning] = useState("30");
   const [billingCritical, setBillingCritical] = useState("60");
   const [projectOverdue, setProjectOverdue] = useState("7");
+  const [typeEntreprise, setTypeEntreprise] = useState<"BNC" | "BIC" | "">("");
+  const [seuilTVA, setSeuilTVA] = useState("");
+  const [tauxTVA, setTauxTVA] = useState("20");
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
@@ -518,6 +526,9 @@ function ThresholdEditor({
       setBillingWarning(thresholds.billing?.warningDays?.toString() || "30");
       setBillingCritical(thresholds.billing?.criticalDays?.toString() || "60");
       setProjectOverdue(thresholds.project?.overdueWarningDays?.toString() || "7");
+      setTypeEntreprise(thresholds.tva?.typeEntreprise || "");
+      setSeuilTVA(thresholds.tva?.seuilTVA?.toString() || "");
+      setTauxTVA(thresholds.tva?.tauxTVA?.toString() || "20");
     }
   }, [thresholds, hasChanges]);
 
@@ -529,6 +540,11 @@ function ThresholdEditor({
       },
       project: {
         overdueWarningDays: parseInt(projectOverdue)
+      },
+      tva: {
+        typeEntreprise: typeEntreprise || undefined,
+        seuilTVA: seuilTVA ? parseFloat(seuilTVA) : undefined,
+        tauxTVA: tauxTVA ? parseFloat(tauxTVA) : 20
       }
     });
     setHasChanges(false);
@@ -536,6 +552,12 @@ function ThresholdEditor({
 
   const handleChange = (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setter(e.target.value);
+    setHasChanges(true);
+  };
+
+  const handleTypeEntrepriseChange = (val: "BNC" | "BIC") => {
+    setTypeEntreprise(val);
+    setSeuilTVA(val === "BNC" ? "37500" : "85000");
     setHasChanges(true);
   };
 
@@ -567,7 +589,7 @@ function ThresholdEditor({
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label htmlFor="billingWarning" className="text-xs flex items-center gap-2">
@@ -613,6 +635,57 @@ function ThresholdEditor({
               className="max-w-[120px]"
               data-testid="input-project-overdue"
             />
+          </div>
+        </div>
+
+        <div className="border-t border-border pt-4">
+          <p className="text-xs font-medium text-muted-foreground uppercase mb-3 flex items-center gap-1.5">
+            <DollarSign className="w-3 h-3" />
+            TVA auto-entrepreneur
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs">Régime fiscal</Label>
+              <Select
+                value={typeEntreprise}
+                onValueChange={(v: "BNC" | "BIC") => handleTypeEntrepriseChange(v)}
+              >
+                <SelectTrigger className="max-w-[120px] text-xs" data-testid="select-type-entreprise">
+                  <SelectValue placeholder="Choisir" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BNC" className="text-xs">BNC</SelectItem>
+                  <SelectItem value="BIC" className="text-xs">BIC</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="seuilTVA" className="text-xs">Seuil de franchise TVA (€)</Label>
+              <Input
+                id="seuilTVA"
+                type="number"
+                min="0"
+                value={seuilTVA}
+                onChange={handleChange(setSeuilTVA)}
+                placeholder="ex: 37500"
+                className="max-w-[140px]"
+                data-testid="input-seuil-tva"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tauxTVA" className="text-xs">Taux TVA (%)</Label>
+              <Input
+                id="tauxTVA"
+                type="number"
+                min="0"
+                max="100"
+                value={tauxTVA}
+                onChange={handleChange(setTauxTVA)}
+                placeholder="20"
+                className="max-w-[120px]"
+                data-testid="input-taux-tva"
+              />
+            </div>
           </div>
         </div>
       </CardContent>
