@@ -454,7 +454,7 @@ function CustomRevenueTooltip({ active, payload, label }: any) {
       )}
       {prospects.length > 0 && (
         <>
-          <div className="text-xs text-muted-foreground uppercase font-medium mb-1 mt-2">Prospection</div>
+          <div className="text-xs text-muted-foreground uppercase font-medium mb-1 mt-2">Opportunités</div>
           {prospects.map((d, i) => (
             <div key={i} className="flex items-center justify-between gap-3 text-muted-foreground">
               <span className="truncate text-xs">{d.name}</span>
@@ -462,7 +462,7 @@ function CustomRevenueTooltip({ active, payload, label }: any) {
             </div>
           ))}
           <div className="flex items-center justify-between gap-3 mt-1 pt-1 border-t border-border font-medium text-muted-foreground">
-            <span className="text-xs">Hypothèse</span>
+            <span className="text-xs">Total opportunités</span>
             <span className="text-xs text-cyan-600 dark:text-cyan-400">{fmt(hypothesesRevenue)}</span>
           </div>
         </>
@@ -1277,12 +1277,18 @@ export default function Dashboard() {
         paymentsByProject[p.projectId].push(p);
       });
 
+      const OPPORTUNITE_BILLING_STATUSES = ["brouillon", "devis_envoye", "devis_accepte", "bon_commande", "facture"];
+
       const projectsToProcess = showHypotheses
         ? projects
         : projects.filter(p => p.stage !== "prospection");
 
       projectsToProcess.forEach(project => {
         const isProspect = project.stage === "prospection";
+        // Opportunités: only prospection projects with eligible billing statuses
+        if (isProspect) {
+          if (!project.billingStatus || !OPPORTUNITE_BILLING_STATUSES.includes(project.billingStatus)) return;
+        }
         const projectPaymentList = paymentsByProject[project.id] || [];
 
         if (projectPaymentList.length > 0) {
@@ -1387,10 +1393,10 @@ export default function Dashboard() {
     }
     
     // Somme des revenus mensuels du graphique (déjà filtrés par période et stage)
-    const revenue = revenueData.reduce((sum, month) => sum + month.revenue, 0);
+    const revenue = revenueData.reduce((sum, month) => sum + month.revenue + (showHypotheses ? (month.hypothesesRevenue || 0) : 0), 0);
     
     return { revenue, label };
-  }, [revenueData, revenuePeriod]);
+  }, [revenueData, revenuePeriod, showHypotheses]);
 
   // CA Potentiel = Tous les projets en prospection (passés, futurs, non datés)
   // Ce sont les projets non signés qui représentent du chiffre potentiel
@@ -2018,31 +2024,13 @@ export default function Dashboard() {
         {/* Revenue Chart */}
         {isBlockVisible('revenueChart') && (
           <Card className={`${getBlockColSpanById('revenueChart')} overflow-hidden flex flex-col`} style={{ order: getBlockOrder('revenueChart') }}>
-            <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-0">
-              <CardTitle className="text-base font-heading font-semibold">
-                Revenus Mensuels
-              </CardTitle>
-              <div className="flex items-center gap-3 flex-wrap">
-                <label className="flex items-center gap-1.5 cursor-pointer select-none" data-testid="toggle-forecast" title="Répartit le CA selon les échéances de paiement planifiées">
-                  <Switch
-                    checked={showForecast}
-                    onCheckedChange={setShowForecast}
-                    id="toggle-forecast"
-                  />
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">Prévisionnels</span>
-                </label>
-                {showForecast && (
-                  <label className="flex items-center gap-1.5 cursor-pointer select-none" data-testid="toggle-hypotheses" title="Inclut les projets en prospection (cyan) en hypothèse de CA">
-                    <Switch
-                      checked={showHypotheses}
-                      onCheckedChange={setShowHypotheses}
-                      id="toggle-hypotheses"
-                    />
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">Hypothèses</span>
-                  </label>
-                )}
+            <CardHeader className="pb-0 space-y-0">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-base font-heading font-semibold">
+                  Revenus Mensuels
+                </CardTitle>
                 <Select value={revenuePeriod} onValueChange={(value: "full_year" | "last_year" | "until_this_month" | "projection" | "6months" | "quarter") => setRevenuePeriod(value)}>
-                  <SelectTrigger className="w-[180px] bg-card" data-testid="select-revenue-period">
+                  <SelectTrigger className="w-[160px] bg-card" data-testid="select-revenue-period">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -2054,6 +2042,25 @@ export default function Dashboard() {
                     <SelectItem value="quarter">Trimestre actuel</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="flex items-center gap-4 mt-2">
+                <label className="flex items-center gap-1.5 cursor-pointer select-none" data-testid="toggle-forecast" title="Afficher les échéances de paiements non encaissés des projets signés.">
+                  <Switch
+                    checked={showForecast}
+                    onCheckedChange={setShowForecast}
+                    id="toggle-forecast"
+                  />
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">Prévisionnels</span>
+                </label>
+                <label className={`flex items-center gap-1.5 select-none ${showForecast ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`} data-testid="toggle-opportunites" title="Inclure les projets en prospection qualifiés comme opportunités de CA">
+                  <Switch
+                    checked={showHypotheses}
+                    onCheckedChange={showForecast ? setShowHypotheses : undefined}
+                    id="toggle-opportunites"
+                    disabled={!showForecast}
+                  />
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">Opportunités</span>
+                </label>
               </div>
             </CardHeader>
             <CardContent className="min-w-0 text-[12px] flex-1 flex flex-col justify-end pt-2">

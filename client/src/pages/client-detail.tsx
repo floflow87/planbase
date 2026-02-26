@@ -1045,10 +1045,10 @@ export default function ClientDetail() {
                         </Badge>
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-48 p-0 bg-popover" align="start">
+                    <PopoverContent className="w-48 p-0 bg-white dark:bg-gray-900" align="start">
                       <Command>
                         <CommandList>
-                          <CommandGroup className="bg-popover">
+                          <CommandGroup className="bg-white dark:bg-gray-900">
                             {[
                               { value: "prospecting", label: "Prospect", color: "bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400" },
                               { value: "qualified", label: "Qualifié", color: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400" },
