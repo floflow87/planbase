@@ -490,6 +490,12 @@ function CustomRevenueTooltip({ active, payload, label }: any) {
             <span className="text-xs text-muted-foreground">Seuil franchise</span>
             <span className="text-xs font-medium">{fmt(seuilTVA)}</span>
           </div>
+          {!seuilCrossedThisMonth && !alreadyOverSeuil && (
+            <div className="flex items-center justify-between gap-3 mt-0.5">
+              <span className="text-xs text-muted-foreground">Reste avant franchise</span>
+              <span className="text-xs font-medium text-green-600 dark:text-green-400">{fmt(Math.max(0, seuilTVA - cumulative))}</span>
+            </div>
+          )}
           {seuilCrossedThisMonth && (
             <div className="flex items-center justify-between gap-3 mt-1 pt-1 border-t border-orange-300 dark:border-orange-700 font-semibold text-orange-600 dark:text-orange-400">
               <span className="text-xs">Seuil dépassé — TVA à déclarer</span>
@@ -1441,89 +1447,31 @@ export default function Dashboard() {
     });
   }, [projects, payments, revenuePeriod, showForecast, showHypotheses]);
 
-  // Pre-compute confirmed revenue per year-month covering ALL months of each year
-  // (independent of chart period — used for proper TVA year-to-date cumulative)
-  const confirmedRevenueByYearMonth = useMemo(() => {
-    const result: Record<string, number> = {};
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    projects.forEach(project => {
-      if (project.stage === "prospection") return;
-      const projectPayments = payments.filter(p => p.projectId === project.id);
-      if (projectPayments.length > 0) {
-        projectPayments.forEach(p => {
-          const payDate = new Date(p.paymentDate);
-          if (!p.isPaid && payDate > today) return;
-          const key = `${payDate.getFullYear()}-${payDate.getMonth()}`;
-          result[key] = (result[key] || 0) + (Number(p.amount) || 0);
-        });
-      } else {
-        const effectiveBudget = Number((project as any).totalBilled || project.budget) || 0;
-        if (project.startDate && effectiveBudget) {
-          const d = new Date(project.startDate);
-          const key = `${d.getFullYear()}-${d.getMonth()}`;
-          result[key] = (result[key] || 0) + effectiveBudget;
-        }
-      }
-    });
-    return result;
-  }, [projects, payments]);
-
-  // Pre-compute forecast revenue (confirmed + hypotheses) per year-month covering ALL months
-  const forecastRevenueByYearMonth = useMemo(() => {
-    const result: Record<string, number> = {};
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    projects.forEach(project => {
-      const projectPayments = payments.filter(p => p.projectId === project.id);
-      const isProspect = project.stage === "prospection";
-      if (projectPayments.length > 0) {
-        projectPayments.forEach(p => {
-          const payDate = new Date(p.paymentDate);
-          // For confirmed: same as normal mode; for prospects: include all future
-          if (!isProspect && !p.isPaid && payDate > today) return;
-          const key = `${payDate.getFullYear()}-${payDate.getMonth()}`;
-          result[key] = (result[key] || 0) + (Number(p.amount) || 0);
-        });
-      } else {
-        const effectiveBudget = Number((project as any).totalBilled || project.budget) || 0;
-        if (project.startDate && effectiveBudget) {
-          const d = new Date(project.startDate);
-          const key = `${d.getFullYear()}-${d.getMonth()}`;
-          result[key] = (result[key] || 0) + effectiveBudget;
-        }
-      }
-    });
-    return result;
-  }, [projects, payments]);
-
-  // Enrich revenueData with TVA cumulative from Jan 1 of each year (not just chart start)
+  // Enrich revenueData with TVA cumulative — running sum of entry.revenue (same as chart bars),
+  // reset per year. Always in sync with what is displayed, no separate recalculation.
   const tvaConfig = (thresholds as any)?.tva as { typeEntreprise?: string; seuilTVA?: number; tauxTVA?: number } | undefined;
   const revenueDataWithTVA = useMemo(() => {
     const seuilTVA = tvaConfig?.seuilTVA || 0;
     const tauxTVA = tvaConfig?.tauxTVA || 20;
+    const cumulByYear: Record<number, number> = {};
+    const cumulHypByYear: Record<number, number> = {};
     return revenueData.map(entry => {
       const yr = entry.year;
-      const mo = (entry as any).monthIndex as number;
-      // Sum confirmed revenue from January (month 0) to current month inclusive
-      let cumulative = 0;
-      for (let m = 0; m <= mo; m++) {
-        cumulative += confirmedRevenueByYearMonth[`${yr}-${m}`] || 0;
-      }
-      // Sum forecast revenue (confirmed + hypotheses) from January to current month
-      let cumulativeWithHyp = 0;
-      for (let m = 0; m <= mo; m++) {
-        cumulativeWithHyp += forecastRevenueByYearMonth[`${yr}-${m}`] || 0;
-      }
+      if (cumulByYear[yr] === undefined) cumulByYear[yr] = 0;
+      if (cumulHypByYear[yr] === undefined) cumulHypByYear[yr] = 0;
+      cumulByYear[yr] += entry.revenue;
+      cumulHypByYear[yr] += entry.revenue + (entry.hypothesesRevenue || 0);
       return {
         ...entry,
-        cumulative,
-        cumulativeWithHyp,
+        cumulative: cumulByYear[yr],
+        cumulativeWithHyp: cumulHypByYear[yr],
         seuilTVA,
         tauxTVA
       };
     });
-  }, [revenueData, tvaConfig, confirmedRevenueByYearMonth, forecastRevenueByYearMonth]);
+  }, [revenueData, tvaConfig]);
 
-  // Find month where real confirmed revenue crosses TVA threshold → orange vif
+  // Month where confirmed revenue crosses TVA threshold → orange vif
   const tvaCrossingMonthReal = useMemo(() => {
     const seuilTVA = tvaConfig?.seuilTVA || 0;
     if (!seuilTVA) return null;
@@ -1535,7 +1483,7 @@ export default function Dashboard() {
     return null;
   }, [revenueDataWithTVA, tvaConfig]);
 
-  // Find month where forecast (confirmed + hypotheses) crosses TVA threshold → orange clair
+  // Month where forecast (confirmed + opportunités) crosses TVA threshold → orange clair
   const tvaCrossingMonthForecast = useMemo(() => {
     const seuilTVA = tvaConfig?.seuilTVA || 0;
     if (!seuilTVA) return null;
