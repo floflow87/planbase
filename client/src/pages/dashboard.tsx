@@ -1342,10 +1342,12 @@ export default function Dashboard() {
       projects.forEach(project => {
         if (project.stage === "prospection") return;
         const projectPaymentList = paymentsByProjectNormal[project.id] || [];
-        const paidPayments = projectPaymentList.filter(p => p.isPaid);
+        // A payment is "received" if explicitly marked isPaid, OR if its date is in the past
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const paidPayments = projectPaymentList.filter(p => p.isPaid || new Date(p.paymentDate) <= today);
 
         if (paidPayments.length > 0) {
-          // Distribute paid payments at their payment dates
+          // Distribute paid/past payments at their payment dates
           paidPayments.forEach(payment => {
             const payDate = new Date(payment.paymentDate);
             if (revenuePeriod === "projection" && payDate < tomorrow) return;
@@ -2063,16 +2065,16 @@ export default function Dashboard() {
                   Revenus Mensuels
                 </CardTitle>
                 <Select value={revenuePeriod} onValueChange={(value: "full_year" | "last_year" | "until_this_month" | "projection" | "6months" | "quarter") => setRevenuePeriod(value)}>
-                  <SelectTrigger className="w-[160px] bg-card" data-testid="select-revenue-period">
+                  <SelectTrigger className="w-[160px] bg-card text-xs" data-testid="select-revenue-period">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="full_year">Année 2026</SelectItem>
-                    <SelectItem value="last_year">Année dernière (2025)</SelectItem>
-                    <SelectItem value="until_this_month">Jusqu'à ce mois</SelectItem>
-                    <SelectItem value="projection">Projection</SelectItem>
-                    <SelectItem value="6months">6 derniers mois</SelectItem>
-                    <SelectItem value="quarter">Trimestre actuel</SelectItem>
+                    <SelectItem value="full_year" className="text-xs">Année 2026</SelectItem>
+                    <SelectItem value="last_year" className="text-xs">Année dernière (2025)</SelectItem>
+                    <SelectItem value="until_this_month" className="text-xs">Jusqu'à ce mois</SelectItem>
+                    <SelectItem value="projection" className="text-xs">Projection</SelectItem>
+                    <SelectItem value="6months" className="text-xs">6 derniers mois</SelectItem>
+                    <SelectItem value="quarter" className="text-xs">Trimestre actuel</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
