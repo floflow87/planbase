@@ -1440,7 +1440,11 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
                               <>
                                 {/* Resize handle - left */}
                                 <div
-                                  className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize bg-primary/30 group-hover/bar:bg-primary/60 hover:bg-primary/80 rounded-l-md transition-colors z-10 flex items-center justify-center"
+                                  className={cn(
+                                    "absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize rounded-l-md transition-colors z-10 flex items-center justify-center",
+                                    !item.epicColor && "bg-primary/30 group-hover/bar:bg-primary/60 hover:bg-primary/80"
+                                  )}
+                                  style={item.epicColor ? { backgroundColor: `${item.epicColor}55` } : undefined}
                                   onMouseDown={(e) => {
                                     e.stopPropagation();
                                     handleDragStart(e, item, "resize-start");
@@ -1451,7 +1455,11 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
                                 </div>
                                 {/* Resize handle - right */}
                                 <div
-                                  className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize bg-primary/30 group-hover/bar:bg-primary/60 hover:bg-primary/80 rounded-r-md transition-colors z-10 flex items-center justify-center"
+                                  className={cn(
+                                    "absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize rounded-r-md transition-colors z-10 flex items-center justify-center",
+                                    !item.epicColor && "bg-primary/30 group-hover/bar:bg-primary/60 hover:bg-primary/80"
+                                  )}
+                                  style={item.epicColor ? { backgroundColor: `${item.epicColor}55` } : undefined}
                                   onMouseDown={(e) => {
                                     e.stopPropagation();
                                     handleDragStart(e, item, "resize-end");
@@ -1462,7 +1470,11 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
                                 </div>
                                 {/* Dependency connector - left (incoming) */}
                                 <div
-                                  className="absolute -left-5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-violet-500 border-2 border-white shadow-md cursor-crosshair hover:scale-150 hover:bg-violet-600 transition-all z-20 flex items-center justify-center"
+                                  className={cn(
+                                    "absolute -left-5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-white shadow-md cursor-crosshair hover:scale-150 transition-all z-20 flex items-center justify-center",
+                                    !item.epicColor && "bg-violet-500"
+                                  )}
+                                  style={item.epicColor ? { backgroundColor: item.epicColor } : undefined}
                                   onMouseDown={(e) => handleDepDragStart(e, item.id, "start")}
                                   data-testid={`dependency-in-${item.id}`}
                                   data-dep-item-id={item.id}
@@ -1473,7 +1485,11 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
                                 </div>
                                 {/* Dependency connector - right (outgoing) */}
                                 <div
-                                  className="absolute -right-5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-violet-500 border-2 border-white shadow-md cursor-crosshair hover:scale-150 hover:bg-violet-600 transition-all z-20 flex items-center justify-center"
+                                  className={cn(
+                                    "absolute -right-5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-white shadow-md cursor-crosshair hover:scale-150 transition-all z-20 flex items-center justify-center",
+                                    !item.epicColor && "bg-violet-500"
+                                  )}
+                                  style={item.epicColor ? { backgroundColor: item.epicColor } : undefined}
                                   onMouseDown={(e) => handleDepDragStart(e, item.id, "end")}
                                   data-testid={`dependency-out-${item.id}`}
                                   data-dep-item-id={item.id}

@@ -994,27 +994,31 @@ export default function RoadmapPage() {
                 <Badge className="bg-primary text-primary-foreground text-[10px] px-2 py-0 shrink-0 font-normal">{selectedProject.name}</Badge>
               </>
             )}
-            {activeRoadmap && (
-              <Select
-                value={(activeRoadmap as any).status || "planned"}
-                onValueChange={(v) => {
-                  if (canUpdate) {
-                    updateRoadmapStatusMutation.mutate({ id: activeRoadmap.id, status: v });
-                  }
-                }}
-              >
-                <SelectTrigger className="w-auto h-7 text-xs gap-1 px-2 bg-white dark:bg-card border border-border shadow-sm rounded-md" data-testid="select-roadmap-status-header">
-                  <Badge className={`text-xs pointer-events-none ${ROADMAP_STATUS_LABELS[(activeRoadmap as any).status || "planned"]?.color || ""}`}>
-                    {ROADMAP_STATUS_LABELS[(activeRoadmap as any).status || "planned"]?.label || "Planifiée"}
-                  </Badge>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="planned">Planifiée</SelectItem>
-                  <SelectItem value="in_progress">En cours</SelectItem>
-                  <SelectItem value="closed">Clôturée</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
+            {(activeRoadmap || selectedRoadmapRef) && (() => {
+              const rm = activeRoadmap || (selectedRoadmapRef as any);
+              const currentStatus = rm?.status || "planned";
+              return (
+                <Select
+                  value={currentStatus}
+                  onValueChange={(v) => {
+                    if (canUpdate && activeRoadmap) {
+                      updateRoadmapStatusMutation.mutate({ id: activeRoadmap.id, status: v });
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-auto h-7 text-xs gap-1 px-2 bg-white dark:bg-card border border-border shadow-sm rounded-md" data-testid="select-roadmap-status-header">
+                    <Badge className={`text-xs pointer-events-none ${ROADMAP_STATUS_LABELS[currentStatus]?.color || ""}`}>
+                      {ROADMAP_STATUS_LABELS[currentStatus]?.label || "Planifiée"}
+                    </Badge>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="planned">Planifiée</SelectItem>
+                    <SelectItem value="in_progress">En cours</SelectItem>
+                    <SelectItem value="closed">Clôturée</SelectItem>
+                  </SelectContent>
+                </Select>
+              );
+            })()}
           </div>
         ) : (
           <div className="flex items-center gap-3">

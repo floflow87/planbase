@@ -2557,9 +2557,7 @@ export default function Dashboard() {
                     return (
                       <div
                         key={task.id}
-                        className={`flex items-start gap-3 p-3 rounded-md border hover-elevate cursor-pointer ${
-                          isOverdue ? 'border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/20' : ''
-                        }`}
+                        className="flex items-start gap-3 p-3 rounded-md border hover-elevate cursor-pointer"
                         data-testid={`today-task-${task.id}`}
                         onClick={() => handleTaskClick(task)}
                       >
