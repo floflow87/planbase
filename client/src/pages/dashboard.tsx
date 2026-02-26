@@ -510,7 +510,7 @@ function CustomRevenueTooltip({ active, payload, label }: any) {
         </div>
       )}
       <div className="flex items-center justify-between gap-3 mt-2 pt-2 border-t border-border font-semibold text-foreground">
-        <span className="text-xs">CA cumulé (année)</span>
+        <span className="text-xs">CA réel cumulé</span>
         <span className="text-xs text-primary">{fmt(cumulative)}</span>
       </div>
     </div>
@@ -2196,7 +2196,7 @@ export default function Dashboard() {
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="month" tick={{ fill: "hsl(var(--muted-foreground))" }} />
                     <YAxis tick={{ fill: "hsl(var(--muted-foreground))" }} />
-                    <Tooltip content={<CustomRevenueTooltip />} />
+                    <Tooltip content={<CustomRevenueTooltip />} allowEscapeViewBox={{ x: false, y: true }} />
                     <Bar dataKey="revenue" stackId="a" radius={showHypotheses ? [0, 0, 0, 0] : [4, 4, 0, 0]}>
                       {revenueDataWithTVA.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />

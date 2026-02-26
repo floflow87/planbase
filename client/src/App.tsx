@@ -59,6 +59,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TimeTracker } from "@/components/TimeTracker";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { UnifiedAvatar } from "@/onboarding/UnifiedAvatar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -1245,6 +1246,7 @@ function AppLayout() {
         <div className="flex flex-col flex-1 overflow-hidden bg-card">
           <header className="flex items-center justify-between h-14 px-2 sm:px-4 border-b border-border bg-card shrink-0">
             <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
+              <GlobalSearch />
               {/* Tab System */}
               <div className="flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto scrollbar-hide">
                 {tabs.map((tab) => (
