@@ -883,6 +883,14 @@ export default function ClientDetail() {
       await apiRequest(`/api/clients/${id}`, "PATCH", clientInfoForm);
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       queryClient.invalidateQueries({ queryKey: ['/api/clients', id] });
+      await apiRequest("/api/activities", "POST", {
+        subjectType: "client",
+        subjectId: id,
+        kind: "note",
+        description: "Informations générales modifiées",
+        occurredAt: new Date().toISOString(),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'activities'] });
       setIsEditClientSidebarOpen(false);
       toast({ title: "Informations mises à jour", variant: "success" });
     } catch (error) {
@@ -902,8 +910,8 @@ export default function ClientDetail() {
           quote_sent: "Devis envoyé", quote_approved: "Devis validé", won: "Gagné", lost: "Perdu",
         };
         await apiRequest("/api/activities", "POST", {
-          clientId: id,
-          accountId,
+          subjectType: "client",
+          subjectId: id,
           kind: "note",
           description: `Étape modifiée : ${statusLabels[oldStatus] || oldStatus} → ${statusLabels[newStatus] || newStatus}`,
           occurredAt: new Date().toISOString(),
@@ -957,6 +965,11 @@ export default function ClientDetail() {
   const daysSinceLastActivity = lastActivityDate
     ? Math.floor((Date.now() - lastActivityDate.getTime()) / (1000 * 60 * 60 * 24))
     : null;
+
+  const totalRevenue = projects.reduce((sum, p) => {
+    const val = parseFloat((p as any).budget || "0");
+    return sum + (isNaN(val) ? 0 : val);
+  }, 0);
 
   return (
     <div className="h-full overflow-auto bg-[#F8FAFC] dark:bg-background">
@@ -1077,44 +1090,44 @@ export default function ClientDetail() {
             </div>
 
             {/* Info fields */}
-            <div className="space-y-2 pt-1 border-t">
+            <div className="space-y-3 pt-2 border-t">
               {(client as any).email && (
-                <div className="flex items-center gap-2">
-                  <Mail className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-xs text-foreground truncate">{(client as any).email}</span>
+                <div className="flex items-start gap-2.5">
+                  <Mail className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                  <span className="text-xs text-foreground break-all">{(client as any).email}</span>
                 </div>
               )}
               {(client as any).phone && (
-                <div className="flex items-center gap-2">
-                  <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <div className="flex items-start gap-2.5">
+                  <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
                   <span className="text-xs text-foreground">{(client as any).phone}</span>
                 </div>
               )}
               {(client.address || client.city) && (
-                <div className="flex items-start gap-2">
+                <div className="flex items-start gap-2.5">
                   <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
                   <span className="text-xs text-muted-foreground leading-tight">
-                    {[client.address, client.city, client.postalCode, client.country].filter(Boolean).join(', ')}
+                    {[client.address, client.postalCode, client.city, client.country].filter(Boolean).join(', ')}
                   </span>
                 </div>
               )}
               {client.budget && (
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-xs text-foreground">
+                <div className="flex items-start gap-2.5">
+                  <TrendingUp className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                  <span className="text-xs text-foreground font-medium">
                     {parseFloat(client.budget).toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })}
                   </span>
                 </div>
               )}
               {(client as any).notes && (
-                <div className="flex items-start gap-2">
+                <div className="flex items-start gap-2.5">
                   <StickyNote className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
-                  <span className="text-xs text-muted-foreground leading-tight line-clamp-3">{(client as any).notes}</span>
+                  <span className="text-xs text-muted-foreground leading-tight line-clamp-4">{(client as any).notes}</span>
                 </div>
               )}
               {client.createdAt && (
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <div className="flex items-start gap-2.5">
+                  <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
                   <span className="text-xs text-muted-foreground">
                     Depuis le {format(new Date(client.createdAt), "dd/MM/yyyy", { locale: fr })}
                   </span>
@@ -1210,7 +1223,7 @@ export default function ClientDetail() {
               {/* ── Vue d'ensemble ── */}
               <TabsContent value="vue_ensemble" className="space-y-4">
                 {/* KPI Cards */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <Card>
                     <CardContent className="p-3 flex items-center gap-3">
                       <div className="w-8 h-8 rounded-md bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center shrink-0">
@@ -1232,6 +1245,21 @@ export default function ClientDetail() {
                       <div>
                         <p className="text-[10px] text-muted-foreground">Projet(s)</p>
                         <p className="text-sm font-semibold text-foreground">{projects.length}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-md bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center shrink-0">
+                        <DollarSign className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">CA facturé</p>
+                        <p className="text-sm font-semibold text-foreground">
+                          {totalRevenue > 0
+                            ? totalRevenue.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
+                            : "—"}
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
