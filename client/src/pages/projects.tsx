@@ -1973,6 +1973,9 @@ export default function Projects() {
     const saved = localStorage.getItem('projectBillingFilters');
     return saved ? JSON.parse(saved) : [];
   });
+  const [projectTypeFilter, setProjectTypeFilter] = useState<string>(() => {
+    return localStorage.getItem('projectTypeFilter') || "all";
+  });
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [projectViewMode, setProjectViewMode] = useState<"grid" | "list" | "kanban">(() => {
     const saved = localStorage.getItem('projectViewMode');
@@ -2011,6 +2014,11 @@ export default function Projects() {
     localStorage.setItem('projectBillingFilters', JSON.stringify(projectBillingFilters));
   }, [projectBillingFilters]);
 
+  // Save project type filter to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('projectTypeFilter', projectTypeFilter);
+  }, [projectTypeFilter]);
+
   // Save sort settings to localStorage
   useEffect(() => {
     localStorage.setItem('projectSortColumn', projectSortColumn);
@@ -2037,7 +2045,7 @@ export default function Projects() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setProjectCurrentPage(1);
-  }, [projectSearchQuery, projectStageFilters, projectBillingFilters]);
+  }, [projectSearchQuery, projectStageFilters, projectBillingFilters, projectTypeFilter]);
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
   
   // Column order state for project list view
@@ -3112,12 +3120,12 @@ export default function Projects() {
                 >
                   <Filter className="h-4 w-4 mr-2" />
                   <span>Filtres</span>
-                  {(projectStageFilters.length > 0 || projectBillingFilters.length > 0) && (
+                  {(projectStageFilters.length > 0 || projectBillingFilters.length > 0 || projectTypeFilter !== "all") && (
                     <Badge 
                       variant="default" 
                       className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-[10px]"
                     >
-                      {projectStageFilters.length + projectBillingFilters.length}
+                      {projectStageFilters.length + projectBillingFilters.length + (projectTypeFilter !== "all" ? 1 : 0)}
                     </Badge>
                   )}
                 </Button>
@@ -3230,7 +3238,9 @@ export default function Projects() {
                 
                 const matchesBilling = projectBillingFilters.length === 0 || projectBillingFilters.includes(project.billingStatus || "brouillon");
                 
-                return matchesSearch && matchesStage && matchesBilling;
+                const matchesType = projectTypeFilter === "all" || project.businessType === projectTypeFilter;
+                
+                return matchesSearch && matchesStage && matchesBilling && matchesType;
               });
 
               // Sort filtered projects
@@ -4398,7 +4408,9 @@ export default function Projects() {
                 
                 const matchesStage = projectStageFilters.length === 0 || projectStageFilters.includes(project.stage || "");
                 
-                return matchesSearch && matchesStage;
+                const matchesType = projectTypeFilter === "all" || project.businessType === projectTypeFilter;
+                
+                return matchesSearch && matchesStage && matchesType;
               });
               const projectTotalPages = Math.ceil(filtered.length / projectPageSize);
               
@@ -4587,8 +4599,32 @@ export default function Projects() {
               </div>
             </div>
 
+            {/* Type de projet Filter */}
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Type de projet</Label>
+              <div className="space-y-2">
+                {[
+                  { value: "all", label: "Tous les types" },
+                  { value: "client", label: "Client" },
+                  { value: "internal", label: "Interne" },
+                ].map((opt) => (
+                  <div
+                    key={opt.value}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover-elevate cursor-pointer"
+                    onClick={() => setProjectTypeFilter(opt.value)}
+                  >
+                    <Checkbox
+                      checked={projectTypeFilter === opt.value}
+                      data-testid={`checkbox-filter-type-${opt.value}`}
+                    />
+                    <span className="text-sm">{opt.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Clear Filters Button */}
-            {(projectStageFilters.length > 0 || projectBillingFilters.length > 0) && (
+            {(projectStageFilters.length > 0 || projectBillingFilters.length > 0 || projectTypeFilter !== "all") && (
               <div className="border-t pt-4">
                 <Button 
                   variant="outline" 
@@ -4597,6 +4633,7 @@ export default function Projects() {
                   onClick={() => {
                     setProjectStageFilters([]);
                     setProjectBillingFilters([]);
+                    setProjectTypeFilter("all");
                   }}
                   data-testid="button-clear-all-filters"
                 >

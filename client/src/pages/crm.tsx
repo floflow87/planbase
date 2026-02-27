@@ -760,16 +760,16 @@ export default function CRM() {
 
   // Calculate KPIs
   const totalContacts = clients.length;
-  const activeProspects = clients.filter(c => c.status === "prospect" || c.status === "in_progress").length;
-  const wonClients = clients.filter(c => c.status === "signed").length;
-  const conversionRate = totalContacts > 0 ? Math.round((wonClients / totalContacts) * 100) : 0;
-  // Calculate opportunities from project budgets for clients in pipeline stages: Prospect, Qualifié, Négociation, Devis envoyé
-  const opportunityStatuses = ["prospecting", "qualified", "negotiation", "quote_sent"];
+  const activeProspects = clients.filter(c => ["prospect", "in_progress", "prospecting", "qualified", "negotiation", "quote_sent", "quote_approved"].includes(c.status || "")).length;
+  const wonClients = clients.filter(c => c.status === "signed" || c.status === "won").length;
+  const conversionRate = (wonClients + activeProspects) > 0 ? Math.round((wonClients / (wonClients + activeProspects)) * 100) : 0;
+  // Calculate opportunities from project budgets for clients in pipeline stages
+  const opportunityStatuses = ["prospecting", "qualified", "negotiation", "quote_sent", "prospect", "in_progress"];
   const totalOpportunities = clients
     .filter(c => opportunityStatuses.includes(c.status || ""))
     .reduce((sum, c) => {
       const clientProjects = projects.filter((p: Project) => p.clientId === c.id);
-      return sum + clientProjects.reduce((pSum, p: Project) => pSum + parseFloat(p.totalBilled || "0"), 0);
+      return sum + clientProjects.reduce((pSum, p: Project) => pSum + (Number(p.budget) || 0), 0);
     }, 0);
 
   const kpis = [
@@ -781,8 +781,8 @@ export default function CRM() {
       iconColor: "text-violet-600",
     },
     {
-      title: "Prospects Actifs",
-      value: activeProspects.toString(),
+      title: "Prospects gagnés",
+      value: wonClients.toString(),
       icon: Target,
       iconBg: "bg-yellow-100",
       iconColor: "text-yellow-600",

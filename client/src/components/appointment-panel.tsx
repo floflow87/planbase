@@ -453,28 +453,6 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label>Couleur</Label>
-            <div className="flex flex-wrap gap-2">
-              {PASTEL_COLORS.map((c) => (
-                <button
-                  key={c.hex}
-                  type="button"
-                  disabled={isViewMode}
-                  title={c.label}
-                  onClick={() => setColor(c.hex)}
-                  data-testid={`color-option-${c.hex.replace("#", "")}`}
-                  className="w-7 h-7 rounded-full border-2 transition-all"
-                  style={{
-                    backgroundColor: c.hex,
-                    borderColor: color === c.hex ? "#7C3AED" : "transparent",
-                    boxShadow: color === c.hex ? "0 0 0 2px #7C3AED40" : "none",
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="startDateTime">Début *</Label>
@@ -582,6 +560,28 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
                 />
               </div>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Couleur</Label>
+            <div className="flex flex-wrap gap-2">
+              {PASTEL_COLORS.map((c) => (
+                <button
+                  key={c.hex}
+                  type="button"
+                  disabled={isViewMode}
+                  title={c.label}
+                  onClick={() => setColor(c.hex)}
+                  data-testid={`color-option-${c.hex.replace("#", "")}`}
+                  className="w-7 h-7 rounded-full border-2 transition-all"
+                  style={{
+                    backgroundColor: c.hex,
+                    borderColor: color === c.hex ? "#7C3AED" : "transparent",
+                    boxShadow: color === c.hex ? "0 0 0 2px #7C3AED40" : "none",
+                  }}
+                />
+              ))}
+            </div>
           </div>
 
           <div className="space-y-2">

@@ -425,6 +425,33 @@ interface GoogleEvent {
   location?: string;
 }
 
+function MiniBarChart({ heights, color }: { heights: number[]; color: string }) {
+  const maxH = 32;
+  const barW = 7;
+  const gap = 3;
+  const totalW = heights.length * (barW + gap) - gap;
+  return (
+    <svg width={totalW} height={maxH} viewBox={`0 0 ${totalW} ${maxH}`} style={{ display: "block" }}>
+      {heights.map((h, i) => {
+        const barH = Math.max(3, (h / 100) * maxH);
+        const x = i * (barW + gap);
+        return (
+          <rect
+            key={i}
+            x={x}
+            y={maxH - barH}
+            width={barW}
+            height={barH}
+            rx={2}
+            fill={color}
+            opacity={0.4 + (i / (heights.length - 1)) * 0.6}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
 function CustomRevenueTooltip({ active, payload, label }: any) {
   if (!active || !payload || !payload.length) return null;
   const data = payload[0]?.payload;
@@ -510,7 +537,16 @@ function CustomRevenueTooltip({ active, payload, label }: any) {
             )}
             {alreadyOverSeuil && (
               <div className="mt-1 text-xs text-orange-600 dark:text-orange-400 font-medium">
-                Seuil dépassé depuis un mois précédent
+                {(() => {
+                  const crossing = data.crossingMonthIndex;
+                  const current = data.monthIndex;
+                  const months = (crossing !== null && crossing !== undefined && current !== undefined)
+                    ? current - crossing
+                    : null;
+                  return months !== null && months > 0
+                    ? `Seuil dépassé depuis ${months} mois`
+                    : "Seuil dépassé depuis un mois précédent";
+                })()}
               </div>
             )}
           </div>
@@ -1458,6 +1494,20 @@ export default function Dashboard() {
     const tauxTVA = tvaConfig?.tauxTVA || 20;
     const cumulByYear: Record<number, number> = {};
     const cumulHypByYear: Record<number, number> = {};
+    // Find crossing month index per year
+    const crossingMonthIndexByYear: Record<number, number | null> = {};
+    if (seuilTVA > 0) {
+      const cumulTemp: Record<number, number> = {};
+      for (const entry of revenueData) {
+        const yr = entry.year;
+        if (cumulTemp[yr] === undefined) cumulTemp[yr] = 0;
+        const prev = cumulTemp[yr];
+        cumulTemp[yr] += entry.revenue;
+        if (cumulTemp[yr] >= seuilTVA && prev < seuilTVA && crossingMonthIndexByYear[yr] === undefined) {
+          crossingMonthIndexByYear[yr] = entry.monthIndex ?? 0;
+        }
+      }
+    }
     return revenueData.map(entry => {
       const yr = entry.year;
       if (cumulByYear[yr] === undefined) cumulByYear[yr] = 0;
@@ -1469,7 +1519,8 @@ export default function Dashboard() {
         cumulative: cumulByYear[yr],
         cumulativeWithHyp: cumulHypByYear[yr],
         seuilTVA,
-        tauxTVA
+        tauxTVA,
+        crossingMonthIndex: crossingMonthIndexByYear[yr] ?? null,
       };
     });
   }, [revenueData, tvaConfig]);
@@ -1587,24 +1638,29 @@ export default function Dashboard() {
   // KPI data from real data - Ordre: CA, Paiements en attente, Tâches, Projets
   const kpis: Array<{
     title: string;
+    titleSuffix?: string;
     value: string;
     change: string;
     changeType: "positive" | "negative" | "neutral";
     icon: any;
     iconBg: string;
     iconColor: string;
+    chartHeights: number[];
+    chartColor: string;
     link?: { label: string; href: string };
-    subValue?: string; // Pour afficher le CA potentiel sous le CA N
+    subValue?: string;
   }> = [
     {
       title: "Chiffre d'affaires",
+      titleSuffix: periodLabel.replace(/^CA\s*/i, ""),
       value: `${periodRevenue.toLocaleString()} €`,
-      change: periodLabel,
+      change: potentialRevenue > 0 ? `${potentialRevenue.toLocaleString()} € potentiel` : "",
       changeType: "neutral",
       icon: Euro,
       iconBg: "bg-green-100",
       iconColor: "text-green-600",
-      subValue: potentialRevenue > 0 ? `${potentialRevenue.toLocaleString()} € potentiel` : undefined,
+      chartHeights: [20, 35, 45, 55, 50, 70, 85],
+      chartColor: "#22c55e",
     },
     {
       title: "Paiements en attente",
@@ -1614,6 +1670,8 @@ export default function Dashboard() {
       icon: CreditCard,
       iconBg: "bg-red-100",
       iconColor: "text-red-600",
+      chartHeights: [70, 55, 65, 50, 60, 45, 40],
+      chartColor: "#ef4444",
     },
     {
       title: "Tâches en cours",
@@ -1623,6 +1681,8 @@ export default function Dashboard() {
       icon: CheckSquare,
       iconBg: "bg-orange-100",
       iconColor: "text-orange-600",
+      chartHeights: [30, 50, 40, 65, 55, 45, 60],
+      chartColor: "#f97316",
       link: { label: "Voir tout", href: "/tasks" },
     },
     {
@@ -1633,6 +1693,8 @@ export default function Dashboard() {
       icon: FolderKanban,
       iconBg: "bg-violet-100",
       iconColor: "text-violet-600",
+      chartHeights: [35, 45, 50, 60, 70, 75, 80],
+      chartColor: "#7c3aed",
       link: { label: "Voir tous", href: "/projects?tab=projects" },
     },
   ];
@@ -2021,36 +2083,34 @@ export default function Dashboard() {
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground font-medium">
+                      <p className="text-[14px] text-muted-foreground font-medium leading-tight">
                         {kpi.title}
+                        {kpi.titleSuffix && (
+                          <span className="text-[11px] ml-1 font-normal opacity-70">({kpi.titleSuffix})</span>
+                        )}
                       </p>
                       <h3 className="text-[22px] font-heading font-bold mt-2 text-foreground">
                         {kpi.value}
                       </h3>
-                      <p className={`text-[10px] flex items-center gap-1 mt-2 ${
-                        kpi.changeType === "positive" 
-                          ? "text-green-600" 
-                          : kpi.changeType === "negative" 
-                            ? "text-red-600"
-                            : "text-muted-foreground"
-                      }`}>
-                        {kpi.changeType === "positive" ? (
-                          <ArrowUp className="w-3 h-3" />
-                        ) : kpi.changeType === "negative" ? (
-                          <ArrowDown className="w-3 h-3" />
-                        ) : null}
-                        {kpi.change}
-                      </p>
-                      {kpi.subValue && (
-                        <p className="text-[10px] text-amber-600 mt-1">
-                          {kpi.subValue}
+                      {kpi.change && (
+                        <p className={`text-[10px] flex items-center gap-1 mt-2 ${
+                          kpi.changeType === "positive" 
+                            ? "text-green-600" 
+                            : kpi.changeType === "negative" 
+                              ? "text-red-600"
+                              : "text-muted-foreground"
+                        }`}>
+                          {kpi.changeType === "positive" ? (
+                            <ArrowUp className="w-3 h-3" />
+                          ) : kpi.changeType === "negative" ? (
+                            <ArrowDown className="w-3 h-3" />
+                          ) : null}
+                          {kpi.change}
                         </p>
                       )}
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <div className={`${kpi.iconBg} p-3 rounded-md shrink-0`}>
-                        <Icon className={`w-6 h-6 ${kpi.iconColor}`} />
-                      </div>
+                    <div className="flex flex-col items-end justify-between gap-2 h-full">
+                      <MiniBarChart heights={kpi.chartHeights} color={kpi.chartColor} />
                       {kpi.link && (
                         <Button 
                           variant="ghost" 
@@ -2172,8 +2232,8 @@ export default function Dashboard() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-4 mt-2">
-                <label className="flex items-center gap-1.5 cursor-pointer select-none" data-testid="toggle-forecast" title="Afficher les échéances de paiements non encaissés des projets signés.">
+              <div className="flex items-center gap-6 mt-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none" data-testid="toggle-forecast" title="Afficher les échéances de paiements non encaissés des projets signés.">
                   <Switch
                     checked={showForecast}
                     onCheckedChange={setShowForecast}
@@ -2181,7 +2241,7 @@ export default function Dashboard() {
                   />
                   <span className="text-xs text-muted-foreground whitespace-nowrap">Prévisionnels</span>
                 </label>
-                <label className={`flex items-center gap-1.5 select-none ${showForecast ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`} data-testid="toggle-opportunites" title="Inclure les projets en prospection qualifiés comme opportunités de CA">
+                <label className={`flex items-center gap-2 select-none ${showForecast ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`} data-testid="toggle-opportunites" title="Inclure les projets en prospection qualifiés comme opportunités de CA">
                   <Switch
                     checked={showHypotheses}
                     onCheckedChange={showForecast ? setShowHypotheses : undefined}
@@ -2197,7 +2257,27 @@ export default function Dashboard() {
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={revenueDataWithTVA}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" tick={{ fill: "hsl(var(--muted-foreground))" }} />
+                    <XAxis
+                      dataKey="month"
+                      tick={({ x, y, payload }: any) => {
+                        const now = new Date();
+                        const monthNames = ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"];
+                        const curLabel = monthNames[now.getMonth()];
+                        const isCurrent = payload.value === curLabel || (typeof payload.value === "string" && payload.value.startsWith(curLabel));
+                        return (
+                          <text
+                            x={x}
+                            y={y + 14}
+                            textAnchor="middle"
+                            fill={isCurrent ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"}
+                            fontWeight={isCurrent ? "700" : "400"}
+                            fontSize={12}
+                          >
+                            {payload.value}
+                          </text>
+                        );
+                      }}
+                    />
                     <YAxis tick={{ fill: "hsl(var(--muted-foreground))" }} />
                     <Tooltip content={<CustomRevenueTooltip />} allowEscapeViewBox={{ x: true, y: true }} wrapperStyle={{ zIndex: 200, pointerEvents: 'none' }} />
                     <Bar dataKey="revenue" stackId="a" radius={showHypotheses ? [0, 0, 0, 0] : [4, 4, 0, 0]}>
