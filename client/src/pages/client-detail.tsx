@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, Save, Check, ChevronLeft, ChevronRight, Star, TrendingUp } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, Save, Check, ChevronLeft, ChevronRight, Star, TrendingUp, ChevronsUpDown, DollarSign, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, formatDateForStorage, optimisticAdd, optimisticUpdate, optimisticUpdateSingle, optimisticDelete, rollbackOptimistic } from "@/lib/queryClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -59,6 +59,10 @@ export default function ClientDetail() {
     projectId: "",
     dueDate: "",
   });
+  const [newTaskEffort, setNewTaskEffort] = useState<number | null>(null);
+  const [newTaskAssignedTo, setNewTaskAssignedTo] = useState<string | undefined>(undefined);
+  const [newTaskDueDate, setNewTaskDueDate] = useState<Date | undefined>(undefined);
+  const [taskProjectComboboxOpen, setTaskProjectComboboxOpen] = useState(false);
   const [isEditClientSidebarOpen, setIsEditClientSidebarOpen] = useState(false);
   const [isStatusPopoverOpen, setIsStatusPopoverOpen] = useState(false);
   const [clientInfoForm, setClientInfoForm] = useState({
@@ -506,6 +510,8 @@ export default function ClientDetail() {
         clientId: id,
         accountId,
         projectId: data.projectId || null,
+        assignedToId: data.assignedToId || null,
+        effort: data.effort || null,
         dueDate: data.dueDate 
           ? (typeof data.dueDate === 'string' ? data.dueDate : formatDateForStorage(new Date(data.dueDate)))
           : null,
@@ -540,6 +546,9 @@ export default function ClientDetail() {
         projectId: "",
         dueDate: "",
       });
+      setNewTaskEffort(null);
+      setNewTaskAssignedTo(undefined);
+      setNewTaskDueDate(undefined);
       toast({ title: "Tâche créée avec succès", variant: "success" });
     },
     onError: (error, variables, context) => {
@@ -836,7 +845,12 @@ export default function ClientDetail() {
 
   const handleTaskSubmit = () => {
     if (!taskFormData.title.trim()) return;
-    createTaskMutation.mutate(taskFormData);
+    createTaskMutation.mutate({
+      ...taskFormData,
+      dueDate: newTaskDueDate ? formatDateForStorage(newTaskDueDate) : "",
+      assignedToId: newTaskAssignedTo || null,
+      effort: newTaskEffort,
+    });
   };
 
   const handleContactSubmit = () => {
@@ -878,9 +892,24 @@ export default function ClientDetail() {
 
   const updateClientStatus = async (newStatus: string) => {
     try {
+      const oldStatus = client?.status;
       await apiRequest(`/api/clients/${id}`, "PATCH", { status: newStatus });
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       queryClient.invalidateQueries({ queryKey: ['/api/clients', id] });
+      if (oldStatus && oldStatus !== newStatus) {
+        const statusLabels: Record<string, string> = {
+          prospecting: "Prospect", qualified: "Qualifié", negotiation: "Négociation",
+          quote_sent: "Devis envoyé", quote_approved: "Devis validé", won: "Gagné", lost: "Perdu",
+        };
+        await apiRequest("/api/activities", "POST", {
+          clientId: id,
+          accountId,
+          kind: "note",
+          description: `Étape modifiée : ${statusLabels[oldStatus] || oldStatus} → ${statusLabels[newStatus] || newStatus}`,
+          occurredAt: new Date().toISOString(),
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'activities'] });
+      }
       setIsStatusPopoverOpen(false);
       toast({ title: "Statut mis à jour", variant: "success" });
     } catch (error) {
@@ -986,14 +1015,26 @@ export default function ClientDetail() {
         <div className="flex gap-5 items-start">
 
           {/* ── Info Sidebar ── */}
-          <div className="w-52 shrink-0 space-y-3">
+          <Card className="w-52 shrink-0 bg-white dark:bg-card shadow-sm">
+            <CardContent className="p-3 space-y-3">
             {/* Avatar + name */}
-            <div className="flex flex-col items-center gap-2 py-3">
+            <div className="flex flex-col items-center gap-2 py-2">
               <Avatar className="w-14 h-14">
                 <AvatarFallback className="text-base font-semibold">{client.name.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="text-center">
-                <p className="text-sm font-semibold text-foreground leading-tight">{client.company || client.name}</p>
+                <div className="flex items-center justify-center gap-1">
+                  <p className="text-sm font-semibold text-foreground leading-tight">{client.company || client.name}</p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 shrink-0"
+                    onClick={() => setIsEditClientSidebarOpen(true)}
+                    data-testid="button-edit-client-sidebar"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </Button>
+                </div>
                 {client.type === "person" && (client.firstName || (client as any).lastName) && (
                   <p className="text-xs text-muted-foreground mt-0.5">{client.firstName} {(client as any).lastName}</p>
                 )}
@@ -1065,6 +1106,12 @@ export default function ClientDetail() {
                   </span>
                 </div>
               )}
+              {(client as any).notes && (
+                <div className="flex items-start gap-2">
+                  <StickyNote className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                  <span className="text-xs text-muted-foreground leading-tight line-clamp-3">{(client as any).notes}</span>
+                </div>
+              )}
               {client.createdAt && (
                 <div className="flex items-center gap-2">
                   <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
@@ -1074,19 +1121,8 @@ export default function ClientDetail() {
                 </div>
               )}
             </div>
-
-            {/* Edit button */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full text-xs"
-              onClick={() => setIsEditClientSidebarOpen(true)}
-              data-testid="button-edit-client-sidebar"
-            >
-              <Pencil className="w-3.5 h-3.5 mr-1.5" />
-              Modifier
-            </Button>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* ── Tabs ── */}
           <div className="flex-1 min-w-0">
@@ -1176,29 +1212,44 @@ export default function ClientDetail() {
                 {/* KPI Cards */}
                 <div className="grid grid-cols-3 gap-3">
                   <Card>
-                    <CardContent className="p-3">
-                      <p className="text-[10px] text-muted-foreground mb-1">Client depuis le</p>
-                      <p className="text-xs font-semibold text-foreground">
-                        {format(new Date(client.createdAt), "dd MMM yyyy", { locale: fr })}
-                      </p>
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-md bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center shrink-0">
+                        <CalendarIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">Client depuis</p>
+                        <p className="text-sm font-semibold text-foreground leading-tight">
+                          {format(new Date(client.createdAt), "dd MMM yyyy", { locale: fr })}
+                        </p>
+                      </div>
                     </CardContent>
                   </Card>
                   <Card>
-                    <CardContent className="p-3">
-                      <p className="text-[10px] text-muted-foreground mb-1">Nb Projet(s)</p>
-                      <p className="text-xs font-semibold text-foreground">{projects.length}</p>
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-md bg-violet-100 dark:bg-violet-950/50 flex items-center justify-center shrink-0">
+                        <FolderKanban className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">Projet(s)</p>
+                        <p className="text-sm font-semibold text-foreground">{projects.length}</p>
+                      </div>
                     </CardContent>
                   </Card>
                   <Card>
-                    <CardContent className="p-3">
-                      <p className="text-[10px] text-muted-foreground mb-1">Dernière activité</p>
-                      <p className="text-xs font-semibold text-foreground">
-                        {daysSinceLastActivity === null
-                          ? "—"
-                          : daysSinceLastActivity === 0
-                          ? "Aujourd'hui"
-                          : `il y a ${daysSinceLastActivity}j`}
-                      </p>
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-md bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center shrink-0">
+                        <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">Dernière activité</p>
+                        <p className="text-sm font-semibold text-foreground">
+                          {daysSinceLastActivity === null
+                            ? "—"
+                            : daysSinceLastActivity === 0
+                            ? "Aujourd'hui"
+                            : `il y a ${daysSinceLastActivity}j`}
+                        </p>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -1918,7 +1969,7 @@ export default function ClientDetail() {
 
         {/* Contact Form Sheet */}
         <Sheet open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
-          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-create-contact">
+          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col bg-white dark:bg-card" data-testid="dialog-create-contact">
             <SheetHeader>
               <SheetTitle>{editingContact ? "Modifier le contact" : "Nouveau contact"}</SheetTitle>
             </SheetHeader>
@@ -2052,15 +2103,64 @@ export default function ClientDetail() {
         </Dialog>
 
         {/* Task Creation Dialog */}
-        <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Nouvelle tâche pour {client?.name}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
+        <Sheet open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col bg-white dark:bg-card" data-testid="sheet-create-task">
+            <SheetHeader>
+              <SheetTitle>Nouvelle tâche</SheetTitle>
+            </SheetHeader>
+            <div className="space-y-4 flex-1 py-4">
               <div>
-                <Label>Titre *</Label>
+                <Label>Projet (optionnel)</Label>
+                <Popover open={taskProjectComboboxOpen} onOpenChange={setTaskProjectComboboxOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={taskProjectComboboxOpen}
+                      className="w-full justify-between"
+                      data-testid="button-select-task-project"
+                    >
+                      {taskFormData.projectId && taskFormData.projectId !== "none"
+                        ? projects.find((p) => p.id === taskFormData.projectId)?.name
+                        : "Aucun projet"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Rechercher un projet..." />
+                      <CommandList>
+                        <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="Aucun projet"
+                            onSelect={() => { setTaskFormData({ ...taskFormData, projectId: "" }); setTaskProjectComboboxOpen(false); }}
+                            data-testid="task-project-option-none"
+                          >
+                            <Check className={`mr-2 h-4 w-4 ${!taskFormData.projectId ? "opacity-100" : "opacity-0"}`} />
+                            Aucun projet
+                          </CommandItem>
+                          {projects.map((project) => (
+                            <CommandItem
+                              key={project.id}
+                              value={project.name}
+                              onSelect={() => { setTaskFormData({ ...taskFormData, projectId: project.id }); setTaskProjectComboboxOpen(false); }}
+                              data-testid={`task-project-option-${project.id}`}
+                            >
+                              <Check className={`mr-2 h-4 w-4 ${taskFormData.projectId === project.id ? "opacity-100" : "opacity-0"}`} />
+                              {project.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label htmlFor="task-title">Titre *</Label>
                 <Input
+                  id="task-title"
                   value={taskFormData.title}
                   onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })}
                   placeholder="Titre de la tâche"
@@ -2068,33 +2168,15 @@ export default function ClientDetail() {
                 />
               </div>
               <div>
-                <Label>Description</Label>
+                <Label htmlFor="task-description">Description</Label>
                 <Textarea
+                  id="task-description"
                   value={taskFormData.description}
                   onChange={(e) => setTaskFormData({ ...taskFormData, description: e.target.value })}
                   placeholder="Description de la tâche"
                   rows={3}
                   data-testid="input-task-description"
                 />
-              </div>
-              <div>
-                <Label>Projet (optionnel)</Label>
-                <Select
-                  value={taskFormData.projectId || "none"}
-                  onValueChange={(value) => setTaskFormData({ ...taskFormData, projectId: value === "none" ? "" : value })}
-                >
-                  <SelectTrigger data-testid="select-task-project">
-                    <SelectValue placeholder="Sélectionner un projet" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucun projet</SelectItem>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -2114,47 +2196,105 @@ export default function ClientDetail() {
                   </Select>
                 </div>
                 <div>
-                  <Label>Statut</Label>
+                  <Label>Assigné à</Label>
                   <Select
-                    value={taskFormData.status}
-                    onValueChange={(value) => setTaskFormData({ ...taskFormData, status: value })}
+                    value={newTaskAssignedTo || "unassigned"}
+                    onValueChange={(value) => setNewTaskAssignedTo(value === "unassigned" ? undefined : value)}
                   >
-                    <SelectTrigger data-testid="select-task-status">
+                    <SelectTrigger data-testid="select-task-assigned">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="todo">À faire</SelectItem>
-                      <SelectItem value="in_progress">En cours</SelectItem>
-                      <SelectItem value="review">En revue</SelectItem>
-                      <SelectItem value="done">Terminé</SelectItem>
+                      <SelectItem value="unassigned">Non assigné</SelectItem>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.firstName && user.lastName
+                            ? `${user.firstName} ${user.lastName}`
+                            : user.email}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <div>
-                <Label>Date d'échéance</Label>
-                <Input
-                  type="date"
-                  value={taskFormData.dueDate}
-                  onChange={(e) => setTaskFormData({ ...taskFormData, dueDate: e.target.value })}
-                  data-testid="input-task-duedate"
-                />
+                <Label>Effort / Complexité</Label>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((rating) => (
+                    <button
+                      key={rating}
+                      type="button"
+                      onClick={() => setNewTaskEffort(rating)}
+                      className="focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
+                      data-testid={`button-task-effort-${rating}`}
+                    >
+                      <Star
+                        className={`h-6 w-6 transition-colors ${(newTaskEffort ?? 0) >= rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300 hover:text-yellow-200"}`}
+                      />
+                    </button>
+                  ))}
+                  {newTaskEffort !== null && (
+                    <button
+                      type="button"
+                      onClick={() => setNewTaskEffort(null)}
+                      className="ml-2 text-xs text-muted-foreground hover:text-foreground"
+                      data-testid="button-clear-task-effort"
+                    >
+                      Effacer
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsTaskDialogOpen(false)}>
-                  Annuler
-                </Button>
-                <Button
-                  onClick={handleTaskSubmit}
-                  disabled={createTaskMutation.isPending || !taskFormData.title.trim()}
-                  data-testid="button-submit-task"
-                >
-                  Créer la tâche
-                </Button>
+              <div>
+                <Label>Date d'échéance</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      data-testid="button-task-due-date"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {newTaskDueDate
+                        ? format(newTaskDueDate, "PPP", { locale: fr })
+                        : <span className="text-muted-foreground">Choisir une date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={newTaskDueDate}
+                      onSelect={setNewTaskDueDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
+            <div className="flex gap-2 justify-end border-t pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsTaskDialogOpen(false);
+                  setTaskFormData({ title: "", description: "", priority: "medium", status: "todo", projectId: "", dueDate: "" });
+                  setNewTaskEffort(null);
+                  setNewTaskAssignedTo(undefined);
+                  setNewTaskDueDate(undefined);
+                }}
+                data-testid="button-cancel-task"
+              >
+                Annuler
+              </Button>
+              <Button
+                onClick={handleTaskSubmit}
+                disabled={createTaskMutation.isPending || !taskFormData.title.trim()}
+                data-testid="button-submit-task"
+              >
+                Créer la tâche
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
 
         {/* Create Custom Tab Dialog */}
         <Dialog open={isCreateTabDialogOpen} onOpenChange={setIsCreateTabDialogOpen}>
@@ -2327,7 +2467,7 @@ export default function ClientDetail() {
 
         {/* Create/Edit Activity Sheet (Side Panel) */}
         <Sheet open={isActivityDialogOpen} onOpenChange={setIsActivityDialogOpen}>
-          <SheetContent className="sm:max-w-md w-full" data-testid="sheet-activity">
+          <SheetContent className="sm:max-w-md w-full bg-white dark:bg-card" data-testid="sheet-activity">
             <SheetHeader>
               <SheetTitle>{editingActivity ? "Modifier l'activité" : "Nouvelle activité"}</SheetTitle>
             </SheetHeader>
@@ -2439,7 +2579,7 @@ export default function ClientDetail() {
 
         {/* Edit Client Info Sheet */}
         <Sheet open={isEditClientSidebarOpen} onOpenChange={setIsEditClientSidebarOpen}>
-          <SheetContent className="sm:max-w-xl w-full overflow-y-auto" data-testid="sheet-edit-client">
+          <SheetContent className="sm:max-w-xl w-full overflow-y-auto bg-white dark:bg-card" data-testid="sheet-edit-client">
             <SheetHeader>
               <SheetTitle>Modifier le client</SheetTitle>
             </SheetHeader>
