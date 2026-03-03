@@ -2108,9 +2108,9 @@ export default function ClientDetail() {
                               {clientPayments
                                 .slice()
                                 .sort((a, b) => {
-                                  if (a.paymentDate && b.paymentDate) return new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime();
-                                  if (a.paymentDate) return 1;
-                                  return -1;
+                                  if (a.paymentDate && b.paymentDate) return new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime();
+                                  if (a.paymentDate) return -1;
+                                  return 1;
                                 })
                                 .map((payment) => {
                                   const proj = projects.find(p => p.id === payment.projectId);
@@ -2925,6 +2925,7 @@ export default function ClientDetail() {
                     <SelectItem value="call">Appel</SelectItem>
                     <SelectItem value="meeting">Réunion</SelectItem>
                     <SelectItem value="note">Note</SelectItem>
+                    <SelectItem value="task">Tâche</SelectItem>
                     <SelectItem value="custom">Autre</SelectItem>
                   </SelectContent>
                 </Select>

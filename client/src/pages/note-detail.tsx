@@ -44,7 +44,7 @@ interface TicketItem {
   backlogName?: string;
 }
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { useDebounce } from "@/hooks/use-debounce";
+import { useNoteSync } from "@/hooks/use-note-sync";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -79,10 +79,6 @@ export default function NoteDetail() {
   const [content, setContent] = useState<any>({ type: 'doc', content: [] });
   const [status, setStatus] = useState<"draft" | "active" | "archived">("draft");
   const [visibility, setVisibility] = useState<"private" | "account" | "client_ro">("private");
-  const [isSaving, setIsSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [lastPersistedState, setLastPersistedState] = useState<{title: string, content: any, status: string, visibility: string} | null>(null);
-  const autoSaveEnabled = true; // Always ON — auto-save like Notion
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entitySelectorOpen, setEntitySelectorOpen] = useState(false);
   const [entitySelectorTab, setEntitySelectorTab] = useState<"project" | "client" | "ticket">("project");
@@ -92,96 +88,9 @@ export default function NoteDetail() {
   const editorRef = useRef<NoteEditorRef>(null);
   // Ref to track interim transcript length for deletion
   const interimLengthRef = useRef(0);
-  
-  // Refs to track current values for save-on-unmount (to avoid stale closures)
-  const titleRef = useRef(title);
-  const contentRef = useRef(content);
-  const statusRef = useRef(status);
-  const visibilityRef = useRef(visibility);
-  const lastPersistedStateRef = useRef(lastPersistedState);
-  const noteIdRef = useRef(id);
-  const autoSaveEnabledRef = useRef(true);
-  // Track if the note originally had content (to prevent saving empty content over existing data)
-  const originalHadContentRef = useRef(false);
-  
-  // Keep refs in sync with state
-  useEffect(() => { titleRef.current = title; }, [title]);
-  useEffect(() => { contentRef.current = content; }, [content]);
-  useEffect(() => { statusRef.current = status; }, [status]);
-  useEffect(() => { visibilityRef.current = visibility; }, [visibility]);
-  useEffect(() => { lastPersistedStateRef.current = lastPersistedState; }, [lastPersistedState]);
-  useEffect(() => { noteIdRef.current = id; }, [id]);
-  // Save immediately on unmount (tab change, navigation, etc.) if there are unsaved changes
-  useEffect(() => {
-    return () => {
-      // Only save if autosave is enabled
-      if (!autoSaveEnabledRef.current) return;
-      
-      const currentPersisted = lastPersistedStateRef.current;
-      if (!currentPersisted) return;
-      
-      // Check for unsaved changes using refs (to get latest values)
-      const hasChanges = 
-        titleRef.current !== currentPersisted.title ||
-        JSON.stringify(contentRef.current) !== JSON.stringify(currentPersisted.content) ||
-        statusRef.current !== currentPersisted.status ||
-        visibilityRef.current !== currentPersisted.visibility;
-      
-      if (!hasChanges) return;
-      
-      // Extract plain text from content
-      const extractPlainText = (content: any): string => {
-        if (!content) return "";
-        const getText = (node: any): string => {
-          if (node.type === "text") return node.text || "";
-          if (node.content && Array.isArray(node.content)) {
-            return node.content.map(getText).join(" ");
-          }
-          return "";
-        };
-        return getText(content);
-      };
-      
-      const plainText = extractPlainText(contentRef.current);
-      
-      // SAFETY CHECK: Don't save if content becomes empty and note originally had content
-      // This prevents accidental data loss from editor state bugs on unmount
-      const hasContentNow = plainText && plainText.trim().length > 0;
-      const titleChanged = titleRef.current !== currentPersisted.title;
-      
-      if (originalHadContentRef.current && !hasContentNow && !titleChanged) {
-        // Content disappeared but title didn't change - likely a bug, don't save
-        console.warn('Save on unmount blocked: content became empty unexpectedly');
-        return;
-      }
-      
-      // Use sendBeacon for reliable save on page unload/navigation
-      const payload = JSON.stringify({
-        title: titleRef.current || "Sans titre",
-        content: contentRef.current,
-        plainText,
-        status: statusRef.current,
-        visibility: visibilityRef.current,
-      });
-      
-      // Save using fetch with keepalive (reliable for page unload)
-      const url = `/api/notes/${noteIdRef.current}`;
-      
-      // Use fetch with keepalive to allow request to complete after page unload
-      if (typeof fetch !== 'undefined') {
-        // Note: sendBeacon doesn't support PATCH, so we use a regular fetch as fallback
-        // The fetch may not complete if the page unloads, but it's better than nothing
-        fetch(url, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-          keepalive: true, // This allows the request to outlive the page
-        }).catch(() => {
-          // Silently fail - the request may not complete on page unload
-        });
-      }
-    };
-  }, []); // Empty deps - only run cleanup on unmount
+
+  // State sync hook — local-first, operation queue, retry with backoff
+  const { queueUpdate, flushImmediate, syncState } = useNoteSync(id);
 
   // Memoized callbacks for voice recording to prevent re-renders
   const handleVoiceTranscript = useCallback((text: string, isFinal: boolean) => {
@@ -287,27 +196,10 @@ export default function NoteDetail() {
       setStatus(note.status as any);
       setVisibility(note.visibility as any);
       setIsFavorite(note.isFavorite || false);
-      // Track the initial persisted state
-      setLastPersistedState({
-        title: note.title || "",
-        content: note.content || { type: 'doc', content: [] },
-        status: note.status,
-        visibility: note.visibility,
-      });
-      // SAFETY: Track if note originally had content to prevent saving empty content over it
-      const hadContent = note.plainText && note.plainText.trim().length > 0;
-      originalHadContentRef.current = hadContent;
     }
   }, [note]);
 
-  // Removed: No longer saving autosave preference to localStorage
-  // Autosave is now OFF by default for every note
-
-  // Debounced values for autosave (500ms — like Notion)
-  const debouncedTitle = useDebounce(title, 500);
-  const debouncedContent = useDebounce(content, 500);
-
-  // Update note mutation
+  // Update note mutation (used for status/visibility changes with toast feedback)
   const updateMutation = useMutation({
     mutationFn: async (data: Partial<InsertNote>) => {
       const response = await apiRequest(`/api/notes/${id}`, "PATCH", data);
@@ -319,116 +211,20 @@ export default function NoteDetail() {
       const { previousData: prevList } = optimisticUpdate<Note>(["/api/notes"], id!, data as Partial<Note>);
       return { prevSingle, prevList };
     },
-    onSuccess: (updatedNote) => {
-      // Update local state to match server response to avoid UI flicker
-      setLastSaved(new Date());
-      setIsSaving(false);
-      
-      // Update persisted state to reflect successful save
-      setLastPersistedState({
-        title: updatedNote.title || "",
-        content: updatedNote.content || { type: 'doc', content: [] },
-        status: updatedNote.status,
-        visibility: updatedNote.visibility,
-      });
-      
-      // SAFETY: Update originalHadContentRef based on the saved content
-      // This ensures newly created content is protected from empty overwrites
-      const savedPlainText = updatedNote.plainText;
-      if (savedPlainText && savedPlainText.trim().length > 0) {
-        originalHadContentRef.current = true;
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
     },
-    onError: (error: any, variables, context) => {
-      // Rollback on error
-      if (context?.prevSingle) {
-        rollbackOptimistic(["/api/notes", id!], context.prevSingle);
-      }
-      if (context?.prevList) {
-        rollbackOptimistic(["/api/notes"], context.prevList);
-      }
+    onError: (error: any, _variables, context) => {
+      if (context?.prevSingle) rollbackOptimistic(["/api/notes", id!], context.prevSingle);
+      if (context?.prevList) rollbackOptimistic(["/api/notes"], context.prevList);
       toast({
         title: "Erreur",
         description: error.message || "Impossible de sauvegarder la note",
         variant: "destructive",
       });
-      setIsSaving(false);
-    },
-    onSettled: () => {
-      // Sync with server truth
-      queryClient.invalidateQueries({ queryKey: ["/api/notes", id] });
-      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
     },
   });
-
-  // Autosave effect
-  useEffect(() => {
-    if (!note || !isEditMode) return;
-    
-    // Check if anything changed
-    const titleChanged = debouncedTitle !== note.title;
-    const contentChanged = JSON.stringify(debouncedContent) !== JSON.stringify(note.content);
-    const statusChanged = status !== note.status;
-    const visibilityChanged = visibility !== note.visibility;
-    
-    if (!titleChanged && !contentChanged && !statusChanged && !visibilityChanged) {
-      return;
-    }
-
-    // Extract plain text from content for search
-    const extractPlainText = (content: any): string => {
-      if (!content) return "";
-      
-      const getText = (node: any): string => {
-        if (node.type === "text") {
-          return node.text || "";
-        }
-        if (node.content && Array.isArray(node.content)) {
-          return node.content.map(getText).join(" ");
-        }
-        return "";
-      };
-
-      return getText(content);
-    };
-
-    const plainText = extractPlainText(debouncedContent);
-
-    // SAFETY CHECK: Don't save if content becomes empty and note originally had content
-    // This prevents accidental data loss from autosave bugs (e.g., editor state not initialized)
-    const hasContentNow = plainText && plainText.trim().length > 0;
-    
-    if (originalHadContentRef.current && !hasContentNow && !titleChanged) {
-      // Content disappeared but title didn't change - likely an editor bug, don't save
-      console.warn('Autosave blocked: content became empty unexpectedly (note originally had content)');
-      return;
-    }
-
-    setIsSaving(true);
-
-    updateMutation.mutate({
-      title: debouncedTitle || "Sans titre",
-      content: debouncedContent,
-      plainText,
-      status,
-      visibility,
-    });
-  }, [debouncedTitle, debouncedContent, status, visibility, note, isEditMode]);
-
-  // Check if there are unsaved changes (compare with last persisted state, not original note)
-  const hasUnsavedChanges = useCallback(() => {
-    if (!lastPersistedState) return false;
-    
-    // Check if saving is in progress (mutations are pending)
-    if (updateMutation.isPending || isSaving) return true;
-    
-    return (
-      title !== lastPersistedState.title ||
-      JSON.stringify(content) !== JSON.stringify(lastPersistedState.content) ||
-      status !== lastPersistedState.status ||
-      visibility !== lastPersistedState.visibility
-    );
-  }, [lastPersistedState, title, content, status, visibility, updateMutation.isPending, isSaving]);
 
   const handleDeleteClick = useCallback(() => {
     setDeleteDialogOpen(true);
@@ -456,6 +252,7 @@ export default function NoteDetail() {
   }, [id, navigate, queryClient, toast]);
 
   const handleSaveDraft = useCallback(() => {
+    flushImmediate();
     // Extract plain text from content for search
     const extractPlainText = (content: any): string => {
       if (!content) return "";
@@ -487,9 +284,10 @@ export default function NoteDetail() {
       description: "La note a été enregistrée en brouillon",
       variant: "success",
     });
-  }, [title, content, visibility, updateMutation, toast]);
+  }, [title, content, visibility, updateMutation, toast, flushImmediate]);
 
   const handlePublish = useCallback(() => {
+    flushImmediate();
     const newStatus = status === "active" ? "draft" : "active";
     setStatus(newStatus);
     
@@ -526,7 +324,7 @@ export default function NoteDetail() {
         : "La note est de retour en brouillon",
       variant: "success",
     });
-  }, [title, content, visibility, status, updateMutation, toast]);
+  }, [title, content, visibility, status, updateMutation, toast, flushImmediate]);
 
   // Project link mutation
   const linkProjectMutation = useMutation({
@@ -878,7 +676,8 @@ export default function NoteDetail() {
               {/* Inline editable title */}
               <Input
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => { setTitle(e.target.value); queueUpdate({ title: e.target.value }); }}
+                onBlur={flushImmediate}
                 placeholder="Sans titre"
                 className="flex-1 h-8 text-base font-semibold border-0 bg-transparent px-1 focus-visible:ring-0 focus-visible:ring-offset-0 truncate"
                 data-testid="input-title-mobile"
@@ -887,7 +686,7 @@ export default function NoteDetail() {
               
               {/* Discrete save status indicator */}
               <span className="text-[10px] text-muted-foreground flex-shrink-0 min-w-[50px] text-right">
-                {isSaving ? "..." : (hasUnsavedChanges() ? "•" : "✓")}
+                {syncState.isSyncing ? "..." : syncState.hasPending ? "•" : "✓"}
               </span>
               
               {/* Mobile Actions Dropdown (⋯) */}
@@ -1094,7 +893,8 @@ export default function NoteDetail() {
                     <input
                       type="text"
                       value={title}
-                      onChange={(e) => setTitle(e.target.value)}
+                      onChange={(e) => { setTitle(e.target.value); queueUpdate({ title: e.target.value }); }}
+                      onBlur={flushImmediate}
                       className="flex-1 min-w-0 text-xl font-bold bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground"
                       placeholder="Sans titre"
                       data-testid="input-note-title-header"
@@ -1325,12 +1125,14 @@ export default function NoteDetail() {
                       </PopoverContent>
                     </Popover>
 
-                    {isSaving ? (
+                    {syncState.isSyncing ? (
                       <span className="text-xs text-muted-foreground">Sauvegarde...</span>
-                    ) : lastSaved ? (
+                    ) : syncState.lastSynced ? (
                       <span className="text-xs text-muted-foreground">
-                        Sauvegardé {formatDistanceToNow(lastSaved, { addSuffix: true, locale: fr })}
+                        Sauvegardé {formatDistanceToNow(syncState.lastSynced, { addSuffix: true, locale: fr })}
                       </span>
+                    ) : syncState.error ? (
+                      <span className="text-xs text-red-500">Erreur de sync</span>
                     ) : (
                       <span className="text-xs text-muted-foreground">
                         Modifié {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true, locale: fr })}
@@ -1344,7 +1146,7 @@ export default function NoteDetail() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span className="text-xs text-muted-foreground cursor-default select-none" data-testid="autosave-status">
-                      {isSaving ? "Sauvegarde..." : lastSaved ? `Sauvegardé` : ""}
+                      {syncState.isSyncing ? "Sauvegarde..." : syncState.hasPending ? "En attente..." : syncState.lastSynced ? "Sauvegardé" : ""}
                     </span>
                   </TooltipTrigger>
                   <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Auto-sauvegarde activée</TooltipContent>
@@ -1700,7 +1502,8 @@ export default function NoteDetail() {
           <NoteEditor
             ref={editorRef}
             content={content}
-            onChange={setContent}
+            onChange={(c) => { setContent(c); queueUpdate({ content: c }); }}
+            onBlur={flushImmediate}
             editable={isEditMode}
             placeholder="Commencez à écrire votre note..."
           />

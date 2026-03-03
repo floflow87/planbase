@@ -132,6 +132,7 @@ export interface NoteEditorRef {
 interface NoteEditorProps {
   content: any;
   onChange: (content: any) => void;
+  onBlur?: () => void;
   editable?: boolean;
   placeholder?: string;
   onTitleChange?: (title: string) => void;
@@ -186,6 +187,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
   const {
     content,
     onChange,
+    onBlur,
     editable = true,
     placeholder = "Commencer à écrire… Appuyez sur la touche / pour utiliser les raccourcis.",
     onTitleChange,
@@ -283,6 +285,9 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     editable,
     onUpdate: ({ editor }) => {
       onChange(editor.getJSON());
+    },
+    onBlur: () => {
+      onBlur?.();
     },
     editorProps: {
       attributes: {
@@ -1130,14 +1135,6 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                         </DropdownMenuItem>
                       );
                     })}
-                    <DropdownMenuItem
-                      onClick={() => editor.chain().focus().unsetLineHeight().run()}
-                      className="gap-2 text-muted-foreground"
-                      data-testid="dropdown-item-line-height-reset"
-                    >
-                      <span className="w-3 h-3 shrink-0" />
-                      Par défaut
-                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
 
