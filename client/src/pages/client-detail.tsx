@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, CalendarDays, Save, Check, ChevronLeft, ChevronRight, Star, TrendingUp, ChevronsUpDown, DollarSign, StickyNote, Globe, Radar, BarChart4, CreditCard, Timer, Hourglass, Filter } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, CalendarDays, Save, Check, ChevronLeft, ChevronRight, Star, TrendingUp, ChevronsUpDown, DollarSign, StickyNote, Globe, Radar, BarChart4, CreditCard, Timer, Hourglass, Filter, Eye, CalendarPlus, NotebookPen, ListTodo } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,7 @@ import { Loader } from "@/components/Loader";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useProjectStagesUI } from "@/hooks/useProjectStagesUI";
+import { AppointmentPanel } from "@/components/appointment-panel";
 
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -66,6 +67,8 @@ export default function ClientDetail() {
   const [isEditClientSidebarOpen, setIsEditClientSidebarOpen] = useState(false);
   const [isStatusPopoverOpen, setIsStatusPopoverOpen] = useState(false);
   const [caPeriod, setCaPeriod] = useState("all");
+  const [isAppointmentPanelOpen, setIsAppointmentPanelOpen] = useState(false);
+  const [viewingAppointment, setViewingAppointment] = useState<any>(null);
   const [clientInfoForm, setClientInfoForm] = useState({
     type: "company" as "company" | "person",
     name: "",
@@ -585,6 +588,31 @@ export default function ClientDetail() {
     },
   });
 
+  const createAndOpenNoteMutation = useMutation({
+    mutationFn: async () => {
+      const today = new Date().toISOString().split("T")[0];
+      const noteRes = await apiRequest("/api/notes", "POST", {
+        title: "",
+        content: { type: "doc", content: [] },
+        status: "draft",
+        visibility: "private",
+        noteDate: today,
+      });
+      const note = await noteRes.json();
+      await apiRequest(`/api/notes/${note.id}/links`, "POST", {
+        targetType: "client",
+        targetId: id,
+      });
+      return note;
+    },
+    onSuccess: (note) => {
+      setLocation(`/notes/${note.id}`);
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la création de la note", variant: "destructive" });
+    },
+  });
+
   const createCustomTabMutation = useMutation({
     mutationFn: async (data: { name: string; icon?: string }) => {
       const maxOrder = customTabs.length > 0 ? Math.max(...customTabs.map(t => t.order)) : -1;
@@ -905,14 +933,29 @@ export default function ClientDetail() {
 
   const saveClientInfo = async () => {
     try {
+      const changedFields: string[] = [];
+      if (client && clientInfoForm.source !== ((client as any).source || "")) {
+        const srcLabel = sourceLabels[clientInfoForm.source] || clientInfoForm.source || "—";
+        const oldLabel = sourceLabels[(client as any).source] || (client as any).source || "—";
+        changedFields.push(`Source : ${oldLabel} → ${srcLabel}`);
+      }
+      if (client && clientInfoForm.website !== ((client as any).website || "")) {
+        changedFields.push(`Site web : ${(client as any).website || "—"} → ${clientInfoForm.website || "—"}`);
+      }
+
       await apiRequest(`/api/clients/${id}`, "PATCH", clientInfoForm);
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       queryClient.invalidateQueries({ queryKey: ['/api/clients', id] });
+
+      const description = changedFields.length > 0
+        ? changedFields.join(" | ")
+        : "Informations générales modifiées";
+
       await apiRequest("/api/activities", "POST", {
         subjectType: "client",
         subjectId: id,
         kind: "info_update",
-        description: "Informations générales modifiées",
+        description,
         occurredAt: new Date().toISOString(),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'activities'] });
@@ -1076,7 +1119,7 @@ export default function ClientDetail() {
 
           {/* ── Info Sidebar ── */}
           <Card className="w-64 shrink-0 bg-white dark:bg-card shadow-sm">
-            <CardContent className="p-3 space-y-3">
+            <CardContent className="p-4 space-y-4">
             {/* Avatar + name */}
             <div className="flex flex-col items-center gap-2 py-2">
               <Avatar className="w-14 h-14">
@@ -1136,8 +1179,43 @@ export default function ClientDetail() {
               </Badge>
             </div>
 
+            {/* Quick action buttons */}
+            <div className="flex justify-around pt-1 border-t">
+              <button
+                onClick={() => createAndOpenNoteMutation.mutate()}
+                disabled={createAndOpenNoteMutation.isPending}
+                className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg hover-elevate"
+                data-testid="button-quick-note"
+              >
+                <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-950/60 flex items-center justify-center">
+                  <NotebookPen className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                </div>
+                <span className="text-[10px] text-muted-foreground">Notes</span>
+              </button>
+              <button
+                onClick={() => setIsTaskDialogOpen(true)}
+                className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg hover-elevate"
+                data-testid="button-quick-task"
+              >
+                <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-950/60 flex items-center justify-center">
+                  <ListTodo className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <span className="text-[10px] text-muted-foreground">Tâches</span>
+              </button>
+              <button
+                onClick={() => { setViewingAppointment(null); setIsAppointmentPanelOpen(true); }}
+                className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg hover-elevate"
+                data-testid="button-quick-rdv"
+              >
+                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center">
+                  <CalendarPlus className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <span className="text-[10px] text-muted-foreground">Rendez-vous</span>
+              </button>
+            </div>
+
             {/* Info fields */}
-            <div className="space-y-3 pt-2 border-t">
+            <div className="space-y-4 pt-2 border-t">
               {(client as any).email && (
                 <div className="flex items-start gap-2.5">
                   <Mail className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
@@ -1215,6 +1293,10 @@ export default function ClientDetail() {
                     <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1">{contacts.length}</Badge>
                   )}
                 </TabsTrigger>
+                <TabsTrigger value="chiffre_affaires" data-testid="tab-chiffre-affaires" className="gap-1.5 text-xs h-8 px-3">
+                  <BarChart4 className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Chiffre d'affaires</span>
+                </TabsTrigger>
                 <TabsTrigger value="commentaires" data-testid="tab-commentaires" className="gap-1.5 text-xs h-8 px-3">
                   <MessageSquare className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Commentaires</span>
@@ -1239,10 +1321,6 @@ export default function ClientDetail() {
                 <TabsTrigger value="documents" data-testid="tab-documents" className="gap-1.5 text-xs h-8 px-3">
                   <FileText className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Docs</span>
-                </TabsTrigger>
-                <TabsTrigger value="chiffre_affaires" data-testid="tab-chiffre-affaires" className="gap-1.5 text-xs h-8 px-3">
-                  <BarChart4 className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Chiffre d'affaires</span>
                 </TabsTrigger>
                 {customTabs.map((tab) => (
                   <TabsTrigger
@@ -1363,6 +1441,15 @@ export default function ClientDetail() {
                           {format(new Date(prochainRdv.startDateTime), "dd MMM yyyy 'à' HH:mm", { locale: fr })}
                         </p>
                       </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => { setViewingAppointment(prochainRdv); setIsAppointmentPanelOpen(true); }}
+                        data-testid="button-view-rdv"
+                        title="Voir le détail"
+                      >
+                        <Eye className="w-4 h-4 text-muted-foreground" />
+                      </Button>
                     </CardContent>
                   </Card>
                 )}
@@ -3073,6 +3160,15 @@ export default function ClientDetail() {
             </div>
           </SheetContent>
         </Sheet>
+
+        {/* Appointment Panel — create or view */}
+        <AppointmentPanel
+          open={isAppointmentPanelOpen}
+          onClose={() => { setIsAppointmentPanelOpen(false); setViewingAppointment(null); queryClient.invalidateQueries({ queryKey: ['/api/appointments'] }); }}
+          appointment={viewingAppointment}
+          mode={viewingAppointment ? "view" : "create"}
+          initialClientId={viewingAppointment ? null : id}
+        />
       </div>
     </div>
   );

@@ -40,6 +40,7 @@ interface AppointmentPanelProps {
   mode?: "create" | "view" | "edit";
   isReadOnly?: boolean;
   source?: "planbase" | "google";
+  initialClientId?: string | null;
 }
 
 const PASTEL_COLORS = [
@@ -86,7 +87,7 @@ function formatDateTimeLocal(date: Date): string {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
-export function AppointmentPanel({ open, onClose, selectedDate, appointment, mode: initialMode = "create", isReadOnly = false, source = "planbase" }: AppointmentPanelProps) {
+export function AppointmentPanel({ open, onClose, selectedDate, appointment, mode: initialMode = "create", isReadOnly = false, source = "planbase", initialClientId }: AppointmentPanelProps) {
   const { toast } = useToast();
   const [mode, setMode] = useState<"create" | "view" | "edit">(initialMode);
   const [modeJustChanged, setModeJustChanged] = useState(false);
@@ -146,12 +147,25 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
         setMode(initialMode);
       } else {
         setMode("create");
+        setTitle("");
+        setType("MEETING");
+        setContactEmail("");
+        setContactPhone("");
+        setNotes("");
+        setColor("#F3E8FF");
+        setRecurrence("none");
+        setRecurrenceEndDate("");
+        setRecurrenceDays(["MO", "TU", "WE", "TH", "FR", "SA", "SU"]);
+        setSelectedClientId(initialClientId || null);
         if (selectedDate) {
           setStartDateTime(formatDateTimeLocal(selectedDate));
+        } else {
+          setStartDateTime("");
         }
+        setEndDateTime("");
       }
     }
-  }, [open, appointment, selectedDate, initialMode]);
+  }, [open, appointment, selectedDate, initialMode, initialClientId]);
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
