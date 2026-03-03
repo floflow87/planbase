@@ -4143,8 +4143,9 @@ app.get("/config/feature-flags", async (_req, res) => {
 
       const note = await storage.updateNote(req.params.id, req.body);
       
-      // Log activity for significant note updates (title or content changes)
-      if (req.body.title !== undefined || req.body.content !== undefined) {
+      // Log activity only for explicit saves (not background autosaves)
+      const isAutosave = req.query.source === 'autosave';
+      if (!isAutosave && (req.body.title !== undefined || req.body.content !== undefined)) {
         await storage.createActivity({
           accountId: req.accountId!,
           subjectType: "note",
