@@ -2065,6 +2065,17 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Project payments is_paid column added");
 
+    // ============================================
+    // Clients website, source, last_name columns
+    // ============================================
+    await db.execute(sql`
+      ALTER TABLE clients
+      ADD COLUMN IF NOT EXISTS website TEXT,
+      ADD COLUMN IF NOT EXISTS source TEXT,
+      ADD COLUMN IF NOT EXISTS last_name TEXT;
+    `);
+    console.log("✅ Clients website, source, last_name columns added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

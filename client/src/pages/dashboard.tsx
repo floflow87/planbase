@@ -1660,7 +1660,7 @@ export default function Dashboard() {
       iconBg: "bg-green-100",
       iconColor: "text-green-600",
       chartHeights: [20, 35, 45, 55, 50, 70, 85],
-      chartColor: "#22c55e",
+      chartColor: "#6ee7b7",
     },
     {
       title: "Paiements en attente",
@@ -1671,7 +1671,7 @@ export default function Dashboard() {
       iconBg: "bg-red-100",
       iconColor: "text-red-600",
       chartHeights: [70, 55, 65, 50, 60, 45, 40],
-      chartColor: "#ef4444",
+      chartColor: "#fca5a5",
     },
     {
       title: "Tâches en cours",
@@ -1682,7 +1682,7 @@ export default function Dashboard() {
       iconBg: "bg-orange-100",
       iconColor: "text-orange-600",
       chartHeights: [30, 50, 40, 65, 55, 45, 60],
-      chartColor: "#f97316",
+      chartColor: "#fdba74",
       link: { label: "Voir tout", href: "/tasks" },
     },
     {
@@ -1694,7 +1694,7 @@ export default function Dashboard() {
       iconBg: "bg-violet-100",
       iconColor: "text-violet-600",
       chartHeights: [35, 45, 50, 60, 70, 75, 80],
-      chartColor: "#7c3aed",
+      chartColor: "#93c5fd",
       link: { label: "Voir tous", href: "/projects?tab=projects" },
     },
   ];

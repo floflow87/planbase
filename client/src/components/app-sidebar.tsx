@@ -102,9 +102,9 @@ export function AppSidebar() {
     { title: "Projets", url: "/projects", icon: FolderKanban },
     { title: "Product", url: "/product", icon: Package },
     { title: "Roadmap", url: "/roadmap", icon: Rocket },
+    { title: "Notes", url: "/notes", icon: FileText },
     { title: "Tâches", url: "/tasks", icon: CheckSquare },
     { title: "Whiteboards", url: "/mindmaps", icon: Network, badge: "Beta" },
-    { title: "Notes", url: "/notes", icon: FileText },
     { title: "Documents", url: "/documents", icon: FolderOpen },
     { title: "Rentabilité", url: "/finance", icon: DollarSign },
   ];

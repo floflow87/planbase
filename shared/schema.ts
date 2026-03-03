@@ -354,9 +354,12 @@ export const clients = pgTable("clients", {
   status: text("status").notNull().default("prospecting"),
   budget: numeric("budget", { precision: 14, scale: 2 }),
   notes: text("notes"),
+  website: text("website"),
+  source: text("source"), // Acquisition source: referral, linkedin, website, ad, other
   // Personal/company details
   civility: text("civility"), // M, Mme, Mlle, Dr, etc.
   firstName: text("first_name"), // For person type
+  lastName: text("last_name"), // For person type
   company: text("company"), // Company name for person type, or full company name for company type
   address: text("address"),
   postalCode: text("postal_code"),

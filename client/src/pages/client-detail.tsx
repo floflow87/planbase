@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, Save, Check, ChevronLeft, ChevronRight, Star, TrendingUp, ChevronsUpDown, DollarSign, StickyNote } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, CalendarDays, Save, Check, ChevronLeft, ChevronRight, Star, TrendingUp, ChevronsUpDown, DollarSign, StickyNote, Globe, Radar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -81,6 +81,8 @@ export default function ClientDetail() {
     nationality: "",
     budget: "",
     notes: "",
+    website: "",
+    source: "",
   });
   const [isCreateTabDialogOpen, setIsCreateTabDialogOpen] = useState(false);
   const [newTabName, setNewTabName] = useState("");
@@ -188,6 +190,16 @@ export default function ClientDetail() {
     enabled: !!accountId && !!id,
   });
 
+  const { data: allAppointments = [] } = useQuery<any[]>({
+    queryKey: ['/api/appointments'],
+    enabled: !!accountId,
+  });
+
+  const now = new Date();
+  const prochainRdv = allAppointments
+    .filter((a) => a.clientId === id && new Date(a.startDateTime) > now)
+    .sort((a, b) => new Date(a.startDateTime).getTime() - new Date(b.startDateTime).getTime())[0] || null;
+
   const { data: users = [] } = useQuery<AppUser[]>({
     queryKey: ['/api/accounts', accountId, 'users'],
     enabled: !!accountId,
@@ -275,6 +287,8 @@ export default function ClientDetail() {
         nationality: client.nationality || "",
         budget: client.budget || "",
         notes: client.notes || "",
+        website: (client as any).website || "",
+        source: (client as any).source || "",
       });
     }
   }, [client, accountId, currentUser, clientForm]);
@@ -886,7 +900,7 @@ export default function ClientDetail() {
       await apiRequest("/api/activities", "POST", {
         subjectType: "client",
         subjectId: id,
-        kind: "note",
+        kind: "info_update",
         description: "Informations générales modifiées",
         occurredAt: new Date().toISOString(),
       });
@@ -912,7 +926,7 @@ export default function ClientDetail() {
         await apiRequest("/api/activities", "POST", {
           subjectType: "client",
           subjectId: id,
-          kind: "note",
+          kind: "stage_change",
           description: `Étape modifiée : ${statusLabels[oldStatus] || oldStatus} → ${statusLabels[newStatus] || newStatus}`,
           occurredAt: new Date().toISOString(),
         });
@@ -952,6 +966,16 @@ export default function ClientDetail() {
   };
   const currentStatus = statusConfig[client.status] || { label: client.status, color: "" };
 
+  const sourceLabels: Record<string, string> = {
+    referral: "Recommandation",
+    linkedin: "LinkedIn",
+    website: "Site web",
+    ad: "Publicité",
+    email: "Email",
+    phone: "Téléphone",
+    other: "Autre",
+  };
+
   const lastActivityDate = (() => {
     const allDates = [
       ...clientActivities.map(a => a.occurredAt ? new Date(a.occurredAt) : new Date(a.createdAt || 0)),
@@ -967,7 +991,7 @@ export default function ClientDetail() {
     : null;
 
   const totalRevenue = projects.reduce((sum, p) => {
-    const val = parseFloat((p as any).budget || "0");
+    const val = parseFloat((p as any).totalBilled || (p as any).budget || "0");
     return sum + (isNaN(val) ? 0 : val);
   }, 0);
 
@@ -1028,7 +1052,7 @@ export default function ClientDetail() {
         <div className="flex gap-5 items-start">
 
           {/* ── Info Sidebar ── */}
-          <Card className="w-52 shrink-0 bg-white dark:bg-card shadow-sm">
+          <Card className="w-64 shrink-0 bg-white dark:bg-card shadow-sm">
             <CardContent className="p-3 space-y-3">
             {/* Avatar + name */}
             <div className="flex flex-col items-center gap-2 py-2">
@@ -1123,6 +1147,20 @@ export default function ClientDetail() {
                 <div className="flex items-start gap-2.5">
                   <StickyNote className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
                   <span className="text-xs text-muted-foreground leading-tight line-clamp-4">{(client as any).notes}</span>
+                </div>
+              )}
+              {(client as any).website && (
+                <div className="flex items-start gap-2.5">
+                  <Globe className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                  <a href={(client as any).website.startsWith('http') ? (client as any).website : `https://${(client as any).website}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary break-all hover:underline">
+                    {(client as any).website}
+                  </a>
+                </div>
+              )}
+              {(client as any).source && (
+                <div className="flex items-start gap-2.5">
+                  <Radar className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                  <span className="text-xs text-muted-foreground">{sourceLabels[(client as any).source] || (client as any).source}</span>
                 </div>
               )}
               {client.createdAt && (
@@ -1223,7 +1261,7 @@ export default function ClientDetail() {
               {/* ── Vue d'ensemble ── */}
               <TabsContent value="vue_ensemble" className="space-y-4">
                 {/* KPI Cards */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
                   <Card>
                     <CardContent className="p-3 flex items-center gap-3">
                       <div className="w-8 h-8 rounded-md bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center shrink-0">
@@ -1282,6 +1320,24 @@ export default function ClientDetail() {
                   </Card>
                 </div>
 
+                {/* Prochain RDV */}
+                {prochainRdv && (
+                  <Card>
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-md bg-cyan-100 dark:bg-cyan-950/50 flex items-center justify-center shrink-0">
+                        <CalendarDays className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-muted-foreground">Prochain RDV</p>
+                        <p className="text-sm font-semibold text-foreground leading-tight truncate">{prochainRdv.title}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {format(new Date(prochainRdv.startDateTime), "dd MMM yyyy 'à' HH:mm", { locale: fr })}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Unified Activities */}
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
@@ -1298,7 +1354,7 @@ export default function ClientDetail() {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {clientActivities.map((activity) => {
+                        {clientActivities.filter(a => a.kind !== "stage_change" && a.kind !== "info_update").map((activity) => {
                           const author = users.find((u) => u.id === activity.createdBy);
                           const activityKindLabels: Record<string, string> = {
                             email: "Email", call: "Appel", meeting: "Réunion", note: "Note", task: "Tâche", custom: "Autre",
@@ -1345,7 +1401,7 @@ export default function ClientDetail() {
                         })}
 
                         {/* Auto history timeline */}
-                        {([...comments, ...contacts, ...projects, ...tasks].length > 0 || client) && (
+                        {([...comments, ...contacts, ...projects, ...tasks].length > 0 || client || clientActivities.some(a => a.kind === "stage_change" || a.kind === "info_update")) && (
                           <div className="pt-2">
                             <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-3 font-medium">Historique automatique</p>
                             <div className="relative space-y-4 pl-7 before:absolute before:left-2.5 before:top-1 before:bottom-1 before:w-0.5 before:bg-border">
@@ -1355,6 +1411,7 @@ export default function ClientDetail() {
                                 ...tasks.map((t) => ({ ...t, _date: new Date(t.createdAt), _type: 'task' as const })),
                                 ...contacts.map((c) => ({ ...c, _date: new Date(c.createdAt), _type: 'contact' as const })),
                                 ...comments.map((c) => ({ ...c, _date: new Date(c.createdAt), _type: 'comment' as const })),
+                                ...clientActivities.filter(a => a.kind === "stage_change" || a.kind === "info_update").map(a => ({ ...a, _date: new Date(a.occurredAt || a.createdAt || 0), _type: a.kind as 'stage_change' | 'info_update' })),
                               ]
                                 .sort((a, b) => b._date.getTime() - a._date.getTime())
                                 .map((item) => {
@@ -1410,6 +1467,28 @@ export default function ClientDetail() {
                                           <MessageSquare className="w-2.5 h-2.5 text-white" />
                                         </div>
                                         <p className="text-xs text-foreground"><span className="font-medium">{author?.firstName} {author?.lastName}</span> a ajouté un commentaire</p>
+                                        <p className="text-[10px] text-muted-foreground">{format(item._date, "d MMM yyyy 'à' HH:mm", { locale: fr })}</p>
+                                      </div>
+                                    );
+                                  }
+                                  if (item._type === 'stage_change') {
+                                    return (
+                                      <div key={`stage-${item.id}`} className="relative" data-testid={`activity-stage-${item.id}`}>
+                                        <div className="absolute left-[-1.75rem] top-0.5 w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center">
+                                          <TrendingUp className="w-2.5 h-2.5 text-white" />
+                                        </div>
+                                        <p className="text-xs text-foreground">{(item as any).description}</p>
+                                        <p className="text-[10px] text-muted-foreground">{format(item._date, "d MMM yyyy 'à' HH:mm", { locale: fr })}</p>
+                                      </div>
+                                    );
+                                  }
+                                  if (item._type === 'info_update') {
+                                    return (
+                                      <div key={`info-${item.id}`} className="relative" data-testid={`activity-info-${item.id}`}>
+                                        <div className="absolute left-[-1.75rem] top-0.5 w-4 h-4 rounded-full bg-slate-400 flex items-center justify-center">
+                                          <Edit className="w-2.5 h-2.5 text-white" />
+                                        </div>
+                                        <p className="text-xs text-foreground">{(item as any).description}</p>
                                         <p className="text-[10px] text-muted-foreground">{format(item._date, "d MMM yyyy 'à' HH:mm", { locale: fr })}</p>
                                       </div>
                                     );
@@ -2694,6 +2773,28 @@ export default function ClientDetail() {
               <div>
                 <Label>Budget (€)</Label>
                 <Input type="number" value={clientInfoForm.budget} onChange={(e) => setClientInfoForm({ ...clientInfoForm, budget: e.target.value })} data-testid="input-edit-budget" />
+              </div>
+              <div>
+                <Label>Site web</Label>
+                <Input type="url" placeholder="https://..." value={clientInfoForm.website} onChange={(e) => setClientInfoForm({ ...clientInfoForm, website: e.target.value })} data-testid="input-edit-website" />
+              </div>
+              <div>
+                <Label>Source d'acquisition</Label>
+                <select
+                  value={clientInfoForm.source}
+                  onChange={(e) => setClientInfoForm({ ...clientInfoForm, source: e.target.value })}
+                  data-testid="select-edit-source"
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                >
+                  <option value="">— Non renseigné —</option>
+                  <option value="referral">Recommandation</option>
+                  <option value="linkedin">LinkedIn</option>
+                  <option value="website">Site web</option>
+                  <option value="ad">Publicité</option>
+                  <option value="email">Email</option>
+                  <option value="phone">Téléphone</option>
+                  <option value="other">Autre</option>
+                </select>
               </div>
               <div>
                 <Label>Notes</Label>
