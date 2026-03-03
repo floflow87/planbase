@@ -136,7 +136,10 @@ export default function Notes() {
   const queryClient = useQueryClient();
   const { can: canDo } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "active" | "archived">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "active" | "archived">(() => {
+    const saved = localStorage.getItem('notesStatusFilter');
+    return saved ? JSON.parse(saved) : "all";
+  });
   const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null);
@@ -195,6 +198,10 @@ export default function Notes() {
   });
 
   // Persist filters to localStorage
+  useEffect(() => {
+    localStorage.setItem('notesStatusFilter', JSON.stringify(statusFilter));
+  }, [statusFilter]);
+
   useEffect(() => {
     localStorage.setItem('notesFilterByTag', JSON.stringify(filterByTag));
   }, [filterByTag]);

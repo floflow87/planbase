@@ -2122,12 +2122,10 @@ export default function ClientDetail() {
                                           <span className="text-xs font-medium text-foreground">{payment.label || "Paiement"}</span>
                                           {proj && <span className="text-[10px] text-muted-foreground truncate">— {(proj as any).name}</span>}
                                         </div>
-                                        {payment.dueDate && (
-                                          <p className={`text-[10px] mt-0.5 ${isOverdue ? "text-red-500" : "text-muted-foreground"}`}>
-                                            Échéance : {format(new Date(payment.dueDate), "dd MMM yyyy", { locale: fr })}
-                                            {isOverdue && " · En retard"}
-                                          </p>
-                                        )}
+                                        <p className={`text-[10px] mt-0.5 ${isOverdue ? "text-red-500" : "text-muted-foreground"}`}>
+                                          Date attendue : {payment.dueDate ? format(new Date(payment.dueDate), "dd MMM yyyy", { locale: fr }) : "—"}
+                                          {isOverdue && " · En retard"}
+                                        </p>
                                       </div>
                                       <div className="flex items-center gap-2 shrink-0">
                                         <span className="text-sm font-semibold text-foreground">{fmtEur(parseFloat(payment.amount || "0"))}</span>

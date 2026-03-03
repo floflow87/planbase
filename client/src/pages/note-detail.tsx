@@ -1,12 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation, Link } from "wouter";
-import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink, AlignJustify } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import {
   Tooltip,
   TooltipContent,
@@ -84,7 +82,11 @@ export default function NoteDetail() {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [lastPersistedState, setLastPersistedState] = useState<{title: string, content: any, status: string, visibility: string} | null>(null);
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false); // Default OFF - no localStorage memory
+  const autoSaveEnabled = true; // Always ON — auto-save like Notion
+  const [lineHeight, setLineHeight] = useState<number>(() => {
+    const saved = localStorage.getItem("noteLineHeight");
+    return saved ? parseFloat(saved) : 1.5;
+  });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entitySelectorOpen, setEntitySelectorOpen] = useState(false);
   const [entitySelectorTab, setEntitySelectorTab] = useState<"project" | "client" | "ticket">("project");
@@ -105,7 +107,7 @@ export default function NoteDetail() {
   const visibilityRef = useRef(visibility);
   const lastPersistedStateRef = useRef(lastPersistedState);
   const noteIdRef = useRef(id);
-  const autoSaveEnabledRef = useRef(autoSaveEnabled);
+  const autoSaveEnabledRef = useRef(true);
   // Track if the note originally had content (to prevent saving empty content over existing data)
   const originalHadContentRef = useRef(false);
   
@@ -116,8 +118,11 @@ export default function NoteDetail() {
   useEffect(() => { visibilityRef.current = visibility; }, [visibility]);
   useEffect(() => { lastPersistedStateRef.current = lastPersistedState; }, [lastPersistedState]);
   useEffect(() => { noteIdRef.current = id; }, [id]);
-  useEffect(() => { autoSaveEnabledRef.current = autoSaveEnabled; }, [autoSaveEnabled]);
-  
+  // Persist lineHeight to localStorage
+  useEffect(() => {
+    localStorage.setItem("noteLineHeight", String(lineHeight));
+  }, [lineHeight]);
+
   // Save immediately on unmount (tab change, navigation, etc.) if there are unsaved changes
   useEffect(() => {
     return () => {
@@ -370,7 +375,7 @@ export default function NoteDetail() {
 
   // Autosave effect
   useEffect(() => {
-    if (!note || !isEditMode || !autoSaveEnabled) return;
+    if (!note || !isEditMode) return;
     
     // Check if anything changed
     const titleChanged = debouncedTitle !== note.title;
@@ -420,7 +425,7 @@ export default function NoteDetail() {
       status,
       visibility,
     });
-  }, [debouncedTitle, debouncedContent, status, visibility, note, isEditMode, autoSaveEnabled]);
+  }, [debouncedTitle, debouncedContent, status, visibility, note, isEditMode]);
 
   // Check if there are unsaved changes (compare with last persisted state, not original note)
   const hasUnsavedChanges = useCallback(() => {
@@ -1048,7 +1053,7 @@ export default function NoteDetail() {
                 placeholder="Sans titre"
                 className="flex-1 h-8 text-base font-semibold border-0 bg-transparent px-1 focus-visible:ring-0 focus-visible:ring-offset-0 truncate"
                 data-testid="input-title-mobile"
-                readOnly={!isEditMode}
+                readOnly={false}
               />
               
               {/* Discrete save status indicator */}
@@ -1072,20 +1077,11 @@ export default function NoteDetail() {
                   {/* Edition Section */}
                   <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Édition</div>
                   
-                  {/* Autosave toggle */}
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setAutoSaveEnabled(!autoSaveEnabled);
-                      toast({
-                        title: autoSaveEnabled ? "Auto-sauvegarde désactivée" : "Auto-sauvegarde activée",
-                        variant: "default",
-                      });
-                    }}
-                    data-testid="menu-item-autosave-mobile"
-                  >
+                  {/* Autosave indicator (always on) */}
+                  <DropdownMenuItem disabled data-testid="menu-item-autosave-mobile">
                     <Save className="w-4 h-4 mr-2" />
                     Auto-sauvegarde
-                    <span className="ml-auto text-xs text-muted-foreground">{autoSaveEnabled ? "ON" : "OFF"}</span>
+                    <span className="ml-auto text-xs text-emerald-500">ON</span>
                   </DropdownMenuItem>
                   
                   {/* Lock/Unlock */}
@@ -1451,6 +1447,34 @@ export default function NoteDetail() {
                       </PopoverContent>
                     </Popover>
 
+                    {/* Line height picker */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900"
+                          data-testid="button-line-height"
+                        >
+                          <AlignJustify className="w-3 h-3" />
+                          <span>{lineHeight.toFixed(2).replace('.', ',')}</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-28">
+                        {[1.00, 1.15, 1.30].map((lh) => (
+                          <DropdownMenuItem
+                            key={lh}
+                            onClick={() => setLineHeight(lh)}
+                            className="gap-2"
+                            data-testid={`option-line-height-${lh}`}
+                          >
+                            {lineHeight === lh && <Check className="w-3 h-3 shrink-0" />}
+                            <span className={lineHeight === lh ? "font-medium" : "pl-5"}>{lh.toFixed(2).replace('.', ',')}</span>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
                     {/* Date picker */}
                     <Popover>
                       <PopoverTrigger asChild>
@@ -1515,22 +1539,14 @@ export default function NoteDetail() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {/* Auto Save Toggle */}
+                {/* Auto save status indicator */}
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center gap-1">
-                      <Switch
-                        id="autosave"
-                        checked={autoSaveEnabled}
-                        onCheckedChange={setAutoSaveEnabled}
-                        data-testid="switch-autosave"
-                      />
-                      <Label htmlFor="autosave" className="cursor-pointer text-[11px]">
-                        {autoSaveEnabled ? "ON" : "OFF"}
-                      </Label>
-                    </div>
+                    <span className="text-xs text-muted-foreground cursor-default select-none" data-testid="autosave-status">
+                      {isSaving ? "Sauvegarde..." : lastSaved ? `Sauvegardé` : ""}
+                    </span>
                   </TooltipTrigger>
-                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Auto-sauvegarde {autoSaveEnabled ? "activée" : "désactivée"}</TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Auto-sauvegarde activée</TooltipContent>
                 </Tooltip>
                 
                 {/* Save button */}
@@ -1878,7 +1894,7 @@ export default function NoteDetail() {
 
       {/* Scrollable Content - maximize height on mobile */}
       <div className="flex-1 overflow-auto">
-        <div className="px-1 py-0 md:p-6">
+        <div className="px-1 py-0 md:p-6" style={{ lineHeight: lineHeight }}>
           {/* Editor */}
           <NoteEditor
             ref={editorRef}

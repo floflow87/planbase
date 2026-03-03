@@ -124,7 +124,7 @@ function Router() {
         <ProtectedRoute><NoteNew /></ProtectedRoute>
       </Route>
       <Route path="/notes/:id">
-        <ProtectedRoute><NoteDetail /></ProtectedRoute>
+        {(params) => <ProtectedRoute><NoteDetail key={(params as any).id} /></ProtectedRoute>}
       </Route>
       <Route path="/notes">
         <ProtectedRoute><Notes /></ProtectedRoute>
