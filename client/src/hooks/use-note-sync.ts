@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { supabase } from '@/lib/supabase';
 
 export interface NoteUpdateData {
@@ -134,6 +134,11 @@ export function useNoteSync(noteId: string | undefined) {
       pendingRef.current = null;
       clearStorage(id);
       retryCountRef.current = 0;
+
+      // Invalidate TanStack Query cache so the note reflects the saved version
+      queryClient.setQueryData(['/api/notes', id], (old: any) =>
+        old ? { ...old, ...result } : result
+      );
 
       setSyncState(prev => ({
         ...prev,
@@ -270,5 +275,9 @@ export function useNoteSync(noteId: string | undefined) {
     };
   }, [flush]);
 
-  return { queueUpdate, flushImmediate, syncState };
+  const getPendingSnapshot = useCallback((): NoteUpdateData | null => {
+    return pendingRef.current ? { ...pendingRef.current } : null;
+  }, []);
+
+  return { queueUpdate, flushImmediate, syncState, getPendingSnapshot };
 }

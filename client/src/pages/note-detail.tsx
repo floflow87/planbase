@@ -88,9 +88,16 @@ export default function NoteDetail() {
   const editorRef = useRef<NoteEditorRef>(null);
   // Ref to track interim transcript length for deletion
   const interimLengthRef = useRef(0);
+  // Ref: note was already initialized — prevents server re-fetch from overwriting local edits
+  const initializedRef = useRef(false);
+
+  // Reset initialization when navigating between notes
+  useEffect(() => {
+    initializedRef.current = false;
+  }, [id]);
 
   // State sync hook — local-first, operation queue, retry with backoff
-  const { queueUpdate, flushImmediate, syncState } = useNoteSync(id);
+  const { queueUpdate, flushImmediate, syncState, getPendingSnapshot } = useNoteSync(id);
 
   // Memoized callbacks for voice recording to prevent re-renders
   const handleVoiceTranscript = useCallback((text: string, isFinal: boolean) => {
@@ -187,17 +194,31 @@ export default function NoteDetail() {
   );
   const currentTicket = linkedTicket ? allTickets.find(t => t.id === linkedTicket.targetId) : null;
 
-  // Initialize form with note data ONLY on first load, not during autosave
+  // Initialize form with note data — once per note ID, merging any pending local changes
   useEffect(() => {
-    if (note && !title && !content.content?.length) {
-      // Only initialize if form is empty (first load)
-      setTitle(note.title || "");
-      setContent(note.content || { type: 'doc', content: [] });
-      setStatus(note.status as any);
-      setVisibility(note.visibility as any);
-      setIsFavorite(note.isFavorite || false);
-    }
-  }, [note]);
+    if (!note || initializedRef.current) return;
+    initializedRef.current = true;
+
+    // Prefer pending local data (typed but not yet flushed) over server data
+    const pending = getPendingSnapshot();
+
+    const resolvedTitle = pending?.title ?? note.title ?? "";
+    const resolvedContent = pending?.content ?? note.content ?? { type: 'doc', content: [] };
+
+    console.debug('[NoteDetail] initializing from server', {
+      noteId: note.id,
+      serverTitle: note.title,
+      hasPending: !!pending,
+      pendingKeys: pending ? Object.keys(pending) : [],
+      resolvedTitle,
+    });
+
+    setTitle(resolvedTitle);
+    setContent(resolvedContent);
+    setStatus(note.status as any);
+    setVisibility(note.visibility as any);
+    setIsFavorite(note.isFavorite || false);
+  }, [note, getPendingSnapshot]);
 
   // Update note mutation (used for status/visibility changes with toast feedback)
   const updateMutation = useMutation({
