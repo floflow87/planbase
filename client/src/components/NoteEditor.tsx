@@ -1,4 +1,5 @@
 import { useEditor, EditorContent } from '@tiptap/react';
+import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
@@ -49,6 +50,8 @@ import {
   AlignRight,
   AlignJustify,
   Paintbrush,
+  Check,
+  AlignVerticalSpaceAround,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -72,6 +75,53 @@ import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { supabase } from '@/lib/supabase';
 import type { Editor } from '@tiptap/react';
 import { useToast } from '@/hooks/use-toast';
+
+declare module '@tiptap/core' {
+  interface Commands<ReturnType> {
+    lineHeight: {
+      setLineHeight: (lineHeight: string) => ReturnType;
+      unsetLineHeight: () => ReturnType;
+    };
+  }
+}
+
+const LineHeight = Extension.create({
+  name: 'lineHeight',
+  addOptions() {
+    return { types: ['paragraph', 'heading'] };
+  },
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          lineHeight: {
+            default: null,
+            parseHTML: (element) => element.style.lineHeight || null,
+            renderHTML: (attributes) => {
+              if (!attributes.lineHeight) return {};
+              return { style: `line-height: ${attributes.lineHeight}` };
+            },
+          },
+        },
+      },
+    ];
+  },
+  addCommands() {
+    return {
+      setLineHeight: (lineHeight: string) => ({ commands }) => {
+        return (this.options.types as string[])
+          .map((type) => commands.updateAttributes(type, { lineHeight }))
+          .every(Boolean);
+      },
+      unsetLineHeight: () => ({ commands }) => {
+        return (this.options.types as string[])
+          .map((type) => commands.resetAttributes(type, 'lineHeight'))
+          .every(Boolean);
+      },
+    };
+  },
+});
 
 export interface NoteEditorRef {
   insertText: (text: string) => void;
@@ -219,6 +269,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
+      LineHeight,
       ResizableImageExtension.configure({
         inline: false,
         allowBase64: true,
@@ -773,7 +824,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
               />
             </div>
           )}
-          <div className={`sticky top-0 z-50 border-b border-border ${isMobile ? 'px-1 py-1.5' : 'p-2'} flex items-center gap-px bg-background shadow-sm overflow-x-auto whitespace-nowrap`}>
+          <div className={`sticky top-0 z-50 border-b border-border ${isMobile ? 'px-1 py-1.5' : 'p-2'} flex items-center gap-px bg-[#EFE8FC] dark:bg-background shadow-sm overflow-x-auto whitespace-nowrap`}>
             {/* Format Painter - hidden on mobile */}
             {!isMobile && (
               <>
@@ -1036,6 +1087,56 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                     >
                       <AlignJustify className="w-4 h-4 mr-2" />
                       Justifier
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* Line height dropdown */}
+                <DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1"
+                          data-testid="dropdown-line-height"
+                        >
+                          <AlignVerticalSpaceAround className="w-4 h-4" />
+                          <ChevronDown className="w-3 h-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Interlignage</TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent align="start" className="bg-white dark:bg-gray-900 w-32">
+                    {[
+                      { label: '1,00', value: '1' },
+                      { label: '1,15', value: '1.15' },
+                      { label: '1,50', value: '1.5' },
+                      { label: '2,00', value: '2' },
+                    ].map(({ label, value }) => {
+                      const currentLH = editor.getAttributes('paragraph').lineHeight || editor.getAttributes('heading').lineHeight;
+                      const isActive = currentLH === value;
+                      return (
+                        <DropdownMenuItem
+                          key={value}
+                          onClick={() => editor.chain().focus().setLineHeight(value).run()}
+                          className="gap-2"
+                          data-testid={`dropdown-item-line-height-${value}`}
+                        >
+                          {isActive ? <Check className="w-3 h-3 shrink-0" /> : <span className="w-3 h-3 shrink-0" />}
+                          {label}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                    <DropdownMenuItem
+                      onClick={() => editor.chain().focus().unsetLineHeight().run()}
+                      className="gap-2 text-muted-foreground"
+                      data-testid="dropdown-item-line-height-reset"
+                    >
+                      <span className="w-3 h-3 shrink-0" />
+                      Par défaut
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

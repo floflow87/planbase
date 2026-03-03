@@ -1979,8 +1979,8 @@ export default function ClientDetail() {
                   };
 
                   const paymentsPaid = clientPayments.filter(p => p.isPaid);
-                  const paymentsUpcoming = clientPayments.filter(p => !p.isPaid && p.dueDate && new Date(p.dueDate) > today);
-                  const paymentsPending = clientPayments.filter(p => !p.isPaid && (!p.dueDate || new Date(p.dueDate) <= today));
+                  const paymentsUpcoming = clientPayments.filter(p => !p.isPaid && p.paymentDate && new Date(p.paymentDate) > today);
+                  const paymentsPending = clientPayments.filter(p => !p.isPaid && (!p.paymentDate || new Date(p.paymentDate) <= today));
 
                   const sumPayments = (arr: any[]) => arr.reduce((s, p) => s + parseFloat(p.amount || "0"), 0);
                   const fmtEur = (v: number) => v.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 });
@@ -2106,15 +2106,16 @@ export default function ClientDetail() {
                           <CardContent>
                             <div className="space-y-2">
                               {clientPayments
+                                .slice()
                                 .sort((a, b) => {
-                                  if (a.dueDate && b.dueDate) return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-                                  if (a.dueDate) return -1;
-                                  return 1;
+                                  if (a.paymentDate && b.paymentDate) return new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime();
+                                  if (a.paymentDate) return 1;
+                                  return -1;
                                 })
                                 .map((payment) => {
                                   const proj = projects.find(p => p.id === payment.projectId);
-                                  const isOverdue = !payment.isPaid && payment.dueDate && new Date(payment.dueDate) <= today;
-                                  const isFuture = !payment.isPaid && payment.dueDate && new Date(payment.dueDate) > today;
+                                  const isOverdue = !payment.isPaid && payment.paymentDate && new Date(payment.paymentDate) <= today;
+                                  const isFuture = !payment.isPaid && payment.paymentDate && new Date(payment.paymentDate) > today;
                                   return (
                                     <div key={payment.id} className="flex items-center justify-between p-2.5 border rounded-md gap-3" data-testid={`payment-item-${payment.id}`}>
                                       <div className="flex-1 min-w-0">
@@ -2123,7 +2124,7 @@ export default function ClientDetail() {
                                           {proj && <span className="text-[10px] text-muted-foreground truncate">— {(proj as any).name}</span>}
                                         </div>
                                         <p className={`text-[10px] mt-0.5 ${isOverdue ? "text-red-500" : "text-muted-foreground"}`}>
-                                          Date attendue : {payment.dueDate ? format(new Date(payment.dueDate), "dd MMM yyyy", { locale: fr }) : "—"}
+                                          Date : {payment.paymentDate ? format(new Date(payment.paymentDate), "dd MMM yyyy", { locale: fr }) : "—"}
                                           {isOverdue && " · En retard"}
                                         </p>
                                       </div>

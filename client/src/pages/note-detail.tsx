@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation, Link } from "wouter";
-import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink, AlignJustify } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,7 +54,7 @@ import { Input } from "@/components/ui/input";
 
 export default function NoteDetail() {
   const { id } = useParams<{ id: string }>();
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -83,16 +83,9 @@ export default function NoteDetail() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [lastPersistedState, setLastPersistedState] = useState<{title: string, content: any, status: string, visibility: string} | null>(null);
   const autoSaveEnabled = true; // Always ON — auto-save like Notion
-  const [lineHeight, setLineHeight] = useState<number>(() => {
-    const saved = localStorage.getItem("noteLineHeight");
-    return saved ? parseFloat(saved) : 1.5;
-  });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entitySelectorOpen, setEntitySelectorOpen] = useState(false);
   const [entitySelectorTab, setEntitySelectorTab] = useState<"project" | "client" | "ticket">("project");
-  const [saveBeforeLeaveDialogOpen, setSaveBeforeLeaveDialogOpen] = useState(false);
-  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
-  const [allowNavigation, setAllowNavigation] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
 
   // Editor ref for voice recording
@@ -118,11 +111,6 @@ export default function NoteDetail() {
   useEffect(() => { visibilityRef.current = visibility; }, [visibility]);
   useEffect(() => { lastPersistedStateRef.current = lastPersistedState; }, [lastPersistedState]);
   useEffect(() => { noteIdRef.current = id; }, [id]);
-  // Persist lineHeight to localStorage
-  useEffect(() => {
-    localStorage.setItem("noteLineHeight", String(lineHeight));
-  }, [lineHeight]);
-
   // Save immediately on unmount (tab change, navigation, etc.) if there are unsaved changes
   useEffect(() => {
     return () => {
@@ -315,9 +303,9 @@ export default function NoteDetail() {
   // Removed: No longer saving autosave preference to localStorage
   // Autosave is now OFF by default for every note
 
-  // Debounced values for autosave (3 seconds)
-  const debouncedTitle = useDebounce(title, 3000);
-  const debouncedContent = useDebounce(content, 3000);
+  // Debounced values for autosave (500ms — like Notion)
+  const debouncedTitle = useDebounce(title, 500);
+  const debouncedContent = useDebounce(content, 500);
 
   // Update note mutation
   const updateMutation = useMutation({
@@ -442,105 +430,6 @@ export default function NoteDetail() {
     );
   }, [lastPersistedState, title, content, status, visibility, updateMutation.isPending, isSaving]);
 
-  // Warn before closing browser tab/window if there are unsaved changes (regardless of autosave)
-  useEffect(() => {
-    if (!lastPersistedState || allowNavigation) return;
-    
-    if (!hasUnsavedChanges()) return;
-
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = '';
-      return '';
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [lastPersistedState, hasUnsavedChanges, allowNavigation]);
-
-  // Intercept ALL navigation attempts to show save dialog if needed
-  const interceptNavigation = useCallback((targetPath: string) => {
-    // If navigation is already allowed or no unsaved changes, proceed
-    if (allowNavigation || !hasUnsavedChanges()) {
-      navigate(targetPath);
-      return;
-    }
-    
-    // Otherwise, show dialog
-    setPendingNavigation(targetPath);
-    setSaveBeforeLeaveDialogOpen(true);
-  }, [allowNavigation, hasUnsavedChanges, navigate]);
-
-  // Track current location to detect changes
-  const previousLocationRef = useRef(location);
-
-  // Guard navigation: Intercept route changes BEFORE they happen
-  useEffect(() => {
-    // If location changed and we have unsaved changes and navigation is not allowed
-    if (location !== previousLocationRef.current && !allowNavigation && hasUnsavedChanges()) {
-      // Navigation attempted! Revert it immediately
-      const targetPath = location;
-      setLocation(previousLocationRef.current, { replace: true });
-      
-      // Show dialog
-      setPendingNavigation(targetPath);
-      setSaveBeforeLeaveDialogOpen(true);
-    } else {
-      // Update previous location
-      previousLocationRef.current = location;
-    }
-  }, [location, allowNavigation, hasUnsavedChanges, setLocation]);
-
-  // Global click interceptor for ALL links
-  useEffect(() => {
-    if (allowNavigation || !hasUnsavedChanges()) return;
-
-    const handleClick = (e: MouseEvent) => {
-      // Find the link element
-      let target = e.target as HTMLElement;
-      while (target && target !== document.body) {
-        if (target.tagName === 'A' || target.getAttribute('role') === 'link') {
-          const href = target.getAttribute('href');
-          if (href && href.startsWith('/') && href !== location) {
-            // It's an internal link to a different page, intercept it
-            e.preventDefault();
-            e.stopPropagation();
-            setPendingNavigation(href);
-            setSaveBeforeLeaveDialogOpen(true);
-            return;
-          }
-        }
-        target = target.parentElement as HTMLElement;
-      }
-    };
-
-    document.addEventListener('click', handleClick, true); // Use capture phase
-    return () => document.removeEventListener('click', handleClick, true);
-  }, [allowNavigation, hasUnsavedChanges, location]);
-
-  // Intercept browser back/forward buttons
-  useEffect(() => {
-    if (allowNavigation || !hasUnsavedChanges()) return;
-
-    const handlePopState = () => {
-      // Popstate already changed the URL, revert it
-      if (hasUnsavedChanges() && !allowNavigation) {
-        // Store the target location before reverting
-        const targetPath = window.location.pathname;
-        
-        // Revert to current note URL immediately
-        window.history.pushState(null, '', `/notes/${id}`);
-        
-        // Show dialog
-        setPendingNavigation(targetPath);
-        setSaveBeforeLeaveDialogOpen(true);
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [allowNavigation, hasUnsavedChanges, id]);
-
   const handleDeleteClick = useCallback(() => {
     setDeleteDialogOpen(true);
   }, []);
@@ -638,66 +527,6 @@ export default function NoteDetail() {
       variant: "success",
     });
   }, [title, content, visibility, status, updateMutation, toast]);
-
-  // Save before leave handlers
-  const handleSaveAndLeave = useCallback(() => {
-    // Extract plain text from content for search
-    const extractPlainText = (content: any): string => {
-      if (!content) return "";
-      
-      const getText = (node: any): string => {
-        if (node.type === "text") {
-          return node.text || "";
-        }
-        if (node.content && Array.isArray(node.content)) {
-          return node.content.map(getText).join(" ");
-        }
-        return "";
-      };
-
-      return getText(content);
-    };
-
-    const plainText = extractPlainText(content);
-
-    // Save and then navigate
-    updateMutation.mutate({ 
-      title: title || "Sans titre",
-      content,
-      plainText,
-      status,
-      visibility,
-    }, {
-      onSuccess: () => {
-        setSaveBeforeLeaveDialogOpen(false);
-        setAllowNavigation(true); // Allow navigation after successful save
-        if (pendingNavigation) {
-          // Use setTimeout to ensure state updates before navigation
-          setTimeout(() => {
-            navigate(pendingNavigation);
-            setPendingNavigation(null);
-          }, 0);
-        }
-      }
-    });
-  }, [title, content, status, visibility, updateMutation, navigate, pendingNavigation]);
-
-  const handleLeaveWithoutSaving = useCallback(() => {
-    setSaveBeforeLeaveDialogOpen(false);
-    setAllowNavigation(true); // Allow navigation without saving
-    if (pendingNavigation) {
-      // Use setTimeout to ensure state updates before navigation
-      setTimeout(() => {
-        navigate(pendingNavigation);
-        setPendingNavigation(null);
-      }, 0);
-    }
-  }, [navigate, pendingNavigation]);
-
-  const handleCancelLeave = useCallback(() => {
-    setSaveBeforeLeaveDialogOpen(false);
-    setPendingNavigation(null);
-  }, []);
 
   // Project link mutation
   const linkProjectMutation = useMutation({
@@ -1041,7 +870,7 @@ export default function NoteDetail() {
                 size="icon" 
                 data-testid="button-back" 
                 className="h-8 w-8 flex-shrink-0"
-                onClick={() => interceptNavigation("/notes")}
+                onClick={() => navigate("/notes")}
               >
                 <ArrowLeft className="w-4 h-4" />
               </Button>
@@ -1256,7 +1085,7 @@ export default function NoteDetail() {
                   size="icon" 
                   data-testid="button-back" 
                   className="mt-1"
-                  onClick={() => interceptNavigation("/notes")}
+                  onClick={() => navigate("/notes")}
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
@@ -1446,34 +1275,6 @@ export default function NoteDetail() {
                         </div>
                       </PopoverContent>
                     </Popover>
-
-                    {/* Line height picker */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900"
-                          data-testid="button-line-height"
-                        >
-                          <AlignJustify className="w-3 h-3" />
-                          <span>{lineHeight.toFixed(2).replace('.', ',')}</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-28">
-                        {[1.00, 1.15, 1.30].map((lh) => (
-                          <DropdownMenuItem
-                            key={lh}
-                            onClick={() => setLineHeight(lh)}
-                            className="gap-2"
-                            data-testid={`option-line-height-${lh}`}
-                          >
-                            {lineHeight === lh && <Check className="w-3 h-3 shrink-0" />}
-                            <span className={lineHeight === lh ? "font-medium" : "pl-5"}>{lh.toFixed(2).replace('.', ',')}</span>
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
 
                     {/* Date picker */}
                     <Popover>
@@ -1894,7 +1695,7 @@ export default function NoteDetail() {
 
       {/* Scrollable Content - maximize height on mobile */}
       <div className="flex-1 overflow-auto">
-        <div className="px-1 py-0 md:p-6" style={{ lineHeight: lineHeight }}>
+        <div className="px-1 py-0 md:p-6">
           {/* Editor */}
           <NoteEditor
             ref={editorRef}
@@ -1919,42 +1720,6 @@ export default function NoteDetail() {
           </div>
         )}
       </div>
-
-      {/* Delete Confirmation Dialog */}
-      {/* Save Before Leave Dialog */}
-      <Dialog open={saveBeforeLeaveDialogOpen} onOpenChange={setSaveBeforeLeaveDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]" data-testid="dialog-save-before-leave">
-          <DialogHeader>
-            <DialogTitle>Modifications non enregistrées</DialogTitle>
-            <DialogDescription>
-              Vous avez des modifications non enregistrées. Que souhaitez-vous faire ?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button
-              variant="outline"
-              onClick={handleCancelLeave}
-              data-testid="button-cancel-leave"
-            >
-              Annuler
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleLeaveWithoutSaving}
-              data-testid="button-leave-without-saving"
-            >
-              Quitter sans enregistrer
-            </Button>
-            <Button
-              onClick={handleSaveAndLeave}
-              data-testid="button-save-and-leave"
-              disabled={updateMutation.isPending}
-            >
-              {updateMutation.isPending ? "Enregistrement..." : "Enregistrer et quitter"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
