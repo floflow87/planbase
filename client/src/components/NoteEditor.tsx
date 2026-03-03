@@ -336,17 +336,43 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     staleTime: 30000,
   });
 
+  // Log on mount to confirm the initial content prop received by the editor
+  useEffect(() => {
+    const getText = (node: any): string => {
+      if (!node) return '';
+      if (node.type === 'text') return node.text || '';
+      if (Array.isArray(node.content)) return node.content.map(getText).join('');
+      return '';
+    };
+    console.debug('[NoteEditor] mounted with content', {
+      isValidDoc: content?.type === 'doc',
+      docNodeCount: content?.content?.length ?? 0,
+      plainTextPreview: getText(content).slice(0, 80),
+      contentJSON: JSON.stringify(content).slice(0, 200),
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Safety-net sync: if the parent's content prop diverges from the editor's internal
+  // state after mount (e.g. collaborative update), push it in without triggering onUpdate.
+  // With the contentReady+key approach this effect rarely fires, but keeps the editor
+  // controlled in edge cases.
   useEffect(() => {
     if (editor && content) {
-      // Deep compare the content to avoid resetting the editor unnecessarily
       const currentContent = JSON.stringify(editor.getJSON());
       const newContent = JSON.stringify(content);
-      
       if (currentContent !== newContent) {
-        // Suppress onUpdate — this is a programmatic sync from the parent, not user input.
-        // Without emitUpdate:false, onUpdate fires → onChange → queueUpdate →
-        // persistToStorage writes stale/empty content to localStorage, which the recovery
-        // effect then finds and treats as real unsaved data, causing content loss on refresh.
+        console.debug('[NoteEditor] content prop diverged from editor — syncing', {
+          plainTextPreview: (() => {
+            const getText = (n: any): string => {
+              if (!n) return '';
+              if (n.type === 'text') return n.text || '';
+              if (Array.isArray(n.content)) return n.content.map(getText).join('');
+              return '';
+            };
+            return getText(content).slice(0, 80);
+          })(),
+        });
         editor.commands.setContent(content, { emitUpdate: false });
       }
     }

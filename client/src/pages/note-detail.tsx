@@ -83,6 +83,10 @@ export default function NoteDetail() {
   const [entitySelectorOpen, setEntitySelectorOpen] = useState(false);
   const [entitySelectorTab, setEntitySelectorTab] = useState<"project" | "client" | "ticket">("project");
   const [isFavorite, setIsFavorite] = useState(false);
+  // contentReady: true only after resolved content (pending or server) has been set in state.
+  // NoteEditor is not rendered until this is true, ensuring useEditor() initializes with the
+  // correct content directly rather than relying on a post-mount setContent() sync.
+  const [contentReady, setContentReady] = useState(false);
 
   // Editor ref for voice recording
   const editorRef = useRef<NoteEditorRef>(null);
@@ -91,9 +95,10 @@ export default function NoteDetail() {
   // Ref: note was already initialized — prevents server re-fetch from overwriting local edits
   const initializedRef = useRef(false);
 
-  // Reset initialization when navigating between notes
+  // Reset initialization + contentReady when navigating between notes
   useEffect(() => {
     initializedRef.current = false;
+    setContentReady(false);
   }, [id]);
 
   // State sync hook — local-first, operation queue, retry with backoff
@@ -203,14 +208,42 @@ export default function NoteDetail() {
     const pending = getPendingSnapshot();
 
     const resolvedTitle = pending?.title ?? note.title ?? "";
-    const resolvedContent = pending?.content ?? note.content ?? { type: 'doc', content: [] };
+    const rawContent = pending?.content ?? note.content ?? null;
 
-    console.debug('[NoteDetail] initializing from server', {
+    // Validate ProseMirror doc format: must be { type: 'doc', content: [...] }
+    const isValidDoc = (c: any): boolean =>
+      c != null && typeof c === 'object' && c.type === 'doc' && Array.isArray(c.content);
+
+    let resolvedContent: any;
+    if (isValidDoc(rawContent)) {
+      resolvedContent = rawContent;
+    } else {
+      console.warn('[NoteDetail] content is not a valid ProseMirror doc — using empty fallback', {
+        rawType: typeof rawContent,
+        rawKeys: rawContent ? Object.keys(rawContent) : null,
+        rawPreview: JSON.stringify(rawContent)?.slice(0, 120),
+      });
+      resolvedContent = { type: 'doc', content: [] };
+    }
+
+    // Debug: confirm resolved content exists in React state before editor renders
+    const plainTextPreview = (() => {
+      const getText = (node: any): string => {
+        if (!node) return '';
+        if (node.type === 'text') return node.text || '';
+        if (Array.isArray(node.content)) return node.content.map(getText).join('');
+        return '';
+      };
+      return getText(resolvedContent).slice(0, 80);
+    })();
+
+    console.debug('[NoteDetail] content resolved — handing to editor', {
       noteId: note.id,
-      serverTitle: note.title,
       hasPending: !!pending,
       pendingKeys: pending ? Object.keys(pending) : [],
-      resolvedTitle,
+      docNodeCount: resolvedContent.content?.length ?? 0,
+      plainTextPreview,
+      resolvedContentJSON: JSON.stringify(resolvedContent).slice(0, 200),
     });
 
     setTitle(resolvedTitle);
@@ -218,6 +251,8 @@ export default function NoteDetail() {
     setStatus(note.status as any);
     setVisibility(note.visibility as any);
     setIsFavorite(note.isFavorite || false);
+    // Signal that the correct content is now in state — NoteEditor can mount
+    setContentReady(true);
   }, [note, getPendingSnapshot]);
 
   // Update note mutation (used for status/visibility changes with toast feedback)
@@ -1519,15 +1554,24 @@ export default function NoteDetail() {
       {/* Scrollable Content - maximize height on mobile */}
       <div className="flex-1 overflow-auto">
         <div className="px-1 py-0 md:p-6">
-          {/* Editor */}
-          <NoteEditor
-            ref={editorRef}
-            content={content}
-            onChange={(c) => { setContent(c); queueUpdate({ content: c }); }}
-            onBlur={flushImmediate}
-            editable={isEditMode}
-            placeholder="Commencez à écrire votre note..."
-          />
+          {/* Editor — only mounted after resolved content is ready in state.
+               key={id} forces a full remount when navigating between notes, so
+               useEditor() always initialises with the correct content directly. */}
+          {contentReady ? (
+            <NoteEditor
+              key={id}
+              ref={editorRef}
+              content={content}
+              onChange={(c) => { setContent(c); queueUpdate({ content: c }); }}
+              onBlur={flushImmediate}
+              editable={isEditMode}
+              placeholder="Commencez à écrire votre note..."
+            />
+          ) : (
+            <div className="min-h-[400px] flex items-center justify-center text-muted-foreground text-sm">
+              Chargement de l'éditeur...
+            </div>
+          )}
         </div>
 
         {/* AI Summary - hidden on mobile to maximize text zone */}
