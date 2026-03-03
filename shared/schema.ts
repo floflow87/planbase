@@ -679,7 +679,7 @@ export const activities = pgTable("activities", {
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   subjectType: text("subject_type", { enum: ['client', 'deal', 'project', 'note', 'task', 'document', 'backlog', 'epic', 'user_story', 'backlog_task', 'appointment', 'roadmap', 'roadmap_item', 'milestone', 'rubrique'] }).notNull(),
   subjectId: uuid("subject_id").notNull(),
-  kind: text("kind", { enum: ['created', 'updated', 'deleted', 'email', 'call', 'meeting', 'note', 'task', 'file', 'time_tracked', 'custom'] }).notNull(),
+  kind: text("kind", { enum: ['created', 'updated', 'deleted', 'email', 'call', 'meeting', 'note', 'task', 'file', 'time_tracked', 'custom', 'stage_change', 'info_update'] }).notNull(),
   description: text("description"),
   occurredAt: timestamp("occurred_at", { withTimezone: true }),
   payload: jsonb("payload").notNull().default({}),

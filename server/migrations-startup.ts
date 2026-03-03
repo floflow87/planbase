@@ -2076,6 +2076,22 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Clients website, source, last_name columns added");
 
+    // ============================================
+    // Activities: add stage_change and info_update to kind constraint
+    // ============================================
+    await db.execute(sql`
+      DO $$
+      BEGIN
+        ALTER TABLE activities DROP CONSTRAINT IF EXISTS activities_kind_check;
+        ALTER TABLE activities
+        ADD CONSTRAINT activities_kind_check
+        CHECK (kind IN ('created','updated','deleted','email','call','meeting','note','task','file','custom','stage_change','info_update','time_tracked'));
+      EXCEPTION
+        WHEN duplicate_object THEN NULL;
+      END $$;
+    `);
+    console.log("✅ Activities kind constraint updated with stage_change and info_update");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

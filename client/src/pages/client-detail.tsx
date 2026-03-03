@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, CalendarDays, Save, Check, ChevronLeft, ChevronRight, Star, TrendingUp, ChevronsUpDown, DollarSign, StickyNote, Globe, Radar } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, CalendarDays, Save, Check, ChevronLeft, ChevronRight, Star, TrendingUp, ChevronsUpDown, DollarSign, StickyNote, Globe, Radar, BarChart4, CreditCard, Timer, Hourglass, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +65,7 @@ export default function ClientDetail() {
   const [taskProjectComboboxOpen, setTaskProjectComboboxOpen] = useState(false);
   const [isEditClientSidebarOpen, setIsEditClientSidebarOpen] = useState(false);
   const [isStatusPopoverOpen, setIsStatusPopoverOpen] = useState(false);
+  const [caPeriod, setCaPeriod] = useState("all");
   const [clientInfoForm, setClientInfoForm] = useState({
     type: "company" as "company" | "person",
     name: "",
@@ -192,6 +193,16 @@ export default function ClientDetail() {
 
   const { data: allAppointments = [] } = useQuery<any[]>({
     queryKey: ['/api/appointments'],
+    enabled: !!accountId,
+  });
+
+  const { data: allPayments = [] } = useQuery<any[]>({
+    queryKey: ['/api/payments'],
+    enabled: !!accountId,
+  });
+
+  const { data: allTimeEntries = [] } = useQuery<any[]>({
+    queryKey: ['/api/time-entries'],
     enabled: !!accountId,
   });
 
@@ -967,13 +978,25 @@ export default function ClientDetail() {
   const currentStatus = statusConfig[client.status] || { label: client.status, color: "" };
 
   const sourceLabels: Record<string, string> = {
+    organic: "Organique",
+    paid: "Publicité payante",
     referral: "Recommandation",
-    linkedin: "LinkedIn",
-    website: "Site web",
-    ad: "Publicité",
-    email: "Email",
-    phone: "Téléphone",
+    outbound: "Prospection",
+    platform: "Plateforme",
+    partner: "Partenaire",
+    event: "Événement",
     other: "Autre",
+  };
+
+  const sourceColors: Record<string, string> = {
+    organic: "bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400",
+    paid: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400",
+    referral: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400",
+    outbound: "bg-violet-100 text-violet-700 dark:bg-violet-950/50 dark:text-violet-400",
+    platform: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-400",
+    partner: "bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400",
+    event: "bg-pink-100 text-pink-700 dark:bg-pink-950/50 dark:text-pink-400",
+    other: "bg-slate-100 text-slate-600 dark:bg-slate-800/50 dark:text-slate-400",
   };
 
   const lastActivityDate = (() => {
@@ -1160,7 +1183,9 @@ export default function ClientDetail() {
               {(client as any).source && (
                 <div className="flex items-start gap-2.5">
                   <Radar className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
-                  <span className="text-xs text-muted-foreground">{sourceLabels[(client as any).source] || (client as any).source}</span>
+                  <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${sourceColors[(client as any).source] || "bg-slate-100 text-slate-600"}`}>
+                    {sourceLabels[(client as any).source] || (client as any).source}
+                  </span>
                 </div>
               )}
               {client.createdAt && (
@@ -1214,6 +1239,10 @@ export default function ClientDetail() {
                 <TabsTrigger value="documents" data-testid="tab-documents" className="gap-1.5 text-xs h-8 px-3">
                   <FileText className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Docs</span>
+                </TabsTrigger>
+                <TabsTrigger value="chiffre_affaires" data-testid="tab-chiffre-affaires" className="gap-1.5 text-xs h-8 px-3">
+                  <BarChart4 className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Chiffre d'affaires</span>
                 </TabsTrigger>
                 {customTabs.map((tab) => (
                   <TabsTrigger
@@ -1820,6 +1849,223 @@ export default function ClientDetail() {
                     )}
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              {/* ── Chiffre d'affaires ── */}
+              <TabsContent value="chiffre_affaires" className="space-y-4">
+                {(() => {
+                  const projectIds = projects.map(p => p.id);
+                  const today = new Date();
+                  const currentYear = today.getFullYear();
+                  const currentQ = Math.floor(today.getMonth() / 3);
+
+                  const periodRanges: Record<string, { start: Date | null; end: Date | null }> = {
+                    all: { start: null, end: null },
+                    "2026": { start: new Date("2026-01-01"), end: new Date("2026-12-31T23:59:59") },
+                    current_quarter: { start: new Date(currentYear, currentQ * 3, 1), end: new Date(currentYear, (currentQ + 1) * 3, 0, 23, 59, 59) },
+                    "2025": { start: new Date("2025-01-01"), end: new Date("2025-12-31T23:59:59") },
+                  };
+                  const { start: pStart, end: pEnd } = periodRanges[caPeriod] || periodRanges.all;
+
+                  const isInPeriod = (dateStr: string | null | undefined) => {
+                    if (caPeriod === "all") return true;
+                    if (!dateStr) return false;
+                    const d = new Date(dateStr);
+                    if (pStart && d < pStart) return false;
+                    if (pEnd && d > pEnd) return false;
+                    return true;
+                  };
+
+                  const filteredProjects = projects.filter(p => isInPeriod(p.createdAt));
+                  const clientPayments = allPayments.filter(p => projectIds.includes(p.projectId));
+                  const filteredTimeEntries = allTimeEntries.filter(e => projectIds.includes(e.projectId) && isInPeriod(e.startTime));
+
+                  const caGlobal = filteredProjects.reduce((sum, p) => {
+                    return sum + parseFloat((p as any).totalBilled || (p as any).budget || "0");
+                  }, 0);
+                  const caMoyen = filteredProjects.length > 0 ? caGlobal / filteredProjects.length : 0;
+                  const totalSeconds = filteredTimeEntries.reduce((sum, e) => sum + (e.duration || 0), 0);
+                  const formatDuration = (sec: number) => {
+                    const h = Math.floor(sec / 3600);
+                    const m = Math.floor((sec % 3600) / 60);
+                    return `${h}h${m.toString().padStart(2, "0")}`;
+                  };
+
+                  const paymentsPaid = clientPayments.filter(p => p.isPaid);
+                  const paymentsUpcoming = clientPayments.filter(p => !p.isPaid && p.dueDate && new Date(p.dueDate) > today);
+                  const paymentsPending = clientPayments.filter(p => !p.isPaid && (!p.dueDate || new Date(p.dueDate) <= today));
+
+                  const sumPayments = (arr: any[]) => arr.reduce((s, p) => s + parseFloat(p.amount || "0"), 0);
+                  const fmtEur = (v: number) => v.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 });
+
+                  const periodLabel: Record<string, string> = {
+                    all: "Jusqu'à aujourd'hui",
+                    "2026": "Année 2026",
+                    current_quarter: "Trimestre actuel",
+                    "2025": "Année 2025",
+                  };
+
+                  return (
+                    <>
+                      {/* Period filter */}
+                      <div className="flex items-center gap-2">
+                        <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Période :</span>
+                        <Select value={caPeriod} onValueChange={setCaPeriod}>
+                          <SelectTrigger className="h-8 w-[200px] text-xs" data-testid="select-ca-period">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Jusqu'à aujourd'hui</SelectItem>
+                            <SelectItem value="2026">Année 2026</SelectItem>
+                            <SelectItem value="current_quarter">Trimestre actuel</SelectItem>
+                            <SelectItem value="2025">Année dernière (2025)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Main KPIs */}
+                      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+                        <Card>
+                          <CardContent className="p-3 flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-md bg-violet-100 dark:bg-violet-950/50 flex items-center justify-center shrink-0">
+                              <FolderKanban className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-muted-foreground">Projets</p>
+                              <p className="text-xl font-bold text-foreground leading-tight">{filteredProjects.length}</p>
+                              {caPeriod !== "all" && <p className="text-[10px] text-muted-foreground">{projects.length} au total</p>}
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="p-3 flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-md bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center shrink-0">
+                              <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-muted-foreground">CA global</p>
+                              <p className="text-base font-bold text-foreground leading-tight">{caGlobal > 0 ? fmtEur(caGlobal) : "—"}</p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="p-3 flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-md bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center shrink-0">
+                              <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-muted-foreground">CA moyen / projet</p>
+                              <p className="text-base font-bold text-foreground leading-tight">{caMoyen > 0 ? fmtEur(caMoyen) : "—"}</p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="p-3 flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-md bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center shrink-0">
+                              <Timer className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-muted-foreground">Temps passé</p>
+                              <p className="text-xl font-bold text-foreground leading-tight">{totalSeconds > 0 ? formatDuration(totalSeconds) : "—"}</p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      {/* Payments breakdown */}
+                      <div>
+                        <p className="text-xs font-semibold text-foreground mb-2">Paiements</p>
+                        <div className="grid grid-cols-3 gap-3">
+                          <Card>
+                            <CardContent className="p-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <CalendarDays className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                <p className="text-[11px] font-medium text-blue-600 dark:text-blue-400">À venir</p>
+                              </div>
+                              <p className="text-base font-bold text-foreground">{paymentsUpcoming.length > 0 ? fmtEur(sumPayments(paymentsUpcoming)) : "—"}</p>
+                              <p className="text-[10px] text-muted-foreground">{paymentsUpcoming.length} paiement{paymentsUpcoming.length !== 1 ? "s" : ""}</p>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="p-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Hourglass className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400">En attente</p>
+                              </div>
+                              <p className="text-base font-bold text-foreground">{paymentsPending.length > 0 ? fmtEur(sumPayments(paymentsPending)) : "—"}</p>
+                              <p className="text-[10px] text-muted-foreground">{paymentsPending.length} paiement{paymentsPending.length !== 1 ? "s" : ""}</p>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="p-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">Réglés</p>
+                              </div>
+                              <p className="text-base font-bold text-foreground">{paymentsPaid.length > 0 ? fmtEur(sumPayments(paymentsPaid)) : "—"}</p>
+                              <p className="text-[10px] text-muted-foreground">{paymentsPaid.length} paiement{paymentsPaid.length !== 1 ? "s" : ""}</p>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </div>
+
+                      {/* Individual payment list */}
+                      {clientPayments.length > 0 && (
+                        <Card>
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-semibold tracking-tight">Détail des paiements</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-2">
+                              {clientPayments
+                                .sort((a, b) => {
+                                  if (a.dueDate && b.dueDate) return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                                  if (a.dueDate) return -1;
+                                  return 1;
+                                })
+                                .map((payment) => {
+                                  const proj = projects.find(p => p.id === payment.projectId);
+                                  const isOverdue = !payment.isPaid && payment.dueDate && new Date(payment.dueDate) <= today;
+                                  const isFuture = !payment.isPaid && payment.dueDate && new Date(payment.dueDate) > today;
+                                  return (
+                                    <div key={payment.id} className="flex items-center justify-between p-2.5 border rounded-md gap-3" data-testid={`payment-item-${payment.id}`}>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="text-xs font-medium text-foreground">{payment.label || "Paiement"}</span>
+                                          {proj && <span className="text-[10px] text-muted-foreground truncate">— {(proj as any).name}</span>}
+                                        </div>
+                                        {payment.dueDate && (
+                                          <p className={`text-[10px] mt-0.5 ${isOverdue ? "text-red-500" : "text-muted-foreground"}`}>
+                                            Échéance : {format(new Date(payment.dueDate), "dd MMM yyyy", { locale: fr })}
+                                            {isOverdue && " · En retard"}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <span className="text-sm font-semibold text-foreground">{fmtEur(parseFloat(payment.amount || "0"))}</span>
+                                        <Badge className={`text-[10px] h-5 px-1.5 ${payment.isPaid ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400" : isFuture ? "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400" : "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"}`}>
+                                          {payment.isPaid ? "Réglé" : isFuture ? "À venir" : "En attente"}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {clientPayments.length === 0 && (
+                        <Card>
+                          <CardContent className="py-10 text-center text-xs text-muted-foreground">
+                            Aucun paiement enregistré pour ce client.
+                          </CardContent>
+                        </Card>
+                      )}
+                    </>
+                  );
+                })()}
               </TabsContent>
 
           {/* Custom Tabs Content */}
@@ -2780,21 +3026,37 @@ export default function ClientDetail() {
               </div>
               <div>
                 <Label>Source d'acquisition</Label>
-                <select
-                  value={clientInfoForm.source}
-                  onChange={(e) => setClientInfoForm({ ...clientInfoForm, source: e.target.value })}
-                  data-testid="select-edit-source"
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                >
-                  <option value="">— Non renseigné —</option>
-                  <option value="referral">Recommandation</option>
-                  <option value="linkedin">LinkedIn</option>
-                  <option value="website">Site web</option>
-                  <option value="ad">Publicité</option>
-                  <option value="email">Email</option>
-                  <option value="phone">Téléphone</option>
-                  <option value="other">Autre</option>
-                </select>
+                <Select value={clientInfoForm.source} onValueChange={(v) => setClientInfoForm({ ...clientInfoForm, source: v })}>
+                  <SelectTrigger data-testid="select-edit-source">
+                    <SelectValue placeholder="— Non renseigné —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="organic">
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />Organique</span>
+                    </SelectItem>
+                    <SelectItem value="paid">
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />Publicité payante</span>
+                    </SelectItem>
+                    <SelectItem value="referral">
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />Recommandation</span>
+                    </SelectItem>
+                    <SelectItem value="outbound">
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-violet-500 shrink-0" />Prospection</span>
+                    </SelectItem>
+                    <SelectItem value="platform">
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-cyan-500 shrink-0" />Plateforme</span>
+                    </SelectItem>
+                    <SelectItem value="partner">
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />Partenaire</span>
+                    </SelectItem>
+                    <SelectItem value="event">
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-pink-500 shrink-0" />Événement</span>
+                    </SelectItem>
+                    <SelectItem value="other">
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />Autre</span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Notes</Label>
