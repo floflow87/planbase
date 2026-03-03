@@ -343,7 +343,11 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       const newContent = JSON.stringify(content);
       
       if (currentContent !== newContent) {
-        editor.commands.setContent(content);
+        // Suppress onUpdate — this is a programmatic sync from the parent, not user input.
+        // Without emitUpdate:false, onUpdate fires → onChange → queueUpdate →
+        // persistToStorage writes stale/empty content to localStorage, which the recovery
+        // effect then finds and treats as real unsaved data, causing content loss on refresh.
+        editor.commands.setContent(content, { emitUpdate: false });
       }
     }
   }, [content, editor]);
