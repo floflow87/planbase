@@ -1621,7 +1621,7 @@ export default function BacklogDetail() {
   };
   
   // Handle drag end for moving tickets between sprints
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
     if (!over || !active.data.current) return;
@@ -1634,10 +1634,41 @@ export default function BacklogDetail() {
     const newSprintId = overData.type === "backlog" ? null : overData.sprintId;
     const currentSprintId = ticket.sprintId;
     
-    // Only update if sprint changed
-    if (newSprintId !== currentSprintId) {
-      await handleUpdateTicket(ticket.id, type, { sprintId: newSprintId });
+    if (newSprintId === currentSprintId) return;
+
+    // Optimistic update immediately — UI reflects change before API responds
+    const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+    if (previousBacklog) {
+      queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+        ...previousBacklog,
+        epics: type === "epic"
+          ? previousBacklog.epics.map(e => e.id === ticket.id ? { ...e, sprintId: newSprintId } : e)
+          : previousBacklog.epics,
+        userStories: type === "user_story"
+          ? previousBacklog.userStories.map(us => us.id === ticket.id ? { ...us, sprintId: newSprintId } : us)
+          : previousBacklog.userStories,
+        backlogTasks: (type === "task" || type === "bug")
+          ? previousBacklog.backlogTasks.map(t => t.id === ticket.id ? { ...t, sprintId: newSprintId } : t)
+          : previousBacklog.backlogTasks,
+      });
     }
+
+    // Fire API in background — no await so UI doesn't block
+    let endpoint = "";
+    if (type === "epic") endpoint = `/api/epics/${ticket.id}`;
+    else if (type === "user_story") endpoint = `/api/user-stories/${ticket.id}`;
+    else endpoint = `/api/backlog-tasks/${ticket.id}`;
+
+    apiRequest(endpoint, "PATCH", { sprintId: newSprintId })
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+      })
+      .catch(() => {
+        if (previousBacklog) {
+          queryClient.setQueryData(["/api/backlogs", id], previousBacklog);
+        }
+        toast({ title: "Erreur", description: "Impossible de déplacer le ticket", variant: "destructive" });
+      });
   };
 
   const handleCreateSprintTicket = async (sprintId: string, type: TicketType, title: string) => {

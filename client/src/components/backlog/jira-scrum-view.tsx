@@ -173,22 +173,28 @@ function computeTimeInStatus(
     .filter(a => a.payload?.type === "state_change")
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-  const periods: Record<string, number> = {};
+  const periods: StatusPeriod[] = [];
   let cursor = createdAt ? new Date(createdAt).getTime() : Date.now();
   let tracked = "a_faire";
 
   for (const change of stateChanges) {
     const t = new Date(change.createdAt).getTime();
-    periods[tracked] = (periods[tracked] || 0) + (t - cursor);
+    const duration = t - cursor;
+    if (duration > 30000) {
+      periods.push({ state: tracked, durationMs: duration });
+    }
     cursor = t;
     tracked = change.payload.newState ?? tracked;
   }
-  periods[tracked] = (periods[tracked] || 0) + (Date.now() - cursor);
 
-  return Object.entries(periods)
-    .filter(([, ms]) => ms > 30000)
-    .map(([state, durationMs]) => ({ state, durationMs }))
-    .sort((a, b) => b.durationMs - a.durationMs);
+  // Use the ticket's actual current state for the final (ongoing) period
+  const finalState = currentState ?? tracked;
+  const finalDuration = Date.now() - cursor;
+  if (finalDuration > 30000) {
+    periods.push({ state: finalState, durationMs: finalDuration });
+  }
+
+  return periods;
 }
 
 // Priority icons: low = 2 violet chevrons DOWN, medium = yellow horizontal line, high = 1 orange chevron UP, critical = 2 red chevrons UP
@@ -403,8 +409,8 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
             {ticket.title}
           </span>
         </TooltipTrigger>
-        <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md max-w-xs">
-          <p className="text-xs">
+        <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md max-w-sm">
+          <p className="text-xs break-words">
             {backlogPrefix && <span className="font-mono text-muted-foreground mr-1.5">{backlogPrefix}-{ticket.order}</span>}
             {ticket.title}
           </p>
