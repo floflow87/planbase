@@ -62,6 +62,14 @@ export interface FlatTicket {
   createdAt?: string | null;
   updatedAt?: string | null;
   version?: string | null;
+  metrics01Label?: string | null;
+  metrics01Value?: number | null;
+  metrics02Label?: string | null;
+  metrics02Value?: number | null;
+  metrics03Label?: string | null;
+  metrics03Value?: number | null;
+  happyPath?: string | null;
+  edgeCase?: string | null;
 }
 
 function ticketTypeIcon(type: TicketType) {
@@ -1840,6 +1848,14 @@ export function transformToFlatTickets(
       version: (story as any).version || null,
       createdAt: story.createdAt?.toString() || null,
       updatedAt: story.updatedAt?.toString() || null,
+      metrics01Label: (story as any).metrics01Label || null,
+      metrics01Value: (story as any).metrics01Value ?? null,
+      metrics02Label: (story as any).metrics02Label || null,
+      metrics02Value: (story as any).metrics02Value ?? null,
+      metrics03Label: (story as any).metrics03Label || null,
+      metrics03Value: (story as any).metrics03Value ?? null,
+      happyPath: (story as any).happyPath || null,
+      edgeCase: (story as any).edgeCase || null,
     });
   });
   
@@ -1861,6 +1877,14 @@ export function transformToFlatTickets(
       version: (task as any).version || null,
       createdAt: task.createdAt?.toString() || null,
       updatedAt: task.updatedAt?.toString() || null,
+      metrics01Label: (task as any).metrics01Label || null,
+      metrics01Value: (task as any).metrics01Value ?? null,
+      metrics02Label: (task as any).metrics02Label || null,
+      metrics02Value: (task as any).metrics02Value ?? null,
+      metrics03Label: (task as any).metrics03Label || null,
+      metrics03Value: (task as any).metrics03Value ?? null,
+      happyPath: (task as any).happyPath || null,
+      edgeCase: (task as any).edgeCase || null,
     });
   });
   

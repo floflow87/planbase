@@ -30,7 +30,8 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import type { Epic, UserStory, BacklogTask, Sprint, AppUser, TicketComment, Note, EntityLink, Project, Activity, TicketAcceptanceCriteria } from "@shared/schema";
+import type { Epic, UserStory, BacklogTask, Sprint, AppUser, TicketComment, Note, EntityLink, Project, Activity, TicketAcceptanceCriteria, NonRegressionItem } from "@shared/schema";
+
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { 
@@ -41,6 +42,11 @@ import {
 import { backlogItemStateOptions, backlogPriorityOptions, complexityOptions, recipeConclusionOptions, type RecipeConclusion } from "@shared/schema";
 import type { FlatTicket, TicketType } from "./jira-scrum-view";
 import { PriorityIcon } from "./jira-scrum-view";
+
+export type TicketViewSettings = {
+  hiddenFields?: string[];
+  fieldOrder?: string[];
+};
 
 function ticketTypeIcon(type: TicketType) {
   switch (type) {
@@ -125,6 +131,7 @@ interface TicketDetailPanelProps {
   recipeInfo?: TicketRecipeInfo;
   onOpenRecipe?: (ticketId: string, sprintId: string) => void;
   currentUserId?: string;
+  ticketViewSettings?: TicketViewSettings | null;
 }
 
 export function TicketDetailPanel({ 
@@ -145,6 +152,7 @@ export function TicketDetailPanel({
   recipeInfo,
   onOpenRecipe,
   currentUserId,
+  ticketViewSettings,
 }: TicketDetailPanelProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(ticket?.title || "");
@@ -278,6 +286,52 @@ export function TicketDetailPanel({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: acceptanceCriteriaQueryKey });
     },
+  });
+
+  // Helper: check if a field is hidden by ticketViewSettings
+  // Default: new fields are hidden unless settings explicitly shows them
+  const defaultHiddenFields = ["metrics01", "metrics02", "metrics03", "happyPath", "edgeCase", "nonRegression"];
+  const isFieldHidden = (fieldKey: string) => {
+    if (ticketViewSettings && ticketViewSettings.hiddenFields !== undefined) {
+      return ticketViewSettings.hiddenFields.includes(fieldKey);
+    }
+    return defaultHiddenFields.includes(fieldKey);
+  };
+
+  // Non-regression items - State and queries
+  const [newNonRegText, setNewNonRegText] = useState("");
+  const [editingNonRegId, setEditingNonRegId] = useState<string | null>(null);
+  const [editingNonRegText, setEditingNonRegText] = useState("");
+  const nonRegQueryKey = ["/api/tickets", ticketId, ticketType, "non-regression-items"] as const;
+  const { data: nonRegressionItems = [] } = useQuery<NonRegressionItem[]>({
+    queryKey: nonRegQueryKey,
+    queryFn: async () => {
+      if (!ticketId || !ticketType) return [];
+      const res = await apiRequest(`/api/tickets/${ticketId}/${ticketType}/non-regression-items`, "GET");
+      return res.json();
+    },
+    enabled: !!ticketId && !!ticketType && ticketType !== "epic" && !isFieldHidden("nonRegression"),
+  });
+  const createNonRegMutation = useMutation({
+    mutationFn: async (content: string) => {
+      const res = await apiRequest(`/api/tickets/${ticketId}/${ticketType}/non-regression-items`, "POST", { content });
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: nonRegQueryKey }); setNewNonRegText(""); },
+  });
+  const updateNonRegMutation = useMutation({
+    mutationFn: async ({ itemId, data }: { itemId: string; data: Record<string, any> }) => {
+      const res = await apiRequest(`/api/non-regression-items/${itemId}`, "PATCH", data);
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: nonRegQueryKey }); setEditingNonRegId(null); setEditingNonRegText(""); },
+  });
+  const deleteNonRegMutation = useMutation({
+    mutationFn: async (itemId: string) => {
+      const res = await apiRequest(`/api/non-regression-items/${itemId}`, "DELETE");
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: nonRegQueryKey }); },
   });
   
   // Get all notes for linking
@@ -1157,6 +1211,186 @@ export function TicketDetailPanel({
             </>
           )}
           
+          {/* Happy Path Section */}
+          {ticket && (ticket.type === "user_story" || ticket.type === "task" || ticket.type === "bug") && !isFieldHidden("happyPath") && (
+            <>
+              <Separator />
+              <div className="space-y-2" data-testid="happy-path-section">
+                <Label className="text-xs text-muted-foreground font-semibold flex items-center gap-2">
+                  <Check className="h-3 w-3 text-green-500" />
+                  Happy Path
+                </Label>
+                {readOnly ? (
+                  <div className="text-xs text-muted-foreground p-2 bg-muted/30 rounded-md whitespace-pre-wrap min-h-[40px]">
+                    {ticket.happyPath || "Non renseigné"}
+                  </div>
+                ) : (
+                  <Textarea
+                    value={ticket.happyPath || ""}
+                    onChange={(e) => onUpdate(ticket.id, ticket.type, { happyPath: e.target.value || null })}
+                    placeholder="Décrivez le parcours nominal..."
+                    className="min-h-[60px] resize-y text-xs"
+                    data-testid="textarea-happy-path"
+                  />
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Edge Case Section */}
+          {ticket && (ticket.type === "user_story" || ticket.type === "task" || ticket.type === "bug") && !isFieldHidden("edgeCase") && (
+            <>
+              <Separator />
+              <div className="space-y-2" data-testid="edge-case-section">
+                <Label className="text-xs text-muted-foreground font-semibold flex items-center gap-2">
+                  <ChevronsUpDown className="h-3 w-3 text-amber-500" />
+                  Edge Case
+                </Label>
+                {readOnly ? (
+                  <div className="text-xs text-muted-foreground p-2 bg-muted/30 rounded-md whitespace-pre-wrap min-h-[40px]">
+                    {ticket.edgeCase || "Non renseigné"}
+                  </div>
+                ) : (
+                  <Textarea
+                    value={ticket.edgeCase || ""}
+                    onChange={(e) => onUpdate(ticket.id, ticket.type, { edgeCase: e.target.value || null })}
+                    placeholder="Décrivez les cas limites..."
+                    className="min-h-[60px] resize-y text-xs"
+                    data-testid="textarea-edge-case"
+                  />
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Metrics Section */}
+          {ticket && (ticket.type === "user_story" || ticket.type === "task" || ticket.type === "bug") && (!isFieldHidden("metrics01") || !isFieldHidden("metrics02") || !isFieldHidden("metrics03")) && (
+            <>
+              <Separator />
+              <div className="space-y-3" data-testid="metrics-section">
+                <Label className="text-xs text-muted-foreground font-semibold">Métriques</Label>
+                {[
+                  { key: "metrics01", labelField: "metrics01Label" as keyof typeof ticket, valueField: "metrics01Value" as keyof typeof ticket },
+                  { key: "metrics02", labelField: "metrics02Label" as keyof typeof ticket, valueField: "metrics02Value" as keyof typeof ticket },
+                  { key: "metrics03", labelField: "metrics03Label" as keyof typeof ticket, valueField: "metrics03Value" as keyof typeof ticket },
+                ].filter(m => !isFieldHidden(m.key)).map((metric, i) => (
+                  <div key={metric.key} className="space-y-1" data-testid={`metric-${metric.key}`}>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Métrique {String(i + 1).padStart(2, "0")}</span>
+                    <div className="flex gap-2">
+                      <Input
+                        value={(ticket[metric.labelField] as string) || ""}
+                        onChange={(e) => onUpdate(ticket.id, ticket.type, { [metric.labelField]: e.target.value || null })}
+                        placeholder="Libellé..."
+                        className="h-7 text-xs flex-1"
+                        disabled={readOnly}
+                        data-testid={`input-${metric.key}-label`}
+                      />
+                      <Input
+                        type="number"
+                        value={(ticket[metric.valueField] as number) ?? ""}
+                        onChange={(e) => onUpdate(ticket.id, ticket.type, { [metric.valueField]: e.target.value !== "" ? parseFloat(e.target.value) : null })}
+                        placeholder="Valeur"
+                        className="h-7 text-xs w-24"
+                        disabled={readOnly}
+                        data-testid={`input-${metric.key}-value`}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Non-regression Checklist Section */}
+          {ticket && (ticket.type === "user_story" || ticket.type === "task" || ticket.type === "bug") && !isFieldHidden("nonRegression") && (
+            <>
+              <Separator />
+              <div className="space-y-2" data-testid="non-regression-section">
+                <Label className="text-xs text-muted-foreground font-semibold flex items-center gap-2">
+                  <ClipboardList className="h-3 w-3" />
+                  Non-régression
+                </Label>
+                {nonRegressionItems.length > 0 && (
+                  <div className="space-y-1">
+                    {nonRegressionItems.map((item) => (
+                      <div key={item.id} className="flex items-center gap-2 group" data-testid={`non-regression-item-${item.id}`}>
+                        <input
+                          type="checkbox"
+                          checked={item.done}
+                          onChange={(e) => updateNonRegMutation.mutate({ itemId: item.id, data: { done: e.target.checked } })}
+                          disabled={readOnly}
+                          className="h-3 w-3 accent-primary flex-shrink-0 cursor-pointer"
+                          data-testid={`checkbox-non-reg-${item.id}`}
+                        />
+                        {editingNonRegId === item.id ? (
+                          <Input
+                            value={editingNonRegText}
+                            onChange={(e) => setEditingNonRegText(e.target.value)}
+                            onBlur={() => {
+                              if (editingNonRegText.trim() && editingNonRegText !== item.content) {
+                                updateNonRegMutation.mutate({ itemId: item.id, data: { content: editingNonRegText.trim() } });
+                              } else {
+                                setEditingNonRegId(null);
+                                setEditingNonRegText("");
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") e.currentTarget.blur();
+                              else if (e.key === "Escape") { setEditingNonRegId(null); setEditingNonRegText(""); }
+                            }}
+                            className="h-7 text-xs flex-1"
+                            autoFocus
+                            data-testid={`input-edit-non-reg-${item.id}`}
+                          />
+                        ) : (
+                          <span
+                            className={cn("text-xs flex-1 cursor-pointer", item.done && "line-through text-muted-foreground")}
+                            onClick={() => { if (!readOnly) { setEditingNonRegId(item.id); setEditingNonRegText(item.content); } }}
+                          >
+                            {item.content}
+                          </span>
+                        )}
+                        {!readOnly && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => deleteNonRegMutation.mutate(item.id)}
+                            disabled={deleteNonRegMutation.isPending}
+                            data-testid={`button-delete-non-reg-${item.id}`}
+                          >
+                            <Trash2 className="h-3 w-3 text-red-500" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!readOnly && (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={newNonRegText}
+                      onChange={(e) => setNewNonRegText(e.target.value)}
+                      placeholder="Ajouter un scénario..."
+                      className="h-7 text-[10px] flex-1"
+                      onKeyDown={(e) => { if (e.key === "Enter" && newNonRegText.trim()) createNonRegMutation.mutate(newNonRegText.trim()); }}
+                      data-testid="input-new-non-reg"
+                    />
+                    <Button
+                      size="icon"
+                      className="h-6 w-6 bg-primary hover:bg-primary/90"
+                      onClick={() => { if (newNonRegText.trim()) createNonRegMutation.mutate(newNonRegText.trim()); }}
+                      disabled={!newNonRegText.trim() || createNonRegMutation.isPending}
+                      data-testid="button-add-non-reg"
+                    >
+                      <Plus className="h-4 w-4 text-white" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
           {/* Recipe Section */}
           {ticket && (ticket.type === "user_story" || ticket.type === "task") && (
             <>

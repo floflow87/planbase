@@ -2092,6 +2092,62 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Activities kind constraint updated with stage_change and info_update");
 
+    // ============================================
+    // Ticket metrics, happy path, edge case columns
+    // ============================================
+    await db.execute(sql`
+      ALTER TABLE user_stories
+      ADD COLUMN IF NOT EXISTS metrics_01_label TEXT,
+      ADD COLUMN IF NOT EXISTS metrics_01_value REAL,
+      ADD COLUMN IF NOT EXISTS metrics_02_label TEXT,
+      ADD COLUMN IF NOT EXISTS metrics_02_value REAL,
+      ADD COLUMN IF NOT EXISTS metrics_03_label TEXT,
+      ADD COLUMN IF NOT EXISTS metrics_03_value REAL,
+      ADD COLUMN IF NOT EXISTS happy_path TEXT,
+      ADD COLUMN IF NOT EXISTS edge_case TEXT;
+    `);
+    await db.execute(sql`
+      ALTER TABLE backlog_tasks
+      ADD COLUMN IF NOT EXISTS metrics_01_label TEXT,
+      ADD COLUMN IF NOT EXISTS metrics_01_value REAL,
+      ADD COLUMN IF NOT EXISTS metrics_02_label TEXT,
+      ADD COLUMN IF NOT EXISTS metrics_02_value REAL,
+      ADD COLUMN IF NOT EXISTS metrics_03_label TEXT,
+      ADD COLUMN IF NOT EXISTS metrics_03_value REAL,
+      ADD COLUMN IF NOT EXISTS happy_path TEXT,
+      ADD COLUMN IF NOT EXISTS edge_case TEXT;
+    `);
+    console.log("✅ Ticket metrics, happy path, edge case columns added");
+
+    // ============================================
+    // Backlogs ticket_view_settings column
+    // ============================================
+    await db.execute(sql`
+      ALTER TABLE backlogs
+      ADD COLUMN IF NOT EXISTS ticket_view_settings JSONB;
+    `);
+    console.log("✅ Backlogs ticket_view_settings column added");
+
+    // ============================================
+    // Non-regression items table
+    // ============================================
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS non_regression_items (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        ticket_id UUID NOT NULL,
+        ticket_type TEXT NOT NULL,
+        content TEXT NOT NULL,
+        done BOOLEAN NOT NULL DEFAULT FALSE,
+        position INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS non_regression_items_account_idx ON non_regression_items(account_id);
+      CREATE INDEX IF NOT EXISTS non_regression_items_ticket_idx ON non_regression_items(ticket_id, ticket_type);
+    `);
+    console.log("✅ Non-regression items table created");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

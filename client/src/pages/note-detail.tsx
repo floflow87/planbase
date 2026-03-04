@@ -1181,19 +1181,9 @@ export default function NoteDetail() {
                       </PopoverContent>
                     </Popover>
 
-                    {syncState.isSyncing ? (
-                      <span className="text-xs text-muted-foreground">Sauvegarde...</span>
-                    ) : syncState.lastSynced ? (
-                      <span className="text-xs text-muted-foreground">
-                        Sauvegardé {formatDistanceToNow(syncState.lastSynced, { addSuffix: true, locale: fr })}
-                      </span>
-                    ) : syncState.error ? (
+                    {syncState.error ? (
                       <span className="text-xs text-red-500">Erreur de sync</span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        Modifié {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true, locale: fr })}
-                      </span>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>

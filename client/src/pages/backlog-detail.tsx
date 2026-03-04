@@ -83,7 +83,10 @@ import {
   type TicketAction,
   type BulkAction
 } from "@/components/backlog/jira-scrum-view";
-import { TicketDetailPanel, type TicketRecipeInfo } from "@/components/backlog/ticket-detail-panel";
+import { TicketDetailPanel, type TicketRecipeInfo, type TicketViewSettings } from "@/components/backlog/ticket-detail-panel";
+import { Switch } from "@/components/ui/switch";
+import { Settings2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 type BacklogData = Backlog & {
   epics: Epic[];
@@ -108,6 +111,7 @@ export default function BacklogDetail() {
   const [editBacklogName, setEditBacklogName] = useState("");
   const [editBacklogDescription, setEditBacklogDescription] = useState("");
   const [editBacklogProjectId, setEditBacklogProjectId] = useState<string | null>(null);
+  const [editTicketViewSettings, setEditTicketViewSettings] = useState<TicketViewSettings>({ hiddenFields: ["metrics01", "metrics02", "metrics03", "happyPath", "edgeCase", "nonRegression"] });
   const [activeTab, setActiveTab] = useState<string>("backlog");
   
   // Reset activeTab when navigating to a different backlog
@@ -753,7 +757,7 @@ export default function BacklogDetail() {
   });
 
   const updateBacklogMutation = useMutation({
-    mutationFn: async (data: { name: string; description?: string; projectId?: string | null }) => {
+    mutationFn: async (data: { name: string; description?: string; projectId?: string | null; ticketViewSettings?: TicketViewSettings }) => {
       return apiRequest(`/api/backlogs/${id}`, "PATCH", data);
     },
     onMutate: async (data) => {
@@ -1914,6 +1918,8 @@ export default function BacklogDetail() {
               setEditBacklogName(backlog.name);
               setEditBacklogDescription(backlog.description || "");
               setEditBacklogProjectId(backlog.projectId || null);
+              const savedSettings = (backlog as any).ticketViewSettings as TicketViewSettings | null;
+              setEditTicketViewSettings(savedSettings ?? { hiddenFields: ["metrics01", "metrics02", "metrics03", "happyPath", "edgeCase", "nonRegression"] });
               setShowEditBacklogDialog(true);
             }}
             data-testid="button-edit-backlog"
@@ -2299,6 +2305,7 @@ export default function BacklogDetail() {
                         setSelectedTicket(null);
                       }}
                       currentUserId={user?.id}
+                      ticketViewSettings={(backlog as any).ticketViewSettings as TicketViewSettings | null}
                     />
                   </div>
                 </>
@@ -2584,6 +2591,7 @@ export default function BacklogDetail() {
                       setSelectedTicket(null);
                     }}
                     currentUserId={user?.id}
+                    ticketViewSettings={(backlog as any).ticketViewSettings as TicketViewSettings | null}
                   />
                 </div>
               </>
@@ -2743,6 +2751,43 @@ export default function BacklogDetail() {
               </Select>
             </div>
           </div>
+
+          {/* Paramètres d'un ticket - Field visibility settings */}
+          <Separator />
+          <div className="space-y-3" data-testid="ticket-view-settings-panel">
+            <div className="flex items-center gap-2">
+              <Settings2 className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-semibold">Paramètres d'un ticket</span>
+            </div>
+            <p className="text-xs text-muted-foreground">Choisissez les champs à afficher dans le panneau de détail du ticket.</p>
+            {[
+              { key: "metrics01", label: "Métrique 01" },
+              { key: "metrics02", label: "Métrique 02" },
+              { key: "metrics03", label: "Métrique 03" },
+              { key: "happyPath", label: "Happy Path" },
+              { key: "edgeCase", label: "Edge Case" },
+              { key: "nonRegression", label: "Non-régression" },
+            ].map((field) => {
+              const isHidden = (editTicketViewSettings.hiddenFields ?? []).includes(field.key);
+              return (
+                <div key={field.key} className="flex items-center justify-between" data-testid={`field-toggle-${field.key}`}>
+                  <Label className="text-xs text-muted-foreground">{field.label}</Label>
+                  <Switch
+                    checked={!isHidden}
+                    onCheckedChange={(checked) => {
+                      const currentHidden = editTicketViewSettings.hiddenFields ?? [];
+                      const newHidden = checked
+                        ? currentHidden.filter(f => f !== field.key)
+                        : [...currentHidden, field.key];
+                      setEditTicketViewSettings({ ...editTicketViewSettings, hiddenFields: newHidden });
+                    }}
+                    data-testid={`switch-field-${field.key}`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
           <SheetFooter className="flex flex-col gap-3 sm:flex-col">
             <div className="flex gap-2 w-full">
               <Button variant="outline" onClick={() => {
@@ -2757,7 +2802,8 @@ export default function BacklogDetail() {
                 onClick={() => updateBacklogMutation.mutate({ 
                   name: editBacklogName, 
                   description: editBacklogDescription || undefined,
-                  projectId: editBacklogProjectId
+                  projectId: editBacklogProjectId,
+                  ticketViewSettings: editTicketViewSettings
                 })}
                 disabled={updateBacklogMutation.isPending || !editBacklogName.trim()}
                 className="flex-1"

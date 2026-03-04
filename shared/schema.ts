@@ -1373,6 +1373,7 @@ export const backlogs = pgTable("backlogs", {
   name: text("name").notNull(),
   description: text("description"),
   mode: text("mode").notNull().default("scrum"), // 'kanban' or 'scrum'
+  ticketViewSettings: jsonb("ticket_view_settings"), // Custom ticket field visibility & order
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -1428,6 +1429,14 @@ export const userStories = pgTable("user_stories", {
   ownerId: uuid("owner_id").references(() => appUsers.id, { onDelete: "set null" }),
   assigneeId: uuid("assignee_id").references(() => appUsers.id, { onDelete: "set null" }),
   reporterId: uuid("reporter_id").references(() => appUsers.id, { onDelete: "set null" }),
+  metrics01Label: text("metrics_01_label"),
+  metrics01Value: real("metrics_01_value"),
+  metrics02Label: text("metrics_02_label"),
+  metrics02Value: real("metrics_02_value"),
+  metrics03Label: text("metrics_03_label"),
+  metrics03Value: real("metrics_03_value"),
+  happyPath: text("happy_path"),
+  edgeCase: text("edge_case"),
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -1458,6 +1467,14 @@ export const backlogTasks = pgTable("backlog_tasks", {
   version: text("version"), // Version de produit (nullable)
   assigneeId: uuid("assignee_id").references(() => appUsers.id, { onDelete: "set null" }),
   reporterId: uuid("reporter_id").references(() => appUsers.id, { onDelete: "set null" }),
+  metrics01Label: text("metrics_01_label"),
+  metrics01Value: real("metrics_01_value"),
+  metrics02Label: text("metrics_02_label"),
+  metrics02Value: real("metrics_02_value"),
+  metrics03Label: text("metrics_03_label"),
+  metrics03Value: real("metrics_03_value"),
+  happyPath: text("happy_path"),
+  edgeCase: text("edge_case"),
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -1603,6 +1620,22 @@ export const ticketAcceptanceCriteria = pgTable("ticket_acceptance_criteria", {
   accountIdx: index().on(table.accountId),
   ticketIdx: index().on(table.ticketId, table.ticketType),
   positionIdx: index().on(table.ticketId, table.position),
+}));
+
+// Non-regression checklist items for tickets
+export const nonRegressionItems = pgTable("non_regression_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  ticketId: uuid("ticket_id").notNull(),
+  ticketType: text("ticket_type").notNull(), // 'user_story', 'task', 'bug'
+  content: text("content").notNull(),
+  done: boolean("done").notNull().default(false),
+  position: integer("position").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index().on(table.accountId),
+  ticketIdx: index().on(table.ticketId, table.ticketType),
 }));
 
 // Ticket Recipes table (Cahier de recette / QA Testing)
@@ -1863,6 +1896,9 @@ export const updateTicketCommentSchema = insertTicketCommentSchema.omit({ accoun
 export const insertTicketAcceptanceCriteriaSchema = createInsertSchema(ticketAcceptanceCriteria).omit({ id: true, createdAt: true, updatedAt: true });
 export const updateTicketAcceptanceCriteriaSchema = insertTicketAcceptanceCriteriaSchema.omit({ accountId: true, ticketId: true, ticketType: true }).partial();
 
+export const insertNonRegressionItemSchema = createInsertSchema(nonRegressionItems).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateNonRegressionItemSchema = insertNonRegressionItemSchema.omit({ accountId: true, ticketId: true, ticketType: true }).partial();
+
 export const insertTicketRecipeSchema = createInsertSchema(ticketRecipes).omit({ id: true, createdAt: true, updatedAt: true });
 export const updateTicketRecipeSchema = insertTicketRecipeSchema.omit({ accountId: true, backlogId: true, sprintId: true, ticketId: true, ticketType: true }).partial();
 
@@ -2019,6 +2055,8 @@ export type RetroCard = typeof retroCards.$inferSelect;
 export type TicketComment = typeof ticketComments.$inferSelect;
 export type TicketAcceptanceCriteria = typeof ticketAcceptanceCriteria.$inferSelect;
 export type InsertTicketAcceptanceCriteria = z.infer<typeof insertTicketAcceptanceCriteriaSchema>;
+export type NonRegressionItem = typeof nonRegressionItems.$inferSelect;
+export type InsertNonRegressionItem = z.infer<typeof insertNonRegressionItemSchema>;
 export type TicketRecipe = typeof ticketRecipes.$inferSelect;
 export type InsertTicketRecipe = z.infer<typeof insertTicketRecipeSchema>;
 export type UpsertTicketRecipe = z.infer<typeof upsertTicketRecipeSchema>;

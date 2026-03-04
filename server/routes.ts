@@ -63,6 +63,9 @@ import {
   insertTicketAcceptanceCriteriaSchema,
   updateTicketAcceptanceCriteriaSchema,
   ticketAcceptanceCriteria,
+  insertNonRegressionItemSchema,
+  updateNonRegressionItemSchema,
+  nonRegressionItems,
   upsertTicketRecipeSchema,
   recipeStatusOptions,
   recipeConclusionOptions,
@@ -9764,6 +9767,75 @@ app.get("/config/feature-flags", async (_req, res) => {
       if (!deleted) {
         return res.status(404).json({ error: "Acceptance criterion not found" });
       }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // NON-REGRESSION ITEMS
+  // ============================================
+
+  app.get("/api/tickets/:ticketId/:ticketType/non-regression-items", requireAuth, requireOrgMember, requirePermission("product", "read"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { ticketId, ticketType } = req.params;
+      const items = await db.select().from(nonRegressionItems)
+        .where(and(
+          eq(nonRegressionItems.ticketId, ticketId),
+          eq(nonRegressionItems.accountId, accountId),
+          eq(nonRegressionItems.ticketType, ticketType)
+        ))
+        .orderBy(asc(nonRegressionItems.position));
+      res.json(items);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/tickets/:ticketId/:ticketType/non-regression-items", requireAuth, requireOrgMember, requirePermission("product", "write"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { ticketId, ticketType } = req.params;
+      const maxPositionRow = await db.select({ position: nonRegressionItems.position })
+        .from(nonRegressionItems)
+        .where(and(eq(nonRegressionItems.ticketId, ticketId), eq(nonRegressionItems.accountId, accountId)))
+        .orderBy(desc(nonRegressionItems.position))
+        .limit(1);
+      const nextPosition = maxPositionRow.length > 0 ? maxPositionRow[0].position + 1 : 0;
+      const data = insertNonRegressionItemSchema.parse({ ...req.body, accountId, ticketId, ticketType, position: nextPosition });
+      const [item] = await db.insert(nonRegressionItems).values(data).returning();
+      res.status(201).json(item);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/non-regression-items/:itemId", requireAuth, requireOrgMember, requirePermission("product", "write"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const itemId = req.params.itemId;
+      const data = updateNonRegressionItemSchema.parse(req.body);
+      const [updated] = await db.update(nonRegressionItems)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(nonRegressionItems.id, itemId), eq(nonRegressionItems.accountId, accountId)))
+        .returning();
+      if (!updated) return res.status(404).json({ error: "Item not found" });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/non-regression-items/:itemId", requireAuth, requireOrgMember, requirePermission("product", "delete"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const itemId = req.params.itemId;
+      const [deleted] = await db.delete(nonRegressionItems)
+        .where(and(eq(nonRegressionItems.id, itemId), eq(nonRegressionItems.accountId, accountId)))
+        .returning();
+      if (!deleted) return res.status(404).json({ error: "Item not found" });
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
