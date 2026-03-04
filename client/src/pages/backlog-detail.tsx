@@ -2708,39 +2708,41 @@ export default function BacklogDetail() {
           <SheetHeader>
             <SheetTitle>Modifier le backlog</SheetTitle>
           </SheetHeader>
-          <div className="space-y-4 py-6">
-            <div className="space-y-2">
-              <Label>Nom *</Label>
+          <div className="space-y-3 py-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Nom *</Label>
               <Input 
                 value={editBacklogName} 
                 onChange={(e) => setEditBacklogName(e.target.value)} 
                 placeholder="Nom du backlog"
+                className="text-xs"
                 data-testid="input-edit-backlog-name"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Description</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Description</Label>
               <Textarea 
                 value={editBacklogDescription} 
                 onChange={(e) => setEditBacklogDescription(e.target.value)} 
                 placeholder="Description (optionnel)"
                 rows={3}
+                className="text-xs"
                 data-testid="input-edit-backlog-description"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Projet</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Projet</Label>
               <Select 
                 value={editBacklogProjectId || "none"} 
                 onValueChange={(v) => setEditBacklogProjectId(v === "none" ? null : v)}
               >
-                <SelectTrigger data-testid="select-edit-backlog-project">
+                <SelectTrigger className="text-xs" data-testid="select-edit-backlog-project">
                   <SelectValue placeholder="Sélectionner un projet" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Aucun projet</SelectItem>
+                  <SelectItem value="none" className="text-xs">Aucun projet</SelectItem>
                   {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
+                    <SelectItem key={project.id} value={project.id} className="text-xs">
                       <div className="flex items-center gap-2">
                         <Folder className="h-3 w-3" />
                         {project.name}
@@ -2754,12 +2756,12 @@ export default function BacklogDetail() {
 
           {/* Paramètres d'un ticket - Field visibility settings */}
           <Separator />
-          <div className="space-y-3" data-testid="ticket-view-settings-panel">
+          <div className="space-y-2 py-4" data-testid="ticket-view-settings-panel">
             <div className="flex items-center gap-2">
-              <Settings2 className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-semibold">Paramètres d'un ticket</span>
+              <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-semibold">Paramètres d'un ticket</span>
             </div>
-            <p className="text-xs text-muted-foreground">Choisissez les champs à afficher dans le panneau de détail du ticket.</p>
+            <p className="text-[11px] text-muted-foreground">Choisissez les champs à afficher dans le panneau de détail du ticket.</p>
             {[
               { key: "metrics01", label: "Métrique 01" },
               { key: "metrics02", label: "Métrique 02" },
@@ -2770,8 +2772,8 @@ export default function BacklogDetail() {
             ].map((field) => {
               const isHidden = (editTicketViewSettings.hiddenFields ?? []).includes(field.key);
               return (
-                <div key={field.key} className="flex items-center justify-between" data-testid={`field-toggle-${field.key}`}>
-                  <Label className="text-xs text-muted-foreground">{field.label}</Label>
+                <div key={field.key} className="flex items-center justify-between py-0.5" data-testid={`field-toggle-${field.key}`}>
+                  <Label className="text-[11px] text-muted-foreground font-normal">{field.label}</Label>
                   <Switch
                     checked={!isHidden}
                     onCheckedChange={(checked) => {
@@ -2788,17 +2790,18 @@ export default function BacklogDetail() {
             })}
           </div>
 
-          <SheetFooter className="flex flex-col gap-3 sm:flex-col">
+          <SheetFooter className="flex flex-col gap-2 sm:flex-col pt-4 border-t">
             <div className="flex gap-2 w-full">
-              <Button variant="outline" onClick={() => {
+              <Button size="sm" variant="outline" onClick={() => {
                   setShowEditBacklogDialog(false);
                   setEditBacklogName("");
                   setEditBacklogDescription("");
                   setEditBacklogProjectId(null);
-                }} className="flex-1" data-testid="button-cancel-edit-backlog">
+                }} className="flex-1 text-xs" data-testid="button-cancel-edit-backlog">
                 Annuler
               </Button>
               <Button 
+                size="sm"
                 onClick={() => updateBacklogMutation.mutate({ 
                   name: editBacklogName, 
                   description: editBacklogDescription || undefined,
@@ -2806,20 +2809,21 @@ export default function BacklogDetail() {
                   ticketViewSettings: editTicketViewSettings
                 })}
                 disabled={updateBacklogMutation.isPending || !editBacklogName.trim()}
-                className="flex-1"
+                className="flex-1 text-xs"
                 data-testid="button-submit-edit-backlog"
               >
                 {updateBacklogMutation.isPending ? "..." : "Enregistrer"}
               </Button>
             </div>
             <Button 
+              size="sm"
               variant="destructive" 
               onClick={() => setShowDeleteConfirmDialog(true)}
               disabled={deleteBacklogMutation.isPending}
-              className="w-full"
+              className="w-full text-xs"
               data-testid="button-delete-backlog"
             >
-              <Trash2 className="h-4 w-4 mr-2" />
+              <Trash2 className="h-3 w-3 mr-1.5" />
               {deleteBacklogMutation.isPending ? "Suppression..." : "Supprimer le backlog"}
             </Button>
           </SheetFooter>
