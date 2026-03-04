@@ -96,6 +96,42 @@ type BacklogData = Backlog & {
   columns: BacklogColumn[];
 };
 
+function SortableFieldToggle({ id, label, isHidden, onToggle }: {
+  id: string;
+  label: string;
+  isHidden: boolean;
+  onToggle: (checked: boolean) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between py-0.5 gap-2"
+      data-testid={`field-toggle-${id}`}
+    >
+      <div className="flex items-center gap-1.5 cursor-grab" {...attributes} {...listeners}>
+        <svg className="h-3 w-3 text-muted-foreground/50" viewBox="0 0 10 16" fill="currentColor">
+          <circle cx="3" cy="3" r="1.2" /><circle cx="7" cy="3" r="1.2" />
+          <circle cx="3" cy="8" r="1.2" /><circle cx="7" cy="8" r="1.2" />
+          <circle cx="3" cy="13" r="1.2" /><circle cx="7" cy="13" r="1.2" />
+        </svg>
+        <Label className="text-[11px] text-muted-foreground font-normal cursor-grab">{label}</Label>
+      </div>
+      <Switch
+        checked={!isHidden}
+        onCheckedChange={onToggle}
+        data-testid={`switch-field-${id}`}
+      />
+    </div>
+  );
+}
+
 export default function BacklogDetail() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
@@ -2208,6 +2244,10 @@ export default function BacklogDetail() {
                       return 0;
                     });
                   
+                  const backlogPrefix = backlog.name
+                    ? backlog.name.slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, "")
+                    : "BCK";
+
                   return sortedSprints.map((sprint, index) => (
                     <SprintSection
                       key={sprint.id}
@@ -2222,6 +2262,7 @@ export default function BacklogDetail() {
                       onToggle={() => toggleSprint(sprint.id)}
                       onSelectTicket={handleSelectTicket}
                       onCreateTicket={handleCreateSprintTicket}
+                      backlogPrefix={backlogPrefix}
                       onStartSprint={(sprintId) => startSprintMutation.mutate(sprintId)}
                       onCompleteSprint={handleSprintCloseAttempt}
                       onEditSprint={(sprint) => { setEditingSprint(sprint); setShowSprintDialog(true); }}
@@ -2265,6 +2306,7 @@ export default function BacklogDetail() {
                   onToggle={toggleBacklogPool}
                   onSelectTicket={handleSelectTicket}
                   onCreateTicket={handleCreateBacklogTicket}
+                  backlogPrefix={backlog.name ? backlog.name.slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, "") : "BCK"}
                   onUpdateState={handleInlineStateUpdate}
                   onUpdateField={handleInlineFieldUpdate}
                   onConvertType={handleConvertType}
@@ -2704,10 +2746,11 @@ export default function BacklogDetail() {
 
       {/* Edit Backlog Sheet (Side Panel) */}
       <Sheet open={showEditBacklogDialog} onOpenChange={setShowEditBacklogDialog}>
-        <SheetContent className="sm:max-w-md">
-          <SheetHeader>
+        <SheetContent className="sm:max-w-md flex flex-col h-full overflow-hidden p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
             <SheetTitle>Modifier le backlog</SheetTitle>
           </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6">
           <div className="space-y-3 py-4">
             <div className="space-y-1.5">
               <Label className="text-xs">Nom *</Label>
@@ -2754,43 +2797,71 @@ export default function BacklogDetail() {
             </div>
           </div>
 
-          {/* Paramètres d'un ticket - Field visibility settings */}
+          {/* Paramètres d'un ticket - Field visibility settings with DnD */}
           <Separator />
-          <div className="space-y-2 py-4" data-testid="ticket-view-settings-panel">
-            <div className="flex items-center gap-2">
-              <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs font-semibold">Paramètres d'un ticket</span>
-            </div>
-            <p className="text-[11px] text-muted-foreground">Choisissez les champs à afficher dans le panneau de détail du ticket.</p>
-            {[
+          {(() => {
+            const allFieldDefs = [
               { key: "metrics01", label: "Métrique 01" },
               { key: "metrics02", label: "Métrique 02" },
               { key: "metrics03", label: "Métrique 03" },
               { key: "happyPath", label: "Happy Path" },
               { key: "edgeCase", label: "Edge Case" },
               { key: "nonRegression", label: "Non-régression" },
-            ].map((field) => {
-              const isHidden = (editTicketViewSettings.hiddenFields ?? []).includes(field.key);
-              return (
-                <div key={field.key} className="flex items-center justify-between py-0.5" data-testid={`field-toggle-${field.key}`}>
-                  <Label className="text-[11px] text-muted-foreground font-normal">{field.label}</Label>
-                  <Switch
-                    checked={!isHidden}
-                    onCheckedChange={(checked) => {
-                      const currentHidden = editTicketViewSettings.hiddenFields ?? [];
-                      const newHidden = checked
-                        ? currentHidden.filter(f => f !== field.key)
-                        : [...currentHidden, field.key];
-                      setEditTicketViewSettings({ ...editTicketViewSettings, hiddenFields: newHidden });
-                    }}
-                    data-testid={`switch-field-${field.key}`}
-                  />
-                </div>
-              );
-            })}
-          </div>
+              { key: "version", label: "Version" },
+              { key: "rapporteur", label: "Rapporteur" },
+            ];
+            const fieldOrder = (editTicketViewSettings as any).fieldOrder as string[] | undefined;
+            const orderedDefs = fieldOrder
+              ? [...fieldOrder.map(k => allFieldDefs.find(f => f.key === k)).filter(Boolean) as typeof allFieldDefs,
+                 ...allFieldDefs.filter(f => !fieldOrder.includes(f.key))]
+              : allFieldDefs;
 
-          <SheetFooter className="flex flex-col gap-2 sm:flex-col pt-4 border-t">
+            return (
+              <div className="space-y-2 py-4" data-testid="ticket-view-settings-panel">
+                <div className="flex items-center gap-2">
+                  <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs font-semibold">Paramètres d'un ticket</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Choisissez les champs à afficher. Faites glisser pour réordonner.</p>
+                <DndContext
+                  collisionDetection={closestCenter}
+                  onDragEnd={(event) => {
+                    const { active, over } = event;
+                    if (over && active.id !== over.id) {
+                      const oldIdx = orderedDefs.findIndex(f => f.key === active.id);
+                      const newIdx = orderedDefs.findIndex(f => f.key === over.id);
+                      const newOrder = arrayMove(orderedDefs, oldIdx, newIdx).map(f => f.key);
+                      setEditTicketViewSettings({ ...editTicketViewSettings, fieldOrder: newOrder } as any);
+                    }
+                  }}
+                >
+                  <SortableContext items={orderedDefs.map(f => f.key)} strategy={verticalListSortingStrategy}>
+                    {orderedDefs.map((field) => {
+                      const isHidden = (editTicketViewSettings.hiddenFields ?? []).includes(field.key);
+                      return (
+                        <SortableFieldToggle
+                          key={field.key}
+                          id={field.key}
+                          label={field.label}
+                          isHidden={isHidden}
+                          onToggle={(checked) => {
+                            const cur = editTicketViewSettings.hiddenFields ?? [];
+                            setEditTicketViewSettings({
+                              ...editTicketViewSettings,
+                              hiddenFields: checked ? cur.filter(f => f !== field.key) : [...cur, field.key],
+                            });
+                          }}
+                        />
+                      );
+                    })}
+                  </SortableContext>
+                </DndContext>
+              </div>
+            );
+          })()}
+          </div>{/* end scrollable area */}
+
+          <SheetFooter className="flex-shrink-0 flex flex-col gap-2 sm:flex-col px-6 py-4 border-t bg-background">
             <div className="flex gap-2 w-full">
               <Button size="sm" variant="outline" onClick={() => {
                   setShowEditBacklogDialog(false);

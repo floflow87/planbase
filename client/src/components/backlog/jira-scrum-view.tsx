@@ -1,11 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { 
   ChevronDown, ChevronRight, ChevronUp, Plus, MoreVertical, 
   Flag, User, Calendar, GripVertical, Play, Pause,
   Check, Layers, BookOpen, ListTodo, AlertCircle, Pencil,
   ArrowUp, ArrowDown, Copy, Trash2, UserPlus, Hash, ExternalLink,
-  CheckSquare, Square, MoreHorizontal, Link2, Wrench, Tag, X, Bug
+  CheckSquare, Square, MoreHorizontal, Link2, Wrench, Tag, X, Bug, Timer
 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -151,6 +152,45 @@ function getStateDot(state: string | null | undefined) {
   }
 }
 
+function formatDuration(ms: number): string {
+  const minutes = Math.floor(ms / 60000);
+  if (minutes < 1) return "< 1min";
+  if (minutes < 60) return `${minutes}min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}j`;
+}
+
+interface StatusPeriod { state: string; durationMs: number; }
+
+function computeTimeInStatus(
+  activities: Array<{ payload: any; createdAt: string }>,
+  createdAt: string | null | undefined,
+  currentState: string | null | undefined
+): StatusPeriod[] {
+  const stateChanges = activities
+    .filter(a => a.payload?.type === "state_change")
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+  const periods: Record<string, number> = {};
+  let cursor = createdAt ? new Date(createdAt).getTime() : Date.now();
+  let tracked = "a_faire";
+
+  for (const change of stateChanges) {
+    const t = new Date(change.createdAt).getTime();
+    periods[tracked] = (periods[tracked] || 0) + (t - cursor);
+    cursor = t;
+    tracked = change.payload.newState ?? tracked;
+  }
+  periods[tracked] = (periods[tracked] || 0) + (Date.now() - cursor);
+
+  return Object.entries(periods)
+    .filter(([, ms]) => ms > 30000)
+    .map(([state, durationMs]) => ({ state, durationMs }))
+    .sort((a, b) => b.durationMs - a.durationMs);
+}
+
 // Priority icons: low = 2 violet chevrons DOWN, medium = yellow horizontal line, high = 1 orange chevron UP, critical = 2 red chevrons UP
 function PriorityIcon({ priority, className }: { priority: string | null | undefined; className?: string }) {
   switch (priority) {
@@ -218,9 +258,10 @@ interface TicketRowProps {
   isChecked?: boolean;
   onCheckChange?: (ticketId: string, ticketType: TicketType, checked: boolean) => void;
   showCheckbox?: boolean;
+  backlogPrefix?: string;
 }
 
-export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSelect, onUpdateState, onUpdateField, onConvertType, onTicketAction, isSelected, isDraggable = true, isChecked = false, onCheckChange, showCheckbox = false }: TicketRowProps) {
+export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSelect, onUpdateState, onUpdateField, onConvertType, onTicketAction, isSelected, isDraggable = true, isChecked = false, onCheckChange, showCheckbox = false, backlogPrefix }: TicketRowProps) {
   const typeColor = ticketTypeColor(ticket.type, ticket.color);
   const assignee = users?.find(u => u.id === ticket.assigneeId);
   const ticketEpic = epics?.find(e => e.id === ticket.epicId);
@@ -231,6 +272,29 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const [epicPopoverOpen, setEpicPopoverOpen] = useState(false);
   const [typePopoverOpen, setTypePopoverOpen] = useState(false);
+  const [statusHistoryOpen, setStatusHistoryOpen] = useState(false);
+  const [statusHistory, setStatusHistory] = useState<StatusPeriod[] | null>(null);
+  const statusHoverTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleStatusMouseEnter = async () => {
+    statusHoverTimeout.current = setTimeout(async () => {
+      setStatusHistoryOpen(true);
+      if (statusHistory === null) {
+        try {
+          const res = await apiRequest(`/api/tickets/${ticket.id}/${ticket.type}/activities`, "GET");
+          const data = await res.json();
+          setStatusHistory(computeTimeInStatus(data, ticket.createdAt, ticket.state));
+        } catch {
+          setStatusHistory([]);
+        }
+      }
+    }, 400);
+  };
+
+  const handleStatusMouseLeave = () => {
+    if (statusHoverTimeout.current) clearTimeout(statusHoverTimeout.current);
+    setStatusHistoryOpen(false);
+  };
   
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `ticket-${ticket.type}-${ticket.id}`,
@@ -340,7 +404,10 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
           </span>
         </TooltipTrigger>
         <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md max-w-xs">
-          <p className="text-xs">{ticket.title}</p>
+          <p className="text-xs">
+            {backlogPrefix && <span className="font-mono text-muted-foreground mr-1.5">{backlogPrefix}-{ticket.order}</span>}
+            {ticket.title}
+          </p>
         </TooltipContent>
       </Tooltip>
       
@@ -621,48 +688,83 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
         )
       ) : null}
       
-      {/* Inline Status Dropdown - moved to end */}
-      {onUpdateState ? (
-        <Select
-          value={ticket.state || "a_faire"}
-          onValueChange={(value) => {
-            onUpdateState(ticket.id, ticket.type, value);
-          }}
-        >
-          <SelectTrigger 
-            className={cn("h-6 w-auto min-w-[90px] text-xs px-2 border cursor-pointer bg-white dark:bg-white", getStateStyle(ticket.state))}
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-            data-testid={`select-inline-state-${ticket.id}`}
+      {/* Inline Status Dropdown with time-in-status hover */}
+      <div
+        className="relative"
+        onMouseEnter={handleStatusMouseEnter}
+        onMouseLeave={handleStatusMouseLeave}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {statusHistoryOpen && (
+          <div
+            className="absolute bottom-full right-0 mb-1.5 z-50 bg-white dark:bg-gray-900 border border-border rounded-md shadow-lg p-2.5 min-w-[160px]"
+            onMouseEnter={() => { if (statusHoverTimeout.current) clearTimeout(statusHoverTimeout.current); setStatusHistoryOpen(true); }}
+            onMouseLeave={handleStatusMouseLeave}
           >
-            <SelectValue>
-              <span className="flex items-center gap-1.5">
-                <span className={cn("w-2 h-2 rounded-full", getStateDot(ticket.state))} />
-                {getStateLabel(ticket.state)}
-              </span>
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent className="bg-white dark:bg-white">
-            {backlogItemStateOptions.map(opt => (
-              <SelectItem key={opt.value} value={opt.value} className="text-gray-900 text-xs cursor-pointer">
+            <div className="flex items-center gap-1.5 mb-1.5 pb-1.5 border-b border-border/50">
+              <Timer className="h-3 w-3 text-muted-foreground" />
+              <span className="text-[10px] font-semibold text-foreground">Temps par état</span>
+            </div>
+            {statusHistory === null ? (
+              <p className="text-[10px] text-muted-foreground">Chargement...</p>
+            ) : statusHistory.length === 0 ? (
+              <p className="text-[10px] text-muted-foreground">Aucun historique</p>
+            ) : (
+              <div className="space-y-1">
+                {statusHistory.map(({ state, durationMs }) => (
+                  <div key={state} className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", getStateDot(state))} />
+                      <span className="text-[10px] text-muted-foreground">{getStateLabel(state)}</span>
+                    </div>
+                    <span className="text-[10px] font-medium text-foreground tabular-nums">{formatDuration(durationMs)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {onUpdateState ? (
+          <Select
+            value={ticket.state || "a_faire"}
+            onValueChange={(value) => {
+              onUpdateState(ticket.id, ticket.type, value);
+            }}
+          >
+            <SelectTrigger 
+              className={cn("h-6 w-auto min-w-[90px] text-xs px-2 border cursor-pointer bg-white dark:bg-white", getStateStyle(ticket.state))}
+              onPointerDown={(e) => e.stopPropagation()}
+              data-testid={`select-inline-state-${ticket.id}`}
+            >
+              <SelectValue>
                 <span className="flex items-center gap-1.5">
-                  <span className={cn("w-2 h-2 rounded-full", getStateDot(opt.value))} />
-                  {opt.label}
+                  <span className={cn("w-2 h-2 rounded-full", getStateDot(ticket.state))} />
+                  {getStateLabel(ticket.state)}
                 </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : (
-        <Badge 
-          variant="secondary" 
-          className={cn("text-xs px-1.5 py-0 cursor-pointer", getStateStyle(ticket.state))}
-          data-testid={`ticket-state-${ticket.id}`}
-        >
-          <span className={cn("w-2 h-2 rounded-full mr-1.5 inline-block", getStateDot(ticket.state))} />
-          {getStateLabel(ticket.state)}
-        </Badge>
-      )}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className="bg-white dark:bg-white">
+              {backlogItemStateOptions.map(opt => (
+                <SelectItem key={opt.value} value={opt.value} className="text-gray-900 text-xs cursor-pointer">
+                  <span className="flex items-center gap-1.5">
+                    <span className={cn("w-2 h-2 rounded-full", getStateDot(opt.value))} />
+                    {opt.label}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Badge 
+            variant="secondary" 
+            className={cn("text-xs px-1.5 py-0 cursor-pointer", getStateStyle(ticket.state))}
+            data-testid={`ticket-state-${ticket.id}`}
+          >
+            <span className={cn("w-2 h-2 rounded-full mr-1.5 inline-block", getStateDot(ticket.state))} />
+            {getStateLabel(ticket.state)}
+          </Badge>
+        )}
+      </div>
       </div>
       {/* End of right columns container */}
       
@@ -1188,6 +1290,7 @@ interface SprintSectionProps {
   onCheckChange?: (ticketId: string, ticketType: TicketType, checked: boolean) => void;
   onBulkAction?: (action: BulkAction) => void;
   onClearSelection?: () => void;
+  backlogPrefix?: string;
 }
 
 export function SprintSection({ 
@@ -1218,7 +1321,8 @@ export function SprintSection({
   checkedTickets,
   onCheckChange,
   onBulkAction,
-  onClearSelection
+  onClearSelection,
+  backlogPrefix
 }: SprintSectionProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [newTicketTitle, setNewTicketTitle] = useState("");
@@ -1342,14 +1446,13 @@ export function SprintSection({
           
           {!isTemporarySprint && (
             <Button
-              size="sm"
+              size="icon"
               variant="outline"
               onClick={() => setIsCreating(true)}
-              className="border-primary text-primary"
+              className="border-primary text-primary h-7 w-7"
               data-testid={`button-add-ticket-header-${sprint.id}`}
             >
-              <Plus className="h-3.5 w-3.5 mr-1" />
-              Ticket
+              <Plus className="h-3.5 w-3.5" />
             </Button>
           )}
           
@@ -1473,6 +1576,7 @@ export function SprintSection({
                 showCheckbox={true}
                 isChecked={checkedTickets?.has(ticket.id) || false}
                 onCheckChange={onCheckChange}
+                backlogPrefix={backlogPrefix}
               />
             ))}
             
@@ -1593,6 +1697,7 @@ interface BacklogPoolProps {
   onCheckChange?: (ticketId: string, ticketType: TicketType, checked: boolean) => void;
   onBulkAction?: (action: BulkAction) => void;
   onClearSelection?: () => void;
+  backlogPrefix?: string;
 }
 
 export function BacklogPool({ 
@@ -1613,7 +1718,8 @@ export function BacklogPool({
   checkedTickets,
   onCheckChange,
   onBulkAction,
-  onClearSelection
+  onClearSelection,
+  backlogPrefix
 }: BacklogPoolProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [newTicketTitle, setNewTicketTitle] = useState("");
@@ -1713,6 +1819,7 @@ export function BacklogPool({
                 showCheckbox={true}
                 isChecked={checkedTickets?.has(ticket.id) || false}
                 onCheckChange={onCheckChange}
+                backlogPrefix={backlogPrefix}
               />
             ))}
             

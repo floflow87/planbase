@@ -899,7 +899,7 @@ export function TicketDetailPanel({
             </Select>
           </div>
           
-          {ticket.type !== "epic" && (
+          {ticket.type !== "epic" && !isFieldHidden("rapporteur") && (
             <div className="flex items-center justify-between">
               <Label className="text-xs text-muted-foreground flex items-center gap-2">
                 <User className="h-3 w-3" />
@@ -994,7 +994,7 @@ export function TicketDetailPanel({
           </div>
           
           {/* Version selector */}
-          <div className="flex items-center justify-between">
+          {!isFieldHidden("version") && <div className="flex items-center justify-between">
             <Label className="text-xs text-muted-foreground flex items-center gap-2">
               <Tag className="h-3 w-3" />
               Version
@@ -1022,7 +1022,7 @@ export function TicketDetailPanel({
                 <SelectItem value="Alpha" className="text-gray-900">Alpha</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </div>}
           
           {/* Linked Notes Section */}
           <div className="space-y-2">
@@ -1586,7 +1586,7 @@ export function TicketDetailPanel({
                         <Textarea
                           value={editedCommentContent}
                           onChange={(e) => setEditedCommentContent(e.target.value)}
-                          className="min-h-[60px] text-sm"
+                          className="min-h-[60px] text-xs"
                           data-testid={`textarea-edit-comment-${comment.id}`}
                         />
                         <div className="flex gap-2">
@@ -1623,7 +1623,7 @@ export function TicketDetailPanel({
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               placeholder="Ajouter un commentaire..."
-              className="min-h-[60px] text-sm flex-1"
+              className="min-h-[60px] text-xs flex-1"
               data-testid="textarea-new-comment"
             />
             <Button
