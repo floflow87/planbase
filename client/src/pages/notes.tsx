@@ -16,7 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, optimisticAdd, optimisticUpdate, optimisticDelete, rollbackOptimistic, queryClient as qc } from "@/lib/queryClient";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { useState, useMemo, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { Note, AppUser, Project, NoteLink, NoteCategory } from "@shared/schema";
@@ -964,11 +964,14 @@ export default function Notes() {
               />
             </div>
             <Can module="notes" action="create">
-              <Link href="/notes/new">
-                <Button size="icon" data-testid="button-nouvelle-note-mobile">
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </Link>
+              <Button
+                size="icon"
+                onClick={() => createNoteMutation.mutate("")}
+                disabled={createNoteMutation.isPending}
+                data-testid="button-nouvelle-note-mobile"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
             </Can>
             <select
               className="border border-border rounded-md px-2 h-9 text-sm bg-card"
@@ -1080,12 +1083,15 @@ export default function Notes() {
               <Settings2 className="w-4 h-4" />
             </Button>
             <Can module="notes" action="create">
-              <Link href="/notes/new">
-                <Button className="gap-2 text-[12px]" data-testid="button-nouvelle-note">
-                  <Plus className="w-4 h-4" />
-                  Nouvelle note
-                </Button>
-              </Link>
+              <Button
+                className="gap-2 text-[12px]"
+                onClick={() => createNoteMutation.mutate("")}
+                disabled={createNoteMutation.isPending}
+                data-testid="button-nouvelle-note"
+              >
+                <Plus className="w-4 h-4" />
+                {createNoteMutation.isPending ? "Création..." : "Nouvelle note"}
+              </Button>
             </Can>
           </div>
         </div>

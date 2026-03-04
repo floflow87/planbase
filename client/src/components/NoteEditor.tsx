@@ -234,7 +234,19 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
   const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
   const [showOutlineToc, setShowOutlineToc] = useState(false);
   const editorContainerRef = useRef<HTMLDivElement>(null);
-  
+
+  // Suppress spurious onUpdate that Tiptap fires during its own initialization.
+  // When useEditor() sets the initial content, Tiptap normalises the document
+  // and dispatches internal transactions that trigger onUpdate before the user
+  // has touched anything. We block onChange for the first 200 ms after mount
+  // (enough for Tiptap to finish), then open the gate. Any human keystroke
+  // happens after that window, so nothing real is lost.
+  const suppressUpdateRef = useRef(true);
+  useEffect(() => {
+    const t = setTimeout(() => { suppressUpdateRef.current = false; }, 200);
+    return () => clearTimeout(t);
+  }, []); // runs once per mount (key={id} ensures remount on note change)
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -284,6 +296,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     content,
     editable,
     onUpdate: ({ editor }) => {
+      if (suppressUpdateRef.current) return;
       onChange(editor.getJSON());
     },
     onBlur: () => {

@@ -27,8 +27,7 @@ type FlushTrigger =
   | 'route-change'
   | 'recovery';
 
-const DEBOUNCE_MS = 800;
-const MIN_INTERVAL_MS = 3000;
+const DEBOUNCE_MS = 300;
 const MAX_RETRY_DELAY_MS = 30_000;
 const STORAGE_KEY = (id: string) => `note_sync_pending_${id}`;
 
@@ -148,6 +147,13 @@ export function useNoteSync(noteId: string | undefined) {
         error: null,
         serverUpdatedAt: result.updatedAt ?? prev.serverUpdatedAt,
       }));
+
+      // Also update the notes list cache optimistically so the sidebar/list
+      // reflects the latest title & content without a full refetch.
+      queryClient.setQueryData(['/api/notes'], (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((n: any) => n.id === id ? { ...n, ...result } : n);
+      });
     } catch (err) {
       const delay = Math.min(1000 * Math.pow(2, retryCountRef.current), MAX_RETRY_DELAY_MS);
       retryCountRef.current++;
@@ -182,18 +188,9 @@ export function useNoteSync(noteId: string | undefined) {
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    const timeSinceLast = Date.now() - lastFlushAtRef.current;
-    const delay = timeSinceLast >= MIN_INTERVAL_MS
-      ? DEBOUNCE_MS
-      : Math.max(DEBOUNCE_MS, MIN_INTERVAL_MS - timeSinceLast);
+    log('debounce', 'queueUpdate', { keys: Object.keys(data) });
 
-    log('debounce', 'queueUpdate', {
-      keys: Object.keys(data),
-      scheduledInMs: delay,
-      timeSinceLast,
-    });
-
-    debounceRef.current = setTimeout(() => flush('debounce'), delay);
+    debounceRef.current = setTimeout(() => flush('debounce'), DEBOUNCE_MS);
   }, [flush]);
 
   const flushImmediate = useCallback((trigger: FlushTrigger = 'blur') => {
