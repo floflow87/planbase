@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import multer from "multer";
 import { storage, getGoogleClientId, getGoogleClientSecret } from "./storage";
 import {
   insertAccountSchema,
@@ -4961,15 +4962,10 @@ app.get("/config/feature-flags", async (_req, res) => {
   });
 
   // File upload to Supabase Storage
-  app.post("/api/files/upload", requireAuth, requireOrgMember, requirePermission("documents", "create", "documents.files"), async (req, res) => {
+  const _multerUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 52428800 } });
+  app.post("/api/files/upload", requireAuth, requireOrgMember, requirePermission("documents", "create", "documents.files"), _multerUpload.single("file"), async (req, res) => {
     try {
-      const multer = (await import("multer")).default;
-      const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 52428800 } });
       const { supabaseAdmin } = await import("./lib/supabase");
-
-      await new Promise<void>((resolve, reject) => {
-        upload.single("file")(req as any, res as any, (err: any) => err ? reject(err) : resolve());
-      });
 
       const file = (req as any).file as Express.Multer.File | undefined;
       if (!file) return res.status(400).json({ error: "Aucun fichier fourni" });

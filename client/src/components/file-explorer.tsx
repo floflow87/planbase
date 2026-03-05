@@ -516,38 +516,71 @@ export function FileExplorer({ clientId, projectId }: Props) {
   const handleDragStart = (e: React.DragEvent, itemId: string) => {
     const ids = selectedIds.has(itemId) ? [...selectedIds] : [itemId];
     draggedIdsRef.current = ids;
-    e.dataTransfer.setData("text/plain", JSON.stringify(ids));
+    // Store in dataTransfer AND keep in ref (ref is the authoritative source)
+    try { e.dataTransfer.setData("application/json", JSON.stringify(ids)); } catch { /* ignore */ }
     e.dataTransfer.effectAllowed = "move";
   };
 
   const handleDragOver = (e: React.DragEvent, folderId: string) => {
+    // Block dropping onto self or currently dragged items
     if (draggedIdsRef.current.includes(folderId)) return;
     e.preventDefault();
+    e.stopPropagation();
     e.dataTransfer.dropEffect = "move";
     setDragOverFolderId(folderId);
   };
 
-  const handleDragLeave = () => setDragOverFolderId(null);
+  // Use a counter to handle dragenter/dragleave flickering over children
+  const dragCounterRef = useRef<Record<string, number>>({});
+
+  const handleDragEnter = (e: React.DragEvent, folderId: string) => {
+    if (draggedIdsRef.current.includes(folderId)) return;
+    e.preventDefault();
+    dragCounterRef.current[folderId] = (dragCounterRef.current[folderId] || 0) + 1;
+    setDragOverFolderId(folderId);
+  };
+
+  const handleDragLeave = (e: React.DragEvent, folderId: string) => {
+    dragCounterRef.current[folderId] = (dragCounterRef.current[folderId] || 1) - 1;
+    if ((dragCounterRef.current[folderId] || 0) <= 0) {
+      dragCounterRef.current[folderId] = 0;
+      setDragOverFolderId(prev => prev === folderId ? null : prev);
+    }
+  };
 
   const handleDrop = (e: React.DragEvent, targetFolderId: string) => {
     e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current[targetFolderId] = 0;
     setDragOverFolderId(null);
-    let ids: string[] = [];
-    try { ids = JSON.parse(e.dataTransfer.getData("text/plain")); } catch { return; }
-    ids.forEach(id => {
+
+    // Use ref as primary source (dataTransfer may fail in some browsers)
+    const ids = draggedIdsRef.current.length > 0
+      ? draggedIdsRef.current
+      : (() => { try { return JSON.parse(e.dataTransfer.getData("application/json")); } catch { return []; } })();
+
+    if (ids.length === 0) return;
+
+    ids.forEach((id: string) => {
       if (id === targetFolderId) return;
-      const isFolder = folders.some(f => f.id === id);
-      if (isFolder) moveFolderMutation.mutate({ id, parentId: targetFolderId });
-      else {
-        const entry = files.find(f => f.id === id);
-        if (entry) moveFileMutation.mutate({ id, folderId: targetFolderId });
+      const isAFolder = folders.some(f => f.id === id);
+      if (isAFolder) {
+        moveFolderMutation.mutate({ id, parentId: targetFolderId });
+      } else {
+        // Move file entry (only indexed file entries can be moved)
+        const fileEntry = files.find(f => f.id === id);
+        if (fileEntry) {
+          moveFileMutation.mutate({ id, folderId: targetFolderId });
+        }
       }
     });
+    draggedIdsRef.current = [];
     setSelectedIds(new Set());
   };
 
   const handleDragEnd = () => {
     setDragOverFolderId(null);
+    dragCounterRef.current = {};
     draggedIdsRef.current = [];
   };
 
@@ -799,10 +832,12 @@ export function FileExplorer({ clientId, projectId }: Props) {
                 onDoubleClick={e => { e.stopPropagation(); openFolder(folder); }}
                 onRename={() => { setRenameTarget({ id: folder.id, kind: "folder", name: folder.name }); setRenameName(folder.name); }}
                 onDelete={() => setDeleteTarget({ id: folder.id, kind: "folder", name: folder.name })}
+                onDuplicate={() => duplicateSelectedMutation.mutate([folder.id])}
                 canEdit
                 onDragStart={e => handleDragStart(e, folder.id)}
+                onDragEnter={e => handleDragEnter(e, folder.id)}
                 onDragOver={e => handleDragOver(e, folder.id)}
-                onDragLeave={handleDragLeave}
+                onDragLeave={e => handleDragLeave(e, folder.id)}
                 onDrop={e => handleDrop(e, folder.id)}
                 onDragEnd={handleDragEnd}
               />
@@ -825,6 +860,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
                   }
                 }}
                 onDelete={() => { if (entry.isFileEntry) setDeleteTarget({ id: entry.id, kind: "file", name: entry.name }); }}
+                onDuplicate={entry.isFileEntry ? () => duplicateSelectedMutation.mutate([entry.id]) : undefined}
                 canEdit={!!entry.isFileEntry}
                 onDragStart={e => { if (entry.isFileEntry) handleDragStart(e, entry.id); }}
                 onDragEnd={handleDragEnd}
@@ -956,10 +992,12 @@ interface ExplorerItemProps {
   onDoubleClick: (e: React.MouseEvent) => void;
   onRename: () => void;
   onDelete: () => void;
+  onDuplicate?: () => void;
   canEdit?: boolean;
   onDragStart: (e: React.DragEvent) => void;
+  onDragEnter?: (e: React.DragEvent) => void;
   onDragOver?: (e: React.DragEvent) => void;
-  onDragLeave?: () => void;
+  onDragLeave?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
   onDownload?: () => void;
@@ -986,8 +1024,8 @@ function kindIcon(kind: string, mimeType?: string | null): { icon: React.ReactNo
 
 function ExplorerItem({
   id, kind, name, mimeType, isSelected, isDragOver, folderStats, onHoverEnter,
-  onSingleClick, onDoubleClick, onRename, onDelete, canEdit = true,
-  onDragStart, onDragOver, onDragLeave, onDrop, onDragEnd, onDownload,
+  onSingleClick, onDoubleClick, onRename, onDelete, onDuplicate, canEdit = true,
+  onDragStart, onDragEnter, onDragOver, onDragLeave, onDrop, onDragEnd, onDownload,
 }: ExplorerItemProps) {
   const isFolder = kind === "folder";
   const { icon, color } = isFolder
@@ -1007,6 +1045,7 @@ function ExplorerItem({
       onDoubleClick={onDoubleClick}
       onMouseEnter={onHoverEnter}
       onDragStart={onDragStart}
+      onDragEnter={isFolder ? onDragEnter : undefined}
       onDragOver={isFolder ? onDragOver : undefined}
       onDragLeave={isFolder ? onDragLeave : undefined}
       onDrop={isFolder ? onDrop : undefined}
@@ -1040,10 +1079,10 @@ function ExplorerItem({
               <MoreVertical className="w-3 h-3" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuItem onClick={onDoubleClick as any} data-testid={`menu-open-${id}`}>
               {isFolder ? <FolderOpen className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
-              {kind === "upload" ? "Télécharger" : "Ouvrir"}
+              {isFolder ? "Ouvrir" : kind === "upload" ? "Télécharger" : "Ouvrir"}
             </DropdownMenuItem>
             {onDownload && kind === "upload" && (
               <DropdownMenuItem onClick={e => { e.stopPropagation(); onDownload(); }} data-testid={`menu-download-${id}`}>
@@ -1051,17 +1090,27 @@ function ExplorerItem({
                 Télécharger
               </DropdownMenuItem>
             )}
-            {canEdit && (
+            {(canEdit || onDuplicate) && (
               <>
-                <DropdownMenuItem onClick={onRename} data-testid={`menu-rename-${id}`}>
-                  <Pencil className="w-3.5 h-3.5" />
-                  Renommer
-                </DropdownMenuItem>
+                {canEdit && (
+                  <DropdownMenuItem onClick={onRename} data-testid={`menu-rename-${id}`}>
+                    <Pencil className="w-3.5 h-3.5" />
+                    Renommer
+                  </DropdownMenuItem>
+                )}
+                {onDuplicate && (
+                  <DropdownMenuItem onClick={e => { e.stopPropagation(); onDuplicate(); }} data-testid={`menu-duplicate-${id}`}>
+                    <Copy className="w-3.5 h-3.5" />
+                    Dupliquer
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive" data-testid={`menu-delete-${id}`}>
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Supprimer
-                </DropdownMenuItem>
+                {canEdit && (
+                  <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive" data-testid={`menu-delete-${id}`}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Supprimer
+                  </DropdownMenuItem>
+                )}
               </>
             )}
           </DropdownMenuContent>
@@ -1074,7 +1123,10 @@ function ExplorerItem({
     return (
       <Tooltip>
         <TooltipTrigger asChild>{inner}</TooltipTrigger>
-        <TooltipContent side="bottom" className="flex flex-col gap-0.5">
+        <TooltipContent
+          side="bottom"
+          className="flex flex-col gap-0.5 bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700 shadow-md"
+        >
           <span className="font-medium text-xs">{name}</span>
           <FolderStatsLabel stats={folderStats} />
         </TooltipContent>
