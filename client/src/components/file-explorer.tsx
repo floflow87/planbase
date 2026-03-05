@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabase";
 import type { Folder, File } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -521,40 +522,45 @@ export function FileExplorer({ clientId, projectId }: Props) {
     e.dataTransfer.effectAllowed = "move";
   };
 
-  const handleDragOver = (e: React.DragEvent, folderId: string) => {
-    // Block dropping onto self or currently dragged items
-    if (draggedIdsRef.current.includes(folderId)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = "move";
-    setDragOverFolderId(folderId);
+  // ---------- Drag & drop — event delegation on content area ----------
+  // Using event delegation avoids Radix Tooltip interfering with per-item events.
+
+  /** Returns the folderId of the folder element under e.target, or null */
+  const getFolderIdFromTarget = (e: React.DragEvent): string | null => {
+    const el = (e.target as HTMLElement).closest('[data-explorer-id]') as HTMLElement | null;
+    const candidate = el?.dataset.explorerId ?? null;
+    if (!candidate) return null;
+    if (!folders.some(f => f.id === candidate)) return null; // must be a folder
+    if (draggedIdsRef.current.includes(candidate)) return null; // cannot drop onto self
+    return candidate;
   };
 
-  // Use a counter to handle dragenter/dragleave flickering over children
-  const dragCounterRef = useRef<Record<string, number>>({});
-
-  const handleDragEnter = (e: React.DragEvent, folderId: string) => {
-    if (draggedIdsRef.current.includes(folderId)) return;
-    e.preventDefault();
-    dragCounterRef.current[folderId] = (dragCounterRef.current[folderId] || 0) + 1;
-    setDragOverFolderId(folderId);
-  };
-
-  const handleDragLeave = (e: React.DragEvent, folderId: string) => {
-    dragCounterRef.current[folderId] = (dragCounterRef.current[folderId] || 1) - 1;
-    if ((dragCounterRef.current[folderId] || 0) <= 0) {
-      dragCounterRef.current[folderId] = 0;
-      setDragOverFolderId(prev => prev === folderId ? null : prev);
+  const handleContentDragOver = (e: React.DragEvent) => {
+    if (draggedIdsRef.current.length === 0) return;
+    const folderId = getFolderIdFromTarget(e);
+    if (folderId) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      setDragOverFolderId(prev => prev !== folderId ? folderId : prev);
+    } else {
+      setDragOverFolderId(null);
     }
   };
 
-  const handleDrop = (e: React.DragEvent, targetFolderId: string) => {
+  const handleContentDragLeave = (e: React.DragEvent) => {
+    // Clear highlight only when truly leaving the content container
+    if (!contentRef.current?.contains(e.relatedTarget as Node)) {
+      setDragOverFolderId(null);
+    }
+  };
+
+  const handleContentDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
-    dragCounterRef.current[targetFolderId] = 0;
     setDragOverFolderId(null);
 
-    // Use ref as primary source (dataTransfer may fail in some browsers)
+    const targetFolderId = getFolderIdFromTarget(e);
+    if (!targetFolderId) return;
+
     const ids = draggedIdsRef.current.length > 0
       ? draggedIdsRef.current
       : (() => { try { return JSON.parse(e.dataTransfer.getData("application/json")); } catch { return []; } })();
@@ -567,11 +573,8 @@ export function FileExplorer({ clientId, projectId }: Props) {
       if (isAFolder) {
         moveFolderMutation.mutate({ id, parentId: targetFolderId });
       } else {
-        // Move file entry (only indexed file entries can be moved)
         const fileEntry = files.find(f => f.id === id);
-        if (fileEntry) {
-          moveFileMutation.mutate({ id, folderId: targetFolderId });
-        }
+        if (fileEntry) moveFileMutation.mutate({ id, folderId: targetFolderId });
       }
     });
     draggedIdsRef.current = [];
@@ -580,7 +583,6 @@ export function FileExplorer({ clientId, projectId }: Props) {
 
   const handleDragEnd = () => {
     setDragOverFolderId(null);
-    dragCounterRef.current = {};
     draggedIdsRef.current = [];
   };
 
@@ -603,12 +605,18 @@ export function FileExplorer({ clientId, projectId }: Props) {
         if (clientId) formData.append("clientId", clientId);
         if (projectId) formData.append("projectId", projectId);
 
-        const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token") || "";
-        await fetch("/api/files/upload", {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || "";
+        const uploadRes = await fetch("/api/files/upload", {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
-        }).then(r => { if (!r.ok) throw new Error(); return r.json(); });
+        });
+        if (!uploadRes.ok) {
+          const errText = await uploadRes.text().catch(() => "erreur inconnue");
+          throw new Error(`${uploadRes.status}: ${errText}`);
+        }
+        await uploadRes.json();
 
         successCount++;
       } catch {
@@ -796,12 +804,15 @@ export function FileExplorer({ clientId, projectId }: Props) {
         </div>
       )}
 
-      {/* Content area */}
+      {/* Content area — also handles drag & drop via event delegation */}
       <div
         ref={contentRef}
         className="flex-1 overflow-auto p-3 relative"
         onMouseDown={handleContentMouseDown}
         onClick={handleContentClick}
+        onDragOver={handleContentDragOver}
+        onDragLeave={handleContentDragLeave}
+        onDrop={handleContentDrop}
         data-testid="explorer-content"
       >
         {isLoading ? (
@@ -835,10 +846,6 @@ export function FileExplorer({ clientId, projectId }: Props) {
                 onDuplicate={() => duplicateSelectedMutation.mutate([folder.id])}
                 canEdit
                 onDragStart={e => handleDragStart(e, folder.id)}
-                onDragEnter={e => handleDragEnter(e, folder.id)}
-                onDragOver={e => handleDragOver(e, folder.id)}
-                onDragLeave={e => handleDragLeave(e, folder.id)}
-                onDrop={e => handleDrop(e, folder.id)}
                 onDragEnd={handleDragEnd}
               />
             ))}
