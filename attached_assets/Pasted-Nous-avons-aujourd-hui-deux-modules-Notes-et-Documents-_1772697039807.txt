@@ -1,0 +1,248 @@
+Nous avons aujourd’hui deux modules : Notes et Documents. Je veux les unifier via une seule interface type Explorateur Windows / Finder, tout en conservant des vues listes (toutes les notes / tous les documents) comme aujourd’hui.
+
+1) Objectif produit
+
+Créer un système de dossiers imbriqués (dossiers dans dossiers), dans lequel on peut créer :
+
+une Note (éditeur type note existant)
+
+un Document (éditeur document, orienté export PDF et mise en forme)
+
+Chaque dossier peut être rattaché :
+
+soit à un Client (CRM) → un client agit comme un “dossier racine” possible
+
+soit à un Projet
+
+soit aux deux (optionnel, mais au moins l’un des deux)
+
+Depuis la fiche Client (CRM), je veux voir la liste des fichiers du client (dossiers + notes + documents), avec navigation dans l’arborescence.
+Depuis la fiche Projet, pareil.
+
+2) Concept clé : un seul “File System”
+
+Je veux un modèle unifié “file system” :
+
+Folder (dossier)
+
+File (fichier) avec sous-types :
+
+note
+
+document
+
+Mais je veux garder l’existant (tables notes/documents) si c’est plus sûr, via une table de liaison / index.
+
+3) Modèle de données (proposition attendue)
+
+Merci de proposer une structure DB robuste, multi-tenant, avec ces besoins :
+
+A) folders
+
+id (uuid)
+
+account_id (tenant)
+
+parent_id (nullable, self FK)
+
+name
+
+client_id (nullable FK)
+
+project_id (nullable FK)
+
+created_by, created_at, updated_at
+
+path / materialized path optionnel (pour requêtes rapides)
+
+deleted_at (soft delete)
+
+B) files (index unifié)
+
+id (uuid)
+
+account_id
+
+folder_id (nullable, si “root”)
+
+type: "note" | "document"
+
+entity_id (uuid) → référence vers notes.id ou documents.id
+
+title
+
+client_id (nullable, si héritage dossier)
+
+project_id (nullable)
+
+created_at, updated_at, deleted_at
+
+sort_order / position optionnel
+
+C) Notes / Documents
+
+Conserver les tables existantes (notes, documents) mais adapter :
+
+notes : stocker contenu + métadonnées sync
+
+documents : contenu + paramètres de mise en page PDF + template si besoin
+
+Important : multi-tenant strict (account_id partout), RLS si applicable.
+
+4) Règles métier
+
+On peut créer un dossier à la racine d’un client, ou dans un dossier.
+
+On peut créer un dossier à la racine d’un projet, ou dans un dossier.
+
+Un dossier rattaché à un client doit apparaître dans la fiche client.
+
+Un dossier rattaché à un projet doit apparaître dans la fiche projet.
+
+Si un dossier est rattaché client + projet, il apparaît dans les deux.
+
+Chaque note/document créé dans un dossier hérite par défaut des liens (client_id / project_id) du dossier (override possible si besoin).
+
+On peut renommer un dossier, déplacer un dossier dans un autre dossier (move), idem pour une note/doc.
+
+Soft delete + restauration possible.
+
+5) UI/UX — Explorateur unique
+
+Créer une interface Explorateur (nouveau module “Fichiers” ou “Explorer”) :
+
+A) Layout
+
+Colonne gauche : arborescence (clients / projets / favoris / récents)
+
+Zone principale : liste des éléments du dossier courant
+
+Barre d’actions : Nouveau dossier / Nouvelle note / Nouveau document / Déplacer / Renommer / Supprimer / Export PDF
+
+B) Modes d’affichage
+
+Vue “Grille” (icônes)
+
+Vue “Liste” (table)
+
+C) Navigation
+
+Breadcrumb en haut : Client > Dossier A > Dossier B
+
+Recherche dans le dossier + recherche globale (option)
+
+Drag & drop : déplacer fichiers/dossiers
+
+6) Intégration CRM & Projet
+Dans la fiche Client
+
+Ajouter une section “Fichiers”
+
+affiche le dossier racine client (ou un explorateur “scopé” client)
+
+permet de créer dossier/note/document directement
+
+montre récents + structure
+
+Dans la fiche Projet
+
+Idem section “Fichiers” scopée projet.
+
+7) Vues globales (existant à garder)
+
+Conserver des pages globales :
+
+“Toutes les notes” (déjà existante) → maintenant filtrable par client, projet, dossier, tag
+
+“Tous les documents” (déjà existante) → idem
+
+Mais ces vues utilisent le nouveau files index pour lister, pas une logique séparée.
+
+8) Conversion Note → Document
+
+Fonction “Convertir en document” depuis une note :
+
+transforme une note en document (création d’un document basé sur le contenu de la note)
+
+conserve le lien dossier/client/projet
+
+la note d’origine reste (ou option : “remplacer la note” → à définir)
+
+après conversion, ouvrir l’éditeur document
+
+9) Export PDF
+
+Le document peut être exporté en PDF.
+Je veux améliorer l’interface “traitement document” en m’inspirant des notes :
+
+même confort d’édition
+
+sidebar “mise en page” (marges, header/footer, style, pagination)
+
+preview PDF
+
+templates (optionnel)
+
+10) API / Backend — endpoints attendus
+
+Proposer les routes :
+
+GET /api/folders?clientId=&projectId=&parentId=
+
+POST /api/folders (create)
+
+PATCH /api/folders/:id (rename/move/link)
+
+DELETE /api/folders/:id (soft delete)
+
+GET /api/files?folderId=&clientId=&projectId=&type=
+
+POST /api/files (create note/doc in folder)
+
+PATCH /api/files/:id (move/rename)
+
+DELETE /api/files/:id
+
+POST /api/notes/:id/convert-to-document
+
+POST /api/documents/:id/export-pdf
+
+Avec validations et permissions.
+
+11) Migration (important)
+
+Sans tout casser :
+
+créer tables folders et files
+
+indexer progressivement les notes/doc existants dans files
+
+ajouter folder_id nullable par défaut
+
+backfill (script) pour associer notes/doc existants à un “root” (par ex. “Racine” ou dossier auto par client si client_id existe)
+
+12) Livrables attendus
+
+Proposition DB + migration SQL/Drizzle
+
+Nouveaux endpoints + tests
+
+UI explorateur (navigation, create folder, rename, move)
+
+Intégration fiche client + fiche projet
+
+Conversion note→document
+
+Export PDF document
+
+Migration / indexation des existants
+
+13) Contraintes
+
+Multi-tenant strict (account_id)
+
+Performances : lister folder content rapidement (pagination)
+
+Sécurité : pas d’accès cross account
+
+UX fluide

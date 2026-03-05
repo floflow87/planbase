@@ -221,6 +221,16 @@ export default function BacklogDetail() {
     enabled: !isCreatingNew,
   });
 
+  // Keep editTicketViewSettings in sync with server data so the drawer
+  // always reflects the latest settings and live-updates when the user
+  // reorders fields in the settings panel (before saving).
+  useEffect(() => {
+    if (backlog) {
+      const serverSettings = (backlog as any).ticketViewSettings as TicketViewSettings | null;
+      setEditTicketViewSettings(serverSettings ?? { hiddenFields: ["metrics01", "metrics02", "metrics03", "happyPath", "edgeCase", "nonRegression"] });
+    }
+  }, [backlog?.id]);
+
   // Fetch account users for assignee/reporter selectors
   const { data: users = [] } = useQuery<AppUser[]>({
     queryKey: ["/api/accounts", accountId, "users"],
@@ -2378,7 +2388,7 @@ export default function BacklogDetail() {
                         setSelectedTicket(null);
                       }}
                       currentUserId={user?.id}
-                      ticketViewSettings={(backlog as any).ticketViewSettings as TicketViewSettings | null}
+                      ticketViewSettings={editTicketViewSettings}
                     />
                   </div>
                 </>
@@ -2664,7 +2674,7 @@ export default function BacklogDetail() {
                       setSelectedTicket(null);
                     }}
                     currentUserId={user?.id}
-                    ticketViewSettings={(backlog as any).ticketViewSettings as TicketViewSettings | null}
+                    ticketViewSettings={editTicketViewSettings}
                   />
                 </div>
               </>
@@ -2899,6 +2909,8 @@ export default function BacklogDetail() {
                   setEditBacklogName("");
                   setEditBacklogDescription("");
                   setEditBacklogProjectId(null);
+                  const serverSettings = (backlog as any)?.ticketViewSettings as TicketViewSettings | null;
+                  setEditTicketViewSettings(serverSettings ?? { hiddenFields: ["metrics01", "metrics02", "metrics03", "happyPath", "edgeCase", "nonRegression"] });
                 }} className="flex-1 text-xs" data-testid="button-cancel-edit-backlog">
                 Annuler
               </Button>
