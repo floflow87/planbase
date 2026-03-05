@@ -80,7 +80,7 @@ interface Props {
 
 type BreadcrumbItem = { id: string | null; name: string };
 type SortBy = "name" | "date" | "type";
-type FilterKind = "folder" | "note" | "document" | "upload";
+type FilterKind = "folder" | "note" | "document" | "pdf" | "image";
 type RenameTarget = { id: string; kind: "folder" | "file"; name: string } | null;
 type DeleteTarget = { id: string; kind: "folder" | "file"; name: string } | null;
 
@@ -122,7 +122,8 @@ const FILTER_LABELS: Record<FilterKind, string> = {
   folder: "Dossiers",
   note: "Notes",
   document: "Documents",
-  upload: "Fichiers uploadés",
+  pdf: "PDF",
+  image: "Images",
 };
 
 export function FileExplorer({ clientId, projectId }: Props) {
@@ -168,6 +169,9 @@ export function FileExplorer({ clientId, projectId }: Props) {
   // Upload
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFiles, setUploadingFiles] = useState<string[]>([]); // names being uploaded
+
+  // File preview dialog (images / PDFs)
+  const [previewFile, setPreviewFile] = useState<{ url: string; mimeType: string; name: string } | null>(null);
 
   // Forms
   const noteForm = useForm({ resolver: zodResolver(noteSchema), defaultValues: { title: "" } });
@@ -285,6 +289,19 @@ export function FileExplorer({ clientId, projectId }: Props) {
     onError: () => toast({ title: "Erreur", description: "Impossible de déplacer", variant: "destructive" }),
   });
 
+  // Creates a file_ref / doc_internal entry to "move" a virtual note or document into a folder
+  const linkEntryToFolderMutation = useMutation({
+    mutationFn: ({ entry, folderId }: { entry: ExplorerEntry; folderId: string }) =>
+      apiRequest("/api/files", "POST", {
+        kind: entry.kind === "note" ? "note_ref" : "doc_internal",
+        entityId: entry.entityId || entry.id,
+        folderId,
+        name: entry.name,
+      }),
+    onSuccess: () => invalidate(),
+    onError: () => toast({ title: "Erreur", description: "Impossible de déplacer", variant: "destructive" }),
+  });
+
   const duplicateSelectedMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       for (const id of ids) {
@@ -342,7 +359,13 @@ export function FileExplorer({ clientId, projectId }: Props) {
       try {
         const res = await apiRequest(`/api/files/${entry.id}/download-url`, "GET");
         const data = await res.json();
-        if (data.url) window.open(data.url, "_blank");
+        if (!data.url) return;
+        const mime = entry.mimeType || "";
+        if (mime.startsWith("image/") || mime === "application/pdf") {
+          setPreviewFile({ url: data.url, mimeType: mime, name: entry.name });
+        } else {
+          window.open(data.url, "_blank");
+        }
       } catch {
         toast({ title: "Erreur", description: "Impossible d'ouvrir ce fichier", variant: "destructive" });
       }
@@ -395,7 +418,16 @@ export function FileExplorer({ clientId, projectId }: Props) {
     const q = searchQuery.toLowerCase();
     let list = q ? entries.filter(e => e.name.toLowerCase().includes(q)) : entries;
     if (activeFilters.size > 0) {
-      list = list.filter(e => activeFilters.has(e.kind as FilterKind));
+      list = list.filter(e => {
+        if (e.kind === "note" && activeFilters.has("note")) return true;
+        if (e.kind === "document" && activeFilters.has("document")) return true;
+        if (e.kind === "upload") {
+          if (activeFilters.has("pdf") && e.mimeType === "application/pdf") return true;
+          if (activeFilters.has("image") && e.mimeType?.startsWith("image/")) return true;
+          return false;
+        }
+        return false;
+      });
     }
     if (sortBy === "name") return [...list].sort((a, b) => a.name.localeCompare(b.name));
     if (sortBy === "date") return [...list].sort((a, b) => new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime());
@@ -574,7 +606,15 @@ export function FileExplorer({ clientId, projectId }: Props) {
         moveFolderMutation.mutate({ id, parentId: targetFolderId });
       } else {
         const fileEntry = files.find(f => f.id === id);
-        if (fileEntry) moveFileMutation.mutate({ id, folderId: targetFolderId });
+        if (fileEntry) {
+          moveFileMutation.mutate({ id, folderId: targetFolderId });
+        } else {
+          // Virtual note or document — create a file_ref to link it to the folder
+          const entry = entries.find(e => e.id === id);
+          if (entry && (entry.kind === "note" || entry.kind === "document")) {
+            linkEntryToFolderMutation.mutate({ entry, folderId: targetFolderId });
+          }
+        }
       }
     });
     draggedIdsRef.current = [];
@@ -772,7 +812,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
 
           {/* Type filter toggles */}
           <div className="flex items-center gap-1 flex-1 overflow-x-auto" data-testid="filter-type-group">
-            {(["folder", "note", "document", "upload"] as FilterKind[]).map(kind => (
+            {(["folder", "note", "document", "pdf", "image"] as FilterKind[]).map(kind => (
               <button
                 key={kind}
                 onClick={() => toggleFilter(kind)}
@@ -869,7 +909,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
                 onDelete={() => { if (entry.isFileEntry) setDeleteTarget({ id: entry.id, kind: "file", name: entry.name }); }}
                 onDuplicate={entry.isFileEntry ? () => duplicateSelectedMutation.mutate([entry.id]) : undefined}
                 canEdit={!!entry.isFileEntry}
-                onDragStart={e => { if (entry.isFileEntry) handleDragStart(e, entry.id); }}
+                onDragStart={e => handleDragStart(e, entry.id)}
                 onDragEnd={handleDragEnd}
                 onDownload={entry.kind === "upload" ? () => openFile(entry) : undefined}
               />
@@ -981,6 +1021,32 @@ export function FileExplorer({ clientId, projectId }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* File preview dialog — images & PDFs */}
+      <Dialog open={previewFile !== null} onOpenChange={open => !open && setPreviewFile(null)}>
+        <DialogContent className="max-w-4xl w-full p-0 overflow-hidden" data-testid="dialog-file-preview">
+          <DialogHeader className="px-4 pt-4 pb-2">
+            <DialogTitle className="text-sm font-medium truncate">{previewFile?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center bg-muted/30 min-h-[60vh] max-h-[80vh]">
+            {previewFile?.mimeType?.startsWith("image/") ? (
+              <img
+                src={previewFile.url}
+                alt={previewFile.name}
+                className="max-w-full max-h-[78vh] object-contain"
+                data-testid="preview-image"
+              />
+            ) : previewFile?.mimeType === "application/pdf" ? (
+              <iframe
+                src={previewFile.url}
+                title={previewFile.name}
+                className="w-full min-h-[75vh]"
+                data-testid="preview-pdf"
+              />
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1063,17 +1129,20 @@ function ExplorerItem({
       <span className="text-xs text-center text-foreground line-clamp-2 w-full leading-tight">{name}</span>
 
       {/* Kind badge for non-folder items */}
-      {!isFolder && (
-        <span className={[
-          "text-[9px] px-1 rounded-sm font-medium",
-          kind === "note" ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300" :
-          kind === "document" ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300" :
-          kind === "upload" ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" :
-          "bg-muted text-muted-foreground",
-        ].join(" ")}>
-          {kind === "note" ? "Note" : kind === "document" ? "Doc" : "Fichier"}
-        </span>
-      )}
+      {!isFolder && (() => {
+        let label = "Fichier";
+        let cls = "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300";
+        if (kind === "note") { label = "Note"; cls = "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"; }
+        else if (kind === "document") { label = "Doc"; cls = "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300"; }
+        else if (kind === "upload" && mimeType) {
+          if (mimeType === "application/pdf") { label = "PDF"; cls = "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300"; }
+          else if (mimeType.startsWith("image/")) {
+            label = (mimeType.split("/")[1] || "image").toUpperCase().slice(0, 4);
+            cls = "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
+          }
+        }
+        return <span className={`text-[9px] px-1 rounded-sm font-medium ${cls}`}>{label}</span>;
+      })()}
 
       {/* Context menu */}
       <div
@@ -1088,15 +1157,9 @@ function ExplorerItem({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuItem onClick={onDoubleClick as any} data-testid={`menu-open-${id}`}>
-              {isFolder ? <FolderOpen className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+              {isFolder ? <FolderOpen className="w-3.5 h-3.5" /> : kind === "upload" ? <Download className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
               {isFolder ? "Ouvrir" : kind === "upload" ? "Télécharger" : "Ouvrir"}
             </DropdownMenuItem>
-            {onDownload && kind === "upload" && (
-              <DropdownMenuItem onClick={e => { e.stopPropagation(); onDownload(); }} data-testid={`menu-download-${id}`}>
-                <Download className="w-3.5 h-3.5" />
-                Télécharger
-              </DropdownMenuItem>
-            )}
             {(canEdit || onDuplicate) && (
               <>
                 {canEdit && (
