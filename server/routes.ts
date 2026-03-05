@@ -8238,15 +8238,13 @@ app.get("/config/feature-flags", async (_req, res) => {
         db.select().from(backlogColumns).where(eq(backlogColumns.backlogId, backlogId)).orderBy(asc(backlogColumns.order)),
       ]);
       
-      // Fetch checklist items for all user stories
+      // Fetch checklist items for all user stories in one query
       const userStoryIds = userStoriesList.map(us => us.id);
       let checklistItemsList: any[] = [];
       if (userStoryIds.length > 0) {
-        // Fetch checklists for each user story
-        for (const usId of userStoryIds) {
-          const items = await db.select().from(checklistItems).where(eq(checklistItems.userStoryId, usId)).orderBy(asc(checklistItems.order));
-          checklistItemsList.push(...items);
-        }
+        checklistItemsList = await db.select().from(checklistItems)
+          .where(inArray(checklistItems.userStoryId, userStoryIds))
+          .orderBy(asc(checklistItems.order));
       }
       
       res.json({

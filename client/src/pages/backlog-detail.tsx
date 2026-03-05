@@ -1627,9 +1627,9 @@ export default function BacklogDetail() {
     if (!over || !active.data.current) return;
     
     const { ticket, type } = active.data.current as { ticket: FlatTicket; type: TicketType };
-    const overData = over.data.current as { type: string; sprintId: string | null };
+    const overData = over.data.current as { type: string; sprintId: string | null } | undefined;
     
-    if (!overData) return;
+    if (!overData || (overData.type !== "sprint" && overData.type !== "backlog")) return;
     
     const newSprintId = overData.type === "backlog" ? null : overData.sprintId;
     const currentSprintId = ticket.sprintId;
@@ -2239,7 +2239,7 @@ export default function BacklogDetail() {
 
         {/* Jira-style Scrum Backlog View */}
         {backlog.mode === "scrum" && (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
             <div className="flex gap-0 h-full">
               <div className={`flex-1 space-y-4 ${selectedTicket ? 'pr-0' : ''}`}>
                 {/* Hide finished sprints checkbox */}
@@ -2778,7 +2778,7 @@ export default function BacklogDetail() {
       {/* Edit Backlog Sheet (Side Panel) */}
       <Sheet open={showEditBacklogDialog} onOpenChange={setShowEditBacklogDialog}>
         <SheetContent className="sm:max-w-md flex flex-col h-full overflow-hidden p-0">
-          <SheetHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
+          <SheetHeader className="px-6 pt-3 pb-4 border-b flex-shrink-0">
             <SheetTitle>Modifier le backlog</SheetTitle>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-6">

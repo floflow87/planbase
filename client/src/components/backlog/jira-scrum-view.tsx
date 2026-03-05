@@ -411,7 +411,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
         </TooltipTrigger>
         <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md max-w-sm">
           <p className="text-xs break-words">
-            {backlogPrefix && <span className="font-mono text-muted-foreground mr-1.5">{backlogPrefix}-{ticket.order}</span>}
+            {backlogPrefix && <span className="font-mono text-muted-foreground mr-1.5">{backlogPrefix}-{String(ticket.order + 1).padStart(3, "0")}</span>}
             {ticket.title}
           </p>
         </TooltipContent>

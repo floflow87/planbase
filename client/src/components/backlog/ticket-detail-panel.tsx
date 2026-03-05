@@ -563,27 +563,20 @@ export function TicketDetailPanel({
     setCreateTaskTitle("");
   };
   
-  // Generate ticket ID with nomenclature [BacklogFirst3-SprintFirst3-NumIncremental]
+  // Generate ticket ID with nomenclature [BacklogFirst3-OrderPadded]
   const generateTicketId = () => {
     if (!ticket) return null;
-    // Guard against invalid index (ticket not found in list)
-    if (ticketIndex === undefined || ticketIndex < 0) return null;
+    if (ticket.order === undefined || ticket.order === null) return null;
     
     // Get first 3 letters of backlog name (uppercase)
     const backlogPrefix = backlogName 
       ? backlogName.substring(0, 3).toUpperCase() 
       : "BKL";
     
-    // Get first 3 letters of sprint name (uppercase), or "BCK" for backlog items
-    const currentSprint = sprints.find(s => s.id === ticket.sprintId);
-    const sprintPrefix = currentSprint 
-      ? currentSprint.name.substring(0, 3).toUpperCase() 
-      : "BCK";
+    // Use persisted order + 1 with zero-padding (same format as row tooltip)
+    const orderStr = String(ticket.order + 1).padStart(3, "0");
     
-    // Format index with 2 digits (01, 02, etc.)
-    const indexStr = String(ticketIndex + 1).padStart(2, "0");
-    
-    return `${backlogPrefix}-${sprintPrefix}-${indexStr}`;
+    return `${backlogPrefix}-${orderStr}`;
   };
   
   const ticketIdLabel = generateTicketId();
