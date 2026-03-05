@@ -88,12 +88,12 @@ export function FileExplorer({ clientId, projectId }: Props) {
 
   const { data: folders = [], isLoading: foldersLoading } = useQuery<Folder[]>({
     queryKey: folderQK,
-    queryFn: () => fetch(`/api/folders?${foldersParams.toString()}`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => apiRequest(`/api/folders?${foldersParams.toString()}`, "GET").then(r => r.json()),
   });
 
   const { data: files = [], isLoading: filesLoading } = useQuery<File[]>({
     queryKey: fileQK,
-    queryFn: () => fetch(`/api/files?${filesParams.toString()}`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => apiRequest(`/api/files?${filesParams.toString()}`, "GET").then(r => r.json()),
   });
 
   const isLoading = foldersLoading || filesLoading;
