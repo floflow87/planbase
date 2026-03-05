@@ -1,0 +1,73 @@
+Oui, on attaque maintenant le module “File Explorer” (Notes + Documents unifiés). 
+On le fait en MVP progressif, sans casser l’existant.
+
+OBJECTIF
+- Une seule interface type Finder/Windows Explorer.
+- Dossiers imbriqués (folders in folders).
+- Dans un dossier : créer une Note ou un Document.
+- Chaque dossier (et donc les fichiers dedans) peut être rattaché à un Client (CRM) et/ou à un Projet.
+- Depuis la fiche Client: voir l’arborescence et les fichiers du client.
+- Depuis la fiche Projet: idem.
+- Conserver les pages globales “Toutes les notes” et “Tous les documents” (mais alimentées par un index unifié).
+
+SCOPE MVP (Phase 1)
+1) DATA MODEL minimal (multi-tenant)
+- table folders:
+  id, account_id, parent_id (nullable), name,
+  client_id (nullable), project_id (nullable),
+  created_at, updated_at, deleted_at (soft delete)
+- table files (index unifié):
+  id, account_id, folder_id (nullable),
+  type: 'note'|'document', entity_id (noteId ou documentId),
+  title,
+  client_id (nullable), project_id (nullable),
+  created_at, updated_at, deleted_at
+Règle: un file hérite par défaut client_id / project_id du folder (si non renseigné).
+
+2) API MVP
+- GET /api/folders?parentId=&clientId=&projectId=
+- POST /api/folders (create)
+- PATCH /api/folders/:id (rename, move, link client/project)
+- DELETE /api/folders/:id (soft delete)
+- GET /api/files?folderId=&clientId=&projectId=&type=
+- POST /api/files (create note/doc in folder; creates note/doc then inserts index row)
+- PATCH /api/files/:id (rename/move)
+- DELETE /api/files/:id
+
+3) UI MVP
+- Nouvelle page “Fichiers”:
+  - breadcrumb
+  - liste du dossier courant (folders + files)
+  - actions: Nouveau dossier / Nouvelle note / Nouveau document / Renommer / Supprimer
+  - navigation: clic folder → ouvre folder
+  - pas de drag&drop pour MVP (V2)
+  - pas de recherche globale (V2)
+- Dans fiche Client: section “Fichiers” qui ouvre la vue Explorer filtrée clientId.
+- Dans fiche Projet: idem avec projectId.
+
+4) Intégration avec modules actuels
+- Notes: quand j’ouvre une note depuis l’explorer, j’utilise l’UI note existante.
+- Documents: pareil.
+- Vues globales “notes” et “documents”: continuer à fonctionner.
+  => les alimenter via le nouvel index files si possible, sinon fallback temporaire.
+
+5) Migration minimale (sans tout casser)
+- Ajouter tables folders/files.
+- Créer un “root folder” automatique par client et/ou projet à la volée (optionnel) OU permettre folderId null.
+- Indexer progressivement les notes/doc existants dans files (script de backfill) en V2.
+
+SCOPE V2 (plus tard)
+- Drag & drop move
+- Recherche globale
+- Favoris / récents
+- Conversion Note -> Document
+- Export PDF (documents)
+- Templates document
+
+LIVRABLES IMMÉDIATS
+- Proposer la migration DB (drizzle/sql)
+- Implémenter API + validations + auth multi-tenant
+- Construire page “Fichiers” + sections Client/Projet
+- Tester: création folder/note/doc + navigation + suppression soft delete
+
+Commence par: data model + endpoints + UI MVP.

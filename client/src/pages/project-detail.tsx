@@ -1,6 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation, useSearch } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell, Settings } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell, Settings, FolderOpen } from "lucide-react";
+import { FileExplorer } from "@/components/file-explorer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -4100,6 +4101,10 @@ export default function ProjectDetail() {
                 {projectDocuments.length}
               </Badge>
             </TabsTrigger>
+            <TabsTrigger value="fichiers" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-fichiers">
+              <FolderOpen className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Fichiers</span>
+            </TabsTrigger>
             <TabsTrigger value="backlogs" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-backlogs">
               <FolderKanban className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Backlogs</span>
@@ -4507,6 +4512,10 @@ export default function ProjectDetail() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="fichiers" className="mt-0 h-[600px] flex flex-col">
+            <FileExplorer projectId={id} />
           </TabsContent>
 
           <TabsContent value="backlogs" className="mt-0">

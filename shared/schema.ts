@@ -858,9 +858,12 @@ export const folders = pgTable("folders", {
   parentId: uuid("parent_id").references((): any => folders.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   scope: text("scope").notNull().default("generic"), // 'client', 'project', 'generic', 'fundraising', 'product', 'tech', 'team'
+  clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
   createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
 }, (table) => ({
   accountParentIdx: index().on(table.accountId, table.parentId),
 }));
@@ -871,16 +874,20 @@ export const files = pgTable("files", {
   folderId: uuid("folder_id").references(() => folders.id, { onDelete: "set null" }),
   kind: text("kind").notNull(), // 'upload', 'link', 'doc_internal', 'note_ref'
   name: text("name").notNull(),
+  entityId: uuid("entity_id"), // references note.id or document.id when kind is note_ref or doc_internal
   ext: text("ext"),
   size: integer("size"),
   mime: text("mime"),
   storagePath: text("storage_path"), // Supabase Storage key or URL
   externalUrl: text("external_url"), // for kind='link'
+  clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
   meta: jsonb("meta").notNull().default({}),
   currentVersionId: uuid("current_version_id"),
   createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
 }, (table) => ({
   accountFolderKindIdx: index().on(table.accountId, table.folderId, table.kind),
 }));

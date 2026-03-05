@@ -2148,6 +2148,24 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Non-regression items table created");
 
+    // ============================================
+    // File Explorer: clientId, projectId, deletedAt on folders/files
+    // ============================================
+    await db.execute(sql`
+      ALTER TABLE folders
+      ADD COLUMN IF NOT EXISTS client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+    `);
+    await db.execute(sql`
+      ALTER TABLE files
+      ADD COLUMN IF NOT EXISTS client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS entity_id UUID,
+      ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+    `);
+    console.log("✅ File Explorer columns added to folders/files");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

@@ -34,6 +34,7 @@ const URL_TO_MODULE: Record<string, RbacModule | null> = {
   "/tasks": "tasks",
   "/mindmaps": "whiteboards",
   "/notes": "notes",
+  "/files": "documents",
   "/documents": "documents",
   "/finance": "profitability",
 };
@@ -46,6 +47,7 @@ const URL_TO_FEATURE_FLAG: Record<string, string> = {
   "/tasks": "tasks_module",
   "/mindmaps": "whiteboards_module",
   "/notes": "notes_module",
+  "/files": "documents_module",
   "/documents": "documents_module",
   "/finance": "profitability_module",
 };
@@ -103,6 +105,7 @@ export function AppSidebar() {
     { title: "Product", url: "/product", icon: Package },
     { title: "Roadmap", url: "/roadmap", icon: Rocket },
     { title: "Notes", url: "/notes", icon: FileText },
+    { title: "Fichiers", url: "/files", icon: FolderOpen },
     { title: "Tâches", url: "/tasks", icon: CheckSquare },
     { title: "Whiteboards", url: "/mindmaps", icon: Network, badge: "Beta" },
     { title: "Documents", url: "/documents", icon: FolderOpen },

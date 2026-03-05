@@ -1,6 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, CalendarDays, Save, Check, ChevronLeft, ChevronRight, Star, TrendingUp, ChevronsUpDown, DollarSign, StickyNote, Globe, Radar, BarChart4, CreditCard, Timer, Hourglass, Filter, Eye, CalendarPlus, NotebookPen, ListTodo } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, CalendarDays, Save, Check, ChevronLeft, ChevronRight, Star, TrendingUp, ChevronsUpDown, DollarSign, StickyNote, Globe, Radar, BarChart4, CreditCard, Timer, Hourglass, Filter, Eye, CalendarPlus, NotebookPen, ListTodo, FolderOpen } from "lucide-react";
+import { FileExplorer } from "@/components/file-explorer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -1322,6 +1323,10 @@ export default function ClientDetail() {
                   <FileText className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Docs</span>
                 </TabsTrigger>
+                <TabsTrigger value="fichiers" data-testid="tab-fichiers" className="gap-1.5 text-xs h-8 px-3">
+                  <FolderOpen className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Fichiers</span>
+                </TabsTrigger>
                 {customTabs.map((tab) => (
                   <TabsTrigger
                     key={tab.id}
@@ -1936,6 +1941,11 @@ export default function ClientDetail() {
                     )}
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              {/* ── Fichiers ── */}
+              <TabsContent value="fichiers" className="h-[600px] flex flex-col">
+                <FileExplorer clientId={id} />
               </TabsContent>
 
               {/* ── Chiffre d'affaires ── */}

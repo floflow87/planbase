@@ -4681,10 +4681,18 @@ app.get("/config/feature-flags", async (_req, res) => {
   // FOLDERS & FILES - Protected Routes
   // ============================================
 
+  // ============================================
+  // FILE EXPLORER - Folders
+  // ============================================
   app.get("/api/folders", requireAuth, requireOrgMember, requirePermission("documents", "read", "documents.files"), async (req, res) => {
     try {
-      const folders = await storage.getFoldersByAccountId(req.accountId!);
-      res.json(folders);
+      const { parentId, clientId, projectId } = req.query as Record<string, string | undefined>;
+      const opts: { parentId?: string | null; clientId?: string; projectId?: string } = {};
+      if ("parentId" in req.query) opts.parentId = parentId || null;
+      if (clientId) opts.clientId = clientId;
+      if (projectId) opts.projectId = projectId;
+      const result = await storage.getFoldersByAccountId(req.accountId!, opts);
+      res.json(result);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -4704,10 +4712,43 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  app.patch("/api/folders/:id", requireAuth, requireOrgMember, requirePermission("documents", "update", "documents.files"), async (req, res) => {
+    try {
+      const existing = await storage.getFolder(req.params.id);
+      if (!existing) return res.status(404).json({ error: "Dossier introuvable" });
+      if (existing.accountId !== req.accountId) return res.status(403).json({ error: "Accès refusé" });
+      const folder = await storage.updateFolder(req.params.id, req.body);
+      res.json(folder);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/folders/:id", requireAuth, requireOrgMember, requirePermission("documents", "delete", "documents.files"), async (req, res) => {
+    try {
+      const existing = await storage.getFolder(req.params.id);
+      if (!existing) return res.status(404).json({ error: "Dossier introuvable" });
+      if (existing.accountId !== req.accountId) return res.status(403).json({ error: "Accès refusé" });
+      await storage.deleteFolder(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // FILE EXPLORER - Files (unified index)
+  // ============================================
   app.get("/api/files", requireAuth, requireOrgMember, requirePermission("documents", "read", "documents.files"), async (req, res) => {
     try {
-      const files = await storage.getFilesByAccountId(req.accountId!);
-      res.json(files);
+      const { folderId, clientId, projectId, kind } = req.query as Record<string, string | undefined>;
+      const opts: { folderId?: string | null; clientId?: string; projectId?: string; kind?: string } = {};
+      if ("folderId" in req.query) opts.folderId = folderId || null;
+      if (clientId) opts.clientId = clientId;
+      if (projectId) opts.projectId = projectId;
+      if (kind) opts.kind = kind;
+      const result = await storage.getFilesByAccountId(req.accountId!, opts);
+      res.json(result);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -4715,8 +4756,8 @@ app.get("/config/feature-flags", async (_req, res) => {
 
   app.get("/api/folders/:folderId/files", requireAuth, requireOrgMember, requirePermission("documents", "read", "documents.files"), async (req, res) => {
     try {
-      const files = await storage.getFilesByFolderId(req.params.folderId);
-      res.json(files);
+      const result = await storage.getFilesByFolderId(req.params.folderId);
+      res.json(result);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -4730,18 +4771,75 @@ app.get("/config/feature-flags", async (_req, res) => {
         createdBy: req.userId || req.body.createdBy,
       });
       const file = await storage.createFile(data);
-
-      // Create activity
-      await storage.createActivity({
-        accountId: req.accountId!,
-        subjectType: "project",
-        subjectId: req.accountId!,
-        kind: "file",
-        payload: { fileName: data.name, fileId: file.id },
-        createdBy: req.userId || undefined,
-      });
-
       res.json(file);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // POST /api/files/note — create a note then register it as a file index entry
+  app.post("/api/files/note", requireAuth, requireOrgMember, requirePermission("notes", "create"), async (req, res) => {
+    try {
+      const { title, folderId, clientId, projectId } = req.body as { title: string; folderId?: string; clientId?: string; projectId?: string };
+      if (!title) return res.status(400).json({ error: "title requis" });
+
+      const note = await storage.createNote({
+        accountId: req.accountId!,
+        createdBy: req.userId || undefined,
+        title,
+        content: [],
+        plainText: "",
+        status: "draft",
+        visibility: "account",
+        isFavorite: false,
+      } as any);
+
+      const fileEntry = await storage.createFile({
+        accountId: req.accountId!,
+        createdBy: req.userId || undefined,
+        folderId: folderId || null,
+        kind: "note_ref",
+        name: title,
+        entityId: note.id,
+        clientId: clientId || null,
+        projectId: projectId || null,
+        meta: {},
+      } as any);
+
+      res.json({ note, fileEntry });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // POST /api/files/document — create a document then register it as a file index entry
+  app.post("/api/files/document", requireAuth, requireOrgMember, requirePermission("documents", "create"), async (req, res) => {
+    try {
+      const { name, folderId, clientId, projectId } = req.body as { name: string; folderId?: string; clientId?: string; projectId?: string };
+      if (!name) return res.status(400).json({ error: "name requis" });
+
+      const doc = await storage.createDocument({
+        accountId: req.accountId!,
+        createdBy: req.userId || undefined,
+        name,
+        content: "",
+        status: "draft",
+        sourceType: "freeform",
+      } as any);
+
+      const fileEntry = await storage.createFile({
+        accountId: req.accountId!,
+        createdBy: req.userId || undefined,
+        folderId: folderId || null,
+        kind: "doc_internal",
+        name,
+        entityId: doc.id,
+        clientId: clientId || null,
+        projectId: projectId || null,
+        meta: {},
+      } as any);
+
+      res.json({ document: doc, fileEntry });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -4750,13 +4848,8 @@ app.get("/config/feature-flags", async (_req, res) => {
   app.patch("/api/files/:id", requireAuth, requireOrgMember, requirePermission("documents", "update", "documents.files"), async (req, res) => {
     try {
       const existing = await storage.getFile(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ error: "File not found" });
-      }
-      if (existing.accountId !== req.accountId) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-
+      if (!existing) return res.status(404).json({ error: "Fichier introuvable" });
+      if (existing.accountId !== req.accountId) return res.status(403).json({ error: "Accès refusé" });
       const file = await storage.updateFile(req.params.id, req.body);
       res.json(file);
     } catch (error: any) {
@@ -4767,14 +4860,9 @@ app.get("/config/feature-flags", async (_req, res) => {
   app.delete("/api/files/:id", requireAuth, requireOrgMember, requirePermission("documents", "delete", "documents.files"), async (req, res) => {
     try {
       const existing = await storage.getFile(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ error: "File not found" });
-      }
-      if (existing.accountId !== req.accountId) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-
-      const success = await storage.deleteFile(req.params.id);
+      if (!existing) return res.status(404).json({ error: "Fichier introuvable" });
+      if (existing.accountId !== req.accountId) return res.status(403).json({ error: "Accès refusé" });
+      await storage.deleteFile(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });

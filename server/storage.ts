@@ -229,14 +229,14 @@ export interface IStorage {
 
   // Folders
   getFolder(id: string): Promise<Folder | undefined>;
-  getFoldersByAccountId(accountId: string): Promise<Folder[]>;
+  getFoldersByAccountId(accountId: string, opts?: { parentId?: string | null; clientId?: string; projectId?: string }): Promise<Folder[]>;
   createFolder(folder: InsertFolder): Promise<Folder>;
   updateFolder(id: string, folder: Partial<InsertFolder>): Promise<Folder | undefined>;
   deleteFolder(id: string): Promise<boolean>;
 
-  // Files (was Documents)
+  // Files (unified index: note_ref | doc_internal | upload | link)
   getFile(id: string): Promise<File | undefined>;
-  getFilesByAccountId(accountId: string): Promise<File[]>;
+  getFilesByAccountId(accountId: string, opts?: { folderId?: string | null; clientId?: string; projectId?: string; kind?: string }): Promise<File[]>;
   getFilesByFolderId(folderId: string): Promise<File[]>;
   createFile(file: InsertFile): Promise<File>;
   updateFile(id: string, file: Partial<InsertFile>): Promise<File | undefined>;
@@ -1445,8 +1445,14 @@ export class DatabaseStorage implements IStorage {
     return folder || undefined;
   }
 
-  async getFoldersByAccountId(accountId: string): Promise<Folder[]> {
-    return await db.select().from(folders).where(eq(folders.accountId, accountId));
+  async getFoldersByAccountId(accountId: string, opts?: { parentId?: string | null; clientId?: string; projectId?: string }): Promise<Folder[]> {
+    const conditions = [eq(folders.accountId, accountId), isNull(folders.deletedAt)];
+    if (opts?.clientId) conditions.push(eq(folders.clientId, opts.clientId));
+    if (opts?.projectId) conditions.push(eq(folders.projectId, opts.projectId));
+    if (opts && "parentId" in opts) {
+      conditions.push(opts.parentId === null ? isNull(folders.parentId) : eq(folders.parentId, opts.parentId!));
+    }
+    return await db.select().from(folders).where(and(...conditions)).orderBy(asc(folders.name));
   }
 
   async createFolder(insertFolder: InsertFolder): Promise<Folder> {
@@ -1467,22 +1473,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteFolder(id: string): Promise<boolean> {
-    const result = await db.delete(folders).where(eq(folders.id, id)).returning();
+    const result = await db.update(folders).set({ deletedAt: new Date() }).where(eq(folders.id, id)).returning();
     return result.length > 0;
   }
 
-  // Files (was Documents)
+  // Files (unified index: note_ref | doc_internal | upload | link)
   async getFile(id: string): Promise<File | undefined> {
-    const [file] = await db.select().from(files).where(eq(files.id, id));
+    const [file] = await db.select().from(files).where(and(eq(files.id, id), isNull(files.deletedAt)));
     return file || undefined;
   }
 
-  async getFilesByAccountId(accountId: string): Promise<File[]> {
-    return await db.select().from(files).where(eq(files.accountId, accountId));
+  async getFilesByAccountId(accountId: string, opts?: { folderId?: string | null; clientId?: string; projectId?: string; kind?: string }): Promise<File[]> {
+    const conditions = [eq(files.accountId, accountId), isNull(files.deletedAt)];
+    if (opts?.clientId) conditions.push(eq(files.clientId, opts.clientId));
+    if (opts?.projectId) conditions.push(eq(files.projectId, opts.projectId));
+    if (opts?.kind) conditions.push(eq(files.kind, opts.kind));
+    if (opts && "folderId" in opts) {
+      conditions.push(opts.folderId === null ? isNull(files.folderId) : eq(files.folderId, opts.folderId!));
+    }
+    return await db.select().from(files).where(and(...conditions)).orderBy(asc(files.name));
   }
 
   async getFilesByFolderId(folderId: string): Promise<File[]> {
-    return await db.select().from(files).where(eq(files.folderId, folderId));
+    return await db.select().from(files).where(and(eq(files.folderId, folderId), isNull(files.deletedAt))).orderBy(asc(files.name));
   }
 
   async createFile(insertFile: InsertFile): Promise<File> {
@@ -1503,7 +1516,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteFile(id: string): Promise<boolean> {
-    const result = await db.delete(files).where(eq(files.id, id)).returning();
+    const result = await db.update(files).set({ deletedAt: new Date() }).where(eq(files.id, id)).returning();
     return result.length > 0;
   }
 

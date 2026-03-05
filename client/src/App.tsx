@@ -21,6 +21,7 @@ import ClientDetail from "@/pages/client-detail";
 import Projects from "@/pages/projects";
 import ProjectDetail from "@/pages/project-detail";
 import Tasks from "@/pages/tasks";
+import FilesPage from "@/pages/files";
 import Notes from "@/pages/notes";
 import NoteNew from "@/pages/note-new";
 import NoteDetail from "@/pages/note-detail";
@@ -119,6 +120,9 @@ function Router() {
       </Route>
       <Route path="/tasks">
         <ProtectedRoute><Tasks /></ProtectedRoute>
+      </Route>
+      <Route path="/files">
+        <ProtectedRoute><FilesPage /></ProtectedRoute>
       </Route>
       <Route path="/notes/new">
         <ProtectedRoute><NoteNew /></ProtectedRoute>
