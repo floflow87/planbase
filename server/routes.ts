@@ -4754,6 +4754,80 @@ app.get("/config/feature-flags", async (_req, res) => {
   });
 
   // ============================================
+  // FILE EXPLORER - Folder stats & duplicate
+  // ============================================
+
+  app.get("/api/folders/:id/stats", requireAuth, requireOrgMember, requirePermission("documents", "read", "documents.files"), async (req, res) => {
+    try {
+      const existing = await storage.getFolder(req.params.id);
+      if (!existing) return res.status(404).json({ error: "Dossier introuvable" });
+      if (existing.accountId !== req.accountId) return res.status(403).json({ error: "Accès refusé" });
+      const subFolders = await storage.getFoldersByAccountId(req.accountId!, { parentId: req.params.id });
+      const files = await storage.getFilesByAccountId(req.accountId!, { folderId: req.params.id });
+      res.json({ subFolderCount: subFolders.length, fileCount: files.length });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Recursive folder duplication helper
+  async function duplicateFolderRecursive(
+    sourceFolderId: string,
+    newParentId: string | null,
+    newName: string,
+    accountId: string,
+    userId: string | undefined
+  ): Promise<void> {
+    const source = await storage.getFolder(sourceFolderId);
+    if (!source) return;
+    const newFolder = await storage.createFolder({
+      accountId,
+      createdBy: userId,
+      name: newName,
+      parentId: newParentId,
+      clientId: source.clientId || null,
+      projectId: source.projectId || null,
+      scope: source.scope || "generic",
+    } as any);
+    const childFolders = await storage.getFoldersByAccountId(accountId, { parentId: sourceFolderId });
+    for (const child of childFolders) {
+      await duplicateFolderRecursive(child.id, newFolder.id, child.name, accountId, userId);
+    }
+    const fileEntries = await storage.getFilesByAccountId(accountId, { folderId: sourceFolderId });
+    for (const file of fileEntries) {
+      await storage.createFile({
+        accountId,
+        createdBy: userId,
+        folderId: newFolder.id,
+        kind: file.kind,
+        name: file.name,
+        entityId: file.entityId,
+        clientId: file.clientId,
+        projectId: file.projectId,
+        meta: file.meta || {},
+      } as any);
+    }
+  }
+
+  app.post("/api/folders/:id/duplicate", requireAuth, requireOrgMember, requirePermission("documents", "create", "documents.files"), async (req, res) => {
+    try {
+      const existing = await storage.getFolder(req.params.id);
+      if (!existing) return res.status(404).json({ error: "Dossier introuvable" });
+      if (existing.accountId !== req.accountId) return res.status(403).json({ error: "Accès refusé" });
+      await duplicateFolderRecursive(
+        existing.id,
+        existing.parentId || null,
+        `${existing.name} (1)`,
+        req.accountId!,
+        req.userId
+      );
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // FILE EXPLORER - Files (unified index)
   // ============================================
   app.get("/api/files", requireAuth, requireOrgMember, requirePermission("documents", "read", "documents.files"), async (req, res) => {
@@ -4881,6 +4955,28 @@ app.get("/config/feature-flags", async (_req, res) => {
       if (existing.accountId !== req.accountId) return res.status(403).json({ error: "Accès refusé" });
       await storage.deleteFile(req.params.id);
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/files/:id/duplicate", requireAuth, requireOrgMember, requirePermission("documents", "create", "documents.files"), async (req, res) => {
+    try {
+      const existing = await storage.getFile(req.params.id);
+      if (!existing) return res.status(404).json({ error: "Fichier introuvable" });
+      if (existing.accountId !== req.accountId) return res.status(403).json({ error: "Accès refusé" });
+      const newFile = await storage.createFile({
+        accountId: req.accountId!,
+        createdBy: req.userId || undefined,
+        folderId: existing.folderId || null,
+        kind: existing.kind,
+        name: `${existing.name} (1)`,
+        entityId: existing.entityId,
+        clientId: existing.clientId,
+        projectId: existing.projectId,
+        meta: existing.meta || {},
+      } as any);
+      res.json(newFile);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
