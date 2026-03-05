@@ -2166,6 +2166,40 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ File Explorer columns added to folders/files");
 
+    // ============================================
+    // Supabase Storage: ensure bucket exists
+    // ============================================
+    try {
+      const { supabaseAdmin } = await import("./lib/supabase");
+      const { data: buckets } = await supabaseAdmin.storage.listBuckets();
+      const exists = buckets?.some(b => b.name === "planbase-files");
+      if (!exists) {
+        const { error } = await supabaseAdmin.storage.createBucket("planbase-files", {
+          public: false,
+          allowedMimeTypes: null,
+          fileSizeLimit: 52428800, // 50 MB
+        });
+        if (error && !error.message.includes("already exists")) {
+          console.warn("⚠️ Could not create storage bucket:", error.message);
+        } else {
+          console.log("✅ Supabase Storage bucket 'planbase-files' created");
+        }
+      } else {
+        console.log("✅ Supabase Storage bucket 'planbase-files' exists");
+      }
+    } catch (e: any) {
+      console.warn("⚠️ Storage bucket check skipped:", e.message);
+    }
+
+    // Add storage_url column to files
+    await db.execute(sql`
+      ALTER TABLE files
+      ADD COLUMN IF NOT EXISTS storage_url TEXT,
+      ADD COLUMN IF NOT EXISTS mime_type TEXT,
+      ADD COLUMN IF NOT EXISTS file_size BIGINT;
+    `);
+    console.log("✅ Files storage columns added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

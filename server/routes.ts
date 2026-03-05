@@ -4960,6 +4960,74 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  // File upload to Supabase Storage
+  app.post("/api/files/upload", requireAuth, requireOrgMember, requirePermission("documents", "create", "documents.files"), async (req, res) => {
+    try {
+      const multer = (await import("multer")).default;
+      const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 52428800 } });
+      const { supabaseAdmin } = await import("./lib/supabase");
+
+      await new Promise<void>((resolve, reject) => {
+        upload.single("file")(req as any, res as any, (err: any) => err ? reject(err) : resolve());
+      });
+
+      const file = (req as any).file as Express.Multer.File | undefined;
+      if (!file) return res.status(400).json({ error: "Aucun fichier fourni" });
+
+      const folderId = req.body.folderId || null;
+      const originalName = file.originalname;
+      const timestamp = Date.now();
+      const storagePath = `accounts/${req.accountId}/folders/${folderId || "root"}/${timestamp}-${originalName}`;
+
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from("planbase-files")
+        .upload(storagePath, file.buffer, { contentType: file.mimetype, upsert: false });
+
+      if (uploadError) {
+        return res.status(500).json({ error: "Erreur lors de l'upload: " + uploadError.message });
+      }
+
+      const { data: urlData } = supabaseAdmin.storage.from("planbase-files").getPublicUrl(storagePath);
+
+      const newFile = await storage.createFile({
+        accountId: req.accountId!,
+        createdBy: req.userId || undefined,
+        folderId: folderId || null,
+        kind: "upload",
+        name: originalName,
+        entityId: null,
+        clientId: req.body.clientId || null,
+        projectId: req.body.projectId || null,
+        storageUrl: storagePath,
+        mimeType: file.mimetype,
+        fileSize: BigInt(file.size),
+        meta: { storageUrl: urlData?.publicUrl },
+      } as any);
+
+      res.json(newFile);
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get signed download URL for an uploaded file
+  app.get("/api/files/:id/download-url", requireAuth, requireOrgMember, requirePermission("documents", "read", "documents.files"), async (req, res) => {
+    try {
+      const existing = await storage.getFile(req.params.id);
+      if (!existing) return res.status(404).json({ error: "Fichier introuvable" });
+      if (existing.accountId !== req.accountId) return res.status(403).json({ error: "Accès refusé" });
+      const storagePath = (existing as any).storageUrl;
+      if (!storagePath) return res.status(400).json({ error: "Ce fichier n'a pas de stockage associé" });
+      const { supabaseAdmin } = await import("./lib/supabase");
+      const { data, error } = await supabaseAdmin.storage.from("planbase-files").createSignedUrl(storagePath, 3600);
+      if (error) return res.status(500).json({ error: error.message });
+      res.json({ url: data.signedUrl });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.post("/api/files/:id/duplicate", requireAuth, requireOrgMember, requirePermission("documents", "create", "documents.files"), async (req, res) => {
     try {
       const existing = await storage.getFile(req.params.id);

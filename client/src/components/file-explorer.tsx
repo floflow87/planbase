@@ -61,8 +61,12 @@ import {
   FolderPlus,
   Copy,
   X,
+  Upload,
+  Download,
+  Loader2,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -74,7 +78,8 @@ interface Props {
 }
 
 type BreadcrumbItem = { id: string | null; name: string };
-type SortBy = "name" | "date";
+type SortBy = "name" | "date" | "type";
+type FilterKind = "folder" | "note" | "document" | "upload";
 type RenameTarget = { id: string; kind: "folder" | "file"; name: string } | null;
 type DeleteTarget = { id: string; kind: "folder" | "file"; name: string } | null;
 
@@ -85,11 +90,13 @@ interface FolderStats {
 
 type ExplorerEntry = {
   id: string;
-  kind: "folder" | "note" | "document";
+  kind: "folder" | "note" | "document" | "upload";
   name: string;
   updatedAt?: string | Date | null;
   entityId?: string | null;
   isFileEntry?: boolean;
+  storageUrl?: string | null;
+  mimeType?: string | null;
 };
 
 function buildFolderQK(parentId: string | null, clientId?: string, projectId?: string) {
@@ -101,12 +108,7 @@ function buildFileQK(folderId: string | null, clientId?: string, projectId?: str
 
 function FilledFolderIcon({ className }: { className?: string }) {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      className={className}
-      fill="currentColor"
-    >
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={className} fill="currentColor">
       <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z" />
     </svg>
   );
@@ -114,6 +116,13 @@ function FilledFolderIcon({ className }: { className?: string }) {
 
 const noteSchema = z.object({ title: z.string().min(1, "Titre requis") });
 const folderSchema = z.object({ name: z.string().min(1, "Nom requis") });
+
+const FILTER_LABELS: Record<FilterKind, string> = {
+  folder: "Dossiers",
+  note: "Notes",
+  document: "Documents",
+  upload: "Fichiers uploadés",
+};
 
 export function FileExplorer({ clientId, projectId }: Props) {
   const [, setLocation] = useLocation();
@@ -124,9 +133,10 @@ export function FileExplorer({ clientId, projectId }: Props) {
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([{ id: null, name: "Fichiers" }]);
   const isAtRoot = currentFolderId === null;
 
-  // Search & sort
+  // Search, sort, filter
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("name");
+  const [activeFilters, setActiveFilters] = useState<Set<FilterKind>>(new Set());
 
   // Creation sheets
   const [folderSheetOpen, setFolderSheetOpen] = useState(false);
@@ -144,6 +154,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
   // Rubber-band state (viewport coordinates)
   const [rubberBandStart, setRubberBandStart] = useState<{ x: number; y: number } | null>(null);
   const [rubberBandCurrent, setRubberBandCurrent] = useState<{ x: number; y: number } | null>(null);
+  const rubberBandDraggedRef = useRef(false); // true if rubber-band drag occurred
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Drag & drop
@@ -152,6 +163,10 @@ export function FileExplorer({ clientId, projectId }: Props) {
 
   // Folder stats (hover tooltip)
   const [folderStatsCache, setFolderStatsCache] = useState<Record<string, FolderStats | "loading">>({});
+
+  // Upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingFiles, setUploadingFiles] = useState<string[]>([]); // names being uploaded
 
   // Forms
   const noteForm = useForm({ resolver: zodResolver(noteSchema), defaultValues: { title: "" } });
@@ -232,15 +247,13 @@ export function FileExplorer({ clientId, projectId }: Props) {
   });
 
   const renameFolderMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) =>
-      apiRequest(`/api/folders/${id}`, "PATCH", { name }),
+    mutationFn: ({ id, name }: { id: string; name: string }) => apiRequest(`/api/folders/${id}`, "PATCH", { name }),
     onSuccess: () => { invalidate(); setRenameTarget(null); },
     onError: () => toast({ title: "Erreur", description: "Impossible de renommer", variant: "destructive" }),
   });
 
   const renameFileMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) =>
-      apiRequest(`/api/files/${id}`, "PATCH", { name }),
+    mutationFn: ({ id, name }: { id: string; name: string }) => apiRequest(`/api/files/${id}`, "PATCH", { name }),
     onSuccess: () => { invalidate(); setRenameTarget(null); },
     onError: () => toast({ title: "Erreur", description: "Impossible de renommer", variant: "destructive" }),
   });
@@ -248,39 +261,35 @@ export function FileExplorer({ clientId, projectId }: Props) {
   const deleteFolderMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/folders/${id}`, "DELETE"),
     onSuccess: () => { invalidate(); setDeleteTarget(null); },
-    onError: () => toast({ title: "Erreur", description: "Impossible de supprimer le dossier", variant: "destructive" }),
+    onError: () => toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" }),
   });
 
   const deleteFileMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/files/${id}`, "DELETE"),
     onSuccess: () => { invalidate(); setDeleteTarget(null); },
-    onError: () => toast({ title: "Erreur", description: "Impossible de supprimer le fichier", variant: "destructive" }),
+    onError: () => toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" }),
   });
 
   const moveFolderMutation = useMutation({
     mutationFn: ({ id, parentId }: { id: string; parentId: string | null }) =>
       apiRequest(`/api/folders/${id}`, "PATCH", { parentId }),
-    onSuccess: () => { invalidate(); },
-    onError: () => toast({ title: "Erreur", description: "Impossible de déplacer le dossier", variant: "destructive" }),
+    onSuccess: () => invalidate(),
+    onError: () => toast({ title: "Erreur", description: "Impossible de déplacer", variant: "destructive" }),
   });
 
   const moveFileMutation = useMutation({
     mutationFn: ({ id, folderId }: { id: string; folderId: string | null }) =>
       apiRequest(`/api/files/${id}`, "PATCH", { folderId }),
-    onSuccess: () => { invalidate(); },
-    onError: () => toast({ title: "Erreur", description: "Impossible de déplacer le fichier", variant: "destructive" }),
+    onSuccess: () => invalidate(),
+    onError: () => toast({ title: "Erreur", description: "Impossible de déplacer", variant: "destructive" }),
   });
 
   const duplicateSelectedMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       for (const id of ids) {
         const isFolder = folders.some(f => f.id === id);
-        if (isFolder) {
-          await apiRequest(`/api/folders/${id}/duplicate`, "POST");
-        } else {
-          const entry = files.find(f => f.id === id);
-          if (entry) await apiRequest(`/api/files/${id}/duplicate`, "POST");
-        }
+        if (isFolder) await apiRequest(`/api/folders/${id}/duplicate`, "POST");
+        else await apiRequest(`/api/files/${id}/duplicate`, "POST");
       }
     },
     onSuccess: () => {
@@ -313,6 +322,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
     setCurrentFolderId(folder.id);
     setBreadcrumb(prev => [...prev, { id: folder.id, name: folder.name }]);
     setSelectedIds(new Set());
+    setActiveFilters(new Set());
   };
 
   const navigateBreadcrumb = (idx: number) => {
@@ -322,10 +332,20 @@ export function FileExplorer({ clientId, projectId }: Props) {
     setSelectedIds(new Set());
   };
 
-  const openFile = (entry: ExplorerEntry) => {
-    const targetId = entry.entityId || entry.id;
-    if (entry.kind === "note") setLocation(`/notes/${targetId}`);
-    else if (entry.kind === "document") setLocation(`/documents/${targetId}`);
+  const openFile = async (entry: ExplorerEntry) => {
+    if (entry.kind === "note") {
+      setLocation(`/notes/${entry.entityId || entry.id}`);
+    } else if (entry.kind === "document") {
+      setLocation(`/documents/${entry.entityId || entry.id}`);
+    } else if (entry.kind === "upload") {
+      try {
+        const res = await apiRequest(`/api/files/${entry.id}/download-url`, "GET");
+        const data = await res.json();
+        if (data.url) window.open(data.url, "_blank");
+      } catch {
+        toast({ title: "Erreur", description: "Impossible d'ouvrir ce fichier", variant: "destructive" });
+      }
+    }
   };
 
   // ---------- Computed entries ----------
@@ -348,30 +368,53 @@ export function FileExplorer({ clientId, projectId }: Props) {
     }
     files.forEach(f => result.push({
       id: f.id,
-      kind: f.kind === "note_ref" ? "note" : "document",
+      kind: f.kind === "note_ref" ? "note" : f.kind === "upload" ? "upload" : "document",
       name: f.name,
-      updatedAt: f.createdAt,
+      updatedAt: (f as any).createdAt,
       entityId: f.entityId,
       isFileEntry: true,
+      storageUrl: (f as any).storageUrl,
+      mimeType: (f as any).mimeType,
     }));
     return result;
   }, [isAtRoot, allNotes, allDocuments, files, indexedNoteIds, indexedDocIds, clientId, projectId]);
 
+  // Sort helper for entries
+  const typeOrder: Record<string, number> = { note: 0, document: 1, upload: 2 };
+
   const filteredFolders = useMemo(() => {
+    if (activeFilters.size > 0 && !activeFilters.has("folder")) return [];
     const q = searchQuery.toLowerCase();
     const list = q ? folders.filter(f => f.name.toLowerCase().includes(q)) : folders;
-    return sortBy === "name" ? [...list].sort((a, b) => a.name.localeCompare(b.name)) : list;
-  }, [folders, searchQuery, sortBy]);
+    if (sortBy === "name" || sortBy === "type") return [...list].sort((a, b) => a.name.localeCompare(b.name));
+    return list;
+  }, [folders, searchQuery, sortBy, activeFilters]);
 
   const filteredEntries = useMemo(() => {
     const q = searchQuery.toLowerCase();
-    const list = q ? entries.filter(e => e.name.toLowerCase().includes(q)) : entries;
+    let list = q ? entries.filter(e => e.name.toLowerCase().includes(q)) : entries;
+    if (activeFilters.size > 0) {
+      list = list.filter(e => activeFilters.has(e.kind as FilterKind));
+    }
     if (sortBy === "name") return [...list].sort((a, b) => a.name.localeCompare(b.name));
     if (sortBy === "date") return [...list].sort((a, b) => new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime());
+    if (sortBy === "type") return [...list].sort((a, b) => {
+      const diff = (typeOrder[a.kind] ?? 9) - (typeOrder[b.kind] ?? 9);
+      return diff !== 0 ? diff : a.name.localeCompare(b.name);
+    });
     return list;
-  }, [entries, searchQuery, sortBy]);
+  }, [entries, searchQuery, sortBy, activeFilters]);
 
   const isEmpty = !isLoading && filteredFolders.length === 0 && filteredEntries.length === 0;
+
+  // ---------- Filter toggle ----------
+  const toggleFilter = (kind: FilterKind) => {
+    setActiveFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(kind)) next.delete(kind); else next.add(kind);
+      return next;
+    });
+  };
 
   // ---------- Selection helpers ----------
   const toggleSelect = useCallback((id: string, e: React.MouseEvent) => {
@@ -386,7 +429,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
       setSelectedIds(prev => new Set([...prev, id]));
     } else {
       setSelectedIds(prev => {
-        if (prev.size === 1 && prev.has(id)) return new Set(); // deselect if only this selected
+        if (prev.size === 1 && prev.has(id)) return new Set();
         return new Set([id]);
       });
     }
@@ -405,8 +448,10 @@ export function FileExplorer({ clientId, projectId }: Props) {
       const selTop = Math.min(rubberBandStart.y, e.clientY);
       const selBottom = Math.max(rubberBandStart.y, e.clientY);
 
-      // Only activate selection if dragged more than 5px
       if (selRight - selLeft < 5 && selBottom - selTop < 5) return;
+
+      // Mark that a drag occurred (so click handler won't clear selection)
+      rubberBandDraggedRef.current = true;
 
       const items = contentRef.current.querySelectorAll("[data-explorer-id]");
       const next = new Set<string>();
@@ -423,6 +468,8 @@ export function FileExplorer({ clientId, projectId }: Props) {
     const handleMouseUp = () => {
       setRubberBandStart(null);
       setRubberBandCurrent(null);
+      // Do NOT reset rubberBandDraggedRef here — click event fires after mouseup
+      // It is reset inside handleContentClick instead
     };
 
     document.addEventListener("mousemove", handleMouseMove);
@@ -434,12 +481,22 @@ export function FileExplorer({ clientId, projectId }: Props) {
   }, [rubberBandStart]);
 
   const handleContentMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Only start rubber band if clicking directly on the content area (not on items)
     const target = e.target as HTMLElement;
     if (target.closest("[data-explorer-id]")) return;
+    // Reset drag flag at start of each mousedown
+    rubberBandDraggedRef.current = false;
     setSelectedIds(new Set());
     setRubberBandStart({ x: e.clientX, y: e.clientY });
     setRubberBandCurrent({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleContentClick = () => {
+    if (rubberBandDraggedRef.current) {
+      // A rubber-band drag just ended — preserve the selection
+      rubberBandDraggedRef.current = false;
+      return;
+    }
+    setSelectedIds(new Set());
   };
 
   // ---------- Folder stats ----------
@@ -464,7 +521,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
   };
 
   const handleDragOver = (e: React.DragEvent, folderId: string) => {
-    if (draggedIdsRef.current.includes(folderId)) return; // can't drop onto itself
+    if (draggedIdsRef.current.includes(folderId)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     setDragOverFolderId(folderId);
@@ -480,9 +537,8 @@ export function FileExplorer({ clientId, projectId }: Props) {
     ids.forEach(id => {
       if (id === targetFolderId) return;
       const isFolder = folders.some(f => f.id === id);
-      if (isFolder) {
-        moveFolderMutation.mutate({ id, parentId: targetFolderId });
-      } else {
+      if (isFolder) moveFolderMutation.mutate({ id, parentId: targetFolderId });
+      else {
         const entry = files.find(f => f.id === id);
         if (entry) moveFileMutation.mutate({ id, folderId: targetFolderId });
       }
@@ -493,6 +549,46 @@ export function FileExplorer({ clientId, projectId }: Props) {
   const handleDragEnd = () => {
     setDragOverFolderId(null);
     draggedIdsRef.current = [];
+  };
+
+  // ---------- File upload ----------
+  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+
+    const filesToUpload = Array.from(fileList);
+    setUploadingFiles(filesToUpload.map(f => f.name));
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const file of filesToUpload) {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        if (currentFolderId) formData.append("folderId", currentFolderId);
+        if (clientId) formData.append("clientId", clientId);
+        if (projectId) formData.append("projectId", projectId);
+
+        const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token") || "";
+        await fetch("/api/files/upload", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        }).then(r => { if (!r.ok) throw new Error(); return r.json(); });
+
+        successCount++;
+      } catch {
+        errorCount++;
+      }
+    }
+
+    setUploadingFiles([]);
+    invalidate();
+    if (e.target) e.target.value = "";
+
+    if (successCount > 0) toast({ title: `${successCount} fichier${successCount > 1 ? "s" : ""} uploadé${successCount > 1 ? "s" : ""}` });
+    if (errorCount > 0) toast({ title: "Erreur", description: `${errorCount} fichier(s) n'ont pas pu être uploadés`, variant: "destructive" });
   };
 
   // ---------- Misc handlers ----------
@@ -508,7 +604,6 @@ export function FileExplorer({ clientId, projectId }: Props) {
     else deleteFileMutation.mutate(deleteTarget.id);
   };
 
-  // IDs that are folders and can be in multi-selection for operations
   const selectedFolderIds = [...selectedIds].filter(id => folders.some(f => f.id === id));
   const selectedFileIds = [...selectedIds].filter(id => files.some(f => f.id === id));
   const operableSelectedCount = selectedFolderIds.length + selectedFileIds.length;
@@ -525,9 +620,9 @@ export function FileExplorer({ clientId, projectId }: Props) {
 
   return (
     <div className="flex flex-col h-full select-none" data-testid="file-explorer">
-      {/* Top toolbar: breadcrumb + actions */}
-      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b flex-wrap">
-        <nav className="flex items-center gap-1 text-sm overflow-hidden" data-testid="breadcrumb-nav">
+      {/* Top toolbar */}
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b flex-wrap">
+        <nav className="flex items-center gap-1 text-sm overflow-hidden flex-1 min-w-0" data-testid="breadcrumb-nav">
           {breadcrumb.map((item, idx) => (
             <span key={idx} className="flex items-center gap-1 min-w-0">
               {idx > 0 && <ChevronRight className="w-3 h-3 text-muted-foreground flex-shrink-0" />}
@@ -553,7 +648,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
         <div className="flex items-center gap-1 flex-shrink-0">
           <Button size="sm" variant="outline" onClick={() => { setFolderSheetOpen(true); folderForm.reset(); }} data-testid="button-new-folder">
             <FolderPlus className="w-3.5 h-3.5" />
-            Nouveau dossier
+            Dossier
           </Button>
           <Button size="sm" variant="outline" onClick={() => { setNoteSheetOpen(true); noteForm.reset(); }} data-testid="button-new-note">
             <FileText className="w-3.5 h-3.5" />
@@ -563,34 +658,42 @@ export function FileExplorer({ clientId, projectId }: Props) {
             <FileIcon className="w-3.5 h-3.5" />
             Document
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingFiles.length > 0}
+            data-testid="button-upload-file"
+          >
+            {uploadingFiles.length > 0
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : <Upload className="w-3.5 h-3.5" />}
+            Importer
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={handleFileInputChange}
+            data-testid="input-file-upload"
+          />
         </div>
       </div>
 
-      {/* Search + sort bar OR multi-selection action bar */}
+      {/* Search + sort + filters bar OR selection bar */}
       {selectedIds.size > 0 ? (
-        <div className="flex items-center gap-2 px-4 py-2 border-b bg-primary/5" data-testid="selection-bar">
-          <span className="text-sm font-medium flex-1">
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b bg-primary/5" data-testid="selection-bar">
+          <span className="text-xs font-medium flex-1">
             {selectedIds.size} élément{selectedIds.size > 1 ? "s" : ""} sélectionné{selectedIds.size > 1 ? "s" : ""}
           </span>
           {operableSelectedCount > 0 && (
             <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => duplicateSelectedMutation.mutate([...selectedFolderIds, ...selectedFileIds])}
-                disabled={duplicateSelectedMutation.isPending}
-                data-testid="button-duplicate-selected"
-              >
+              <Button size="sm" variant="outline" onClick={() => duplicateSelectedMutation.mutate([...selectedFolderIds, ...selectedFileIds])} disabled={duplicateSelectedMutation.isPending} data-testid="button-duplicate-selected">
                 <Copy className="w-3.5 h-3.5" />
                 Dupliquer
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                onClick={() => setDeleteSelectedOpen(true)}
-                data-testid="button-delete-selected"
-              >
+              <Button size="sm" variant="outline" className="text-destructive border-destructive/30" onClick={() => setDeleteSelectedOpen(true)} data-testid="button-delete-selected">
                 <Trash2 className="w-3.5 h-3.5" />
                 Supprimer
               </Button>
@@ -598,53 +701,90 @@ export function FileExplorer({ clientId, projectId }: Props) {
           )}
           <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())} data-testid="button-deselect">
             <X className="w-3.5 h-3.5" />
-            Désélectionner
           </Button>
         </div>
       ) : (
-        <div className="flex items-center gap-2 px-4 py-2 border-b">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+        <div className="flex items-center gap-1.5 px-3 py-1.5 border-b">
+          {/* Search input - smaller */}
+          <div className="relative w-44 flex-shrink-0">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
             <Input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Rechercher..."
-              className="pl-8 h-8 text-xs"
+              placeholder="Rechercher…"
+              className="pl-7 h-7 text-xs"
               data-testid="input-search-files"
             />
           </div>
+
+          {/* Sort */}
           <Select value={sortBy} onValueChange={v => setSortBy(v as SortBy)}>
-            <SelectTrigger className="w-40 h-8 text-xs" data-testid="select-sort-files">
+            <SelectTrigger className="w-32 h-7 text-xs flex-shrink-0" data-testid="select-sort-files">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="name">Trier par Nom</SelectItem>
-              <SelectItem value="date">Trier par Date</SelectItem>
+              <SelectItem value="name">Nom</SelectItem>
+              <SelectItem value="date">Date</SelectItem>
+              <SelectItem value="type">Type</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Type filter toggles */}
+          <div className="flex items-center gap-1 flex-1 overflow-x-auto" data-testid="filter-type-group">
+            {(["folder", "note", "document", "upload"] as FilterKind[]).map(kind => (
+              <button
+                key={kind}
+                onClick={() => toggleFilter(kind)}
+                className={[
+                  "flex-shrink-0 text-xs px-2 py-0.5 rounded-md border transition-colors",
+                  activeFilters.has(kind)
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-foreground/30",
+                ].join(" ")}
+                data-testid={`filter-${kind}`}
+              >
+                {FILTER_LABELS[kind]}
+              </button>
+            ))}
+            {activeFilters.size > 0 && (
+              <button onClick={() => setActiveFilters(new Set())} className="flex-shrink-0 text-xs text-muted-foreground hover:text-foreground px-1" data-testid="filter-clear">
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Upload progress indicator */}
+      {uploadingFiles.length > 0 && (
+        <div className="px-3 py-1.5 bg-primary/5 border-b text-xs text-muted-foreground flex items-center gap-2">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          Upload en cours : {uploadingFiles.join(", ")}
         </div>
       )}
 
       {/* Content area */}
       <div
         ref={contentRef}
-        className="flex-1 overflow-auto p-4 relative"
+        className="flex-1 overflow-auto p-3 relative"
         onMouseDown={handleContentMouseDown}
-        onClick={() => setSelectedIds(new Set())}
+        onClick={handleContentClick}
         data-testid="explorer-content"
       >
         {isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-md" />)}
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2">
+            {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-md" />)}
           </div>
         ) : isEmpty ? (
           <div className="flex flex-col items-center justify-center h-48 text-muted-foreground gap-2">
             <FolderOpen className="w-10 h-10 opacity-40" />
-            <p className="text-sm">{searchQuery ? "Aucun résultat" : "Ce dossier est vide"}</p>
-            {!searchQuery && <p className="text-xs opacity-70">Créez un dossier, une note ou un document pour commencer</p>}
+            <p className="text-sm">{searchQuery || activeFilters.size > 0 ? "Aucun résultat" : "Ce dossier est vide"}</p>
+            {!searchQuery && activeFilters.size === 0 && (
+              <p className="text-xs opacity-70">Créez un dossier, une note ou importez un document</p>
+            )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2">
             {filteredFolders.map(folder => (
               <ExplorerItem
                 key={folder.id}
@@ -673,6 +813,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
                 id={entry.id}
                 kind={entry.kind}
                 name={entry.name}
+                mimeType={entry.mimeType}
                 isSelected={selectedIds.has(entry.id)}
                 isDragOver={false}
                 onSingleClick={e => toggleSelect(entry.id, e)}
@@ -687,6 +828,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
                 canEdit={!!entry.isFileEntry}
                 onDragStart={e => { if (entry.isFileEntry) handleDragStart(e, entry.id); }}
                 onDragEnd={handleDragEnd}
+                onDownload={entry.kind === "upload" ? () => openFile(entry) : undefined}
               />
             ))}
           </div>
@@ -790,11 +932,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteSelectedMutation.mutate([...selectedFolderIds, ...selectedFileIds])}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              data-testid="button-confirm-delete-selected"
-            >
+            <AlertDialogAction onClick={() => deleteSelectedMutation.mutate([...selectedFolderIds, ...selectedFileIds])} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" data-testid="button-confirm-delete-selected">
               Supprimer
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -807,8 +945,9 @@ export function FileExplorer({ clientId, projectId }: Props) {
 // ---------- ExplorerItem sub-component ----------
 interface ExplorerItemProps {
   id: string;
-  kind: "folder" | "note" | "document";
+  kind: "folder" | "note" | "document" | "upload";
   name: string;
+  mimeType?: string | null;
   isSelected: boolean;
   isDragOver: boolean;
   folderStats?: FolderStats | "loading";
@@ -823,31 +962,44 @@ interface ExplorerItemProps {
   onDragLeave?: () => void;
   onDrop?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
+  onDownload?: () => void;
 }
 
 function FolderStatsLabel({ stats }: { stats: FolderStats | "loading" | undefined }) {
-  if (!stats) return <span className="text-xs text-muted-foreground">Chargement…</span>;
-  if (stats === "loading") return <span className="text-xs text-muted-foreground">Chargement…</span>;
+  if (!stats || stats === "loading") return <span className="text-xs text-muted-foreground">Chargement…</span>;
   const parts: string[] = [];
   if (stats.subFolderCount > 0) parts.push(`${stats.subFolderCount} sous-dossier${stats.subFolderCount > 1 ? "s" : ""}`);
   if (stats.fileCount > 0) parts.push(`${stats.fileCount} fichier${stats.fileCount > 1 ? "s" : ""}`);
   return <span className="text-xs">{parts.length ? parts.join(", ") : "Vide"}</span>;
 }
 
+function kindIcon(kind: string, mimeType?: string | null): { icon: React.ReactNode; color: string } {
+  if (kind === "note") return { icon: <FileText className="w-8 h-8" />, color: "text-violet-400" };
+  if (kind === "document") return { icon: <FileIcon className="w-8 h-8" />, color: "text-cyan-400" };
+  if (kind === "upload") {
+    if (mimeType?.startsWith("image/")) return { icon: <FileIcon className="w-8 h-8" />, color: "text-emerald-400" };
+    if (mimeType === "application/pdf") return { icon: <FileIcon className="w-8 h-8" />, color: "text-rose-400" };
+    return { icon: <FileIcon className="w-8 h-8" />, color: "text-orange-400" };
+  }
+  return { icon: <FileIcon className="w-8 h-8" />, color: "text-muted-foreground" };
+}
+
 function ExplorerItem({
-  id, kind, name, isSelected, isDragOver, folderStats, onHoverEnter,
+  id, kind, name, mimeType, isSelected, isDragOver, folderStats, onHoverEnter,
   onSingleClick, onDoubleClick, onRename, onDelete, canEdit = true,
-  onDragStart, onDragOver, onDragLeave, onDrop, onDragEnd,
+  onDragStart, onDragOver, onDragLeave, onDrop, onDragEnd, onDownload,
 }: ExplorerItemProps) {
-  const iconColor = kind === "folder" ? "text-amber-300" : kind === "note" ? "text-violet-400" : "text-cyan-400";
   const isFolder = kind === "folder";
+  const { icon, color } = isFolder
+    ? { icon: <FilledFolderIcon className="w-8 h-8 text-amber-300" />, color: "text-amber-300" }
+    : kindIcon(kind, mimeType);
 
   const inner = (
     <div
       data-explorer-id={id}
       draggable
       className={[
-        "group relative flex flex-col items-center gap-2 p-3 rounded-md cursor-pointer transition-colors",
+        "group relative flex flex-col items-center gap-1.5 p-2 rounded-md cursor-pointer transition-colors",
         isSelected ? "bg-primary/15 ring-1 ring-primary/40" : "hover-elevate",
         isDragOver ? "bg-primary/20 ring-2 ring-primary" : "",
       ].join(" ")}
@@ -861,44 +1013,60 @@ function ExplorerItem({
       onDragEnd={onDragEnd}
       data-testid={`explorer-item-${id}`}
     >
-      {kind === "folder" ? (
-        <FilledFolderIcon className={`w-10 h-10 ${iconColor}`} />
-      ) : kind === "note" ? (
-        <FileText className={`w-10 h-10 ${iconColor}`} />
-      ) : (
-        <FileIcon className={`w-10 h-10 ${iconColor}`} />
-      )}
-      <span className="text-xs text-center text-foreground line-clamp-2 w-full text-center leading-tight">{name}</span>
+      <div className={color}>{isFolder ? <FilledFolderIcon className="w-8 h-8" /> : icon}</div>
+      <span className="text-xs text-center text-foreground line-clamp-2 w-full leading-tight">{name}</span>
 
-      {canEdit && (
-        <div
-          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={e => e.stopPropagation()}
-        >
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-6 w-6" data-testid={`button-item-menu-${id}`}>
-                <MoreVertical className="w-3 h-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem onClick={onDoubleClick as any} data-testid={`menu-open-${id}`}>
-                {isFolder ? <FolderOpen className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
-                Ouvrir
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onRename} data-testid={`menu-rename-${id}`}>
-                <Pencil className="w-3.5 h-3.5" />
-                Renommer
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive" data-testid={`menu-delete-${id}`}>
-                <Trash2 className="w-3.5 h-3.5" />
-                Supprimer
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+      {/* Kind badge for non-folder items */}
+      {!isFolder && (
+        <span className={[
+          "text-[9px] px-1 rounded-sm font-medium",
+          kind === "note" ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300" :
+          kind === "document" ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300" :
+          kind === "upload" ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" :
+          "bg-muted text-muted-foreground",
+        ].join(" ")}>
+          {kind === "note" ? "Note" : kind === "document" ? "Doc" : "Fichier"}
+        </span>
       )}
+
+      {/* Context menu */}
+      <div
+        className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+        onClick={e => e.stopPropagation()}
+      >
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="icon" variant="ghost" className="h-5 w-5" data-testid={`button-item-menu-${id}`}>
+              <MoreVertical className="w-3 h-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem onClick={onDoubleClick as any} data-testid={`menu-open-${id}`}>
+              {isFolder ? <FolderOpen className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+              {kind === "upload" ? "Télécharger" : "Ouvrir"}
+            </DropdownMenuItem>
+            {onDownload && kind === "upload" && (
+              <DropdownMenuItem onClick={e => { e.stopPropagation(); onDownload(); }} data-testid={`menu-download-${id}`}>
+                <Download className="w-3.5 h-3.5" />
+                Télécharger
+              </DropdownMenuItem>
+            )}
+            {canEdit && (
+              <>
+                <DropdownMenuItem onClick={onRename} data-testid={`menu-rename-${id}`}>
+                  <Pencil className="w-3.5 h-3.5" />
+                  Renommer
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive" data-testid={`menu-delete-${id}`}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Supprimer
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 
