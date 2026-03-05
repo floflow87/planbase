@@ -105,9 +105,9 @@ export function AppSidebar() {
     { title: "Product", url: "/product", icon: Package },
     { title: "Roadmap", url: "/roadmap", icon: Rocket },
     { title: "Notes", url: "/notes", icon: FileText },
-    { title: "Fichiers", url: "/files", icon: FolderOpen },
     { title: "Tâches", url: "/tasks", icon: CheckSquare },
     { title: "Whiteboards", url: "/mindmaps", icon: Network, badge: "Beta" },
+    { title: "Fichiers", url: "/files", icon: FolderOpen },
     { title: "Documents", url: "/documents", icon: FolderOpen },
     { title: "Rentabilité", url: "/finance", icon: DollarSign },
   ];

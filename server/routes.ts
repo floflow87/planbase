@@ -4103,6 +4103,23 @@ app.get("/config/feature-flags", async (_req, res) => {
       });
       const note = await storage.createNote(data);
 
+      // Auto-index the note in the file explorer
+      try {
+        await storage.createFile({
+          accountId: req.accountId!,
+          createdBy: req.userId || undefined,
+          folderId: null,
+          kind: "note_ref",
+          name: note.title || "Sans titre",
+          entityId: note.id,
+          clientId: null,
+          projectId: null,
+          meta: {},
+        } as any);
+      } catch (_) {
+        // Non-blocking — file indexing failure should not prevent note creation
+      }
+
       // Create activity
       await storage.createActivity({
         accountId: req.accountId!,

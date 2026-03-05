@@ -1,11 +1,23 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Folder, File } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,20 +35,31 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Folder as FolderIcon,
   FolderOpen,
   FileText,
   File as FileIcon,
-  Plus,
   MoreVertical,
   Pencil,
   Trash2,
   ChevronRight,
   Home,
+  Search,
+  FolderPlus,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
 interface Props {
   clientId?: string;
@@ -44,10 +67,18 @@ interface Props {
 }
 
 type BreadcrumbItem = { id: string | null; name: string };
-
-type CreateDialog = "folder" | "note" | "document" | null;
+type SortBy = "name" | "date";
 type RenameTarget = { id: string; kind: "folder" | "file"; name: string } | null;
 type DeleteTarget = { id: string; kind: "folder" | "file"; name: string } | null;
+
+type ExplorerEntry = {
+  id: string;
+  kind: "folder" | "note" | "document";
+  name: string;
+  updatedAt?: string | Date | null;
+  entityId?: string | null;
+  isFileEntry?: boolean;
+};
 
 function buildFolderQK(parentId: string | null, clientId?: string, projectId?: string) {
   return ["/api/folders", { parentId, clientId, projectId }];
@@ -56,6 +87,22 @@ function buildFileQK(folderId: string | null, clientId?: string, projectId?: str
   return ["/api/files", { folderId, clientId, projectId }];
 }
 
+function FilledFolderIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      className={className}
+      fill="currentColor"
+    >
+      <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z" />
+    </svg>
+  );
+}
+
+const noteSchema = z.object({ title: z.string().min(1, "Titre requis") });
+const folderSchema = z.object({ name: z.string().min(1, "Nom requis") });
+
 export function FileExplorer({ clientId, projectId }: Props) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -63,26 +110,28 @@ export function FileExplorer({ clientId, projectId }: Props) {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([{ id: null, name: "Fichiers" }]);
 
-  const [createDialog, setCreateDialog] = useState<CreateDialog>(null);
-  const [createName, setCreateName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<SortBy>("name");
+
+  const [folderSheetOpen, setFolderSheetOpen] = useState(false);
+  const [noteSheetOpen, setNoteSheetOpen] = useState(false);
 
   const [renameTarget, setRenameTarget] = useState<RenameTarget>(null);
   const [renameName, setRenameName] = useState("");
-
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+
+  const isAtRoot = currentFolderId === null;
 
   const folderQK = buildFolderQK(currentFolderId, clientId, projectId);
   const fileQK = buildFileQK(currentFolderId, clientId, projectId);
 
   const foldersParams = new URLSearchParams();
-  if (currentFolderId !== null) foldersParams.set("parentId", currentFolderId);
-  else foldersParams.set("parentId", "");
+  foldersParams.set("parentId", currentFolderId ?? "");
   if (clientId) foldersParams.set("clientId", clientId);
   if (projectId) foldersParams.set("projectId", projectId);
 
   const filesParams = new URLSearchParams();
-  if (currentFolderId !== null) filesParams.set("folderId", currentFolderId);
-  else filesParams.set("folderId", "");
+  filesParams.set("folderId", currentFolderId ?? "");
   if (clientId) filesParams.set("clientId", clientId);
   if (projectId) filesParams.set("projectId", projectId);
 
@@ -96,12 +145,34 @@ export function FileExplorer({ clientId, projectId }: Props) {
     queryFn: () => apiRequest(`/api/files?${filesParams.toString()}`, "GET").then(r => r.json()),
   });
 
+  const { data: allNotes = [] } = useQuery<any[]>({
+    queryKey: ["/api/notes"],
+    queryFn: () => apiRequest("/api/notes", "GET").then(r => r.json()),
+    enabled: isAtRoot,
+  });
+
+  const { data: allDocuments = [] } = useQuery<any[]>({
+    queryKey: ["/api/documents"],
+    queryFn: () => apiRequest("/api/documents", "GET").then(r => r.json()),
+    enabled: isAtRoot,
+  });
+
   const isLoading = foldersLoading || filesLoading;
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/folders"] });
     queryClient.invalidateQueries({ queryKey: ["/api/files"] });
   };
+
+  const noteForm = useForm({
+    resolver: zodResolver(noteSchema),
+    defaultValues: { title: "" },
+  });
+
+  const folderForm = useForm({
+    resolver: zodResolver(folderSchema),
+    defaultValues: { name: "" },
+  });
 
   const createFolderMutation = useMutation({
     mutationFn: (name: string) =>
@@ -112,42 +183,33 @@ export function FileExplorer({ clientId, projectId }: Props) {
         projectId: projectId || null,
         scope: clientId ? "client" : projectId ? "project" : "generic",
       }),
-    onSuccess: () => { invalidate(); setCreateDialog(null); setCreateName(""); },
+    onSuccess: () => {
+      invalidate();
+      setFolderSheetOpen(false);
+      folderForm.reset();
+    },
     onError: () => toast({ title: "Erreur", description: "Impossible de créer le dossier", variant: "destructive" }),
   });
 
   const createNoteMutation = useMutation({
-    mutationFn: (title: string) =>
-      apiRequest("/api/files/note", "POST", {
+    mutationFn: async (title: string) => {
+      const res = await apiRequest("/api/files/note", "POST", {
         title,
         folderId: currentFolderId || null,
         clientId: clientId || null,
         projectId: projectId || null,
-      }),
+      });
+      return res.json();
+    },
     onSuccess: (data: any) => {
       invalidate();
-      setCreateDialog(null);
-      setCreateName("");
-      if (data?.note?.id) setLocation(`/notes/${data.note.id}`);
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      setNoteSheetOpen(false);
+      noteForm.reset();
+      const noteId = data?.note?.id;
+      if (noteId) setLocation(`/notes/${noteId}`);
     },
     onError: () => toast({ title: "Erreur", description: "Impossible de créer la note", variant: "destructive" }),
-  });
-
-  const createDocumentMutation = useMutation({
-    mutationFn: (name: string) =>
-      apiRequest("/api/files/document", "POST", {
-        name,
-        folderId: currentFolderId || null,
-        clientId: clientId || null,
-        projectId: projectId || null,
-      }),
-    onSuccess: (data: any) => {
-      invalidate();
-      setCreateDialog(null);
-      setCreateName("");
-      if (data?.document?.id) setLocation(`/documents/${data.document.id}`);
-    },
-    onError: () => toast({ title: "Erreur", description: "Impossible de créer le document", variant: "destructive" }),
   });
 
   const renameFolderMutation = useMutation({
@@ -187,19 +249,14 @@ export function FileExplorer({ clientId, projectId }: Props) {
     setBreadcrumb(prev => prev.slice(0, idx + 1));
   };
 
-  const openFile = (file: File) => {
-    if (file.kind === "note_ref" && file.entityId) {
-      setLocation(`/notes/${file.entityId}`);
-    } else if (file.kind === "doc_internal" && file.entityId) {
-      setLocation(`/documents/${file.entityId}`);
+  const openFile = (entry: ExplorerEntry) => {
+    if (entry.kind === "note") {
+      const targetId = entry.entityId || entry.id;
+      setLocation(`/notes/${targetId}`);
+    } else if (entry.kind === "document") {
+      const targetId = entry.entityId || entry.id;
+      setLocation(`/documents/${targetId}`);
     }
-  };
-
-  const handleCreate = () => {
-    if (!createName.trim()) return;
-    if (createDialog === "folder") createFolderMutation.mutate(createName.trim());
-    else if (createDialog === "note") createNoteMutation.mutate(createName.trim());
-    else if (createDialog === "document") createDocumentMutation.mutate(createName.trim());
   };
 
   const handleRename = () => {
@@ -214,13 +271,72 @@ export function FileExplorer({ clientId, projectId }: Props) {
     else deleteFileMutation.mutate(deleteTarget.id);
   };
 
-  const isEmpty = !isLoading && folders.length === 0 && files.length === 0;
+  const indexedNoteIds = useMemo(() => new Set(files.filter(f => f.kind === "note_ref" && f.entityId).map(f => f.entityId!)), [files]);
+  const indexedDocIds = useMemo(() => new Set(files.filter(f => f.kind === "doc_internal" && f.entityId).map(f => f.entityId!)), [files]);
+
+  const entries: ExplorerEntry[] = useMemo(() => {
+    const result: ExplorerEntry[] = [];
+
+    if (isAtRoot) {
+      const filteredNotes = allNotes
+        .filter(n => !indexedNoteIds.has(n.id))
+        .filter(n => !clientId || n.clientId === clientId)
+        .filter(n => !projectId || n.projectId === projectId);
+
+      const filteredDocs = allDocuments
+        .filter(d => !indexedDocIds.has(d.id))
+        .filter(d => !clientId || d.clientId === clientId)
+        .filter(d => !projectId || d.projectId === projectId);
+
+      for (const n of filteredNotes) {
+        result.push({ id: n.id, kind: "note", name: n.title || "Sans titre", updatedAt: n.updatedAt, entityId: n.id });
+      }
+      for (const d of filteredDocs) {
+        result.push({ id: d.id, kind: "document", name: d.name || "Sans titre", updatedAt: d.updatedAt, entityId: d.id });
+      }
+    }
+
+    for (const f of files) {
+      result.push({
+        id: f.id,
+        kind: f.kind === "note_ref" ? "note" : "document",
+        name: f.name,
+        updatedAt: f.createdAt,
+        entityId: f.entityId,
+        isFileEntry: true,
+      });
+    }
+
+    return result;
+  }, [isAtRoot, allNotes, allDocuments, files, indexedNoteIds, indexedDocIds, clientId, projectId]);
+
+  const filteredFolders = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    const list = q ? folders.filter(f => f.name.toLowerCase().includes(q)) : folders;
+    if (sortBy === "name") return [...list].sort((a, b) => a.name.localeCompare(b.name));
+    return list;
+  }, [folders, searchQuery, sortBy]);
+
+  const filteredEntries = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    const list = q ? entries.filter(e => e.name.toLowerCase().includes(q)) : entries;
+    if (sortBy === "name") return [...list].sort((a, b) => a.name.localeCompare(b.name));
+    if (sortBy === "date") {
+      return [...list].sort((a, b) => {
+        const aDate = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const bDate = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return bDate - aDate;
+      });
+    }
+    return list;
+  }, [entries, searchQuery, sortBy]);
+
+  const isEmpty = !isLoading && filteredFolders.length === 0 && filteredEntries.length === 0;
 
   return (
     <div className="flex flex-col h-full" data-testid="file-explorer">
-      {/* Toolbar */}
+      {/* Top toolbar: breadcrumb + actions */}
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b flex-wrap">
-        {/* Breadcrumb */}
         <nav className="flex items-center gap-1 text-sm overflow-hidden" data-testid="breadcrumb-nav">
           {breadcrumb.map((item, idx) => (
             <span key={idx} className="flex items-center gap-1 min-w-0">
@@ -244,21 +360,43 @@ export function FileExplorer({ clientId, projectId }: Props) {
           ))}
         </nav>
 
-        {/* Actions */}
         <div className="flex items-center gap-1 flex-shrink-0">
-          <Button size="sm" variant="outline" onClick={() => { setCreateDialog("folder"); setCreateName(""); }} data-testid="button-new-folder">
-            <FolderIcon className="w-3.5 h-3.5" />
+          <Button size="sm" variant="outline" onClick={() => { setFolderSheetOpen(true); folderForm.reset(); }} data-testid="button-new-folder">
+            <FolderPlus className="w-3.5 h-3.5" />
             Nouveau dossier
           </Button>
-          <Button size="sm" variant="outline" onClick={() => { setCreateDialog("note"); setCreateName(""); }} data-testid="button-new-note">
+          <Button size="sm" variant="outline" onClick={() => { setNoteSheetOpen(true); noteForm.reset(); }} data-testid="button-new-note">
             <FileText className="w-3.5 h-3.5" />
             Note
           </Button>
-          <Button size="sm" variant="outline" onClick={() => { setCreateDialog("document"); setCreateName(""); }} data-testid="button-new-document">
+          <Button size="sm" variant="outline" onClick={() => setLocation("/documents/templates")} data-testid="button-new-document">
             <FileIcon className="w-3.5 h-3.5" />
             Document
           </Button>
         </div>
+      </div>
+
+      {/* Search + sort bar */}
+      <div className="flex items-center gap-2 px-4 py-2 border-b">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Rechercher..."
+            className="pl-8 h-8 text-xs"
+            data-testid="input-search-files"
+          />
+        </div>
+        <Select value={sortBy} onValueChange={v => setSortBy(v as SortBy)}>
+          <SelectTrigger className="w-40 h-8 text-xs" data-testid="select-sort-files">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="name">Trier par Nom</SelectItem>
+            <SelectItem value="date">Trier par Date</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Content */}
@@ -272,13 +410,16 @@ export function FileExplorer({ clientId, projectId }: Props) {
         ) : isEmpty ? (
           <div className="flex flex-col items-center justify-center h-48 text-muted-foreground gap-2">
             <FolderOpen className="w-10 h-10 opacity-40" />
-            <p className="text-sm">Ce dossier est vide</p>
-            <p className="text-xs opacity-70">Créez un dossier, une note ou un document pour commencer</p>
+            <p className="text-sm">
+              {searchQuery ? "Aucun résultat" : "Ce dossier est vide"}
+            </p>
+            {!searchQuery && (
+              <p className="text-xs opacity-70">Créez un dossier, une note ou un document pour commencer</p>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {/* Folders first */}
-            {folders.map(folder => (
+            {filteredFolders.map(folder => (
               <ExplorerItem
                 key={folder.id}
                 id={folder.id}
@@ -289,50 +430,104 @@ export function FileExplorer({ clientId, projectId }: Props) {
                 onDelete={() => setDeleteTarget({ id: folder.id, kind: "folder", name: folder.name })}
               />
             ))}
-            {/* Files */}
-            {files.map(file => (
+            {filteredEntries.map(entry => (
               <ExplorerItem
-                key={file.id}
-                id={file.id}
-                kind={file.kind === "note_ref" ? "note" : "document"}
-                name={file.name}
-                onOpen={() => openFile(file)}
-                onRename={() => { setRenameTarget({ id: file.id, kind: "file", name: file.name }); setRenameName(file.name); }}
-                onDelete={() => setDeleteTarget({ id: file.id, kind: "file", name: file.name })}
+                key={entry.isFileEntry ? `file-${entry.id}` : `raw-${entry.id}`}
+                id={entry.id}
+                kind={entry.kind}
+                name={entry.name}
+                onOpen={() => openFile(entry)}
+                onRename={() => {
+                  if (entry.isFileEntry) {
+                    setRenameTarget({ id: entry.id, kind: "file", name: entry.name });
+                    setRenameName(entry.name);
+                  }
+                }}
+                onDelete={() => {
+                  if (entry.isFileEntry) {
+                    setDeleteTarget({ id: entry.id, kind: "file", name: entry.name });
+                  }
+                }}
+                canEdit={!!entry.isFileEntry}
               />
             ))}
           </div>
         )}
       </div>
 
-      {/* Create Dialog */}
-      <Dialog open={createDialog !== null} onOpenChange={open => !open && setCreateDialog(null)}>
-        <DialogContent data-testid="dialog-create">
-          <DialogHeader>
-            <DialogTitle>
-              {createDialog === "folder" ? "Nouveau dossier" : createDialog === "note" ? "Nouvelle note" : "Nouveau document"}
-            </DialogTitle>
-          </DialogHeader>
-          <Input
-            value={createName}
-            onChange={e => setCreateName(e.target.value)}
-            placeholder={createDialog === "folder" ? "Nom du dossier" : createDialog === "note" ? "Titre de la note" : "Nom du document"}
-            onKeyDown={e => e.key === "Enter" && handleCreate()}
-            autoFocus
-            data-testid="input-create-name"
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialog(null)} data-testid="button-create-cancel">Annuler</Button>
-            <Button
-              onClick={handleCreate}
-              disabled={!createName.trim() || createFolderMutation.isPending || createNoteMutation.isPending || createDocumentMutation.isPending}
-              data-testid="button-create-confirm"
+      {/* Folder creation sheet */}
+      <Sheet open={folderSheetOpen} onOpenChange={setFolderSheetOpen}>
+        <SheetContent className="sm:max-w-md" data-testid="sheet-create-folder">
+          <SheetHeader>
+            <SheetTitle>Nouveau dossier</SheetTitle>
+          </SheetHeader>
+          <Form {...folderForm}>
+            <form
+              onSubmit={folderForm.handleSubmit(data => createFolderMutation.mutate(data.name))}
+              className="space-y-4 mt-4"
             >
-              Créer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <FormField
+                control={folderForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nom du dossier</FormLabel>
+                    <FormControl>
+                      <Input {...field} autoFocus data-testid="input-folder-name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => setFolderSheetOpen(false)} className="flex-1">
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={createFolderMutation.isPending} className="flex-1" data-testid="button-create-folder-confirm">
+                  Créer
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </SheetContent>
+      </Sheet>
+
+      {/* Note creation sheet */}
+      <Sheet open={noteSheetOpen} onOpenChange={setNoteSheetOpen}>
+        <SheetContent className="sm:max-w-md" data-testid="sheet-create-note">
+          <SheetHeader>
+            <SheetTitle>Nouvelle note</SheetTitle>
+          </SheetHeader>
+          <Form {...noteForm}>
+            <form
+              onSubmit={noteForm.handleSubmit(data => createNoteMutation.mutate(data.title))}
+              className="space-y-4 mt-4"
+            >
+              <FormField
+                control={noteForm.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Titre</FormLabel>
+                    <FormControl>
+                      <Input {...field} autoFocus data-testid="input-note-title" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => setNoteSheetOpen(false)} className="flex-1">
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={createNoteMutation.isPending} className="flex-1" data-testid="button-create-note-confirm">
+                  Créer
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </SheetContent>
+      </Sheet>
 
       {/* Rename Dialog */}
       <Dialog open={renameTarget !== null} onOpenChange={open => !open && setRenameTarget(null)}>
@@ -392,12 +587,12 @@ interface ExplorerItemProps {
   onOpen: () => void;
   onRename: () => void;
   onDelete: () => void;
+  canEdit?: boolean;
 }
 
-function ExplorerItem({ id, kind, name, onOpen, onRename, onDelete }: ExplorerItemProps) {
-  const Icon = kind === "folder" ? FolderIcon : kind === "note" ? FileText : FileIcon;
+function ExplorerItem({ id, kind, name, onOpen, onRename, onDelete, canEdit = true }: ExplorerItemProps) {
   const iconColor =
-    kind === "folder" ? "text-amber-500" : kind === "note" ? "text-violet-500" : "text-cyan-500";
+    kind === "folder" ? "text-amber-300" : kind === "note" ? "text-violet-400" : "text-cyan-400";
 
   return (
     <div
@@ -405,40 +600,48 @@ function ExplorerItem({ id, kind, name, onOpen, onRename, onDelete }: ExplorerIt
       onClick={onOpen}
       data-testid={`explorer-item-${id}`}
     >
-      <Icon className={`w-10 h-10 ${iconColor}`} />
+      {kind === "folder" ? (
+        <FilledFolderIcon className={`w-10 h-10 ${iconColor}`} />
+      ) : kind === "note" ? (
+        <FileText className={`w-10 h-10 ${iconColor}`} />
+      ) : (
+        <FileIcon className={`w-10 h-10 ${iconColor}`} />
+      )}
       <span className="text-xs text-center text-foreground line-clamp-2 w-full text-center leading-tight">{name}</span>
 
-      <div
-        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
-        onClick={e => e.stopPropagation()}
-      >
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="icon" variant="ghost" className="h-6 w-6" data-testid={`button-item-menu-${id}`}>
-              <MoreVertical className="w-3 h-3" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuItem onClick={onOpen} data-testid={`menu-open-${id}`}>
-              {kind === "folder" ? <FolderOpen className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
-              Ouvrir
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onRename} data-testid={`menu-rename-${id}`}>
-              <Pencil className="w-3.5 h-3.5" />
-              Renommer
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={onDelete}
-              className="text-destructive focus:text-destructive"
-              data-testid={`menu-delete-${id}`}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Supprimer
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      {canEdit && (
+        <div
+          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={e => e.stopPropagation()}
+        >
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-6 w-6" data-testid={`button-item-menu-${id}`}>
+                <MoreVertical className="w-3 h-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={onOpen} data-testid={`menu-open-${id}`}>
+                {kind === "folder" ? <FolderOpen className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+                Ouvrir
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onRename} data-testid={`menu-rename-${id}`}>
+                <Pencil className="w-3.5 h-3.5" />
+                Renommer
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={onDelete}
+                className="text-destructive focus:text-destructive"
+                data-testid={`menu-delete-${id}`}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Supprimer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
     </div>
   );
 }
