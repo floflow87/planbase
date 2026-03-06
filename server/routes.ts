@@ -4996,7 +4996,7 @@ app.get("/config/feature-flags", async (_req, res) => {
         projectId: req.body.projectId || null,
         storageUrl: storagePath,
         mimeType: file.mimetype,
-        fileSize: BigInt(file.size),
+        fileSize: file.size,
         meta: { storageUrl: urlData?.publicUrl },
       } as any);
 

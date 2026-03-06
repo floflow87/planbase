@@ -368,7 +368,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
     onSuccess: () => {
       invalidate();
       setSelectedIds(new Set());
-      toast({ title: "Éléments dupliqués", className: "bg-green-600 border-green-600 text-white" });
+      toast({ title: "Éléments dupliqués", variant: "success" });
     },
     onError: () => toast({ title: "Erreur", description: "Impossible de dupliquer", variant: "destructive" }),
   });
@@ -396,7 +396,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
       invalidate();
       setSelectedIds(new Set());
       setDeleteSelectedOpen(false);
-      toast({ title: "Éléments supprimés", className: "bg-green-600 border-green-600 text-white" });
+      toast({ title: "Éléments supprimés", variant: "success" });
     },
     onError: (_e, _ids, ctx: any) => {
       if (ctx?.prevFolders) queryClient.setQueryData(buildFolderQK(currentFolderId, clientId, projectId), ctx.prevFolders);
@@ -740,7 +740,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
     invalidate();
     if (e.target) e.target.value = "";
 
-    if (successCount > 0) toast({ title: `${successCount} fichier${successCount > 1 ? "s" : ""} uploadé${successCount > 1 ? "s" : ""}`, className: "bg-green-600 border-green-600 text-white" });
+    if (successCount > 0) toast({ title: `${successCount} fichier${successCount > 1 ? "s" : ""} uploadé${successCount > 1 ? "s" : ""}`, variant: "success" });
     if (errorCount > 0) toast({ title: "Erreur", description: `${errorCount} fichier(s) n'ont pas pu être uploadés`, variant: "destructive" });
   };
 

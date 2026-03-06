@@ -881,7 +881,7 @@ export const files = pgTable("files", {
   storagePath: text("storage_path"), // Supabase Storage key or URL
   storageUrl: text("storage_url"),   // Supabase Storage path used for signed URLs
   mimeType: text("mime_type"),       // Full MIME type (e.g. image/png, application/pdf)
-  fileSize: bigint("file_size", { mode: "bigint" }),
+  fileSize: bigint("file_size", { mode: "number" }),
   externalUrl: text("external_url"), // for kind='link'
   clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
