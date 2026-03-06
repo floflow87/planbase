@@ -174,6 +174,9 @@ export function FileExplorer({ clientId, projectId }: Props) {
   // File preview dialog (images / PDFs)
   const [previewFile, setPreviewFile] = useState<{ url: string; mimeType: string; name: string } | null>(null);
 
+  // Track virtual entries being optimistically "linked" to a folder (so they hide instantly at root)
+  const [pendingLinkedEntityIds, setPendingLinkedEntityIds] = useState(new Set<string>());
+
   // Forms
   const noteForm = useForm({ resolver: zodResolver(noteSchema), defaultValues: { title: "" } });
   const folderForm = useForm({ resolver: zodResolver(folderSchema), defaultValues: { name: "" } });
@@ -339,21 +342,17 @@ export function FileExplorer({ clientId, projectId }: Props) {
         folderId,
         name: entry.name,
       }),
-    onMutate: async ({ entry, folderId }) => {
-      const qk = buildFileQK(currentFolderId, clientId, projectId);
-      await queryClient.cancelQueries({ queryKey: qk });
-      const prev = queryClient.getQueryData(qk);
-      const placeholder = {
-        id: `opt-${Date.now()}`, kind: entry.kind === "note" ? "note_ref" : "doc_internal",
-        entityId: entry.entityId || entry.id, name: entry.name, folderId,
-        accountId: "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-      };
-      queryClient.setQueryData(qk, (old: any[]) => [...(old ?? []), placeholder]);
-      return { prev };
+    onMutate: async ({ entry }) => {
+      const entityId = entry.entityId || entry.id;
+      setPendingLinkedEntityIds(prev => new Set([...prev, entityId]));
+      return { entityId };
     },
-    onSuccess: () => invalidate(),
+    onSuccess: (_data, _vars, ctx: any) => {
+      setPendingLinkedEntityIds(prev => { const n = new Set(prev); n.delete(ctx?.entityId); return n; });
+      invalidate();
+    },
     onError: (_e, _v, ctx: any) => {
-      if (ctx?.prev) queryClient.setQueryData(buildFileQK(currentFolderId, clientId, projectId), ctx.prev);
+      setPendingLinkedEntityIds(prev => { const n = new Set(prev); n.delete(ctx?.entityId); return n; });
       toast({ title: "Erreur", description: "Impossible de déplacer", variant: "destructive" });
     },
   });
@@ -452,11 +451,13 @@ export function FileExplorer({ clientId, projectId }: Props) {
     if (isAtRoot) {
       allNotes
         .filter(n => !indexedNoteIds.has(n.id))
+        .filter(n => !pendingLinkedEntityIds.has(n.id))
         .filter(n => !clientId || n.clientId === clientId)
         .filter(n => !projectId || n.projectId === projectId)
         .forEach(n => result.push({ id: n.id, kind: "note", name: n.title || "Sans titre", updatedAt: n.updatedAt, entityId: n.id }));
       allDocuments
         .filter(d => !indexedDocIds.has(d.id))
+        .filter(d => !pendingLinkedEntityIds.has(d.id))
         .filter(d => !clientId || d.clientId === clientId)
         .filter(d => !projectId || d.projectId === projectId)
         .forEach(d => result.push({ id: d.id, kind: "document", name: d.name || "Sans titre", updatedAt: d.updatedAt, entityId: d.id }));
@@ -472,7 +473,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
       mimeType: (f as any).mimeType,
     }));
     return result;
-  }, [isAtRoot, allNotes, allDocuments, files, indexedNoteIds, indexedDocIds, clientId, projectId]);
+  }, [isAtRoot, allNotes, allDocuments, files, indexedNoteIds, indexedDocIds, pendingLinkedEntityIds, clientId, projectId]);
 
   // Sort helper for entries
   const typeOrder: Record<string, number> = { note: 0, document: 1, upload: 2 };
