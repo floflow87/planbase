@@ -82,6 +82,12 @@ import { Label } from "@/components/ui/label";
 
 type Category = { key: string; label: string };
 
+function RedirectToFiles() {
+  const [, setLocation] = useLocation();
+  useEffect(() => { setLocation("/files"); }, []);
+  return null;
+}
+
 function Router() {
   return (
     <Switch>
@@ -143,7 +149,7 @@ function Router() {
         <ProtectedRoute><DocumentDetail /></ProtectedRoute>
       </Route>
       <Route path="/documents">
-        <ProtectedRoute><Documents /></ProtectedRoute>
+        <ProtectedRoute><RedirectToFiles /></ProtectedRoute>
       </Route>
       <Route path="/mindmaps/:id">
         <ProtectedRoute><MindmapDetail /></ProtectedRoute>

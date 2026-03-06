@@ -60,6 +60,7 @@ import {
   Home,
   Search,
   FolderPlus,
+  Plus,
   Copy,
   X,
   Upload,
@@ -265,28 +266,68 @@ export function FileExplorer({ clientId, projectId }: Props) {
 
   const deleteFolderMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/folders/${id}`, "DELETE"),
+    onMutate: async (id) => {
+      const qk = buildFolderQK(currentFolderId, clientId, projectId);
+      await queryClient.cancelQueries({ queryKey: qk });
+      const prev = queryClient.getQueryData(qk);
+      queryClient.setQueryData(qk, (old: any[]) => old?.filter((f: any) => f.id !== id) ?? []);
+      return { prev };
+    },
     onSuccess: () => { invalidate(); setDeleteTarget(null); },
-    onError: () => toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" }),
+    onError: (_e, _id, ctx: any) => {
+      if (ctx?.prev) queryClient.setQueryData(buildFolderQK(currentFolderId, clientId, projectId), ctx.prev);
+      toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" });
+    },
   });
 
   const deleteFileMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/files/${id}`, "DELETE"),
+    onMutate: async (id) => {
+      const qk = buildFileQK(currentFolderId, clientId, projectId);
+      await queryClient.cancelQueries({ queryKey: qk });
+      const prev = queryClient.getQueryData(qk);
+      queryClient.setQueryData(qk, (old: any[]) => old?.filter((f: any) => f.id !== id) ?? []);
+      return { prev };
+    },
     onSuccess: () => { invalidate(); setDeleteTarget(null); },
-    onError: () => toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" }),
+    onError: (_e, _id, ctx: any) => {
+      if (ctx?.prev) queryClient.setQueryData(buildFileQK(currentFolderId, clientId, projectId), ctx.prev);
+      toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" });
+    },
   });
 
   const moveFolderMutation = useMutation({
     mutationFn: ({ id, parentId }: { id: string; parentId: string | null }) =>
       apiRequest(`/api/folders/${id}`, "PATCH", { parentId }),
+    onMutate: async ({ id }) => {
+      const qk = buildFolderQK(currentFolderId, clientId, projectId);
+      await queryClient.cancelQueries({ queryKey: qk });
+      const prev = queryClient.getQueryData(qk);
+      queryClient.setQueryData(qk, (old: any[]) => old?.filter((f: any) => f.id !== id) ?? []);
+      return { prev };
+    },
     onSuccess: () => invalidate(),
-    onError: () => toast({ title: "Erreur", description: "Impossible de déplacer", variant: "destructive" }),
+    onError: (_e, _v, ctx: any) => {
+      if (ctx?.prev) queryClient.setQueryData(buildFolderQK(currentFolderId, clientId, projectId), ctx.prev);
+      toast({ title: "Erreur", description: "Impossible de déplacer", variant: "destructive" });
+    },
   });
 
   const moveFileMutation = useMutation({
     mutationFn: ({ id, folderId }: { id: string; folderId: string | null }) =>
       apiRequest(`/api/files/${id}`, "PATCH", { folderId }),
+    onMutate: async ({ id }) => {
+      const qk = buildFileQK(currentFolderId, clientId, projectId);
+      await queryClient.cancelQueries({ queryKey: qk });
+      const prev = queryClient.getQueryData(qk);
+      queryClient.setQueryData(qk, (old: any[]) => old?.filter((f: any) => f.id !== id) ?? []);
+      return { prev };
+    },
     onSuccess: () => invalidate(),
-    onError: () => toast({ title: "Erreur", description: "Impossible de déplacer", variant: "destructive" }),
+    onError: (_e, _v, ctx: any) => {
+      if (ctx?.prev) queryClient.setQueryData(buildFileQK(currentFolderId, clientId, projectId), ctx.prev);
+      toast({ title: "Erreur", description: "Impossible de déplacer", variant: "destructive" });
+    },
   });
 
   // Creates a file_ref / doc_internal entry to "move" a virtual note or document into a folder
@@ -298,8 +339,23 @@ export function FileExplorer({ clientId, projectId }: Props) {
         folderId,
         name: entry.name,
       }),
+    onMutate: async ({ entry, folderId }) => {
+      const qk = buildFileQK(currentFolderId, clientId, projectId);
+      await queryClient.cancelQueries({ queryKey: qk });
+      const prev = queryClient.getQueryData(qk);
+      const placeholder = {
+        id: `opt-${Date.now()}`, kind: entry.kind === "note" ? "note_ref" : "doc_internal",
+        entityId: entry.entityId || entry.id, name: entry.name, folderId,
+        accountId: "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      };
+      queryClient.setQueryData(qk, (old: any[]) => [...(old ?? []), placeholder]);
+      return { prev };
+    },
     onSuccess: () => invalidate(),
-    onError: () => toast({ title: "Erreur", description: "Impossible de déplacer", variant: "destructive" }),
+    onError: (_e, _v, ctx: any) => {
+      if (ctx?.prev) queryClient.setQueryData(buildFileQK(currentFolderId, clientId, projectId), ctx.prev);
+      toast({ title: "Erreur", description: "Impossible de déplacer", variant: "destructive" });
+    },
   });
 
   const duplicateSelectedMutation = useMutation({
@@ -313,7 +369,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
     onSuccess: () => {
       invalidate();
       setSelectedIds(new Set());
-      toast({ title: "Éléments dupliqués" });
+      toast({ title: "Éléments dupliqués", className: "bg-green-600 border-green-600 text-white" });
     },
     onError: () => toast({ title: "Erreur", description: "Impossible de dupliquer", variant: "destructive" }),
   });
@@ -326,13 +382,28 @@ export function FileExplorer({ clientId, projectId }: Props) {
         else await apiRequest(`/api/files/${id}`, "DELETE");
       }
     },
+    onMutate: async (ids) => {
+      const folderQK = buildFolderQK(currentFolderId, clientId, projectId);
+      const fileQK = buildFileQK(currentFolderId, clientId, projectId);
+      await queryClient.cancelQueries({ queryKey: folderQK });
+      await queryClient.cancelQueries({ queryKey: fileQK });
+      const prevFolders = queryClient.getQueryData(folderQK);
+      const prevFiles = queryClient.getQueryData(fileQK);
+      queryClient.setQueryData(folderQK, (old: any[]) => old?.filter((f: any) => !ids.includes(f.id)) ?? []);
+      queryClient.setQueryData(fileQK, (old: any[]) => old?.filter((f: any) => !ids.includes(f.id)) ?? []);
+      return { prevFolders, prevFiles };
+    },
     onSuccess: () => {
       invalidate();
       setSelectedIds(new Set());
       setDeleteSelectedOpen(false);
-      toast({ title: "Éléments supprimés" });
+      toast({ title: "Éléments supprimés", className: "bg-green-600 border-green-600 text-white" });
     },
-    onError: () => toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" }),
+    onError: (_e, _ids, ctx: any) => {
+      if (ctx?.prevFolders) queryClient.setQueryData(buildFolderQK(currentFolderId, clientId, projectId), ctx.prevFolders);
+      if (ctx?.prevFiles) queryClient.setQueryData(buildFileQK(currentFolderId, clientId, projectId), ctx.prevFiles);
+      toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" });
+    },
   });
 
   // ---------- Navigation ----------
@@ -668,7 +739,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
     invalidate();
     if (e.target) e.target.value = "";
 
-    if (successCount > 0) toast({ title: `${successCount} fichier${successCount > 1 ? "s" : ""} uploadé${successCount > 1 ? "s" : ""}` });
+    if (successCount > 0) toast({ title: `${successCount} fichier${successCount > 1 ? "s" : ""} uploadé${successCount > 1 ? "s" : ""}`, className: "bg-green-600 border-green-600 text-white" });
     if (errorCount > 0) toast({ title: "Erreur", description: `${errorCount} fichier(s) n'ont pas pu être uploadés`, variant: "destructive" });
   };
 
@@ -727,21 +798,22 @@ export function FileExplorer({ clientId, projectId }: Props) {
         </nav>
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          <Button size="sm" variant="outline" onClick={() => { setFolderSheetOpen(true); folderForm.reset(); }} data-testid="button-new-folder">
-            <FolderPlus className="w-3.5 h-3.5" />
+          <Button size="sm" variant="secondary" className="bg-white text-gray-800 border border-gray-200 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:border-white/20 dark:hover:bg-white/20" onClick={() => { setFolderSheetOpen(true); folderForm.reset(); }} data-testid="button-new-folder">
+            <Plus className="w-3.5 h-3.5" />
             Dossier
           </Button>
-          <Button size="sm" variant="outline" onClick={() => { setNoteSheetOpen(true); noteForm.reset(); }} data-testid="button-new-note">
-            <FileText className="w-3.5 h-3.5" />
+          <Button size="sm" variant="secondary" className="bg-white text-gray-800 border border-gray-200 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:border-white/20 dark:hover:bg-white/20" onClick={() => { setNoteSheetOpen(true); noteForm.reset(); }} data-testid="button-new-note">
+            <Plus className="w-3.5 h-3.5" />
             Note
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setLocation("/documents/templates")} data-testid="button-new-document">
-            <FileIcon className="w-3.5 h-3.5" />
+          <Button size="sm" variant="secondary" className="bg-white text-gray-800 border border-gray-200 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:border-white/20 dark:hover:bg-white/20" onClick={() => setLocation("/documents/templates")} data-testid="button-new-document">
+            <Plus className="w-3.5 h-3.5" />
             Document
           </Button>
           <Button
             size="sm"
-            variant="outline"
+            variant="secondary"
+            className="bg-white text-gray-800 border border-gray-200 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:border-white/20 dark:hover:bg-white/20"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadingFiles.length > 0}
             data-testid="button-upload-file"
