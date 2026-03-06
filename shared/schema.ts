@@ -885,6 +885,7 @@ export const files = pgTable("files", {
   externalUrl: text("external_url"), // for kind='link'
   clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+  taskId: uuid("task_id"), // Optional: link to any ticket (user_story, backlog_task, epic)
   meta: jsonb("meta").notNull().default({}),
   currentVersionId: uuid("current_version_id"),
   createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),

@@ -1070,6 +1070,7 @@ function AppLayout() {
     }
     
     if (path === "/tasks") return "Tâches";
+    if (path === "/files") return "Fichiers";
     if (path === "/roadmap") return "Roadmap";
     if (path === "/marketing") return "Marketing";
     if (path === "/finance") return "Finance";
@@ -1142,6 +1143,7 @@ function AppLayout() {
     if (path === "/documents") return "Documents";
     
     if (path === "/tasks") return "Tâches";
+    if (path === "/files") return "Fichiers";
     if (path === "/roadmap") return "Roadmap";
     if (path === "/marketing") return "Marketing";
     if (path === "/finance") return "Finance";

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -19,8 +19,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { 
   Loader2, User, Mail, Briefcase, UserCircle, Phone, Building2, Lock, Eye, EyeOff, 
   Settings as SettingsIcon, Puzzle, Shield, Clock, AlertTriangle, Save, RotateCcw, 
-  DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check, Users, Trash2, CreditCard
+  DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check, Users, Trash2, CreditCard, Camera
 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PermissionsTab } from "@/components/settings/PermissionsTab";
 import { IntegrationsTab } from "@/components/settings/IntegrationsTab";
 import { AuditTab } from "@/components/settings/AuditTab";
@@ -913,6 +914,43 @@ export default function Settings() {
     }
   }, [account, accountForm]);
 
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast({ variant: "destructive", title: "Erreur", description: "Veuillez choisir une image" });
+      return;
+    }
+    setAvatarUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/files/upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${(await (await import("@/lib/supabase")).supabase.auth.getSession()).data.session?.access_token}`,
+        },
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Erreur upload");
+      }
+      const newFile = await res.json();
+      const publicUrl = newFile.meta?.storageUrl || "";
+      if (!publicUrl) throw new Error("URL manquante après l'upload");
+      const patchRes = await apiRequest("/api/me", "PATCH", { avatarUrl: publicUrl });
+      const updatedUser = await patchRes.json();
+      queryClient.setQueryData(["/api/me"], updatedUser);
+      toast({ title: "Photo mise à jour", variant: "success" as any });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Erreur", description: e.message });
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
   const updateProfileMutation = useMutation({
     mutationFn: async (data: ProfileFormData) => {
       const response = await apiRequest("/api/me", "PATCH", data);
@@ -1232,6 +1270,47 @@ export default function Settings() {
                 </AccordionTrigger>
                 <AccordionContent>
                   <p className="text-xs text-muted-foreground mb-3">Ces informations seront visibles par les autres membres de votre équipe</p>
+
+                  {/* Avatar upload */}
+                  <div className="flex items-center gap-4 mb-4 pb-4 border-b">
+                    <div className="relative">
+                      <Avatar className="w-16 h-16">
+                        <AvatarImage src={userProfile?.avatarUrl || undefined} alt="Avatar" />
+                        <AvatarFallback className="text-lg bg-primary/10 text-primary">
+                          {userProfile?.firstName?.[0]?.toUpperCase() || userProfile?.email?.[0]?.toUpperCase() || "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      {avatarUploading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full">
+                          <Loader2 className="w-5 h-5 animate-spin text-white" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <p className="text-sm font-medium">Photo de profil</p>
+                      <p className="text-xs text-muted-foreground">JPG, PNG ou WebP, max 5 Mo</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={avatarUploading}
+                        onClick={() => avatarInputRef.current?.click()}
+                        data-testid="button-upload-avatar"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        Changer la photo
+                      </Button>
+                      <input
+                        ref={avatarInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) handleAvatarUpload(f); e.target.value = ""; }}
+                        data-testid="input-avatar-upload"
+                      />
+                    </div>
+                  </div>
+
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

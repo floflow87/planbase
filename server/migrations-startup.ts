@@ -2200,6 +2200,13 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Files storage columns added");
 
+    // Add task_id column to files (for ticket attachments)
+    await db.execute(sql`
+      ALTER TABLE files
+      ADD COLUMN IF NOT EXISTS task_id UUID;
+    `);
+    console.log("✅ Files task_id column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

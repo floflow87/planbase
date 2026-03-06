@@ -66,6 +66,7 @@ import {
   Upload,
   Download,
   Loader2,
+  FolderInput,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -178,6 +179,11 @@ export function FileExplorer({ clientId, projectId }: Props) {
   // File preview dialog (images / PDFs)
   const [previewFile, setPreviewFile] = useState<{ url: string; mimeType: string; name: string } | null>(null);
 
+  // Move-to-folder dialog
+  const [movingEntry, setMovingEntry] = useState<{ id: string; kind: "folder" | "file"; name: string } | null>(null);
+  const [moveDialogFolder, setMoveDialogFolder] = useState<string | null>(null);
+  const [moveDialogBreadcrumb, setMoveDialogBreadcrumb] = useState<BreadcrumbItem[]>([{ id: null, name: "Fichiers" }]);
+
   // Track virtual entries being optimistically "linked" to a folder (so they hide instantly at root)
   const [pendingLinkedEntityIds, setPendingLinkedEntityIds] = useState(new Set<string>());
 
@@ -231,6 +237,17 @@ export function FileExplorer({ clientId, projectId }: Props) {
   });
 
   const isLoading = foldersLoading || filesLoading;
+
+  // Query for move-dialog folder listing (separate from main view)
+  const moveDialogFolderParams = new URLSearchParams();
+  moveDialogFolderParams.set("parentId", moveDialogFolder ?? "");
+  if (clientId) moveDialogFolderParams.set("clientId", clientId);
+  if (projectId) moveDialogFolderParams.set("projectId", projectId);
+  const { data: moveDialogFolders = [] } = useQuery<Folder[]>({
+    queryKey: ["move-dialog-folders", moveDialogFolder, clientId, projectId],
+    queryFn: () => apiRequest(`/api/folders?${moveDialogFolderParams}`, "GET").then(r => r.json()),
+    enabled: !!movingEntry,
+  });
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["/api/folders"] });
@@ -982,6 +999,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
                 onRename={() => { setRenameTarget({ id: folder.id, kind: "folder", name: folder.name }); setRenameName(folder.name); }}
                 onDelete={() => setDeleteTarget({ id: folder.id, kind: "folder", name: folder.name })}
                 onDuplicate={() => duplicateSelectedMutation.mutate([folder.id])}
+                onMove={() => { setMovingEntry({ id: folder.id, kind: "folder", name: folder.name }); setMoveDialogFolder(null); setMoveDialogBreadcrumb([{ id: null, name: "Fichiers" }]); }}
                 canEdit
                 onDragStart={e => handleDragStart(e, folder.id)}
                 onDragEnd={handleDragEnd}
@@ -1006,6 +1024,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
                 }}
                 onDelete={() => { if (entry.isFileEntry) setDeleteTarget({ id: entry.id, kind: "file", name: entry.name }); }}
                 onDuplicate={entry.isFileEntry ? () => duplicateSelectedMutation.mutate([entry.id]) : undefined}
+                onMove={(entry.kind === "upload" || entry.kind === "folder") && entry.isFileEntry ? () => { setMovingEntry({ id: entry.id, kind: "file", name: entry.name }); setMoveDialogFolder(null); setMoveDialogBreadcrumb([{ id: null, name: "Fichiers" }]); } : undefined}
                 canEdit={!!entry.isFileEntry}
                 onDragStart={e => handleDragStart(e, entry.id)}
                 onDragEnd={handleDragEnd}
@@ -1120,6 +1139,83 @@ export function FileExplorer({ clientId, projectId }: Props) {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Move-to-folder dialog */}
+      <Dialog open={movingEntry !== null} onOpenChange={open => { if (!open) setMovingEntry(null); }} >
+        <DialogContent className="max-w-sm w-full" data-testid="dialog-move-entry">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Déplacer vers…</DialogTitle>
+          </DialogHeader>
+          <div className="text-xs text-muted-foreground mb-2">
+            Déplacer <strong>{movingEntry?.name}</strong>
+          </div>
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-1 text-xs mb-2 flex-wrap">
+            {moveDialogBreadcrumb.map((item, idx) => (
+              <span key={idx} className="flex items-center gap-1">
+                {idx > 0 && <ChevronRight className="w-3 h-3 text-muted-foreground" />}
+                <button
+                  className={idx === moveDialogBreadcrumb.length - 1 ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}
+                  onClick={() => {
+                    setMoveDialogFolder(item.id);
+                    setMoveDialogBreadcrumb(prev => prev.slice(0, idx + 1));
+                  }}
+                >
+                  {idx === 0 ? <span className="flex items-center gap-1"><Home className="w-3 h-3" /> Racine</span> : item.name}
+                </button>
+              </span>
+            ))}
+          </nav>
+          {/* Folder list */}
+          <div className="border rounded-md min-h-[120px] max-h-[240px] overflow-y-auto divide-y">
+            {moveDialogFolders.length === 0 ? (
+              <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">Aucun sous-dossier</div>
+            ) : (
+              moveDialogFolders
+                .filter(f => f.id !== movingEntry?.id)
+                .map(f => (
+                  <button
+                    key={f.id}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-muted/50 text-left"
+                    onClick={() => {
+                      setMoveDialogFolder(f.id);
+                      setMoveDialogBreadcrumb(prev => [...prev, { id: f.id, name: f.name }]);
+                    }}
+                    data-testid={`move-folder-item-${f.id}`}
+                  >
+                    <FolderOpen className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                    <span className="truncate">{f.name}</span>
+                    <ChevronRight className="w-3 h-3 ml-auto text-muted-foreground flex-shrink-0" />
+                  </button>
+                ))
+            )}
+          </div>
+          <DialogFooter className="gap-2 mt-2">
+            <Button variant="outline" size="sm" onClick={() => setMovingEntry(null)}>Annuler</Button>
+            <Button
+              size="sm"
+              disabled={moveFolderMutation.isPending || moveFileMutation.isPending}
+              onClick={() => {
+                if (!movingEntry) return;
+                const targetFolderId = moveDialogFolder;
+                if (movingEntry.kind === "folder") {
+                  moveFolderMutation.mutate({ id: movingEntry.id, parentId: targetFolderId }, {
+                    onSuccess: () => { setMovingEntry(null); toast({ title: "Dossier déplacé", variant: "success" as any }); },
+                  });
+                } else {
+                  moveFileMutation.mutate({ id: movingEntry.id, folderId: targetFolderId }, {
+                    onSuccess: () => { setMovingEntry(null); toast({ title: "Fichier déplacé", variant: "success" as any }); },
+                  });
+                }
+              }}
+              data-testid="button-move-confirm"
+            >
+              {(moveFolderMutation.isPending || moveFileMutation.isPending) && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Déplacer ici
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* File preview dialog — images & PDFs */}
       <Dialog open={previewFile !== null} onOpenChange={open => !open && setPreviewFile(null)}>
         <DialogContent className="max-w-4xl w-full p-0 overflow-hidden" data-testid="dialog-file-preview">
@@ -1164,6 +1260,7 @@ interface ExplorerItemProps {
   onRename: () => void;
   onDelete: () => void;
   onDuplicate?: () => void;
+  onMove?: () => void;
   canEdit?: boolean;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnter?: (e: React.DragEvent) => void;
@@ -1195,7 +1292,7 @@ function kindIcon(kind: string, mimeType?: string | null): { icon: React.ReactNo
 
 function ExplorerItem({
   id, kind, name, mimeType, isSelected, isDragOver, folderStats, onHoverEnter,
-  onSingleClick, onDoubleClick, onRename, onDelete, onDuplicate, canEdit = true,
+  onSingleClick, onDoubleClick, onRename, onDelete, onDuplicate, onMove, canEdit = true,
   onDragStart, onDragEnter, onDragOver, onDragLeave, onDrop, onDragEnd, onDownload,
 }: ExplorerItemProps) {
   const isFolder = kind === "folder";
@@ -1270,6 +1367,12 @@ function ExplorerItem({
                   <DropdownMenuItem onClick={e => { e.stopPropagation(); onDuplicate(); }} data-testid={`menu-duplicate-${id}`}>
                     <Copy className="w-3.5 h-3.5" />
                     Dupliquer
+                  </DropdownMenuItem>
+                )}
+                {onMove && (
+                  <DropdownMenuItem onClick={e => { e.stopPropagation(); onMove(); }} data-testid={`menu-move-${id}`}>
+                    <FolderInput className="w-3.5 h-3.5" />
+                    Déplacer vers
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />

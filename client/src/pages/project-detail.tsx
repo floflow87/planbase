@@ -4171,12 +4171,8 @@ export default function ProjectDetail() {
                 {projectNotes.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="documents" className="gap-1.5 text-xs h-[42px] px-3">
-              <FileText className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Documents</span>
-              <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="documents-count">
-                {projectDocuments.length}
-              </Badge>
+            <TabsTrigger value="documents" className="hidden">
+              Documents
             </TabsTrigger>
             <TabsTrigger value="fichiers" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-fichiers">
               <FolderOpen className="h-3.5 w-3.5" />
