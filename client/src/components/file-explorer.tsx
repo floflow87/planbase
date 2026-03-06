@@ -107,6 +107,10 @@ function buildFolderQK(parentId: string | null, clientId?: string, projectId?: s
 function buildFileQK(folderId: string | null, clientId?: string, projectId?: string) {
   return ["/api/files", { folderId, clientId, projectId }];
 }
+// All-folder key: used to index ALL note_ref/doc_internal regardless of which folder they're in
+function buildAllLinkedFilesQK(clientId?: string, projectId?: string) {
+  return ["/api/files", { allFolders: true, clientId, projectId }];
+}
 
 function FilledFolderIcon({ className }: { className?: string }) {
   return (
@@ -212,6 +216,18 @@ export function FileExplorer({ clientId, projectId }: Props) {
     queryKey: ["/api/documents"],
     queryFn: () => apiRequest("/api/documents", "GET").then(r => r.json()),
     enabled: isAtRoot,
+  });
+
+  // Global index of ALL note_refs/doc_internals across ALL folders — needed to correctly hide
+  // virtual notes that have already been filed into a subfolder, and to PATCH instead of INSERT on re-move.
+  const { data: allLinkedFiles = [] } = useQuery<any[]>({
+    queryKey: buildAllLinkedFilesQK(clientId, projectId),
+    queryFn: () => {
+      const p = new URLSearchParams();
+      if (clientId) p.set("clientId", clientId);
+      if (projectId) p.set("projectId", projectId);
+      return apiRequest(`/api/files?${p}`, "GET").then(r => r.json());
+    },
   });
 
   const isLoading = foldersLoading || filesLoading;
@@ -333,15 +349,23 @@ export function FileExplorer({ clientId, projectId }: Props) {
     },
   });
 
-  // Creates a file_ref / doc_internal entry to "move" a virtual note or document into a folder
+  // Creates a file_ref / doc_internal entry to "move" a virtual note or document into a folder.
+  // If a ref already exists for this entityId (in any folder), PATCH it instead of creating a duplicate.
   const linkEntryToFolderMutation = useMutation({
-    mutationFn: ({ entry, folderId }: { entry: ExplorerEntry; folderId: string }) =>
-      apiRequest("/api/files", "POST", {
-        kind: entry.kind === "note" ? "note_ref" : "doc_internal",
-        entityId: entry.entityId || entry.id,
+    mutationFn: ({ entry, folderId }: { entry: ExplorerEntry; folderId: string }) => {
+      const entityId = entry.entityId || entry.id;
+      const kind = entry.kind === "note" ? "note_ref" : "doc_internal";
+      const existing = allLinkedFiles.find((f: any) => f.entityId === entityId && f.kind === kind);
+      if (existing) {
+        return apiRequest(`/api/files/${existing.id}`, "PATCH", { folderId });
+      }
+      return apiRequest("/api/files", "POST", {
+        kind,
+        entityId,
         folderId,
         name: entry.name,
-      }),
+      });
+    },
     onMutate: async ({ entry }) => {
       const entityId = entry.entityId || entry.id;
       setPendingLinkedEntityIds(prev => new Set([...prev, entityId]));
@@ -443,8 +467,9 @@ export function FileExplorer({ clientId, projectId }: Props) {
   };
 
   // ---------- Computed entries ----------
-  const indexedNoteIds = useMemo(() => new Set(files.filter(f => f.kind === "note_ref" && f.entityId).map(f => f.entityId!)), [files]);
-  const indexedDocIds = useMemo(() => new Set(files.filter(f => f.kind === "doc_internal" && f.entityId).map(f => f.entityId!)), [files]);
+  // Use allLinkedFiles (cross-folder scan) so notes/docs filed in ANY subfolder are hidden from root
+  const indexedNoteIds = useMemo(() => new Set(allLinkedFiles.filter((f: any) => f.kind === "note_ref" && f.entityId).map((f: any) => f.entityId!)), [allLinkedFiles]);
+  const indexedDocIds = useMemo(() => new Set(allLinkedFiles.filter((f: any) => f.kind === "doc_internal" && f.entityId).map((f: any) => f.entityId!)), [allLinkedFiles]);
 
   const entries: ExplorerEntry[] = useMemo(() => {
     const result: ExplorerEntry[] = [];

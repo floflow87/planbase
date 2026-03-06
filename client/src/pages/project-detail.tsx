@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation, useSearch } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell, Settings, FolderOpen } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell, Settings, FolderOpen, Upload, X, Download, Pencil, Image } from "lucide-react";
 import { FileExplorer } from "@/components/file-explorer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +38,7 @@ import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { PostCreationSuggestions } from "@/components/PostCreationSuggestions";
 import { CdcWizard } from "@/components/cdc/CdcWizard";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 
 import { getBillingStatusColorClass } from "@shared/config";
 import { useProjectStagesUI } from "@/hooks/useProjectStagesUI";
@@ -2844,6 +2845,13 @@ export default function ProjectDetail() {
   });
   const [isActivityDatePickerOpen, setIsActivityDatePickerOpen] = useState(false);
   const [activitiesDisplayCount, setActivitiesDisplayCount] = useState(5);
+
+  // Project document import state
+  const projectImportRef = useRef<HTMLInputElement>(null);
+  const [uploadingProjectFiles, setUploadingProjectFiles] = useState(false);
+  const [previewProjectFile, setPreviewProjectFile] = useState<{ name: string; url: string; mimeType: string } | null>(null);
+  const [renamingProjectFileId, setRenamingProjectFileId] = useState<string | null>(null);
+  const [renameProjectFileName, setRenameProjectFileName] = useState("");
   
   // Tab state for controlled navigation
   const [activeTab, setActiveTab] = useState("overview");
@@ -2917,6 +2925,75 @@ export default function ProjectDetail() {
     queryKey: ['/api/projects', id, 'documents'],
     enabled: !!id,
   });
+
+  // Fetch uploaded files linked to this project (kind=upload)
+  const projectUploadFilesQK = ['/api/files', id, 'uploads'] as const;
+  const { data: projectUploadFiles = [] } = useQuery<any[]>({
+    queryKey: projectUploadFilesQK,
+    queryFn: async () => {
+      const res = await apiRequest(`/api/files?projectId=${id}&kind=upload`, "GET");
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!id,
+  });
+
+  const deleteProjectFileMutation = useMutation({
+    mutationFn: (fileId: string) => apiRequest(`/api/files/${fileId}`, "DELETE"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: projectUploadFilesQK });
+      toast({ title: "Fichier supprimé", variant: "success" });
+    },
+    onError: () => toast({ title: "Erreur", description: "Impossible de supprimer le fichier", variant: "destructive" }),
+  });
+
+  const renameProjectFileMutation = useMutation({
+    mutationFn: ({ id: fileId, name }: { id: string; name: string }) => apiRequest(`/api/files/${fileId}`, "PATCH", { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: projectUploadFilesQK });
+      setRenamingProjectFileId(null);
+      toast({ title: "Renommé", variant: "success" });
+    },
+    onError: () => toast({ title: "Erreur", description: "Impossible de renommer", variant: "destructive" }),
+  });
+
+  const handleProjectFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+    setUploadingProjectFiles(true);
+    let ok = 0; let ko = 0;
+    for (const file of Array.from(fileList)) {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        if (id) formData.append("projectId", id);
+        if (project?.clientId) formData.append("clientId", project.clientId);
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || "";
+        const res = await fetch("/api/files/upload", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData });
+        if (!res.ok) throw new Error(await res.text());
+        ok++;
+      } catch { ko++; }
+    }
+    setUploadingProjectFiles(false);
+    queryClient.invalidateQueries({ queryKey: projectUploadFilesQK });
+    if (e.target) e.target.value = "";
+    if (ok > 0) toast({ title: `${ok} fichier${ok > 1 ? "s" : ""} importé${ok > 1 ? "s" : ""}`, variant: "success" });
+    if (ko > 0) toast({ title: "Erreur", description: `${ko} fichier(s) n'ont pas pu être importés`, variant: "destructive" });
+  };
+
+  const handleOpenProjectFilePreview = async (file: any) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch(`/api/files/${file.id}/download-url`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error("Impossible d'obtenir l'URL");
+      const { url } = await res.json();
+      setPreviewProjectFile({ name: file.name, url, mimeType: file.mimeType || "" });
+    } catch {
+      toast({ title: "Erreur", description: "Impossible d'ouvrir l'aperçu", variant: "destructive" });
+    }
+  };
 
   // Fetch payments for this project (API now returns totals)
   interface PaymentsResponse {
@@ -4463,7 +4540,26 @@ export default function ProjectDetail() {
           <TabsContent value="documents" className="mt-0">
             <Card>
               <CardContent className="pt-6">
-                <div className="flex justify-end mb-4">
+                <div className="flex justify-end gap-2 mb-4">
+                  <input
+                    ref={projectImportRef}
+                    type="file"
+                    className="hidden"
+                    multiple
+                    accept="*/*"
+                    onChange={handleProjectFileUpload}
+                    data-testid="input-import-project-file"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => projectImportRef.current?.click()}
+                    disabled={uploadingProjectFiles}
+                    data-testid="button-import-project-file"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {uploadingProjectFiles ? "Import en cours..." : "Importer"}
+                  </Button>
                   <Button 
                     size="sm" 
                     onClick={() => createDocumentMutation.mutate()}
@@ -4474,45 +4570,139 @@ export default function ProjectDetail() {
                     {createDocumentMutation.isPending ? "Création..." : "Créer un document"}
                   </Button>
                 </div>
-                {projectDocuments.length === 0 ? (
+                {projectDocuments.length === 0 && projectUploadFiles.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground text-[12px]">
                     Aucun document lié à ce projet.
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {projectDocuments.map((document) => (
-                      <Link key={document.id} href={`/documents/${document.id}`}>
-                        <div className="p-4 border rounded-md hover-elevate cursor-pointer" data-testid={`document-${document.id}`}>
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1">
-                              <h4 className="text-sm font-medium mb-1" data-testid={`title-document-${document.id}`}>
-                                {document.name || "Sans titre"}
-                              </h4>
-                              <div className="flex items-center gap-2 mt-2">
-                                <Badge 
-                                  variant={document.status === "draft" ? "outline" : "default"}
-                                  className={document.status === "draft" ? "text-muted-foreground" : "bg-green-600 dark:bg-green-700 text-white"}
-                                  data-testid={`status-${document.id}`}
-                                >
-                                  {document.status === "draft" ? "Brouillon" : 
-                                   document.status === "published" ? "Publié" : "Archivé"}
-                                </Badge>
-                                {document.updatedAt && (
-                                  <span className="text-[11px] text-muted-foreground">
-                                    Modifié {format(new Date(document.updatedAt), "dd MMM yyyy", { locale: fr })}
-                                  </span>
-                                )}
+                  <div className="space-y-4">
+                    {projectDocuments.length > 0 && (
+                      <div className="space-y-2">
+                        {projectDocuments.map((document) => (
+                          <Link key={document.id} href={`/documents/${document.id}`}>
+                            <div className="p-4 border rounded-md hover-elevate cursor-pointer" data-testid={`document-${document.id}`}>
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1">
+                                  <h4 className="text-sm font-medium mb-1" data-testid={`title-document-${document.id}`}>
+                                    {document.name || "Sans titre"}
+                                  </h4>
+                                  <div className="flex items-center gap-2 mt-2">
+                                    <Badge 
+                                      variant={document.status === "draft" ? "outline" : "default"}
+                                      className={document.status === "draft" ? "text-muted-foreground" : "bg-green-600 dark:bg-green-700 text-white"}
+                                      data-testid={`status-${document.id}`}
+                                    >
+                                      {document.status === "draft" ? "Brouillon" : 
+                                       document.status === "published" ? "Publié" : "Archivé"}
+                                    </Badge>
+                                    {document.updatedAt && (
+                                      <span className="text-[11px] text-muted-foreground">
+                                        Modifié {format(new Date(document.updatedAt), "dd MMM yyyy", { locale: fr })}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                    {projectUploadFiles.length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground font-medium mb-2">Fichiers importés</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                          {projectUploadFiles.map((f: any) => {
+                            const isImage = f.mimeType && f.mimeType.startsWith("image/");
+                            return (
+                              <div
+                                key={f.id}
+                                className="group relative border rounded-md p-3 bg-muted/30 hover-elevate cursor-pointer flex flex-col gap-2"
+                                onClick={() => handleOpenProjectFilePreview(f)}
+                                data-testid={`project-upload-file-${f.id}`}
+                              >
+                                <div className="flex items-center justify-center h-12">
+                                  {isImage ? (
+                                    <Image className="h-8 w-8 text-muted-foreground" />
+                                  ) : (
+                                    <File className="h-8 w-8 text-muted-foreground" />
+                                  )}
+                                </div>
+                                {renamingProjectFileId === f.id ? (
+                                  <Input
+                                    value={renameProjectFileName}
+                                    onChange={e => setRenameProjectFileName(e.target.value)}
+                                    onClick={e => e.stopPropagation()}
+                                    onKeyDown={e => {
+                                      e.stopPropagation();
+                                      if (e.key === "Enter") renameProjectFileMutation.mutate({ id: f.id, name: renameProjectFileName });
+                                      if (e.key === "Escape") setRenamingProjectFileId(null);
+                                    }}
+                                    autoFocus
+                                    className="text-xs h-6 px-1"
+                                    data-testid={`input-rename-project-file-${f.id}`}
+                                  />
+                                ) : (
+                                  <p className="text-xs text-center truncate leading-tight">{f.name}</p>
+                                )}
+                                <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6"
+                                    onClick={e => { e.stopPropagation(); setRenamingProjectFileId(f.id); setRenameProjectFileName(f.name); }}
+                                    data-testid={`button-rename-project-file-${f.id}`}
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6"
+                                    onClick={e => { e.stopPropagation(); deleteProjectFileMutation.mutate(f.id); }}
+                                    data-testid={`button-delete-project-file-${f.id}`}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      </Link>
-                    ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Preview modal for project uploaded files */}
+          <Dialog open={!!previewProjectFile} onOpenChange={open => !open && setPreviewProjectFile(null)}>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>{previewProjectFile?.name}</DialogTitle>
+              </DialogHeader>
+              <div className="flex items-center justify-center min-h-[300px] bg-muted/30 rounded-md overflow-hidden">
+                {previewProjectFile?.mimeType?.startsWith("image/") ? (
+                  <img src={previewProjectFile.url} alt={previewProjectFile.name} className="max-w-full max-h-[70vh] object-contain" />
+                ) : previewProjectFile?.mimeType === "application/pdf" ? (
+                  <iframe src={previewProjectFile.url} className="w-full h-[70vh] border-0" title={previewProjectFile.name} />
+                ) : (
+                  <div className="text-center space-y-3 p-8">
+                    <File className="h-12 w-12 text-muted-foreground mx-auto" />
+                    <p className="text-sm text-muted-foreground">Aperçu non disponible pour ce type de fichier.</p>
+                    <Button size="sm" asChild>
+                      <a href={previewProjectFile?.url} download={previewProjectFile?.name} target="_blank" rel="noreferrer">
+                        <Download className="h-4 w-4 mr-2" />
+                        Télécharger
+                      </a>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
 
           <TabsContent value="fichiers" className="mt-0 h-[600px] flex flex-col">
             <FileExplorer projectId={id} />

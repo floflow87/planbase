@@ -4833,11 +4833,12 @@ app.get("/config/feature-flags", async (_req, res) => {
   // ============================================
   app.get("/api/files", requireAuth, requireOrgMember, requirePermission("documents", "read", "documents.files"), async (req, res) => {
     try {
-      const { folderId, clientId, projectId, kind } = req.query as Record<string, string | undefined>;
-      const opts: { folderId?: string | null; clientId?: string; projectId?: string; kind?: string } = {};
+      const { folderId, clientId, projectId, taskId, kind } = req.query as Record<string, string | undefined>;
+      const opts: { folderId?: string | null; clientId?: string; projectId?: string; taskId?: string; kind?: string } = {};
       if ("folderId" in req.query) opts.folderId = folderId || null;
       if (clientId) opts.clientId = clientId;
       if (projectId) opts.projectId = projectId;
+      if (taskId) opts.taskId = taskId;
       if (kind) opts.kind = kind;
       const result = await storage.getFilesByAccountId(req.accountId!, opts);
       res.json(result);
@@ -4994,6 +4995,7 @@ app.get("/config/feature-flags", async (_req, res) => {
         entityId: null,
         clientId: req.body.clientId || null,
         projectId: req.body.projectId || null,
+        taskId: req.body.taskId || null,
         storageUrl: storagePath,
         mimeType: file.mimetype,
         fileSize: file.size,

@@ -3,11 +3,13 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { 
   X, Layers, BookOpen, ListTodo, Flag, User, Calendar,
-  Pencil, Trash2, Clock, Check, Tag, Link2, ChevronDown, MessageSquare, History, Send, FileText, Plus, ChevronsUpDown, ClipboardList, FlaskConical, ExternalLink, Wrench, ArrowRight
+  Pencil, Trash2, Clock, Check, Tag, Link2, ChevronDown, MessageSquare, History, Send, FileText, Plus, ChevronsUpDown, ClipboardList, FlaskConical, ExternalLink, Wrench, ArrowRight, Upload, Image, File, Download, Paperclip
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -154,10 +156,18 @@ export function TicketDetailPanel({
   currentUserId,
   ticketViewSettings,
 }: TicketDetailPanelProps) {
+  const { toast } = useToast();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(ticket?.title || "");
   const [editedDescription, setEditedDescription] = useState(ticket?.description || "");
   const [newComment, setNewComment] = useState("");
+
+  // Ticket file attachments state
+  const ticketFileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingTicketFiles, setUploadingTicketFiles] = useState(false);
+  const [previewTicketFile, setPreviewTicketFile] = useState<{ name: string; url: string; mimeType: string } | null>(null);
+  const [renamingTicketFileId, setRenamingTicketFileId] = useState<string | null>(null);
+  const [renameTicketFileName, setRenameTicketFileName] = useState("");
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editedCommentContent, setEditedCommentContent] = useState("");
   
@@ -287,6 +297,75 @@ export function TicketDetailPanel({
       queryClient.invalidateQueries({ queryKey: acceptanceCriteriaQueryKey });
     },
   });
+
+  // Ticket file attachments query & mutations
+  const ticketFilesQK = ["/api/files", ticketId ?? "", "attachments"] as const;
+  const { data: ticketFiles = [] } = useQuery<any[]>({
+    queryKey: ticketFilesQK,
+    queryFn: async () => {
+      if (!ticketId) return [];
+      const res = await apiRequest(`/api/files?taskId=${ticketId}&kind=upload`, "GET");
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!ticketId,
+  });
+
+  const deleteTicketFileMutation = useMutation({
+    mutationFn: (fileId: string) => apiRequest(`/api/files/${fileId}`, "DELETE"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ticketFilesQK });
+      toast({ title: "Fichier supprimé", variant: "success" });
+    },
+    onError: () => toast({ title: "Erreur", description: "Impossible de supprimer le fichier", variant: "destructive" }),
+  });
+
+  const renameTicketFileMutation = useMutation({
+    mutationFn: ({ id: fileId, name }: { id: string; name: string }) => apiRequest(`/api/files/${fileId}`, "PATCH", { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ticketFilesQK });
+      setRenamingTicketFileId(null);
+      toast({ title: "Renommé", variant: "success" });
+    },
+    onError: () => toast({ title: "Erreur", description: "Impossible de renommer", variant: "destructive" }),
+  });
+
+  const handleTicketFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0 || !ticketId) return;
+    setUploadingTicketFiles(true);
+    let ok = 0; let ko = 0;
+    for (const file of Array.from(fileList)) {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("taskId", ticketId);
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || "";
+        const res = await fetch("/api/files/upload", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData });
+        if (!res.ok) throw new Error(await res.text());
+        ok++;
+      } catch { ko++; }
+    }
+    setUploadingTicketFiles(false);
+    queryClient.invalidateQueries({ queryKey: ticketFilesQK });
+    if (e.target) e.target.value = "";
+    if (ok > 0) toast({ title: `${ok} fichier${ok > 1 ? "s" : ""} joint${ok > 1 ? "s" : ""}`, variant: "success" });
+    if (ko > 0) toast({ title: "Erreur", description: `${ko} fichier(s) n'ont pas pu être joints`, variant: "destructive" });
+  };
+
+  const handleOpenTicketFilePreview = async (file: any) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch(`/api/files/${file.id}/download-url`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error("Impossible d'obtenir l'URL");
+      const { url } = await res.json();
+      setPreviewTicketFile({ name: file.name, url, mimeType: file.mimeType || "" });
+    } catch {
+      toast({ title: "Erreur", description: "Impossible d'ouvrir l'aperçu", variant: "destructive" });
+    }
+  };
 
   // Helper: check if a field is hidden by ticketViewSettings
   // Default: new fields are hidden unless settings explicitly shows them
@@ -1117,6 +1196,130 @@ export function TicketDetailPanel({
             ) : null}
           </div>
           
+          {/* Ticket File Attachments Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground flex items-center gap-2">
+                <Paperclip className="h-3 w-3" />
+                Fichiers liés ({ticketFiles.length})
+              </Label>
+              {!readOnly && (
+                <>
+                  <input
+                    ref={ticketFileInputRef}
+                    type="file"
+                    className="hidden"
+                    multiple
+                    accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip"
+                    onChange={handleTicketFileUpload}
+                    data-testid="input-ticket-file-upload"
+                  />
+                  <Button
+                    size="icon"
+                    className="h-6 w-6 bg-primary hover:bg-primary/90"
+                    onClick={() => ticketFileInputRef.current?.click()}
+                    disabled={uploadingTicketFiles}
+                    data-testid="button-add-ticket-file"
+                  >
+                    {uploadingTicketFiles ? (
+                      <span className="h-3 w-3 animate-spin border border-white border-t-transparent rounded-full" />
+                    ) : (
+                      <Plus className="h-4 w-4 text-white" />
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
+            {ticketFiles.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {ticketFiles.map((f: any) => {
+                  const isImage = f.mimeType && f.mimeType.startsWith("image/");
+                  return (
+                    <div
+                      key={f.id}
+                      className="group relative border rounded-md p-2 bg-muted/30 hover-elevate cursor-pointer flex flex-col gap-1"
+                      onClick={() => handleOpenTicketFilePreview(f)}
+                      data-testid={`ticket-file-${f.id}`}
+                    >
+                      <div className="flex items-center justify-center h-10">
+                        {isImage ? (
+                          <Image className="h-6 w-6 text-muted-foreground" />
+                        ) : (
+                          <File className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </div>
+                      {renamingTicketFileId === f.id ? (
+                        <input
+                          value={renameTicketFileName}
+                          onChange={e => setRenameTicketFileName(e.target.value)}
+                          onClick={e => e.stopPropagation()}
+                          onKeyDown={e => {
+                            e.stopPropagation();
+                            if (e.key === "Enter") renameTicketFileMutation.mutate({ id: f.id, name: renameTicketFileName });
+                            if (e.key === "Escape") setRenamingTicketFileId(null);
+                          }}
+                          autoFocus
+                          className="text-[10px] w-full bg-background border rounded px-1 py-0.5"
+                          data-testid={`input-rename-ticket-file-${f.id}`}
+                        />
+                      ) : (
+                        <p className="text-[10px] text-center truncate leading-tight">{f.name}</p>
+                      )}
+                      <div className="absolute top-0.5 right-0.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-5 w-5"
+                          onClick={e => { e.stopPropagation(); setRenamingTicketFileId(f.id); setRenameTicketFileName(f.name); }}
+                          data-testid={`button-rename-ticket-file-${f.id}`}
+                        >
+                          <Pencil className="h-2.5 w-2.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-5 w-5"
+                          onClick={e => { e.stopPropagation(); deleteTicketFileMutation.mutate(f.id); }}
+                          data-testid={`button-delete-ticket-file-${f.id}`}
+                        >
+                          <Trash2 className="h-2.5 w-2.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Preview modal for ticket files */}
+          <Dialog open={!!previewTicketFile} onOpenChange={open => !open && setPreviewTicketFile(null)}>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>{previewTicketFile?.name}</DialogTitle>
+                <DialogDescription />
+              </DialogHeader>
+              <div className="flex items-center justify-center min-h-[300px] bg-muted/30 rounded-md overflow-hidden">
+                {previewTicketFile?.mimeType?.startsWith("image/") ? (
+                  <img src={previewTicketFile.url} alt={previewTicketFile.name} className="max-w-full max-h-[65vh] object-contain" />
+                ) : previewTicketFile?.mimeType === "application/pdf" ? (
+                  <iframe src={previewTicketFile.url} className="w-full h-[65vh] border-0" title={previewTicketFile.name} />
+                ) : (
+                  <div className="text-center space-y-3 p-8">
+                    <File className="h-12 w-12 text-muted-foreground mx-auto" />
+                    <p className="text-sm text-muted-foreground">Aperçu non disponible pour ce type de fichier.</p>
+                    <Button size="sm" asChild>
+                      <a href={previewTicketFile?.url} download={previewTicketFile?.name} target="_blank" rel="noreferrer">
+                        <Download className="h-4 w-4 mr-2" />
+                        Télécharger
+                      </a>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+
           {/* Acceptance Criteria Section */}
           {ticket && (ticket.type === "user_story" || ticket.type === "task" || ticket.type === "bug") && (
             <>

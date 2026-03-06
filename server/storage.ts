@@ -1483,10 +1483,11 @@ export class DatabaseStorage implements IStorage {
     return file || undefined;
   }
 
-  async getFilesByAccountId(accountId: string, opts?: { folderId?: string | null; clientId?: string; projectId?: string; kind?: string }): Promise<File[]> {
+  async getFilesByAccountId(accountId: string, opts?: { folderId?: string | null; clientId?: string; projectId?: string; taskId?: string; kind?: string }): Promise<File[]> {
     const conditions = [eq(files.accountId, accountId), isNull(files.deletedAt)];
     if (opts?.clientId) conditions.push(eq(files.clientId, opts.clientId));
     if (opts?.projectId) conditions.push(eq(files.projectId, opts.projectId));
+    if (opts?.taskId) conditions.push(eq(files.taskId, opts.taskId));
     if (opts?.kind) conditions.push(eq(files.kind, opts.kind));
     if (opts && "folderId" in opts) {
       conditions.push(opts.folderId === null ? isNull(files.folderId) : eq(files.folderId, opts.folderId!));
