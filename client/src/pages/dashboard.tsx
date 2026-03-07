@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetDescription } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -602,6 +603,7 @@ export default function Dashboard() {
     localStorage.setItem("dashboard_my_day_filter", myDayFilter);
   }, [myDayFilter]);
   const [openStatusPopover, setOpenStatusPopover] = useState<string | null>(null);
+  const isMobile = useIsMobile();
   const [showTaskReminder, setShowTaskReminder] = useState(false);
   const [isPriorityActionDismissed, setIsPriorityActionDismissed] = useState(() => {
     return sessionStorage.getItem('priorityActionDismissed') === 'true';
@@ -2857,9 +2859,46 @@ export default function Dashboard() {
         onDelete={handleTaskDelete}
       />
       
-      {/* Task Reminder Dialog */}
-      <Dialog open={showTaskReminder} onOpenChange={setShowTaskReminder}>
-        <DialogContent className="w-[92vw] max-w-md overflow-hidden flex flex-col left-[50%] top-[50%] -translate-x-1/2 -translate-y-1/2 max-sm:w-full max-sm:h-full max-sm:max-w-full max-sm:max-h-full max-sm:rounded-none max-sm:top-0 max-sm:left-0 max-sm:translate-x-0 max-sm:translate-y-0">
+      {/* Task Reminder — full-screen Sheet on mobile, centered Dialog on desktop */}
+      {isMobile ? (
+        <Sheet open={showTaskReminder} onOpenChange={setShowTaskReminder}>
+          <SheetContent side="bottom" className="h-full flex flex-col rounded-none px-4 pt-6 pb-4">
+            <SheetHeader className="mb-4">
+              <SheetTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                Tâches à traiter aujourd'hui
+              </SheetTitle>
+              <SheetDescription>
+                Vous avez des tâches urgentes ou en retard qui nécessitent votre attention.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="flex-1 space-y-3 overflow-y-auto">
+              {[...overdueTasks, ...todaysTasks].slice(0, 5).map((task) => {
+                const project = projects?.find(p => p.id === task.projectId);
+                const isOverdue = task.dueDate && normalizeToLocalDate(task.dueDate) < todayStr;
+                return (
+                  <div key={task.id} className={`p-3 rounded-md border ${isOverdue ? 'border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800' : 'border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800'}`}>
+                    <p className="text-sm font-medium">{task.title}</p>
+                    {project && <p className="text-xs text-muted-foreground mt-1">{project.name}</p>}
+                    <Badge variant="outline" className={`mt-2 text-xs ${isOverdue ? 'border-red-500 text-red-600' : 'border-amber-500 text-amber-600'}`}>
+                      {isOverdue ? 'En retard' : "Aujourd'hui"}
+                    </Badge>
+                  </div>
+                );
+              })}
+              {[...overdueTasks, ...todaysTasks].length > 5 && (
+                <p className="text-xs text-muted-foreground text-center">Et {[...overdueTasks, ...todaysTasks].length - 5} autre(s) tâche(s)...</p>
+              )}
+            </div>
+            <SheetFooter className="flex-col gap-2 mt-4">
+              <Button className="w-full" onClick={() => { setShowTaskReminder(false); setLocation("/tasks"); }}>Voir mes tâches</Button>
+              <Button variant="outline" className="w-full" onClick={() => setShowTaskReminder(false)}>Fermer</Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <Dialog open={showTaskReminder} onOpenChange={setShowTaskReminder}>
+        <DialogContent className="w-[92vw] max-w-md overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
@@ -2870,49 +2909,30 @@ export default function Dashboard() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 max-h-[300px] overflow-y-auto">
-            {(() => {
-              const urgentTasks = [...overdueTasks, ...todaysTasks].slice(0, 5);
-              return urgentTasks.map((task) => {
-                const project = projects?.find(p => p.id === task.projectId);
-                const isOverdue = task.dueDate && normalizeToLocalDate(task.dueDate) < todayStr;
-                return (
-                  <div
-                    key={task.id}
-                    className={`p-3 rounded-md border ${isOverdue ? 'border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800' : 'border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800'}`}
-                  >
-                    <p className="text-sm font-medium">{task.title}</p>
-                    {project && (
-                      <p className="text-xs text-muted-foreground mt-1">{project.name}</p>
-                    )}
-                    <Badge 
-                      variant="outline" 
-                      className={`mt-2 text-xs ${isOverdue ? 'border-red-500 text-red-600' : 'border-amber-500 text-amber-600'}`}
-                    >
-                      {isOverdue ? 'En retard' : "Aujourd'hui"}
-                    </Badge>
-                  </div>
-                );
-              });
-            })()}
+            {[...overdueTasks, ...todaysTasks].slice(0, 5).map((task) => {
+              const project = projects?.find(p => p.id === task.projectId);
+              const isOverdue = task.dueDate && normalizeToLocalDate(task.dueDate) < todayStr;
+              return (
+                <div key={task.id} className={`p-3 rounded-md border ${isOverdue ? 'border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800' : 'border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800'}`}>
+                  <p className="text-sm font-medium">{task.title}</p>
+                  {project && <p className="text-xs text-muted-foreground mt-1">{project.name}</p>}
+                  <Badge variant="outline" className={`mt-2 text-xs ${isOverdue ? 'border-red-500 text-red-600' : 'border-amber-500 text-amber-600'}`}>
+                    {isOverdue ? 'En retard' : "Aujourd'hui"}
+                  </Badge>
+                </div>
+              );
+            })}
             {[...overdueTasks, ...todaysTasks].length > 5 && (
-              <p className="text-xs text-muted-foreground text-center">
-                Et {[...overdueTasks, ...todaysTasks].length - 5} autre(s) tâche(s)...
-              </p>
+              <p className="text-xs text-muted-foreground text-center">Et {[...overdueTasks, ...todaysTasks].length - 5} autre(s) tâche(s)...</p>
             )}
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setShowTaskReminder(false)}>
-              Fermer
-            </Button>
-            <Button onClick={() => {
-              setShowTaskReminder(false);
-              setLocation("/tasks");
-            }}>
-              Voir mes tâches
-            </Button>
+            <Button variant="outline" onClick={() => setShowTaskReminder(false)}>Fermer</Button>
+            <Button onClick={() => { setShowTaskReminder(false); setLocation("/tasks"); }}>Voir mes tâches</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
@@ -1258,6 +1258,7 @@ function AppLayout() {
         <div className="flex flex-col flex-1 overflow-hidden bg-card">
           <header className="flex items-center justify-between h-14 px-2 sm:px-4 border-b border-border bg-card shrink-0">
             <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
+              <SidebarTrigger className="md:hidden flex-shrink-0 h-8 w-8" data-testid="button-sidebar-trigger-mobile" />
               <GlobalSearch />
               {/* Tab System */}
               <div className="flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto scrollbar-hide">
