@@ -519,7 +519,7 @@ export default function Product() {
               placeholder="Rechercher un backlog ou sprint..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9"
+              className="pl-9 h-9 placeholder:text-[10px] bg-white dark:bg-background"
               data-testid="input-search-backlogs"
             />
           </div>

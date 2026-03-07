@@ -906,7 +906,7 @@ export default function CRM() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Rechercher un contact..."
-                className="pl-9"
+                className="pl-9 placeholder:text-[10px] bg-white dark:bg-background"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 data-testid="input-search-clients"
@@ -1182,10 +1182,10 @@ export default function CRM() {
                                   </div>
                                 );
                               case "contacts":
-                                return <Badge variant="outline">{clientContacts.length} contact{clientContacts.length > 1 ? 's' : ''}</Badge>;
+                                return <Badge variant="outline" className="text-[10px]">{clientContacts.length} contact{clientContacts.length > 1 ? 's' : ''}</Badge>;
                               case "type":
                                 return (
-                                  <Badge className={getStatusBadgeColor(client.status)}>
+                                  <Badge className={`text-[10px] ${getStatusBadgeColor(client.status)}`}>
                                     {client.status === "prospecting" ? "Prospect" :
                                      client.status === "qualified" ? "Qualifié" :
                                      client.status === "negotiation" ? "Négociation" :

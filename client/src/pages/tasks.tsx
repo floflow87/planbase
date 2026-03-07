@@ -440,6 +440,7 @@ interface SortableTaskCardProps{
   onClick: (task: Task) => void;
   canUpdate?: boolean;
   canDelete?: boolean;
+  columnColor?: string;
 }
 
 function SortableTaskCard({
@@ -453,6 +454,7 @@ function SortableTaskCard({
   onClick,
   canUpdate = true,
   canDelete = true,
+  columnColor,
 }: SortableTaskCardProps) {
   const {
     attributes,
@@ -484,7 +486,10 @@ function SortableTaskCard({
       style={style}
       data-testid={`task-card-${task.id}`}
     >
-      <Card className="hover-elevate active-elevate-2 mb-2">
+      <Card
+        className="hover-elevate active-elevate-2 mb-2"
+        style={columnColor ? { borderLeft: `4px solid ${columnColor}` } : undefined}
+      >
         <CardContent className="p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-start gap-2 flex-1">
@@ -671,6 +676,7 @@ function SortableColumn({
                 onClick={onTaskClick}
                 canUpdate={canUpdate}
                 canDelete={canDelete}
+                columnColor={column.color || undefined}
               />
             ))}
           </SortableContext>
@@ -1670,7 +1676,7 @@ export default function Tasks() {
                 value={taskSearchQuery}
                 onChange={(e) => setTaskSearchQuery(e.target.value)}
                 placeholder="Rechercher une tâche..."
-                className="pl-8 pr-8 text-[12px] bg-white dark:bg-white"
+                className="pl-8 pr-8 text-[12px] placeholder:text-[10px] bg-white dark:bg-background"
                 data-testid="input-task-search"
               />
               {taskSearchQuery && (

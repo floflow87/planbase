@@ -50,7 +50,7 @@ export function VoiceRecordingButton({ onTranscript, onError, className }: Voice
             )}
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="left">
+        <TooltipContent side="left" className="bg-white text-foreground border dark:bg-gray-900">
           <p>{isRecording ? 'Arrêter l\'enregistrement' : 'Démarrer la transcription vocale'}</p>
         </TooltipContent>
       </Tooltip>

@@ -957,7 +957,7 @@ export default function Notes() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Rechercher..."
-                className="pl-9 w-full"
+                className="pl-9 w-full placeholder:text-[10px] bg-white dark:bg-background"
                 data-testid="input-rechercher-mobile"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -992,7 +992,7 @@ export default function Notes() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Rechercher dans les notes..."
-                className="pl-9 w-64"
+                className="pl-9 w-64 placeholder:text-[10px] bg-white dark:bg-background"
                 data-testid="input-rechercher"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}

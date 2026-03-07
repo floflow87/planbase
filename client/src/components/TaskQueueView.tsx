@@ -177,7 +177,7 @@ function CommentItem({
               : ""}
           </span>
           {isAuthor && !isEditing && (
-            <div className="ml-auto flex items-center gap-1 invisible group-hover:visible">
+            <div className="ml-auto flex items-center gap-3">
               <button
                 type="button"
                 className="text-muted-foreground hover:text-foreground transition-colors"
@@ -189,7 +189,7 @@ function CommentItem({
               {onDelete && (
                 <button
                   type="button"
-                  className="text-muted-foreground hover:text-destructive transition-colors"
+                  className="text-destructive hover:text-destructive/80 transition-colors"
                   onClick={() => onDelete(comment.id)}
                   data-testid={`button-delete-comment-${comment.id}`}
                 >
@@ -802,7 +802,8 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
             <Input
               value={localTitle}
               onChange={(e) => handleTitleChange(e.target.value)}
-              className="text-[30px] font-bold border-none shadow-none px-0 h-auto text-foreground focus-visible:ring-0 bg-transparent"
+              className="font-bold border-none shadow-none px-0 h-auto text-foreground focus-visible:ring-0 bg-transparent"
+              style={{ fontSize: "30px", lineHeight: "1.2" }}
               placeholder="Titre de la tâche..."
               data-testid="input-queue-title"
             />

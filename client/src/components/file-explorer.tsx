@@ -908,7 +908,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Rechercher…"
-              className="pl-7 h-7 text-xs"
+              className="pl-7 h-7 text-xs placeholder:text-[10px] bg-white dark:bg-background"
               data-testid="input-search-files"
             />
           </div>

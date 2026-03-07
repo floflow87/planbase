@@ -1,10 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Eye, EyeOff, Trash2, Download, ChevronDown, Save } from "lucide-react";
+import { ArrowLeft, Trash2, Download, Save, Lock, LockOpen, MoreVertical, FolderKanban, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
   Tooltip,
@@ -23,6 +21,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -36,8 +35,9 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandList,
 } from "@/components/ui/command";
-import { Check, ChevronsUpDown, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import NoteEditor from "@/components/NoteEditor";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -47,66 +47,59 @@ import type { Document, Project, NoteLink, UpdateDocument } from "@shared/schema
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
-  // Persist edit mode preference in localStorage
+  const isMobile = useIsMobile();
+
   const [isEditMode, setIsEditMode] = useState(() => {
     const saved = localStorage.getItem("documentEditMode");
-    return saved !== null ? saved === "true" : true; // Default to edit mode
+    return saved !== null ? saved === "true" : true;
   });
-  
-  // Persist edit mode changes
+
   useEffect(() => {
     localStorage.setItem("documentEditMode", String(isEditMode));
   }, [isEditMode]);
+
   const [title, setTitle] = useState("");
   const [content, setContent] = useState<any>({ type: 'doc', content: [] });
   const [status, setStatus] = useState<"draft" | "published">("draft");
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
 
-  // Fetch document
   const { data: document, isLoading } = useQuery<Document>({
     queryKey: ["/api/documents", id],
     enabled: !!id,
   });
 
-  // Fetch projects
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
   });
 
-  // Fetch document links
   const { data: documentLinks = [] } = useQuery<NoteLink[]>({
     queryKey: ["/api/documents", id, "links"],
     enabled: !!id,
   });
 
-  // Find linked project
   const linkedProject = documentLinks.find(link => link.targetType === "project");
   const currentProject = linkedProject ? projects.find(p => p.id === linkedProject.targetId) : null;
 
-  // Initialize form with document data ONLY on first load
   useEffect(() => {
     if (document && !title && !content.content?.length) {
       setTitle(document.name || "");
-      // Parse content if it's a JSON string, otherwise use as-is
       let parsedContent = { type: 'doc', content: [] };
       if (document.content) {
         try {
-          parsedContent = typeof document.content === 'string' 
-            ? JSON.parse(document.content) 
+          parsedContent = typeof document.content === 'string'
+            ? JSON.parse(document.content)
             : document.content;
         } catch (e) {
-          console.error("Failed to parse document content:", e);
           parsedContent = { type: 'doc', content: [] };
         }
       }
@@ -115,11 +108,9 @@ export default function DocumentDetail() {
     }
   }, [document]);
 
-  // Debounced values for autosave
   const debouncedTitle = useDebounce(title, 1000);
   const debouncedContent = useDebounce(content, 1000);
 
-  // Update document mutation
   const updateMutation = useMutation({
     mutationFn: async (data: UpdateDocument) => {
       const response = await apiRequest(`/api/documents/${id}`, "PATCH", data);
@@ -141,41 +132,30 @@ export default function DocumentDetail() {
     },
   });
 
-  // Autosave effect
+  // Autosave — always on
   useEffect(() => {
-    if (!document || !isEditMode || !autoSaveEnabled) return;
-    
+    if (!document || !isEditMode) return;
+
     const titleChanged = debouncedTitle !== document.name;
-    // Normalize both contents to compare - parse document.content if it's a string
-    const normalizedDocContent = typeof document.content === 'string' 
-      ? document.content 
+    const normalizedDocContent = typeof document.content === 'string'
+      ? document.content
       : JSON.stringify(document.content);
-    const normalizedCurrentContent = typeof debouncedContent === 'string' 
-      ? debouncedContent 
+    const normalizedCurrentContent = typeof debouncedContent === 'string'
+      ? debouncedContent
       : JSON.stringify(debouncedContent);
     const contentChanged = normalizedCurrentContent !== normalizedDocContent;
-    const statusChanged = status !== document.status;
-    
-    if (!titleChanged && !contentChanged && !statusChanged) {
-      return;
-    }
+
+    if (!titleChanged && !contentChanged) return;
 
     setIsSaving(true);
 
-    // Extract plain text from content
     const extractPlainText = (content: any): string => {
       if (!content) return "";
-      
       const getText = (node: any): string => {
-        if (node.type === "text") {
-          return node.text || "";
-        }
-        if (node.content && Array.isArray(node.content)) {
-          return node.content.map(getText).join(" ");
-        }
+        if (node.type === "text") return node.text || "";
+        if (node.content && Array.isArray(node.content)) return node.content.map(getText).join(" ");
         return "";
       };
-
       return getText(content);
     };
 
@@ -187,9 +167,8 @@ export default function DocumentDetail() {
       plainText,
       status,
     });
-  }, [debouncedTitle, debouncedContent, status, document, isEditMode, autoSaveEnabled]);
+  }, [debouncedTitle, debouncedContent, document, isEditMode]);
 
-  // Delete mutation with optimistic update
   const deleteDocumentMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest(`/api/documents/${id}`, "DELETE");
@@ -228,22 +207,20 @@ export default function DocumentDetail() {
     }
   }, [deleteDocumentMutation]);
 
-  // Export PDF mutation
   const exportPDFMutation = useMutation({
     mutationFn: async () => {
-      // Use fetch directly to avoid body consumption in apiRequest error handler
       const { supabase } = await import('@/lib/supabase');
       const { data: { session } } = await supabase.auth.getSession();
-      
-      const authHeaders: HeadersInit = session?.access_token 
+
+      const authHeaders: HeadersInit = session?.access_token
         ? { 'Authorization': `Bearer ${session.access_token}` }
-        : import.meta.env.DEV 
+        : import.meta.env.DEV
           ? {
               'x-test-account-id': '67a3cb31-7755-43f2-81e0-4436d5d0684f',
               'x-test-user-id': '9fe4ddc0-6d3f-4d69-9c77-fc9cb2e79c8d',
             }
           : {};
-      
+
       const response = await fetch(`/api/documents/${id}/export-pdf`, {
         method: 'POST',
         headers: {
@@ -252,40 +229,31 @@ export default function DocumentDetail() {
         },
         credentials: 'include',
       });
-      
+
       if (!response.ok) {
         const text = await response.text();
         throw new Error(`${response.status}: ${text}`);
       }
-      
-      // Get filename from Content-Disposition header
+
       const contentDisposition = response.headers.get('content-disposition');
       let fileName = 'document.pdf';
       if (contentDisposition) {
         const match = contentDisposition.match(/filename="(.+)"/);
         if (match) fileName = match[1];
       }
-      
-      // Get PDF blob (MIME type is already set by server)
+
       const blob = await response.blob();
-      console.log('📄 PDF blob received:', blob.size, 'bytes, type:', blob.type);
       return { blob, fileName };
     },
     onSuccess: ({ blob, fileName }: { blob: Blob; fileName: string }) => {
-      console.log('📄 Creating download for:', fileName, ', size:', blob.size);
-      
-      // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = window.document.createElement('a');
       link.href = url;
       link.download = fileName;
-      window.document.body.appendChild(link); // Append to body for Firefox
+      window.document.body.appendChild(link);
       link.click();
-      window.document.body.removeChild(link); // Clean up
-      
-      // Cleanup
+      window.document.body.removeChild(link);
       setTimeout(() => window.URL.revokeObjectURL(url), 100);
-      
       toast({
         title: "PDF exporté",
         description: "Le document a été exporté en PDF avec succès",
@@ -306,7 +274,25 @@ export default function DocumentDetail() {
     exportPDFMutation.mutate();
   }, [id, exportPDFMutation]);
 
-  // Project link mutations
+  const handleManualSave = useCallback(() => {
+    setIsSaving(true);
+    const extractPlainText = (content: any): string => {
+      if (!content) return "";
+      const getText = (node: any): string => {
+        if (node.type === "text") return node.text || "";
+        if (node.content && Array.isArray(node.content)) return node.content.map(getText).join(" ");
+        return "";
+      };
+      return getText(content);
+    };
+    updateMutation.mutate({
+      name: title || "Sans titre",
+      content: typeof content === 'string' ? content : JSON.stringify(content),
+      plainText: extractPlainText(content),
+      status,
+    });
+  }, [title, content, status, updateMutation]);
+
   const linkProjectMutation = useMutation({
     mutationFn: async (projectId: string) => {
       const response = await apiRequest(`/api/documents/${id}/links`, "POST", {
@@ -317,11 +303,6 @@ export default function DocumentDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents", id, "links"] });
-      toast({
-        title: "Projet lié",
-        description: "Le document a été lié au projet avec succès",
-        variant: "success",
-      });
     },
     onError: (error: any) => {
       toast({
@@ -343,11 +324,6 @@ export default function DocumentDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents", id, "links"] });
-      toast({
-        title: "Projet délié",
-        description: "Le document n'est plus lié au projet",
-        variant: "success",
-      });
     },
     onError: (error: any) => {
       toast({
@@ -391,257 +367,213 @@ export default function DocumentDetail() {
     );
   }
 
+  const ActionsDropdown = ({ align = "end" as "end" | "start" }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="icon" data-testid="button-actions-menu">
+          <MoreVertical className="w-4 h-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align={align} className="w-56">
+        <DropdownMenuItem onClick={handleManualSave} data-testid="menu-item-save" className="text-xs">
+          <Save className="w-4 h-4 mr-2 text-green-600" />
+          Enregistrer
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleExportPDF} data-testid="menu-item-export-pdf" className="text-xs" disabled={exportPDFMutation.isPending}>
+          <Download className="w-4 h-4 mr-2 text-blue-600" />
+          {exportPDFMutation.isPending ? "Export en cours..." : "Exporter en PDF"}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={handleDeleteClick}
+          className="text-destructive focus:text-destructive focus:bg-destructive/10 text-xs"
+          data-testid="menu-item-delete"
+        >
+          <Trash2 className="w-4 h-4 mr-2" />
+          Supprimer le document
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => {
+            const newEditMode = !isEditMode;
+            setIsEditMode(newEditMode);
+            if (newEditMode && status === "published") {
+              setStatus("draft");
+              updateMutation.mutate({ status: "draft" });
+            }
+          }}
+          data-testid="menu-item-toggle-edit"
+          className="text-xs"
+        >
+          {isEditMode ? <LockOpen className="w-4 h-4 mr-2" /> : <Lock className="w-4 h-4 mr-2" />}
+          {isEditMode ? "Verrouiller" : "Déverrouiller"}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => { setStatus("draft"); updateMutation.mutate({ status: "draft" }); }}
+          data-testid="menu-item-status-draft"
+          className="text-xs"
+        >
+          <Badge variant="outline" className="mr-2 bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 text-[10px]">●</Badge>
+          Brouillon
+          {status === "draft" && <Check className="w-3 h-3 ml-auto" />}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => { setStatus("published"); updateMutation.mutate({ status: "published" }); }}
+          data-testid="menu-item-status-published"
+          className="text-xs"
+        >
+          <Badge variant="outline" className="mr-2 bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800 text-[10px]">●</Badge>
+          Publié
+          {status === "published" && <Check className="w-3 h-3 ml-auto" />}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
     <div className="h-full flex flex-col bg-[#F8FAFC] dark:bg-background">
       {/* Fixed Header */}
-      <div className="flex-none border-b border-border bg-background">
-        <div className="p-6 space-y-4">
-          {/* Header */}
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-4 flex-1 min-w-0">
-              <Link href="/documents">
-                <Button variant="ghost" size="icon" data-testid="button-back" className="mt-1">
-                  <ArrowLeft className="w-5 h-5" />
-                </Button>
-              </Link>
-              <div className="flex-1 min-w-0">
-                <h1 className="text-xl font-bold text-foreground truncate mb-2">
-                  {title || "Nouveau document"}
-                </h1>
-                <div className="flex items-center gap-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Badge 
-                        variant="outline" 
-                        className={`cursor-pointer hover-elevate ${
-                          status === "draft" 
-                            ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
-                            : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
-                        }`}
-                        data-testid="badge-status"
-                      >
-                        {status === "draft" ? "Brouillon" : "Publié"}
-                        <ChevronDown className="w-3 h-3 ml-1" />
-                      </Badge>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setStatus("draft");
-                          updateMutation.mutate({ status: "draft" });
-                        }}
-                        data-testid="menu-item-draft"
-                      >
-                        <Badge 
-                          variant="outline" 
-                          className="mr-2 bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
-                        >
-                          ●
-                        </Badge>
-                        Brouillon
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setStatus("published");
-                          updateMutation.mutate({ status: "published" });
-                        }}
-                        data-testid="menu-item-published"
-                      >
-                        <Badge 
-                          variant="outline" 
-                          className="mr-2 bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
-                        >
-                          ●
-                        </Badge>
-                        Publié
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  {isSaving ? (
-                    <span className="text-xs text-muted-foreground">Sauvegarde en cours...</span>
-                  ) : lastSaved ? (
-                    <span className="text-xs text-muted-foreground">
-                      Sauvegardé {formatDistanceToNow(lastSaved, { addSuffix: true, locale: fr })}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      Modifié {formatDistanceToNow(new Date(document.updatedAt), { addSuffix: true, locale: fr })}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              {/* Auto Save Toggle */}
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="autosave"
-                  checked={autoSaveEnabled}
-                  onCheckedChange={setAutoSaveEnabled}
-                  data-testid="switch-autosave"
-                />
-                <Label htmlFor="autosave" className="cursor-pointer text-[12px]">
-                  Auto save {autoSaveEnabled ? "ON" : "OFF"}
-                </Label>
-              </div>
-              
-              {/* Preview/Edit Toggle */}
-              <Button
-                variant="outline"
-                onClick={() => {
-                  const newEditMode = !isEditMode;
-                  setIsEditMode(newEditMode);
-                  
-                  // If switching to edit mode and document is published, revert to draft
-                  if (newEditMode && status === "published") {
-                    setStatus("draft");
-                    updateMutation.mutate({ status: "draft" });
-                    toast({
-                      title: "Retour en brouillon",
-                      description: "Le document est repassé en brouillon pour édition",
-                      variant: "default",
-                    });
-                  }
-                }}
-                data-testid="button-toggle-edit"
-              >
-                {isEditMode ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
-                {isEditMode ? "Aperçu" : "Modifier"}
-              </Button>
-              
-              {/* Save Button - Only in Edit Mode */}
-              {isEditMode && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => {
-                        setIsSaving(true);
-                        
-                        const extractPlainText = (content: any): string => {
-                          if (!content) return "";
-                          const getText = (node: any): string => {
-                            if (node.type === "text") return node.text || "";
-                            if (node.content && Array.isArray(node.content)) {
-                              return node.content.map(getText).join(" ");
-                            }
-                            return "";
-                          };
-                          return getText(content);
-                        };
-
-                        const plainText = extractPlainText(content);
-                        
-                        updateMutation.mutate({
-                          name: title || "Sans titre",
-                          content: typeof content === 'string' ? content : JSON.stringify(content),
-                          plainText,
-                          status,
-                        });
-                      }}
-                      disabled={updateMutation.isPending || isSaving}
-                      className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-                      data-testid="button-save"
-                    >
-                      <Save className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Enregistrer</TooltipContent>
-                </Tooltip>
-              )}
-              
-              {/* Export PDF */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={handleExportPDF}
-                    className="bg-blue-50 border-blue-200 text-blue-700"
-                    data-testid="button-export-pdf"
-                  >
-                    <Download className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Export PDF</TooltipContent>
-              </Tooltip>
-              
-              {/* Delete */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="destructive" 
-                    onClick={handleDeleteClick} 
-                    size="icon"
-                    data-testid="button-delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Supprimer</TooltipContent>
-              </Tooltip>
-            </div>
-          </div>
-
-          {/* Project Selector */}
-          <div className="flex items-center gap-2">
-            <Label className="text-sm text-muted-foreground">Projet:</Label>
-            <Popover open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={projectSelectorOpen}
-                  className="justify-between min-w-[200px] text-[12px]"
-                  data-testid="button-select-project"
-                >
-                  {currentProject ? currentProject.name : "Sélectionner un projet"}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-0 bg-popover">
-                <Command>
-                  <CommandInput placeholder="Rechercher un projet..." />
-                  <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
-                  <CommandGroup className="max-h-[300px] overflow-y-auto bg-popover">
-                    {projects.map((project) => (
-                      <CommandItem
-                        key={project.id}
-                        onSelect={() => handleSelectProject(project.id)}
-                        data-testid={`option-project-${project.id}`}
-                      >
-                        <Check
-                          className={`mr-2 h-4 w-4 ${
-                            currentProject?.id === project.id ? "opacity-100" : "opacity-0"
-                          }`}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{project.name}</div>
-                          {project.description && (
-                            <div className="text-xs text-muted-foreground truncate">
-                              {project.description}
-                            </div>
-                          )}
-                        </div>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
-            {currentProject && (
+      <div className="flex-none bg-background">
+        {isMobile ? (
+          /* MOBILE HEADER */
+          <div className="px-2 py-2 space-y-1.5">
+            <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
-                size="sm"
-                onClick={handleUnlinkProject}
-                data-testid="button-unlink-project"
+                size="icon"
+                className="h-8 w-8 flex-shrink-0"
+                onClick={() => navigate("/documents")}
+                data-testid="button-back"
               >
-                <X className="h-4 w-4" />
+                <ArrowLeft className="w-4 h-4" />
               </Button>
-            )}
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Sans titre"
+                className="flex-1 h-8 text-base font-semibold border-0 bg-transparent px-1 focus-visible:ring-0 focus-visible:ring-offset-0 truncate"
+                data-testid="input-title-mobile"
+              />
+              <span className="text-[10px] text-muted-foreground flex-shrink-0 min-w-[50px] text-right">
+                {isSaving ? "..." : lastSaved ? "✓" : ""}
+              </span>
+              <ActionsDropdown align="end" />
+            </div>
           </div>
-        </div>
+        ) : (
+          /* DESKTOP HEADER */
+          <div className="px-6 pt-4 pb-3">
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate("/documents")}
+                data-testid="button-back"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-xs text-muted-foreground cursor-default select-none" data-testid="autosave-status">
+                    {isSaving ? "Sauvegarde..." : lastSaved ? "Sauvegardé" : document.updatedAt ? formatDistanceToNow(new Date(document.updatedAt), { addSuffix: true, locale: fr }) : ""}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Auto-sauvegarde activée</TooltipContent>
+              </Tooltip>
+
+              <div className="flex-1" />
+
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Project selector */}
+                <div className="flex items-center">
+                  <Popover open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={`h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900 ${currentProject ? 'rounded-r-none border-r-0' : ''}`}
+                        data-testid="button-project-selector"
+                      >
+                        <FolderKanban className="w-3 h-3 text-violet-500" />
+                        <span className="truncate max-w-[100px]">
+                          {currentProject ? currentProject.name : "Projet"}
+                        </span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[280px] p-0 bg-popover" align="start">
+                      <Command>
+                        <CommandInput placeholder="Rechercher un projet..." />
+                        <CommandList className="max-h-[300px]">
+                          <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                          <CommandGroup>
+                            {currentProject && (
+                              <CommandItem
+                                onSelect={() => { handleUnlinkProject(); setProjectSelectorOpen(false); }}
+                                className="text-destructive"
+                                data-testid="option-unlink-project"
+                              >
+                                <X className="mr-2 h-4 w-4" />
+                                Délier du projet
+                              </CommandItem>
+                            )}
+                            {projects.map((project) => (
+                              <CommandItem
+                                key={project.id}
+                                onSelect={() => handleSelectProject(project.id)}
+                                data-testid={`option-project-${project.id}`}
+                              >
+                                <Check className={`mr-2 h-4 w-4 ${currentProject?.id === project.id ? "opacity-100" : "opacity-0"}`} />
+                                {project.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {currentProject && linkedProject && (
+                    <>
+                      <Link href={`/projects/${currentProject.id}`}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 w-6 p-0 rounded-none border-r-0 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-200 dark:hover:bg-violet-950"
+                          data-testid="button-go-to-project"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                        </Button>
+                      </Link>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+                        onClick={(e) => { e.stopPropagation(); handleUnlinkProject(); }}
+                        data-testid="button-unlink-project-x"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+
+                {/* Status badge */}
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] ${status === "draft"
+                    ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
+                    : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+                  }`}
+                  data-testid="badge-status"
+                >
+                  {status === "draft" ? "Brouillon" : "Publié"}
+                </Badge>
+              </div>
+
+              <ActionsDropdown align="end" />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Scrollable Content */}

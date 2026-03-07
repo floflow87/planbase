@@ -1057,7 +1057,7 @@ export default function RoadmapPage() {
                     placeholder="Rechercher une roadmap..."
                     value={homeSearchQuery}
                     onChange={(e) => setHomeSearchQuery(e.target.value)}
-                    className="pl-9 h-9 bg-white dark:bg-background"
+                    className="pl-9 h-9 placeholder:text-[10px] bg-white dark:bg-background"
                     data-testid="input-search-home-roadmaps"
                   />
                   {homeSearchQuery && (
@@ -1312,7 +1312,7 @@ export default function RoadmapPage() {
                         placeholder="Rechercher..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9 h-9 w-[200px]"
+                        className="pl-9 h-9 w-[200px] placeholder:text-[10px] bg-white dark:bg-background"
                         data-testid="input-search-roadmap"
                       />
                     </div>
