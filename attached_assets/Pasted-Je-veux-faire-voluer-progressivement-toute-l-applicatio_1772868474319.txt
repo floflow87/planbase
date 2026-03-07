@@ -1,0 +1,63 @@
+Je veux faire évoluer progressivement toute l’application vers une architecture de synchronisation moderne basée sur une queue de mutations par entité (et non plus seulement des mutations isolées + refetch).
+
+Objectif :
+- UI instantanée
+- cohérence métier
+- aucune erreur quand plusieurs modifications rapides sont faites sur la même entité
+- pas de mutations concurrentes sur une même entité
+
+Principe cible :
+- une queue de mutations par entityKey (`ticket:123`, `project:45`, `file:abc`, etc.)
+- une seule mutation active à la fois par entité
+- optimistic UI immédiate
+- envoi séquentiel des mutations
+- buffer fusionné pour les champs éditables
+- queue stricte pour les actions structurelles
+- rollback / error state / retry
+- préparation à un système de revision/updatedAt
+
+Je veux que tu procèdes par étapes et que tu ne refactores pas tout d’un coup.
+
+Étape 1 — Infra commune
+Créer une base technique générique :
+- MutationQueueManager
+- useMutationQueue(entityKey)
+- queuePatch(patch)
+- queueAction(action)
+- flush()
+- isMutating / pendingCount / lastAckAt / error
+- possibilité de merge des patches successifs
+
+Étape 2 — Migrer en premier les tickets
+Appliquer la queue de mutations aux tickets :
+- status
+- priority
+- assignee
+- title
+- tags
+- drag/drop entre colonnes
+
+Règles :
+- les modifications de champs se fusionnent dans un patch consolidé
+- les actions structurelles sont séquentielles et verrouillent temporairement l’entité
+- jamais deux PATCH concurrents sur le même ticket
+
+Étape 3 — Préparer la généralisation
+Concevoir l’infra pour qu’elle soit réutilisable ensuite sur :
+- projets
+- CRM
+- explorer fichiers
+- notes/documents
+- paramètres/admin
+
+Contraintes :
+- ne pas casser l’existant
+- garder React Query pour le cache global, mais éviter les refetch systématiques
+- privilégier setQueryData + sync queue
+- ajouter des logs debug par entité (`[QueueSync] entity=ticket:123 ...`)
+
+Livrables :
+1) design technique de la queue
+2) premier module migré (tickets)
+3) liste claire des prochains modules à migrer
+4) stratégie de rollback et gestion d’erreur

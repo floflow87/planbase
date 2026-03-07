@@ -563,6 +563,43 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  // Upload avatar for current user
+  const _avatarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5242880 } });
+  app.post("/api/me/avatar", requireAuth, _avatarUpload.single("file"), async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file) return res.status(400).json({ error: "Aucun fichier fourni" });
+      if (!file.mimetype.startsWith("image/")) return res.status(400).json({ error: "Seules les images sont acceptées" });
+
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(404).json({ error: "Utilisateur introuvable" });
+
+      const ext = (file.originalname.split(".").pop() || "jpg").toLowerCase();
+      const storagePath = `accounts/${user.accountId}/avatars/${req.userId}.${ext}`;
+
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from("planbase-files")
+        .upload(storagePath, file.buffer, { contentType: file.mimetype, upsert: true });
+
+      if (uploadError) throw new Error("Erreur upload: " + uploadError.message);
+
+      // Signed URL valable 10 ans
+      const { data: signedData, error: signedError } = await supabaseAdmin.storage
+        .from("planbase-files")
+        .createSignedUrl(storagePath, 315360000);
+
+      if (signedError || !signedData?.signedUrl) throw new Error("Erreur génération URL signée");
+
+      const updatedUser = await storage.updateUser(req.userId!, { avatarUrl: signedData.signedUrl });
+      if (!updatedUser) return res.status(404).json({ error: "Mise à jour échouée" });
+
+      const account = await storage.getAccount(updatedUser.accountId);
+      res.json({ ...updatedUser, account: account || null });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   // Update user password
   app.patch("/api/me/password", requireAuth, async (req, res) => {
     try {

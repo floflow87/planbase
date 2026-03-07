@@ -35,6 +35,7 @@ import { Loader } from "@/components/Loader";
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess } from "@/design-system/feedback";
 import { queryClient, apiRequest, optimisticAdd, optimisticUpdate, optimisticDelete, rollbackOptimistic } from "@/lib/queryClient";
+import { mutationQueueManager } from "@/lib/mutationQueue";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { 
@@ -1239,14 +1240,13 @@ export default function BacklogDetail() {
     setSelectedTicket(ticket);
   };
 
-  const handleUpdateTicket = async (ticketId: string, type: TicketType, data: Record<string, any>) => {
-    // Optimistic update - update UI immediately
+  const handleUpdateTicket = (ticketId: string, type: TicketType, data: Record<string, any>) => {
     const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
-    
+
     if (previousBacklog) {
       queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
         ...previousBacklog,
-        epics: type === "epic" 
+        epics: type === "epic"
           ? previousBacklog.epics.map(e => e.id === ticketId ? { ...e, ...data } : e)
           : previousBacklog.epics,
         userStories: type === "user_story"
@@ -1257,27 +1257,33 @@ export default function BacklogDetail() {
           : previousBacklog.backlogTasks,
       });
     }
-    
-    // Update selected ticket with new data
+
     if (selectedTicket && selectedTicket.id === ticketId) {
       setSelectedTicket({ ...selectedTicket, ...data });
     }
-    
-    try {
-      let endpoint = "";
-      if (type === "epic") endpoint = `/api/epics/${ticketId}`;
-      else if (type === "user_story") endpoint = `/api/user-stories/${ticketId}`;
-      else endpoint = `/api/backlog-tasks/${ticketId}`;
-      
-      await apiRequest(endpoint, "PATCH", data);
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-    } catch (error: any) {
-      // Rollback on error
-      if (previousBacklog) {
-        queryClient.setQueryData(["/api/backlogs", id], previousBacklog);
-      }
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    }
+
+    const entityKey = `${type}:${ticketId}`;
+    const typingFields = ["title", "description", "acceptanceCriteria"];
+    const isTypingEdit = Object.keys(data).every(k => typingFields.includes(k));
+    const debounceMs = isTypingEdit ? 600 : 0;
+
+    let endpoint = "";
+    if (type === "epic") endpoint = `/api/epics/${ticketId}`;
+    else if (type === "user_story") endpoint = `/api/user-stories/${ticketId}`;
+    else endpoint = `/api/backlog-tasks/${ticketId}`;
+
+    mutationQueueManager.get(entityKey).queuePatch(
+      data,
+      async (mergedPatch) => {
+        await apiRequest(endpoint, "PATCH", mergedPatch);
+        queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+      },
+      () => {
+        if (previousBacklog) queryClient.setQueryData(["/api/backlogs", id], previousBacklog);
+        toast({ title: "Erreur", description: "Impossible de mettre à jour le ticket", variant: "destructive" });
+      },
+      debounceMs,
+    );
   };
 
   const handleDeleteTicket = async (ticketId: string, type: TicketType) => {
@@ -1663,22 +1669,23 @@ export default function BacklogDetail() {
       });
     }
 
-    // Fire API in background — no await so UI doesn't block
     let endpoint = "";
     if (type === "epic") endpoint = `/api/epics/${ticket.id}`;
     else if (type === "user_story") endpoint = `/api/user-stories/${ticket.id}`;
     else endpoint = `/api/backlog-tasks/${ticket.id}`;
 
-    apiRequest(endpoint, "PATCH", { sprintId: newSprintId })
-      .then(() => {
+    mutationQueueManager.get(`${type}:${ticket.id}`).queuePatch(
+      { sprintId: newSprintId },
+      async (mergedPatch) => {
+        await apiRequest(endpoint, "PATCH", mergedPatch);
         queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      })
-      .catch(() => {
-        if (previousBacklog) {
-          queryClient.setQueryData(["/api/backlogs", id], previousBacklog);
-        }
+      },
+      () => {
+        if (previousBacklog) queryClient.setQueryData(["/api/backlogs", id], previousBacklog);
         toast({ title: "Erreur", description: "Impossible de déplacer le ticket", variant: "destructive" });
-      });
+      },
+      0,
+    );
   };
 
   const handleCreateSprintTicket = async (sprintId: string, type: TicketType, title: string) => {

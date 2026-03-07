@@ -916,33 +916,35 @@ export default function Settings() {
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   const handleAvatarUpload = async (file: File) => {
     if (!file.type.startsWith("image/")) {
       toast({ variant: "destructive", title: "Erreur", description: "Veuillez choisir une image" });
       return;
     }
+    const localPreview = URL.createObjectURL(file);
+    setAvatarPreview(localPreview);
     setAvatarUploading(true);
     try {
+      const { supabase } = await import("@/lib/supabase");
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/files/upload", {
+      const res = await fetch("/api/me/avatar", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${(await (await import("@/lib/supabase")).supabase.auth.getSession()).data.session?.access_token}`,
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        setAvatarPreview(null);
         throw new Error(err.error || "Erreur upload");
       }
-      const newFile = await res.json();
-      const publicUrl = newFile.meta?.storageUrl || "";
-      if (!publicUrl) throw new Error("URL manquante après l'upload");
-      const patchRes = await apiRequest("/api/me", "PATCH", { avatarUrl: publicUrl });
-      const updatedUser = await patchRes.json();
+      const updatedUser = await res.json();
       queryClient.setQueryData(["/api/me"], updatedUser);
+      setAvatarPreview(updatedUser.avatarUrl || null);
       toast({ title: "Photo mise à jour", variant: "success" as any });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Erreur", description: e.message });
@@ -1275,7 +1277,7 @@ export default function Settings() {
                   <div className="flex items-center gap-4 mb-4 pb-4 border-b">
                     <div className="relative">
                       <Avatar className="w-16 h-16">
-                        <AvatarImage src={userProfile?.avatarUrl || undefined} alt="Avatar" />
+                        <AvatarImage src={avatarPreview || userProfile?.avatarUrl || undefined} alt="Avatar" />
                         <AvatarFallback className="text-lg bg-primary/10 text-primary">
                           {userProfile?.firstName?.[0]?.toUpperCase() || userProfile?.email?.[0]?.toUpperCase() || "?"}
                         </AvatarFallback>
