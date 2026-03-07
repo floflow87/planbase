@@ -48,6 +48,7 @@ import ProjectExecutive from "@/pages/project-executive";
 import AcceptInvitation from "@/pages/accept-invitation";
 import NotFound from "@/pages/not-found";
 import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote, CalendarPlus } from "lucide-react";
+import { AppointmentPanel } from "@/components/appointment-panel";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { SafeAreaTopBar, useIsStandalone } from "@/design-system/primitives/SafeAreaTopBar";
@@ -300,6 +301,7 @@ function QuickCreateMenu() {
   const [isProjectSheetOpen, setIsProjectSheetOpen] = useState(false);
   const [isTaskSheetOpen, setIsTaskSheetOpen] = useState(false);
   const [isNoteSheetOpen, setIsNoteSheetOpen] = useState(false);
+  const [isAppointmentPanelOpen, setIsAppointmentPanelOpen] = useState(false);
 
   // Get account ID from user metadata
   const accountId = user?.user_metadata?.account_id;
@@ -449,7 +451,7 @@ function QuickCreateMenu() {
     { label: "Projet", icon: FolderKanban, color: "bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400", onClick: () => setIsProjectSheetOpen(true), testId: "dropdown-new-project" },
     { label: "Tâche", icon: CheckSquare, color: "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400", onClick: () => setIsTaskSheetOpen(true), testId: "dropdown-new-task" },
     { label: "Note", icon: StickyNote, color: "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400", onClick: () => setIsNoteSheetOpen(true), testId: "dropdown-new-note" },
-    { label: "Rendez-vous", icon: CalendarPlus, color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400", onClick: () => { setLocation("/calendar"); }, testId: "dropdown-new-appointment" },
+    { label: "Rendez-vous", icon: CalendarPlus, color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400", onClick: () => setIsAppointmentPanelOpen(true), testId: "dropdown-new-appointment" },
   ];
 
   return (
@@ -907,6 +909,13 @@ function QuickCreateMenu() {
           </Form>
         </SheetContent>
       </Sheet>
+
+      {/* Appointment Panel */}
+      <AppointmentPanel
+        open={isAppointmentPanelOpen}
+        onClose={() => setIsAppointmentPanelOpen(false)}
+        mode="create"
+      />
     </>
   );
 }

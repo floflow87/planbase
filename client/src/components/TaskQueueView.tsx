@@ -47,6 +47,15 @@ import {
 } from "@shared/config";
 import type { Task, TaskColumn, Project, Client, AppUser, TicketComment } from "@shared/schema";
 
+function getProjectColor(id: string): string {
+  const colors = ["#7C3AED", "#2563EB", "#16A34A", "#EA580C", "#DB2777", "#0891B2", "#D97706", "#4F46E5"];
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+}
+
 interface TaskQueueViewProps {
   tasks: Task[];
   taskColumns: TaskColumn[];
@@ -521,7 +530,8 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
         {currentProject && (
           <Badge
             variant="secondary"
-            className="text-xs max-w-[180px] truncate cursor-pointer hover-elevate"
+            className="text-xs max-w-[180px] truncate cursor-pointer hover-elevate text-white"
+            style={{ backgroundColor: getProjectColor(currentProject.id) }}
             onClick={() => { onClose(); setLocation(`/projects/${currentProject.id}`); }}
           >
             {currentProject.name}

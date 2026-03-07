@@ -121,13 +121,13 @@ function DraggableColumnHeader({
 
 // Configuration des colonnes Kanban (couleurs pastel)
 const KANBAN_STATUSES = [
-  { id: "prospecting", label: "Prospect", color: "bg-slate-100/50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-900/50", headerBg: "bg-slate-50 dark:bg-slate-950/40", textColor: "text-slate-600 dark:text-slate-400" },
-  { id: "qualified", label: "Qualifié", color: "bg-blue-100/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50", headerBg: "bg-blue-50 dark:bg-blue-950/40", textColor: "text-blue-600 dark:text-blue-400" },
-  { id: "negotiation", label: "Négociation", color: "bg-amber-100/50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50", headerBg: "bg-amber-50 dark:bg-amber-950/40", textColor: "text-amber-600 dark:text-amber-400" },
-  { id: "quote_sent", label: "Devis envoyé", color: "bg-purple-100/50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-900/50", headerBg: "bg-purple-50 dark:bg-purple-950/40", textColor: "text-purple-600 dark:text-purple-400" },
-  { id: "quote_approved", label: "Devis validé", color: "bg-cyan-100/50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-900/50", headerBg: "bg-cyan-50 dark:bg-cyan-950/40", textColor: "text-cyan-600 dark:text-cyan-400" },
-  { id: "won", label: "Gagné", color: "bg-emerald-100/50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/50", headerBg: "bg-emerald-50 dark:bg-emerald-950/40", textColor: "text-emerald-600 dark:text-emerald-400" },
-  { id: "lost", label: "Perdu", color: "bg-red-100/50 dark:bg-red-950/30 border-red-200 dark:border-red-900/50", headerBg: "bg-red-50 dark:bg-red-950/40", textColor: "text-red-600 dark:text-red-400" },
+  { id: "prospecting", label: "Prospect", color: "bg-slate-100/50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-900/50", headerBg: "bg-slate-50 dark:bg-slate-950/40", textColor: "text-slate-600 dark:text-slate-400", hex: "#94a3b8" },
+  { id: "qualified", label: "Qualifié", color: "bg-blue-100/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50", headerBg: "bg-blue-50 dark:bg-blue-950/40", textColor: "text-blue-600 dark:text-blue-400", hex: "#60a5fa" },
+  { id: "negotiation", label: "Négociation", color: "bg-amber-100/50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50", headerBg: "bg-amber-50 dark:bg-amber-950/40", textColor: "text-amber-600 dark:text-amber-400", hex: "#fbbf24" },
+  { id: "quote_sent", label: "Devis envoyé", color: "bg-purple-100/50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-900/50", headerBg: "bg-purple-50 dark:bg-purple-950/40", textColor: "text-purple-600 dark:text-purple-400", hex: "#a78bfa" },
+  { id: "quote_approved", label: "Devis validé", color: "bg-cyan-100/50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-900/50", headerBg: "bg-cyan-50 dark:bg-cyan-950/40", textColor: "text-cyan-600 dark:text-cyan-400", hex: "#22d3ee" },
+  { id: "won", label: "Gagné", color: "bg-emerald-100/50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/50", headerBg: "bg-emerald-50 dark:bg-emerald-950/40", textColor: "text-emerald-600 dark:text-emerald-400", hex: "#34d399" },
+  { id: "lost", label: "Perdu", color: "bg-red-100/50 dark:bg-red-950/30 border-red-200 dark:border-red-900/50", headerBg: "bg-red-50 dark:bg-red-950/40", textColor: "text-red-600 dark:text-red-400", hex: "#f87171" },
 ];
 
 // Composant Kanban Card (draggable)
@@ -138,6 +138,7 @@ function DraggableKanbanCard({
   onEdit,
   onDelete,
   isDragOverlay = false,
+  columnHex,
 }: { 
   client: Client; 
   contact?: Contact;
@@ -145,6 +146,7 @@ function DraggableKanbanCard({
   onEdit: () => void;
   onDelete: () => void;
   isDragOverlay?: boolean;
+  columnHex?: string;
 }) {
   const { can: canDo } = usePermissions();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -159,7 +161,7 @@ function DraggableKanbanCard({
   const cardContent = (
     <Card 
       ref={!isDragOverlay ? setNodeRef : undefined}
-      style={!isDragOverlay ? style : undefined}
+      style={!isDragOverlay ? { ...style, ...(columnHex ? { borderLeft: `4px solid ${columnHex}` } : {}) } : (columnHex ? { borderLeft: `4px solid ${columnHex}` } : undefined)}
       className={`hover-elevate cursor-grab bg-card/80 backdrop-blur-sm border-border/50 ${isDragging && !isDragOverlay ? 'opacity-50' : ''}`}
       data-testid={`kanban-card-${client.id}`}
       {...(!isDragOverlay ? { ...attributes, ...listeners } : {})}
@@ -310,6 +312,7 @@ function DroppableKanbanColumn({
               totalBudget={clientBudget}
               onEdit={() => onEditClient(client)}
               onDelete={() => onDeleteClient(client.id)}
+              columnHex={status.hex}
             />
           );
         })}

@@ -3050,7 +3050,7 @@ export default function Projects() {
               <div className="flex items-center gap-2 flex-1">
                 <Input
                   placeholder="Rechercher des projets..."
-                  className="max-w-sm"
+                  className="max-w-sm placeholder:text-[10px] bg-white dark:bg-background"
                   data-testid="input-search-projects"
                   value={projectSearchQuery}
                   onChange={(e) => setProjectSearchQuery(e.target.value)}

@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/command";
 import { Check, X } from "lucide-react";
 import NoteEditor from "@/components/NoteEditor";
+import { VoiceRecordingButton } from "@/components/VoiceRecordingButton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -578,17 +579,40 @@ export default function DocumentDetail() {
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-auto">
-        <div className="p-6">
+        <div className={isMobile ? "px-1 py-0" : ""}>
           <NoteEditor
+            key={id}
             content={content}
             onChange={setContent}
-            title={title}
-            onTitleChange={setTitle}
             editable={isEditMode}
             placeholder="Commencez à rédiger votre document..."
+            borderless={!isMobile}
+            {...(!isMobile ? {
+              title,
+              onTitleChange: setTitle,
+            } : {})}
           />
         </div>
       </div>
+
+      {/* Voice Recording Button */}
+      {isEditMode && (
+        <VoiceRecordingButton
+          onTranscript={(text) => {
+            setContent((prev: any) => {
+              const existingContent = prev?.content || [];
+              return {
+                type: 'doc',
+                content: [
+                  ...existingContent,
+                  { type: 'paragraph', content: [{ type: 'text', text }] }
+                ]
+              };
+            });
+          }}
+          onError={(msg) => toast({ variant: "destructive", title: "Erreur de transcription", description: msg })}
+        />
+      )}
 
       {/* Delete Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

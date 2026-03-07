@@ -888,7 +888,7 @@ export function ListView({
                                       <PopoverTrigger asChild>
                                         <Badge 
                                           style={{ backgroundColor: displayColor }}
-                                          className="text-foreground min-w-[80px] cursor-pointer hover-elevate text-[12px]"
+                                          className="text-foreground min-w-[80px] cursor-pointer hover-elevate text-[10px]"
                                           data-testid={`badge-status-${task.id}`}
                                         >
                                           {displayLabel}

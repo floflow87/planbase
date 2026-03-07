@@ -65,6 +65,7 @@ function ClientLogoUpload({ client }: { client: Client }) {
       const updated = await res.json();
       queryClient.setQueryData(["/api/clients", client.id], updated);
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setPreview(updated.logoUrl || null);
       toast({ title: "Logo mis à jour", variant: "success" });
     } catch (e: any) {
@@ -1370,9 +1371,6 @@ export default function ClientDetail() {
                 <TabsTrigger value="contacts" data-testid="tab-contacts" className="gap-1.5 text-xs h-8 px-3">
                   <UserPlus className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Contacts</span>
-                  {contacts.length > 0 && (
-                    <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1">{contacts.length}</Badge>
-                  )}
                 </TabsTrigger>
                 <TabsTrigger value="chiffre_affaires" data-testid="tab-chiffre-affaires" className="gap-1.5 text-xs h-8 px-3">
                   <BarChart4 className="h-3.5 w-3.5" />
@@ -1381,27 +1379,14 @@ export default function ClientDetail() {
                 <TabsTrigger value="commentaires" data-testid="tab-commentaires" className="gap-1.5 text-xs h-8 px-3">
                   <MessageSquare className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Commentaires</span>
-                  {comments.length > 0 && (
-                    <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1">{comments.length}</Badge>
-                  )}
                 </TabsTrigger>
                 <TabsTrigger value="taches" data-testid="tab-taches" className="gap-1.5 text-xs h-8 px-3">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Tâches</span>
-                  {tasks.length > 0 && (
-                    <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1">{tasks.length}</Badge>
-                  )}
                 </TabsTrigger>
                 <TabsTrigger value="projets" data-testid="tab-projets" className="gap-1.5 text-xs h-8 px-3">
                   <FolderKanban className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Projets</span>
-                  {projects.length > 0 && (
-                    <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1">{projects.length}</Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="documents" data-testid="tab-documents" className="gap-1.5 text-xs h-8 px-3">
-                  <FileText className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Docs</span>
                 </TabsTrigger>
                 <TabsTrigger value="fichiers" data-testid="tab-fichiers" className="gap-1.5 text-xs h-8 px-3">
                   <FolderOpen className="h-3.5 w-3.5" />
@@ -1977,19 +1962,17 @@ export default function ClientDetail() {
                 </Card>
               </TabsContent>
 
-              {/* ── Documents ── */}
-              <TabsContent value="documents" className="space-y-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
-                    <CardTitle className="text-sm font-semibold tracking-tight">Documents</CardTitle>
-                    <Badge variant="secondary" className="text-[10px]">{clientDocuments.length}</Badge>
-                  </CardHeader>
-                  <CardContent>
-                    {clientDocuments.length === 0 ? (
-                      <div className="text-center py-8 text-xs text-muted-foreground">
-                        Aucun document lié à ce client ou ses projets.
-                      </div>
-                    ) : (
+              {/* ── Fichiers (includes documents) ── */}
+              <TabsContent value="fichiers" className="space-y-4">
+                {clientDocuments.length > 0 && (
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
+                      <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-primary" />
+                        Documents
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
                       <div className="space-y-2">
                         {clientDocuments.map((document) => (
                           <Link key={document.id} href={`/documents/${document.id}`}>
@@ -2019,14 +2002,12 @@ export default function ClientDetail() {
                           </Link>
                         ))}
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* ── Fichiers ── */}
-              <TabsContent value="fichiers" className="h-[600px] flex flex-col">
-                <FileExplorer clientId={id} />
+                    </CardContent>
+                  </Card>
+                )}
+                <div className="h-[600px] flex flex-col">
+                  <FileExplorer clientId={id} />
+                </div>
               </TabsContent>
 
               {/* ── Chiffre d'affaires ── */}

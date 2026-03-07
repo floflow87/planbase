@@ -141,7 +141,7 @@ export function GlobalSearch() {
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Rechercher…"
-            className="bg-transparent text-xs outline-none placeholder:text-muted-foreground w-full text-foreground min-w-0"
+            className="bg-transparent text-xs outline-none placeholder:text-[10px] placeholder:text-muted-foreground w-full text-foreground min-w-0"
             style={{ width: "13rem" }}
             data-testid="input-global-search"
             onKeyDown={e => e.key === "Escape" && setOpen(false)}

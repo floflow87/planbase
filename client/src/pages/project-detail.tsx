@@ -4099,9 +4099,6 @@ export default function ProjectDetail() {
             <TabsTrigger value="activities" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-activities">
               <MessageSquare className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Activités</span>
-              <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="activities-count">
-                {projectActivities.length}
-              </Badge>
             </TabsTrigger>
             <TabsTrigger value="roadmap" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-roadmap">
               <Map className="h-3.5 w-3.5" />
@@ -4110,16 +4107,10 @@ export default function ProjectDetail() {
             <TabsTrigger value="tasks" className="gap-1.5 text-xs h-[42px] px-3">
               <Users className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Tâches</span>
-              <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="tasks-count">
-                {projectTasks.length}
-              </Badge>
             </TabsTrigger>
             <TabsTrigger value="notes" className="gap-1.5 text-xs h-[42px] px-3">
               <FileText className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Notes</span>
-              <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="notes-count">
-                {projectNotes.length}
-              </Badge>
             </TabsTrigger>
             <TabsTrigger value="documents" className="hidden">
               Documents
@@ -4131,9 +4122,6 @@ export default function ProjectDetail() {
             <TabsTrigger value="backlogs" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-backlogs">
               <FolderKanban className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Backlogs</span>
-              <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="backlogs-count">
-                {projectBacklogs.length}
-              </Badge>
             </TabsTrigger>
           </TabsList>
 
