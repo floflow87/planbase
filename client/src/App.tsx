@@ -290,6 +290,9 @@ const taskSchema = z.object({
 
 const noteSchema = z.object({
   title: z.string().min(1, "Le titre est requis"),
+  clientId: z.string().optional().nullable(),
+  projectId: z.string().optional().nullable(),
+  noteDate: z.date().optional().nullable(),
 });
 
 function QuickCreateMenu() {
@@ -351,7 +354,7 @@ function QuickCreateMenu() {
 
   const noteForm = useForm({
     resolver: zodResolver(noteSchema),
-    defaultValues: { title: "" },
+    defaultValues: { title: "", clientId: null as string | null, projectId: null as string | null, noteDate: null as Date | null },
   });
 
   // Mutations - Server adds accountId and createdBy from auth context
@@ -425,10 +428,19 @@ function QuickCreateMenu() {
 
   const createNoteMutation = useMutation({
     mutationFn: async (data: z.infer<typeof noteSchema>) => {
-      return apiRequest("/api/notes", "POST", { 
+      const res = await apiRequest("/api/notes", "POST", { 
         title: data.title,
         content: [],
+        noteDate: data.noteDate ? formatDate(data.noteDate, "yyyy-MM-dd") : null,
       });
+      const newNote = await res.json();
+      if (data.clientId) {
+        await apiRequest(`/api/notes/${newNote.id}/links`, "POST", { targetType: "client", targetId: data.clientId });
+      }
+      if (data.projectId) {
+        await apiRequest(`/api/notes/${newNote.id}/links`, "POST", { targetType: "project", targetId: data.projectId });
+      }
+      return newNote;
     },
     onSuccess: (newNote: any) => {
       toast({ title: "Note créée avec succès" });
@@ -894,6 +906,77 @@ function QuickCreateMenu() {
                       <Input {...field} data-testid="input-note-title" />
                     </FormControl>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={noteForm.control}
+                name="clientId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Client (optionnel)</FormLabel>
+                    <Select onValueChange={(v) => field.onChange(v === "__none__" ? null : v)} value={field.value ?? "__none__"}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-note-client">
+                          <SelectValue placeholder="Aucun client" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="__none__">Aucun client</SelectItem>
+                        {clients.map((c: any) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={noteForm.control}
+                name="projectId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Projet (optionnel)</FormLabel>
+                    <Select onValueChange={(v) => field.onChange(v === "__none__" ? null : v)} value={field.value ?? "__none__"}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-note-project">
+                          <SelectValue placeholder="Aucun projet" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="__none__">Aucun projet</SelectItem>
+                        {projects.map((p: any) => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={noteForm.control}
+                name="noteDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date (optionnel)</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button variant="outline" className="w-full justify-start font-normal" data-testid="button-note-date">
+                            {field.value ? formatDate(field.value, "dd MMM yyyy", { locale: fr }) : <span className="text-muted-foreground">Choisir une date</span>}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarWidget
+                          mode="single"
+                          selected={field.value ?? undefined}
+                          onSelect={(date) => field.onChange(date ?? null)}
+                          locale={fr}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </FormItem>
                 )}
               />

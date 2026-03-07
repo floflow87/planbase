@@ -1401,7 +1401,7 @@ export function TicketDetailPanel({
                       value={newCriterionText}
                       onChange={(e) => setNewCriterionText(e.target.value)}
                       placeholder="Ajouter..."
-                      className="h-7 text-[10px] flex-1"
+                      className="h-7 text-[10px] placeholder:text-[9px] flex-1"
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && newCriterionText.trim()) {
                           createCriterionMutation.mutate(newCriterionText.trim());

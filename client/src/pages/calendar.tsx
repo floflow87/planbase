@@ -49,6 +49,7 @@ interface GoogleEvent {
   start: { dateTime?: string; date?: string };
   end: { dateTime?: string; date?: string };
   description?: string;
+  hangoutLink?: string;
 }
 
 interface Task {
@@ -884,6 +885,7 @@ export default function Calendar() {
                                 notes: event.description || null,
                                 location: event.location || null,
                                 htmlLink: event.htmlLink || null,
+                                meetUrl: event.hangoutLink || null,
                                 attendees: event.attendees?.map((a: any) => ({
                                   email: a.email,
                                   displayName: a.displayName,
@@ -1195,6 +1197,7 @@ export default function Calendar() {
                                       notes: event.description || null,
                                       location: event.location || null,
                                       htmlLink: event.htmlLink || null,
+                                      meetUrl: event.hangoutLink || null,
                                       attendees: event.attendees?.map((a: any) => ({
                                         email: a.email,
                                         displayName: a.displayName,
@@ -1513,6 +1516,7 @@ export default function Calendar() {
                                   notes: event.description || null,
                                   location: event.location || null,
                                   htmlLink: event.htmlLink || null,
+                                  meetUrl: event.hangoutLink || null,
                                   attendees: event.attendees?.map((a: any) => ({
                                     email: a.email,
                                     displayName: a.displayName,

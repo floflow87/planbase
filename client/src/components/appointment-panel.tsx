@@ -28,6 +28,7 @@ interface Appointment {
   notes: string | null;
   location?: string | null;
   htmlLink?: string | null;
+  meetUrl?: string | null;
   attendees?: Array<{ email: string; displayName?: string; responseStatus?: string }> | null;
   organizer?: { email: string; displayName?: string } | null;
 }
@@ -698,6 +699,24 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
                     ))}
                   </div>
                 </div>
+              )}
+
+              {appointment.meetUrl && (
+                <a
+                  href={appointment.meetUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-green-600 dark:text-green-400 hover:underline font-medium"
+                  data-testid="link-google-meet"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                  </svg>
+                  Rejoindre Google Meet
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
               )}
 
               {appointment.htmlLink && (
