@@ -497,6 +497,8 @@ export function FileExplorer({ clientId, projectId }: Props) {
     },
     onSuccess: () => {
       invalidate();
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
       setSelectedIds(new Set());
       setDeleteSelectedOpen(false);
       toast({ title: "Éléments supprimés", variant: "success" });
@@ -1201,7 +1203,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteSelectedMutation.mutate([...selectedFolderIds, ...selectedFileIds])} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" data-testid="button-confirm-delete-selected">
+            <AlertDialogAction onClick={() => deleteSelectedMutation.mutate([...selectedFolderIds, ...selectedFileIds, ...selectedVirtualIds])} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" data-testid="button-confirm-delete-selected">
               Supprimer
             </AlertDialogAction>
           </AlertDialogFooter>
