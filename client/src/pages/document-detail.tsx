@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Trash2, Download, Save, Lock, LockOpen, MoreVertical, FolderKanban, ExternalLink } from "lucide-react";
+import { ArrowLeft, Trash2, Download, Save, Lock, LockOpen, MoreVertical, FolderKanban, ExternalLink, Users, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -45,10 +45,12 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Loader } from "@/components/Loader";
 import type { Document, Project, NoteLink, UpdateDocument } from "@shared/schema";
+import type { Client } from "@shared/schema";
 import { useDebounce } from "@/hooks/use-debounce";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format as formatDate } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Calendar as CalendarWidget } from "@/components/ui/calendar";
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>();
@@ -73,6 +75,9 @@ export default function DocumentDetail() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
+  const [clientSelectorOpen, setClientSelectorOpen] = useState(false);
+  const [dateSelectorOpen, setDateSelectorOpen] = useState(false);
+  const [documentDate, setDocumentDate] = useState<Date | null>(null);
 
   const { data: document, isLoading } = useQuery<Document>({
     queryKey: ["/api/documents", id],
@@ -83,6 +88,10 @@ export default function DocumentDetail() {
     queryKey: ["/api/projects"],
   });
 
+  const { data: clients = [] } = useQuery<Client[]>({
+    queryKey: ["/api/clients"],
+  });
+
   const { data: documentLinks = [] } = useQuery<NoteLink[]>({
     queryKey: ["/api/documents", id, "links"],
     enabled: !!id,
@@ -90,6 +99,8 @@ export default function DocumentDetail() {
 
   const linkedProject = documentLinks.find(link => link.targetType === "project");
   const currentProject = linkedProject ? projects.find(p => p.id === linkedProject.targetId) : null;
+  const linkedClient = documentLinks.find(link => link.targetType === "client");
+  const currentClient = linkedClient ? clients.find(c => c.id === linkedClient.targetId) : null;
 
   useEffect(() => {
     if (document && !title && !content.content?.length) {
@@ -106,6 +117,9 @@ export default function DocumentDetail() {
       }
       setContent(parsedContent);
       setStatus((document.status === "signed" ? "published" : document.status) as any);
+      if ((document as any).documentDate) {
+        setDocumentDate(new Date((document as any).documentDate));
+      }
     }
   }, [document]);
 
@@ -351,6 +365,61 @@ export default function DocumentDetail() {
     unlinkProjectMutation.mutate();
   }, [unlinkProjectMutation]);
 
+  const linkClientMutation = useMutation({
+    mutationFn: async (clientId: string) => {
+      const response = await apiRequest(`/api/documents/${id}/links`, "POST", {
+        targetType: "client",
+        targetId: clientId,
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/documents", id, "links"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message || "Impossible de lier le client", variant: "destructive" });
+    },
+  });
+
+  const unlinkClientMutation = useMutation({
+    mutationFn: async () => {
+      if (!linkedClient) return;
+      const response = await apiRequest(
+        `/api/documents/${id}/links/${linkedClient.targetType}/${linkedClient.targetId}`,
+        "DELETE"
+      );
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/documents", id, "links"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message || "Impossible de délier le client", variant: "destructive" });
+    },
+  });
+
+  const handleSelectClient = useCallback(async (clientId: string) => {
+    try {
+      if (linkedClient) {
+        await unlinkClientMutation.mutateAsync();
+      }
+      await linkClientMutation.mutateAsync(clientId);
+      setClientSelectorOpen(false);
+    } catch (error) {
+      // Errors handled by mutations
+    }
+  }, [linkedClient, linkClientMutation, unlinkClientMutation]);
+
+  const handleSelectDate = useCallback(async (date: Date | undefined) => {
+    const newDate = date ?? null;
+    setDocumentDate(newDate);
+    setDateSelectorOpen(false);
+    await apiRequest(`/api/documents/${id}`, "PATCH", {
+      documentDate: newDate ? formatDate(newDate, "yyyy-MM-dd") : null,
+    });
+    queryClient.invalidateQueries({ queryKey: ["/api/documents", id] });
+  }, [id, queryClient]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -486,6 +555,66 @@ export default function DocumentDetail() {
               <div className="flex-1" />
 
               <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Client selector */}
+                <div className="flex items-center">
+                  <Popover open={clientSelectorOpen} onOpenChange={setClientSelectorOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={`h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900 ${currentClient ? 'rounded-r-none border-r-0' : ''}`}
+                        data-testid="button-client-selector"
+                      >
+                        <Users className="w-3 h-3 text-orange-500" />
+                        <span className="truncate max-w-[100px]">
+                          {currentClient ? currentClient.name : "Client"}
+                        </span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[280px] p-0 bg-popover" align="start">
+                      <Command>
+                        <CommandInput placeholder="Rechercher un client..." />
+                        <CommandList className="max-h-[300px]">
+                          <CommandEmpty>Aucun client trouvé.</CommandEmpty>
+                          <CommandGroup>
+                            {currentClient && (
+                              <CommandItem
+                                onSelect={() => { unlinkClientMutation.mutate(); setClientSelectorOpen(false); }}
+                                className="text-destructive"
+                                data-testid="option-unlink-client"
+                              >
+                                <X className="mr-2 h-4 w-4" />
+                                Délier du client
+                              </CommandItem>
+                            )}
+                            {clients.map((client) => (
+                              <CommandItem
+                                key={client.id}
+                                onSelect={() => handleSelectClient(client.id)}
+                                data-testid={`option-client-${client.id}`}
+                              >
+                                <Check className={`mr-2 h-4 w-4 ${currentClient?.id === client.id ? "opacity-100" : "opacity-0"}`} />
+                                {client.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {currentClient && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+                      onClick={(e) => { e.stopPropagation(); unlinkClientMutation.mutate(); }}
+                      data-testid="button-unlink-client-x"
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+
                 {/* Project selector */}
                 <div className="flex items-center">
                   <Popover open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
@@ -557,6 +686,40 @@ export default function DocumentDetail() {
                     </>
                   )}
                 </div>
+
+                {/* Date selector */}
+                <Popover open={dateSelectorOpen} onOpenChange={setDateSelectorOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900"
+                      data-testid="button-date-selector"
+                    >
+                      <CalendarDays className="w-3 h-3 text-muted-foreground" />
+                      <span className="truncate max-w-[100px]">
+                        {documentDate ? formatDate(documentDate, "dd MMM yyyy", { locale: fr }) : "Date"}
+                      </span>
+                      {documentDate && (
+                        <span
+                          className="ml-0.5 hover:text-destructive"
+                          onClick={(e) => { e.stopPropagation(); handleSelectDate(undefined); }}
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarWidget
+                      mode="single"
+                      selected={documentDate ?? undefined}
+                      onSelect={handleSelectDate}
+                      locale={fr}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
 
                 {/* Status badge */}
                 <Badge

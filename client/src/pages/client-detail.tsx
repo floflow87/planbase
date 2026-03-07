@@ -1964,47 +1964,6 @@ export default function ClientDetail() {
 
               {/* ── Fichiers (includes documents) ── */}
               <TabsContent value="fichiers" className="space-y-4">
-                {clientDocuments.length > 0 && (
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
-                      <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-primary" />
-                        Documents
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {clientDocuments.map((document) => (
-                          <Link key={document.id} href={`/documents/${document.id}`}>
-                            <div className="p-3 border rounded-md hover-elevate cursor-pointer" data-testid={`document-${document.id}`}>
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="text-xs font-medium truncate" data-testid={`title-document-${document.id}`}>
-                                    {document.name || "Sans titre"}
-                                  </h4>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <Badge
-                                      variant={document.status === "draft" ? "outline" : "default"}
-                                      className={`text-[10px] h-4 px-1.5 ${document.status !== "draft" ? "bg-green-600 dark:bg-green-700 text-white" : "text-muted-foreground"}`}
-                                      data-testid={`status-${document.id}`}
-                                    >
-                                      {document.status === "draft" ? "Brouillon" : document.status === "published" ? "Publié" : "Archivé"}
-                                    </Badge>
-                                    {document.updatedAt && (
-                                      <span className="text-[10px] text-muted-foreground">
-                                        Modifié {format(new Date(document.updatedAt), "dd MMM yyyy", { locale: fr })}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
                 <div className="h-[600px] flex flex-col">
                   <FileExplorer clientId={id} />
                 </div>

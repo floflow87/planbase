@@ -336,13 +336,14 @@ export default function BacklogDetail() {
   }, [showEpicColumn]);
 
   // Auto-open ticket from URL query parameter (e.g., ?ticket=abc123)
+  // Note: selectedTicket intentionally excluded from deps to prevent reopen loop when closing
   useEffect(() => {
     if (!backlog) return;
     
     const urlParams = new URLSearchParams(window.location.search);
     const ticketId = urlParams.get('ticket');
     
-    if (ticketId && !selectedTicket) {
+    if (ticketId) {
       const allTickets = transformToFlatTickets(
         backlog.epics || [],
         backlog.userStories || [],
@@ -352,10 +353,11 @@ export default function BacklogDetail() {
       
       const foundTicket = allTickets.find(t => t.id === ticketId);
       if (foundTicket) {
-        setSelectedTicket(foundTicket);
+        setSelectedTicket(prev => prev?.id === foundTicket.id ? prev : foundTicket);
       }
     }
-  }, [backlog, users, selectedTicket]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backlog, users]);
 
   // Keep the URL in sync with the selected ticket
   useEffect(() => {

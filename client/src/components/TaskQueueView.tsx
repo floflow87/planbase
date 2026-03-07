@@ -529,9 +529,8 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
         )}
         {currentProject && (
           <Badge
-            variant="secondary"
-            className="text-xs max-w-[180px] truncate cursor-pointer hover-elevate text-white"
-            style={{ backgroundColor: getProjectColor(currentProject.id) }}
+            variant="default"
+            className="text-xs max-w-[180px] truncate cursor-pointer hover-elevate"
             onClick={() => { onClose(); setLocation(`/projects/${currentProject.id}`); }}
           >
             {currentProject.name}

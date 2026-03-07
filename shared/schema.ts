@@ -824,6 +824,7 @@ export const documents = pgTable("documents", {
   version: integer("version").notNull().default(1),
   sourceType: text("source_type").notNull().default("template"), // 'template', 'freeform', 'pdf_import'
   pdfStoragePath: text("pdf_storage_path"), // path in Supabase Storage bucket for generated/imported PDF
+  documentDate: date("document_date"), // optional custom date for the document
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({

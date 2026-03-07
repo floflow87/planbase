@@ -2214,6 +2214,13 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Client logo_url column added");
 
+    // Add document_date column to documents
+    await db.execute(sql`
+      ALTER TABLE documents
+      ADD COLUMN IF NOT EXISTS document_date DATE;
+    `);
+    console.log("✅ Documents document_date column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
