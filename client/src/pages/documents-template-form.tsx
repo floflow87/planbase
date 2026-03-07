@@ -204,15 +204,9 @@ export default function DocumentTemplateForm() {
       return createdDocument;
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      // Always invalidate the document's links cache to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ["/api/documents", data.id, "links"] });
-      toast({
-        title: "Document créé",
-        description: "Le document a été créé avec succès",
-        variant: "success",
-      });
       navigate(`/documents/${data.id}`);
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents", data.id, "links"] });
     },
     onError: (error: any) => {
       toast({

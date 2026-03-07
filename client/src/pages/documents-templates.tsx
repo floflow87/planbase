@@ -43,13 +43,8 @@ export default function DocumentTemplates() {
       return await response.json();
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      toast({
-        title: "Document créé",
-        description: "Un nouveau document vierge a été créé",
-        variant: "success",
-      });
       navigate(`/documents/${data.id}`);
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
     },
     onError: (error: any) => {
       toast({

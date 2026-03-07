@@ -4545,17 +4545,17 @@ app.get("/config/feature-flags", async (_req, res) => {
       });
       const document = await storage.createDocument(data);
       
-      // Create activity
-      await storage.createActivity({
+      res.json(document);
+
+      // Create activity in the background (non-blocking)
+      storage.createActivity({
         accountId: req.accountId!,
         subjectType: "document",
         subjectId: document.id,
         kind: "file",
         payload: { description: `Document created: ${document.name}` },
         createdBy: req.userId || null,
-      });
-      
-      res.json(document);
+      }).catch(() => {});
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
