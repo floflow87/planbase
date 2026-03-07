@@ -1,6 +1,6 @@
 // Tasks page - Complete duplicate of tasks tab from projects page
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight, Eye, EyeOff, Search, X } from "lucide-react";
+import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight, Eye, EyeOff, Search, X, Play } from "lucide-react";
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -100,6 +100,7 @@ import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
 import { ColorPicker } from "@/components/ColorPicker";
 import { ListView } from "@/components/ListView";
 import { LoadingState, EmptyState } from "@/design-system/patterns";
+import { TaskQueueView } from "@/components/TaskQueueView";
 import {
   getTaskPriorityLabel,
   getTaskPriorityColorClass,
@@ -727,6 +728,7 @@ export default function Tasks() {
   // Dialog states
   const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false);
   const [isCreateColumnDialogOpen, setIsCreateColumnDialogOpen] = useState(false);
+  const [showQueueView, setShowQueueView] = useState(false);
   const [isRenameColumnDialogOpen, setIsRenameColumnDialogOpen] = useState(false);
   const [isColorColumnDialogOpen, setIsColorColumnDialogOpen] = useState(false);
   const [isDeleteColumnDialogOpen, setIsDeleteColumnDialogOpen] = useState(false);
@@ -1803,6 +1805,29 @@ export default function Tasks() {
                 <CalendarLucide className="w-4 h-4" />
               </Button>
             </div>
+            {(() => {
+              const queueCount = tasks.filter(t => {
+                if (t.status === "done") return false;
+                const col = taskColumns.find(c => c.id === t.columnId);
+                if (col && (col.name || "").toLowerCase().match(/terminé|done|complété|termine/)) return false;
+                return true;
+              }).length;
+              return queueCount > 0 ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowQueueView(true)}
+                  data-testid="button-start-queue"
+                  className="gap-2 text-xs"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">File de tâches</span>
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                    {queueCount}
+                  </Badge>
+                </Button>
+              ) : null;
+            })()}
             {canCreate && !selectedProjectIds.includes("all") && selectedProjectIds.length === 1 && (
               <>
                 <Button
@@ -2495,6 +2520,15 @@ export default function Tasks() {
         })()}
         </div>
       </div>
+      {showQueueView && (
+        <TaskQueueView
+          tasks={tasks}
+          taskColumns={taskColumns}
+          projects={projects}
+          users={users}
+          onClose={() => setShowQueueView(false)}
+        />
+      )}
     </PermissionGuard>
   );
 }

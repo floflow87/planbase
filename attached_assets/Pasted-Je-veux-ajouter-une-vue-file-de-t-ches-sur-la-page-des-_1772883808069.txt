@@ -1,0 +1,84 @@
+Je veux ajouter une “vue file de tâches” sur la page des tâches, inspirée du concept HubSpot quand on clique sur “démarrer la file de tâches”.
+
+OBJECTIF
+Créer une vue plein écran focalisée qui ouvre la première tâche arrivant à échéance et permet de traiter les tâches une par une.
+
+COMPORTEMENT ATTENDU
+
+1. Depuis la page des tâches, ajouter un bouton :
+- “Démarrer la file de tâches”
+
+2. Quand on clique dessus :
+- ouvrir une vue plein écran dédiée
+- afficher la tâche la plus urgente / la plus proche de l’échéance
+- si plusieurs tâches existent, les grouper par échéance puis par projet
+- la vue affiche une tâche à la fois, mais un indicateur de contexte doit montrer :
+  - échéance
+  - projet
+  - position dans la file
+
+3. Dans cette vue, en haut à droite, afficher 3 boutons principaux :
+- Passer
+- Terminer
+- Replanifier
+
+4. Règles métier :
+- Passer :
+  - ne change pas le statut de la tâche
+  - met la tâche dans une pile “skipped” pour cette session
+  - passe à la tâche suivante
+- Terminer :
+  - marque la tâche comme terminée
+  - enregistre la date de complétion
+  - passe à la tâche suivante
+- Replanifier :
+  - ouvre un date picker
+  - permet de modifier la date d’échéance
+  - sauvegarde la tâche
+  - passe ensuite à la tâche suivante
+- Si au moins une tâche a été passée, afficher aussi un bouton :
+  - “Revenir”
+  - qui permet de revenir à la dernière tâche passée
+
+5. Layout de la vue
+- Centre :
+  - titre
+  - description
+  - commentaires
+- Panel gauche :
+  - priorité
+  - statut
+  - effort
+  - date échéance
+  - assigner à un client
+  - assigner à un projet
+  - assigner à un ticket
+
+6. Ajouter un système de commentaires sur la tâche
+- liste des commentaires
+- champ pour ajouter un commentaire
+- auteur, date, contenu
+- stockage en base
+- affichage en timeline simple sous la description
+
+7. UX
+- interface clean, focalisée, sans bruit
+- transitions fluides entre les tâches
+- indicateur de progression dans la file
+- possibilité de quitter la vue et revenir à la liste normale
+
+8. Technique
+- proposer le modèle DB si les commentaires n’existent pas encore
+- proposer la logique de sélection de la prochaine tâche :
+  - tâches non terminées
+  - tri par due_date ASC
+  - puis group by project
+  - puis priorité si utile
+- implémenter proprement avec optimistic UI si possible pour terminer / replanifier / éditer les champs
+
+LIVRABLES
+1. UI de la Task Queue View
+2. Bouton de démarrage depuis la page des tâches
+3. Logique passer / terminer / replanifier / revenir
+4. Système de commentaires
+5. Plan clair MVP puis améliorations possibles
