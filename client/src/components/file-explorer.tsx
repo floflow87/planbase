@@ -179,10 +179,15 @@ export function FileExplorer({ clientId, projectId }: Props) {
   // File preview dialog (images / PDFs)
   const [previewFile, setPreviewFile] = useState<{ url: string; mimeType: string; name: string } | null>(null);
 
-  // Move-to-folder dialog
+  // Move-to-folder dialog (single entry)
   const [movingEntry, setMovingEntry] = useState<{ id: string; kind: "folder" | "file"; name: string } | null>(null);
   const [moveDialogFolder, setMoveDialogFolder] = useState<string | null>(null);
   const [moveDialogBreadcrumb, setMoveDialogBreadcrumb] = useState<BreadcrumbItem[]>([{ id: null, name: "Fichiers" }]);
+
+  // Bulk move dialog
+  const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+  const [bulkMoveFolder, setBulkMoveFolder] = useState<string | null>(null);
+  const [bulkMoveBreadcrumb, setBulkMoveBreadcrumb] = useState<BreadcrumbItem[]>([{ id: null, name: "Fichiers" }]);
 
   // Track virtual entries being optimistically "linked" to a folder (so they hide instantly at root)
   const [pendingLinkedEntityIds, setPendingLinkedEntityIds] = useState(new Set<string>());
@@ -247,6 +252,16 @@ export function FileExplorer({ clientId, projectId }: Props) {
     queryKey: ["move-dialog-folders", moveDialogFolder, clientId, projectId],
     queryFn: () => apiRequest(`/api/folders?${moveDialogFolderParams}`, "GET").then(r => r.json()),
     enabled: !!movingEntry,
+  });
+
+  const bulkMoveDialogParams = new URLSearchParams();
+  bulkMoveDialogParams.set("parentId", bulkMoveFolder ?? "");
+  if (clientId) bulkMoveDialogParams.set("clientId", clientId);
+  if (projectId) bulkMoveDialogParams.set("projectId", projectId);
+  const { data: bulkMoveDialogFolders = [] } = useQuery<Folder[]>({
+    queryKey: ["bulk-move-dialog-folders", bulkMoveFolder, clientId, projectId],
+    queryFn: () => apiRequest(`/api/folders?${bulkMoveDialogParams}`, "GET").then(r => r.json()),
+    enabled: bulkMoveOpen,
   });
 
   const invalidate = useCallback(() => {
@@ -398,6 +413,47 @@ export function FileExplorer({ clientId, projectId }: Props) {
     },
   });
 
+  const bulkMoveMutation = useMutation({
+    mutationFn: async (targetFolderId: string | null) => {
+      for (const id of selectedIds) {
+        const isFolder = folders.some(f => f.id === id);
+        const isFile = files.some(f => f.id === id);
+        const virtualEntry = entries.find(e => e.id === id && !e.isFileEntry);
+
+        if (isFolder) {
+          if (targetFolderId) {
+            await apiRequest(`/api/folders/${id}`, "PATCH", { parentId: targetFolderId });
+          }
+        } else if (isFile) {
+          await apiRequest(`/api/files/${id}`, "PATCH", { folderId: targetFolderId });
+        } else if (virtualEntry) {
+          const entityId = virtualEntry.entityId || virtualEntry.id;
+          const kind = virtualEntry.kind === "note" ? "note_ref" : "doc_internal";
+          const existing = allLinkedFiles.find((f: any) => f.entityId === entityId && f.kind === kind);
+          if (existing) {
+            await apiRequest(`/api/files/${existing.id}`, "PATCH", { folderId: targetFolderId });
+          } else if (targetFolderId) {
+            await apiRequest("/api/files", "POST", { kind, entityId, folderId: targetFolderId, name: virtualEntry.name });
+          }
+          setPendingLinkedEntityIds(prev => new Set([...prev, entityId]));
+        }
+      }
+    },
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      setPendingLinkedEntityIds(new Set());
+      setSelectedIds(new Set());
+      setBulkMoveOpen(false);
+      toast({ title: "Éléments déplacés", variant: "success" as any });
+    },
+    onError: () => {
+      setPendingLinkedEntityIds(new Set());
+      toast({ title: "Erreur", description: "Impossible de déplacer", variant: "destructive" });
+    },
+  });
+
   const duplicateSelectedMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       for (const id of ids) {
@@ -418,8 +474,14 @@ export function FileExplorer({ clientId, projectId }: Props) {
     mutationFn: async (ids: string[]) => {
       for (const id of ids) {
         const isFolder = folders.some(f => f.id === id);
+        const isFile = files.some(f => f.id === id);
+        const isVirtualNote = !isFolder && !isFile && allNotes.some((n: any) => n.id === id);
+        const isVirtualDoc = !isFolder && !isFile && !isVirtualNote && allDocuments.some((d: any) => d.id === id);
+
         if (isFolder) await apiRequest(`/api/folders/${id}`, "DELETE");
-        else await apiRequest(`/api/files/${id}`, "DELETE");
+        else if (isFile) await apiRequest(`/api/files/${id}`, "DELETE");
+        else if (isVirtualNote) await apiRequest(`/api/notes/${id}`, "DELETE");
+        else if (isVirtualDoc) await apiRequest(`/api/documents/${id}`, "DELETE");
       }
     },
     onMutate: async (ids) => {
@@ -801,7 +863,8 @@ export function FileExplorer({ clientId, projectId }: Props) {
 
   const selectedFolderIds = [...selectedIds].filter(id => folders.some(f => f.id === id));
   const selectedFileIds = [...selectedIds].filter(id => files.some(f => f.id === id));
-  const operableSelectedCount = selectedFolderIds.length + selectedFileIds.length;
+  const selectedVirtualIds = [...selectedIds].filter(id => !folders.some(f => f.id === id) && !files.some(f => f.id === id));
+  const operableSelectedCount = selectedFolderIds.length + selectedFileIds.length + selectedVirtualIds.length;
 
   // Rubber band rect
   const rubberRect = rubberBandStart && rubberBandCurrent
@@ -885,9 +948,15 @@ export function FileExplorer({ clientId, projectId }: Props) {
           </span>
           {operableSelectedCount > 0 && (
             <>
-              <Button size="sm" variant="outline" onClick={() => duplicateSelectedMutation.mutate([...selectedFolderIds, ...selectedFileIds])} disabled={duplicateSelectedMutation.isPending} data-testid="button-duplicate-selected">
-                <Copy className="w-3.5 h-3.5" />
-                Dupliquer
+              {(selectedFolderIds.length + selectedFileIds.length) > 0 && (
+                <Button size="sm" variant="outline" onClick={() => duplicateSelectedMutation.mutate([...selectedFolderIds, ...selectedFileIds])} disabled={duplicateSelectedMutation.isPending} data-testid="button-duplicate-selected">
+                  <Copy className="w-3.5 h-3.5" />
+                  Dupliquer
+                </Button>
+              )}
+              <Button size="sm" variant="outline" onClick={() => { setBulkMoveFolder(null); setBulkMoveBreadcrumb([{ id: null, name: "Fichiers" }]); setBulkMoveOpen(true); }} disabled={bulkMoveMutation.isPending} data-testid="button-move-selected">
+                <FolderInput className="w-3.5 h-3.5" />
+                Déplacer
               </Button>
               <Button size="sm" variant="outline" className="text-destructive border-destructive/30" onClick={() => setDeleteSelectedOpen(true)} data-testid="button-delete-selected">
                 <Trash2 className="w-3.5 h-3.5" />
@@ -1210,6 +1279,68 @@ export function FileExplorer({ clientId, projectId }: Props) {
               data-testid="button-move-confirm"
             >
               {(moveFolderMutation.isPending || moveFileMutation.isPending) && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Déplacer ici
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk move dialog */}
+      <Dialog open={bulkMoveOpen} onOpenChange={open => { if (!open) setBulkMoveOpen(false); }}>
+        <DialogContent className="max-w-sm w-full" data-testid="dialog-bulk-move">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Déplacer {selectedIds.size} élément{selectedIds.size > 1 ? "s" : ""} vers…</DialogTitle>
+          </DialogHeader>
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-1 text-xs mb-2 flex-wrap">
+            {bulkMoveBreadcrumb.map((item, idx) => (
+              <span key={idx} className="flex items-center gap-1">
+                {idx > 0 && <ChevronRight className="w-3 h-3 text-muted-foreground" />}
+                <button
+                  className={idx === bulkMoveBreadcrumb.length - 1 ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}
+                  onClick={() => {
+                    setBulkMoveFolder(item.id);
+                    setBulkMoveBreadcrumb(prev => prev.slice(0, idx + 1));
+                  }}
+                >
+                  {idx === 0 ? <span className="flex items-center gap-1"><Home className="w-3 h-3" /> Racine</span> : item.name}
+                </button>
+              </span>
+            ))}
+          </nav>
+          {/* Folder list */}
+          <div className="border rounded-md min-h-[120px] max-h-[240px] overflow-y-auto divide-y">
+            {bulkMoveDialogFolders.length === 0 ? (
+              <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">Aucun sous-dossier</div>
+            ) : (
+              bulkMoveDialogFolders
+                .filter(f => !selectedFolderIds.includes(f.id))
+                .map(f => (
+                  <button
+                    key={f.id}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-muted/50 text-left"
+                    onClick={() => {
+                      setBulkMoveFolder(f.id);
+                      setBulkMoveBreadcrumb(prev => [...prev, { id: f.id, name: f.name }]);
+                    }}
+                    data-testid={`bulk-move-folder-item-${f.id}`}
+                  >
+                    <FolderOpen className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                    <span className="truncate">{f.name}</span>
+                    <ChevronRight className="w-3 h-3 ml-auto text-muted-foreground flex-shrink-0" />
+                  </button>
+                ))
+            )}
+          </div>
+          <DialogFooter className="gap-2 mt-2">
+            <Button variant="outline" size="sm" onClick={() => setBulkMoveOpen(false)}>Annuler</Button>
+            <Button
+              size="sm"
+              disabled={bulkMoveMutation.isPending}
+              onClick={() => bulkMoveMutation.mutate(bulkMoveFolder)}
+              data-testid="button-bulk-move-confirm"
+            >
+              {bulkMoveMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Déplacer ici
             </Button>
           </DialogFooter>
