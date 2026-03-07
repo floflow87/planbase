@@ -67,14 +67,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (response.ok) {
         const userData = await response.json();
-        if (userData.role) {
-          setUserProfile(prev => {
-            if (prev) {
-              return { ...prev, role: userData.role };
-            }
-            return { role: userData.role };
-          });
-        }
+        setUserProfile(prev => ({
+          ...(prev || {}),
+          ...(userData.role && { role: userData.role }),
+          ...(userData.avatarUrl !== undefined && { avatarUrl: userData.avatarUrl || undefined }),
+          ...(userData.firstName !== undefined && { firstName: userData.firstName }),
+          ...(userData.lastName !== undefined && { lastName: userData.lastName }),
+          ...(userData.position !== undefined && { position: userData.position }),
+        }));
       }
     } catch (error) {
       console.error('Failed to fetch user role:', error);

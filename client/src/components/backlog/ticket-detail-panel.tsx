@@ -29,7 +29,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import type { Epic, UserStory, BacklogTask, Sprint, AppUser, TicketComment, Note, EntityLink, Project, Activity, TicketAcceptanceCriteria, NonRegressionItem } from "@shared/schema";
@@ -1768,6 +1768,7 @@ export function TicketDetailPanel({
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
+                          <AvatarImage src={author?.avatarUrl || undefined} />
                           <AvatarFallback className="text-xs bg-violet-100 text-violet-700">
                             {author?.firstName?.charAt(0) || author?.email?.charAt(0) || "?"}
                           </AvatarFallback>

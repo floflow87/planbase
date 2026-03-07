@@ -137,6 +137,7 @@ interface NoteEditorProps {
   placeholder?: string;
   onTitleChange?: (title: string) => void;
   title?: string;
+  borderless?: boolean;
 }
 
 // Color palette for text - 18 colors
@@ -192,6 +193,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     placeholder = "Commencer à écrire… Appuyez sur la touche / pour utiliser les raccourcis.",
     onTitleChange,
     title = "",
+    borderless = false,
   } = props;
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -857,7 +859,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
   }
 
   return (
-    <div className="border border-border rounded-md bg-background">
+    <div className={borderless ? "bg-background" : "border border-border rounded-md bg-background"}>
       {editable && (
         <>
           {onTitleChange && (
@@ -872,7 +874,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
               />
             </div>
           )}
-          <div className={`sticky top-0 z-50 border-b border-border ${isMobile ? 'px-1 py-1.5' : 'p-2'} flex items-center gap-px bg-[#EFE8FC] dark:bg-background shadow-sm overflow-x-auto whitespace-nowrap`}>
+          {!borderless && <div className={`sticky top-0 z-50 border-b border-border ${isMobile ? 'px-1 py-1.5' : 'p-2'} flex items-center gap-px bg-[#EFE8FC] dark:bg-background shadow-sm overflow-x-auto whitespace-nowrap`}>
             {/* Format Painter - hidden on mobile */}
             {!isMobile && (
               <>
@@ -1583,7 +1585,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-          </div>
+          </div>}
         </>
       )}
       

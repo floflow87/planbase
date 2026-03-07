@@ -713,7 +713,7 @@ export default function NoteDetail() {
   return (
     <div className="h-full flex flex-col bg-[#F8FAFC] dark:bg-background">
       {/* Fixed Header */}
-      <div className="flex-none border-b border-border bg-background">
+      <div className="flex-none bg-background">
         {/* MOBILE HEADER: Compact single line */}
         {isMobile ? (
           <div className="px-2 py-2 space-y-1.5">
@@ -930,46 +930,32 @@ export default function NoteDetail() {
             </div>
           </div>
         ) : (
-          /* DESKTOP HEADER: Original layout */
-          <div className="p-6 space-y-4">
-            {/* Header */}
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-4 flex-1 min-w-0">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  data-testid="button-back" 
-                  className="mt-1"
-                  onClick={() => navigate("/notes")}
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </Button>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 min-w-0 mb-2">
-                    <input
-                      type="text"
-                      value={title}
-                      onChange={(e) => { setTitle(e.target.value); queueUpdate({ title: e.target.value }); }}
-                      onBlur={flushImmediate}
-                      className="flex-1 min-w-0 text-xl font-bold bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground"
-                      placeholder="Sans titre"
-                      data-testid="input-note-title-header"
-                    />
-                    {status !== "draft" && (
-                      <Badge 
-                        variant="outline" 
-                        className={`shrink-0 ${
-                          status === "archived"
-                            ? "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800"
-                            : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
-                        }`}
-                        data-testid="badge-status"
-                      >
-                        {status === "archived" ? "Archivée" : "Active"}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
+          /* DESKTOP HEADER: Notion-style */
+          <div className="px-6 pt-4 pb-3">
+            {/* Row 1: Back + sync status + spacer + selectors + action menu */}
+            <div className="flex items-center gap-1.5">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                data-testid="button-back" 
+                onClick={() => navigate("/notes")}
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-xs text-muted-foreground cursor-default select-none" data-testid="autosave-status">
+                    {syncState.isSyncing ? "Sauvegarde..." : syncState.hasPending ? "En attente..." : syncState.lastSynced ? "Sauvegardé" : ""}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Auto-sauvegarde activée</TooltipContent>
+              </Tooltip>
+
+              <div className="flex-1" />
+
+              {/* Selectors block — was previously below the title */}
+              <div className="flex items-center gap-1.5 flex-wrap">
                     {/* Project selector */}
                     <div className="flex items-center">
                       <Button
@@ -1072,7 +1058,7 @@ export default function NoteDetail() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className={`justify-start h-7 px-2 text-xs ${!note?.categoryId ? 'bg-violet-100 dark:bg-violet-900/30' : ''}`}
+                              className={`justify-start h-6 px-2 text-[11px] ${!note?.categoryId ? 'bg-violet-100 dark:bg-violet-900/30' : ''}`}
                               onClick={() => {
                                 updateNoteCategoryMutation.mutate(null);
                                 setCategoryPopoverOpen(false);
@@ -1087,7 +1073,7 @@ export default function NoteDetail() {
                                 key={category.id}
                                 variant="ghost"
                                 size="sm"
-                                className={`justify-start h-7 px-2 text-xs ${note?.categoryId === category.id ? 'bg-violet-100 dark:bg-violet-900/30' : ''}`}
+                                className={`justify-start h-6 px-2 text-[11px] ${note?.categoryId === category.id ? 'bg-violet-100 dark:bg-violet-900/30' : ''}`}
                                 onClick={() => {
                                   updateNoteCategoryMutation.mutate(category.id);
                                   setCategoryPopoverOpen(false);
@@ -1105,7 +1091,7 @@ export default function NoteDetail() {
                                 value={newCategoryName}
                                 onChange={(e) => setNewCategoryName(e.target.value)}
                                 placeholder="Nouveau tag..."
-                                className="h-7 text-xs bg-white dark:bg-gray-800"
+                                className="h-6 text-[11px] bg-white dark:bg-gray-800"
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter' && newCategoryName.trim()) {
                                     createCategoryMutation.mutate(newCategoryName.trim());
@@ -1115,7 +1101,7 @@ export default function NoteDetail() {
                               />
                               <Button
                                 size="sm"
-                                className="h-7 px-2"
+                                className="h-6 px-2"
                                 disabled={!newCategoryName.trim() || createCategoryMutation.isPending}
                                 onClick={() => {
                                   if (newCategoryName.trim()) {
@@ -1184,53 +1170,9 @@ export default function NoteDetail() {
                     {syncState.error ? (
                       <span className="text-xs text-red-500">Erreur de sync</span>
                     ) : null}
-                  </div>
-                </div>
               </div>
-              <div className="flex items-center gap-2">
-                {/* Auto save status indicator */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="text-xs text-muted-foreground cursor-default select-none" data-testid="autosave-status">
-                      {syncState.isSyncing ? "Sauvegarde..." : syncState.hasPending ? "En attente..." : syncState.lastSynced ? "Sauvegardé" : ""}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Auto-sauvegarde activée</TooltipContent>
-                </Tooltip>
-                
-                {/* Save button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      onClick={handleSaveDraft} 
-                      size="icon"
-                      className="bg-green-50 hover:bg-white dark:hover:bg-muted text-green-700 border-green-200"
-                      data-testid="button-save-draft"
-                    >
-                      <Save className="w-4 h-4" />
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Enregistrer</TooltipContent>
-              </Tooltip>
-              
-              {/* Delete button - always visible */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="destructive" 
-                    onClick={handleDeleteClick} 
-                    size="icon"
-                    className="hover:bg-red-600 dark:hover:bg-red-600"
-                    data-testid="button-delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Supprimer</TooltipContent>
-              </Tooltip>
-              
-              {/* Actions dropdown */}
+
+              {/* Actions dropdown — Save + Delete at top */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button 
@@ -1242,6 +1184,28 @@ export default function NoteDetail() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
+                  {/* Save */}
+                  <DropdownMenuItem
+                    onClick={handleSaveDraft}
+                    data-testid="menu-item-save-draft"
+                    className="text-xs"
+                  >
+                    <Save className="w-4 h-4 mr-2 text-green-600" />
+                    Enregistrer
+                  </DropdownMenuItem>
+
+                  {/* Delete */}
+                  <DropdownMenuItem
+                    onClick={handleDeleteClick}
+                    className="text-destructive focus:text-destructive focus:bg-destructive/10 text-xs"
+                    data-testid="menu-item-delete"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Supprimer la note
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
                   {/* Lock/Unlock */}
                   <DropdownMenuItem
                     onClick={() => {
@@ -1259,6 +1223,7 @@ export default function NoteDetail() {
                       }
                     }}
                     data-testid="menu-item-toggle-edit"
+                    className="text-xs"
                   >
                     {isEditMode ? <LockOpen className="w-4 h-4 mr-2" /> : <Lock className="w-4 h-4 mr-2" />}
                     {isEditMode ? "Verrouiller" : "Déverrouiller"}
@@ -1268,6 +1233,7 @@ export default function NoteDetail() {
                   <DropdownMenuItem
                     onClick={handleToggleFavorite}
                     data-testid="menu-item-toggle-favorite"
+                    className="text-xs"
                   >
                     <Star className={`w-4 h-4 mr-2 ${isFavorite ? "fill-yellow-500 text-yellow-500" : ""}`} />
                     {isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
@@ -1277,6 +1243,7 @@ export default function NoteDetail() {
                   <DropdownMenuItem
                     onClick={handlePublish}
                     data-testid="menu-item-publish"
+                    className="text-xs"
                   >
                     <Globe className="w-4 h-4 mr-2" />
                     {status === "active" ? "Dépublier" : "Publier"}
@@ -1284,13 +1251,14 @@ export default function NoteDetail() {
                   
                   <DropdownMenuSeparator />
                   
-                  {/* Status submenu */}
+                  {/* Status items */}
                   <DropdownMenuItem
                     onClick={() => {
                       setStatus("draft");
                       updateMutation.mutate({ status: "draft" });
                     }}
                     data-testid="menu-item-status-draft"
+                    className="text-xs"
                   >
                     <Badge 
                       variant="outline" 
@@ -1299,6 +1267,7 @@ export default function NoteDetail() {
                       ●
                     </Badge>
                     Brouillon
+                    {status === "draft" && <Check className="w-3 h-3 ml-auto" />}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => {
@@ -1306,6 +1275,7 @@ export default function NoteDetail() {
                       updateMutation.mutate({ status: "active" });
                     }}
                     data-testid="menu-item-status-active"
+                    className="text-xs"
                   >
                     <Badge 
                       variant="outline" 
@@ -1314,6 +1284,7 @@ export default function NoteDetail() {
                       ●
                     </Badge>
                     Active
+                    {status === "active" && <Check className="w-3 h-3 ml-auto" />}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => {
@@ -1321,6 +1292,7 @@ export default function NoteDetail() {
                       updateMutation.mutate({ status: "archived" });
                     }}
                     data-testid="menu-item-status-archived"
+                    className="text-xs"
                   >
                     <Badge 
                       variant="outline" 
@@ -1329,6 +1301,7 @@ export default function NoteDetail() {
                       ●
                     </Badge>
                     Archivée
+                    {status === "archived" && <Check className="w-3 h-3 ml-auto" />}
                   </DropdownMenuItem>
                   
                   <DropdownMenuSeparator />
@@ -1340,6 +1313,7 @@ export default function NoteDetail() {
                       setEntitySelectorOpen(true);
                     }}
                     data-testid="menu-item-attach-project"
+                    className="text-xs"
                   >
                     <FolderKanban className="w-4 h-4 mr-2 text-violet-500" />
                     {currentProject ? `Projet: ${currentProject.name}` : "Rattacher à un projet"}
@@ -1352,6 +1326,7 @@ export default function NoteDetail() {
                       setEntitySelectorOpen(true);
                     }}
                     data-testid="menu-item-attach-client"
+                    className="text-xs"
                   >
                     <Users className="w-4 h-4 mr-2 text-cyan-500" />
                     {currentClient ? `Client: ${currentClient.name}` : "Rattacher à un client"}
@@ -1364,6 +1339,7 @@ export default function NoteDetail() {
                       setEntitySelectorOpen(true);
                     }}
                     data-testid="menu-item-attach-ticket"
+                    className="text-xs"
                   >
                     <Ticket className="w-4 h-4 mr-2 text-orange-500" />
                     {currentTicket ? `Ticket: ${currentTicket.title}` : "Rattacher à un ticket"}
@@ -1371,8 +1347,18 @@ export default function NoteDetail() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+
+            {/* Row 2: Title — Notion-style, full width, no badge */}
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => { setTitle(e.target.value); queueUpdate({ title: e.target.value }); }}
+              onBlur={flushImmediate}
+              className="w-full text-2xl font-bold bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground mt-4 pb-1"
+              placeholder="Sans titre"
+              data-testid="input-note-title-header"
+            />
           </div>
-        </div>
         )}
       </div>
       
@@ -1556,6 +1542,7 @@ export default function NoteDetail() {
               onBlur={flushImmediate}
               editable={isEditMode}
               placeholder="Commencez à écrire votre note..."
+              borderless={!isMobile}
             />
           ) : (
             <div className="min-h-[400px] flex items-center justify-center text-muted-foreground text-sm">
