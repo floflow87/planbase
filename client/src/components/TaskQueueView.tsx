@@ -34,6 +34,7 @@ import {
   User,
   Tag,
   RotateCcw,
+  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -125,9 +126,13 @@ function StarRating({
 function CommentItem({
   comment,
   users,
+  currentUserId,
+  onDelete,
 }: {
   comment: TicketComment;
   users: AppUser[];
+  currentUserId?: string;
+  onDelete?: (commentId: string) => void;
 }) {
   const author = users.find((u) => u.id === comment.authorId);
   const initials = author
@@ -136,9 +141,10 @@ function CommentItem({
   const displayName = author
     ? `${author.firstName || ""} ${author.lastName || ""}`.trim() || author.email
     : "Inconnu";
+  const canDelete = onDelete && comment.authorId === currentUserId;
 
   return (
-    <div className="flex gap-3" data-testid={`comment-item-${comment.id}`}>
+    <div className="flex gap-3 group" data-testid={`comment-item-${comment.id}`}>
       <Avatar className="w-7 h-7 shrink-0 mt-0.5">
         <AvatarImage src={author?.avatarUrl || undefined} />
         <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
@@ -151,6 +157,16 @@ function CommentItem({
               ? format(new Date(comment.createdAt), "d MMM yyyy à HH:mm", { locale: fr })
               : ""}
           </span>
+          {canDelete && (
+            <button
+              type="button"
+              className="ml-auto invisible group-hover:visible text-muted-foreground hover:text-destructive transition-colors"
+              onClick={() => onDelete(comment.id)}
+              data-testid={`button-delete-comment-${comment.id}`}
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          )}
         </div>
         <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap">{comment.content}</p>
       </div>
@@ -218,6 +234,18 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
     },
     onError: () => {
       toast({ title: "Erreur", description: "Impossible d'ajouter le commentaire.", variant: "destructive" });
+    },
+  });
+
+  const deleteComment = useMutation({
+    mutationFn: async (commentId: string) => {
+      return apiRequest(`/api/ticket-comments/${commentId}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets", currentTask?.id, "task/comments"] });
+    },
+    onError: () => {
+      toast({ title: "Erreur", description: "Impossible de supprimer le commentaire.", variant: "destructive" });
     },
   });
 
@@ -685,7 +713,7 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
             <Input
               value={localTitle}
               onChange={(e) => handleTitleChange(e.target.value)}
-              className="text-[26px] font-bold border-none shadow-none px-0 h-auto text-foreground focus-visible:ring-0 bg-transparent"
+              className="text-[28px] font-bold border-none shadow-none px-0 h-auto text-foreground focus-visible:ring-0 bg-transparent"
               placeholder="Titre de la tâche..."
               data-testid="input-queue-title"
             />
@@ -765,7 +793,13 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
               ) : (
                 <div className="space-y-4">
                   {comments.map((c) => (
-                    <CommentItem key={c.id} comment={c} users={users} />
+                    <CommentItem
+                      key={c.id}
+                      comment={c}
+                      users={users}
+                      currentUserId={user?.id}
+                      onDelete={(id) => deleteComment.mutate(id)}
+                    />
                   ))}
                 </div>
               )}
