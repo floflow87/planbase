@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, CalendarDays, Save, Check, ChevronLeft, ChevronRight, Star, TrendingUp, ChevronsUpDown, DollarSign, StickyNote, Globe, Radar, BarChart4, CreditCard, Timer, Hourglass, Filter, Eye, CalendarPlus, NotebookPen, ListTodo, FolderOpen } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, CalendarDays, Save, Check, ChevronLeft, ChevronRight, Star, TrendingUp, ChevronsUpDown, DollarSign, StickyNote, Globe, Radar, BarChart4, CreditCard, Timer, Hourglass, Filter, Eye, CalendarPlus, NotebookPen, ListTodo, FolderOpen, Camera } from "lucide-react";
 import { FileExplorer } from "@/components/file-explorer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +31,88 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useProjectStagesUI } from "@/hooks/useProjectStagesUI";
 import { AppointmentPanel } from "@/components/appointment-panel";
+
+function ClientLogoUpload({ client }: { client: Client }) {
+  const { toast } = useToast();
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState<string | null>(client.logoUrl || null);
+
+  const handleUpload = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast({ variant: "destructive", title: "Erreur", description: "Veuillez choisir une image" });
+      return;
+    }
+    const localPreview = URL.createObjectURL(file);
+    setPreview(localPreview);
+    setUploading(true);
+    try {
+      const { supabase } = await import("@/lib/supabase");
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`/api/clients/${client.id}/logo`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setPreview(client.logoUrl || null);
+        throw new Error(err.error || "Erreur upload");
+      }
+      const updated = await res.json();
+      queryClient.setQueryData(["/api/clients", client.id], updated);
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      setPreview(updated.logoUrl || null);
+      toast({ title: "Logo mis à jour" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Erreur", description: e.message });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="relative group">
+      <button
+        type="button"
+        onClick={() => logoInputRef.current?.click()}
+        disabled={uploading}
+        className="relative rounded-full overflow-hidden"
+        data-testid="button-upload-client-logo"
+        title="Changer le logo"
+      >
+        <Avatar className="w-14 h-14">
+          <AvatarImage src={preview || ""} alt={client.name} />
+          <AvatarFallback className="text-base font-semibold bg-primary/10 text-primary">
+            {(client.company || client.name).substring(0, 2).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <div className="absolute inset-0 bg-black/30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          {uploading ? (
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Camera className="w-4 h-4 text-white" />
+          )}
+        </div>
+      </button>
+      <input
+        ref={logoInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleUpload(f);
+          e.target.value = "";
+        }}
+        data-testid="input-client-logo-upload"
+      />
+    </div>
+  );
+}
 
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -1123,9 +1205,7 @@ export default function ClientDetail() {
             <CardContent className="p-4 space-y-4">
             {/* Avatar + name */}
             <div className="flex flex-col items-center gap-2 py-2">
-              <Avatar className="w-14 h-14">
-                <AvatarFallback className="text-base font-semibold">{client.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
+              <ClientLogoUpload client={client} />
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1">
                   <p className="text-sm font-semibold text-foreground leading-tight">{client.company || client.name}</p>

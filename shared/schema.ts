@@ -356,6 +356,7 @@ export const clients = pgTable("clients", {
   notes: text("notes"),
   website: text("website"),
   source: text("source"), // Acquisition source: referral, linkedin, website, ad, other
+  logoUrl: text("logo_url"), // Client logo or avatar image URL
   // Personal/company details
   civility: text("civility"), // M, Mme, Mlle, Dr, etc.
   firstName: text("first_name"), // For person type

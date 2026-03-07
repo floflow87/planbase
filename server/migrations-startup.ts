@@ -2207,6 +2207,13 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Files task_id column added");
 
+    // Add logo_url column to clients
+    await db.execute(sql`
+      ALTER TABLE clients
+      ADD COLUMN IF NOT EXISTS logo_url TEXT;
+    `);
+    console.log("✅ Client logo_url column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

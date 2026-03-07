@@ -1175,6 +1175,41 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  // Upload client logo
+  const _clientLogoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5242880 } });
+  app.post("/api/clients/:id/logo", requireAuth, requireOrgMember, requirePermission("crm", "update", "crm.clients"), _clientLogoUpload.single("file"), async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file) return res.status(400).json({ error: "Aucun fichier fourni" });
+      if (!file.mimetype.startsWith("image/")) return res.status(400).json({ error: "Seules les images sont acceptées" });
+
+      const client = await storage.getClient(req.accountId!, req.params.id);
+      if (!client) return res.status(404).json({ error: "Client introuvable" });
+
+      const ext = (file.originalname.split(".").pop() || "jpg").toLowerCase();
+      const storagePath = `accounts/${req.accountId}/clients/${req.params.id}/logo.${ext}`;
+
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from("planbase-files")
+        .upload(storagePath, file.buffer, { contentType: file.mimetype, upsert: true });
+
+      if (uploadError) throw new Error("Erreur upload: " + uploadError.message);
+
+      const { data: signedData, error: signedError } = await supabaseAdmin.storage
+        .from("planbase-files")
+        .createSignedUrl(storagePath, 315360000);
+
+      if (signedError || !signedData?.signedUrl) throw new Error("Erreur génération URL signée");
+
+      const updatedClient = await storage.updateClient(req.accountId!, req.params.id, { logoUrl: signedData.signedUrl } as any);
+      if (!updatedClient) return res.status(404).json({ error: "Mise à jour échouée" });
+
+      res.json(updatedClient);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   app.delete("/api/clients/:id", requireAuth, requireOrgMember, requirePermission("crm", "delete", "crm.clients"), async (req, res) => {
     try {
       const success = await storage.deleteClient(req.accountId!, req.params.id);

@@ -47,11 +47,11 @@ import ProjectDecisions from "@/pages/project-decisions";
 import ProjectExecutive from "@/pages/project-executive";
 import AcceptInvitation from "@/pages/accept-invitation";
 import NotFound from "@/pages/not-found";
-import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote } from "lucide-react";
+import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote, CalendarPlus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { SafeAreaTopBar, useIsStandalone } from "@/design-system/primitives/SafeAreaTopBar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -222,6 +222,7 @@ function UserMenu() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="rounded-full cursor-pointer" data-testid="button-user-menu">
           <Avatar className="h-8 w-8">
+            <AvatarImage src={userProfile?.avatarUrl || ""} alt={userInitials} />
             <AvatarFallback className="bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300 text-xs">
               {userInitials}
             </AvatarFallback>
@@ -443,34 +444,43 @@ function QuickCreateMenu() {
 
   if (!user) return null;
 
+  const quickActions = [
+    { label: "Client", icon: Users, color: "bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400", onClick: () => setIsClientSheetOpen(true), testId: "dropdown-new-client" },
+    { label: "Projet", icon: FolderKanban, color: "bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400", onClick: () => setIsProjectSheetOpen(true), testId: "dropdown-new-project" },
+    { label: "Tâche", icon: CheckSquare, color: "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400", onClick: () => setIsTaskSheetOpen(true), testId: "dropdown-new-task" },
+    { label: "Note", icon: StickyNote, color: "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400", onClick: () => setIsNoteSheetOpen(true), testId: "dropdown-new-note" },
+    { label: "Rendez-vous", icon: CalendarPlus, color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400", onClick: () => { setLocation("/calendar"); }, testId: "dropdown-new-appointment" },
+  ];
+
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+      <Popover>
+        <PopoverTrigger asChild>
           <Button size="sm" className="gap-1" data-testid="button-quick-create">
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Nouveau</span>
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-48 bg-card" data-testid="dropdown-quick-create">
-          <DropdownMenuItem onClick={() => setIsClientSheetOpen(true)} className="cursor-pointer py-1 text-xs" data-testid="dropdown-new-client">
-            <Users className="w-3.5 h-3.5 mr-2" />
-            Nouveau client
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setIsProjectSheetOpen(true)} className="cursor-pointer py-1 text-xs" data-testid="dropdown-new-project">
-            <FolderKanban className="w-3.5 h-3.5 mr-2" />
-            Nouveau projet
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setIsTaskSheetOpen(true)} className="cursor-pointer py-1 text-xs" data-testid="dropdown-new-task">
-            <CheckSquare className="w-3.5 h-3.5 mr-2" />
-            Nouvelle tâche
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setIsNoteSheetOpen(true)} className="cursor-pointer py-1 text-xs" data-testid="dropdown-new-note">
-            <StickyNote className="w-3.5 h-3.5 mr-2" />
-            Nouvelle note
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-56 p-3" data-testid="dropdown-quick-create">
+          <p className="text-xs font-medium text-muted-foreground mb-2">Créer</p>
+          <div className="grid grid-cols-3 gap-2">
+            {quickActions.map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                onClick={action.onClick}
+                className="flex flex-col items-center gap-1.5 p-2 rounded-md hover-elevate active-elevate-2 cursor-pointer"
+                data-testid={action.testId}
+              >
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center ${action.color}`}>
+                  <action.icon className="w-4 h-4" />
+                </div>
+                <span className="text-[10px] font-medium text-foreground/80 leading-tight text-center">{action.label}</span>
+              </button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
 
       {/* Client Sheet */}
       <Sheet open={isClientSheetOpen} onOpenChange={setIsClientSheetOpen}>

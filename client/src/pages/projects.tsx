@@ -1783,6 +1783,7 @@ function ProjectKanbanView({
             <CardContent className="p-3">
               <div className="flex items-start gap-3">
                 <Avatar className="h-8 w-8 shrink-0">
+                  <AvatarImage src={activeKanbanClient?.logoUrl || ""} alt={activeKanbanClient?.name} />
                   <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">
                     {activeKanbanClient?.name.substring(0, 2).toUpperCase() || "??"}
                   </AvatarFallback>
@@ -3357,6 +3358,7 @@ export default function Projects() {
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3 flex-1 min-w-0">
                               <Avatar className="h-10 w-10 flex-shrink-0">
+                                <AvatarImage src={client?.logoUrl || ""} alt={client?.name} />
                                 <AvatarFallback className="bg-primary text-primary-foreground">
                                   {client?.name.substring(0, 2).toUpperCase() || "??"}
                                 </AvatarFallback>
@@ -3574,6 +3576,7 @@ export default function Projects() {
                           <div className="flex items-start justify-between gap-3 mb-3">
                             <div className="flex items-center gap-3 flex-1">
                               <Avatar className="h-10 w-10">
+                                <AvatarImage src={client?.logoUrl || ""} alt={client?.name} />
                                 <AvatarFallback className="bg-primary text-primary-foreground">
                                   {client?.name.substring(0, 2).toUpperCase() || "??"}
                                 </AvatarFallback>
@@ -3875,6 +3878,7 @@ export default function Projects() {
                                 <TableCell key="client">
                                   <div className="flex items-center gap-2">
                                     <Avatar className="h-6 w-6">
+                                      <AvatarImage src={client?.logoUrl || ""} alt={client?.name} />
                                       <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">
                                         {client?.name.substring(0, 2).toUpperCase() || "??"}
                                       </AvatarFallback>

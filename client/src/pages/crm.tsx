@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -165,22 +166,30 @@ function DraggableKanbanCard({
     >
       <CardContent className="p-3 space-y-2">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <Link href={`/crm/${client.id}`}>
-              <h4 
-                className="text-sm font-semibold text-foreground truncate hover:text-primary cursor-pointer transition-colors"
-                onPointerDown={(e) => e.stopPropagation()}
-                data-testid={`link-client-${client.id}`}
-              >
-                {client.name}
-              </h4>
-            </Link>
-            {client.company && (
-              <div className="flex items-center gap-1 mt-1">
-                <Building2 className="w-3 h-3 text-muted-foreground shrink-0" />
-                <span className="text-xs text-muted-foreground truncate">{client.company}</span>
-              </div>
-            )}
+          <div className="flex items-start gap-2 flex-1 min-w-0">
+            <Avatar className="w-7 h-7 shrink-0 mt-0.5">
+              <AvatarImage src={client.logoUrl || ""} alt={client.name} />
+              <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                {(client.company || client.name).substring(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <Link href={`/crm/${client.id}`}>
+                <h4 
+                  className="text-sm font-semibold text-foreground truncate hover:text-primary cursor-pointer transition-colors"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  data-testid={`link-client-${client.id}`}
+                >
+                  {client.name}
+                </h4>
+              </Link>
+              {client.company && (
+                <div className="flex items-center gap-1 mt-1">
+                  <Building2 className="w-3 h-3 text-muted-foreground shrink-0" />
+                  <span className="text-xs text-muted-foreground truncate">{client.company}</span>
+                </div>
+              )}
+            </div>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -1161,6 +1170,12 @@ export default function CRM() {
                               case "client":
                                 return (
                                   <div className="flex items-center gap-2">
+                                    <Avatar className="w-6 h-6 shrink-0">
+                                      <AvatarImage src={client.logoUrl || ""} alt={client.name} />
+                                      <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                                        {(client.company || client.name).substring(0, 2).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
                                     <p className="text-xs font-medium text-foreground truncate">
                                       {client.company || client.name}
                                     </p>
