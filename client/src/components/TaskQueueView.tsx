@@ -35,6 +35,8 @@ import {
   Tag,
   RotateCcw,
   Trash2,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -128,12 +130,17 @@ function CommentItem({
   users,
   currentUserId,
   onDelete,
+  onEdit,
 }: {
   comment: TicketComment;
   users: AppUser[];
   currentUserId?: string;
   onDelete?: (commentId: string) => void;
+  onEdit?: (commentId: string, content: string) => void;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(comment.content);
+
   const author = users.find((u) => u.id === comment.authorId);
   const initials = author
     ? `${(author.firstName || "")[0] || ""}${(author.lastName || "")[0] || ""}`.toUpperCase() || "?"
@@ -141,7 +148,19 @@ function CommentItem({
   const displayName = author
     ? `${author.firstName || ""} ${author.lastName || ""}`.trim() || author.email
     : "Inconnu";
-  const canDelete = onDelete && comment.authorId === currentUserId;
+  const isAuthor = comment.authorId === currentUserId;
+
+  const handleSaveEdit = () => {
+    if (editValue.trim() && onEdit) {
+      onEdit(comment.id, editValue.trim());
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditValue(comment.content);
+    setIsEditing(false);
+  };
 
   return (
     <div className="flex gap-3 group" data-testid={`comment-item-${comment.id}`}>
@@ -150,25 +169,69 @@ function CommentItem({
         <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-medium text-foreground">{displayName}</span>
           <span className="text-[10px] text-muted-foreground">
             {comment.createdAt
               ? format(new Date(comment.createdAt), "d MMM yyyy à HH:mm", { locale: fr })
               : ""}
           </span>
-          {canDelete && (
-            <button
-              type="button"
-              className="ml-auto invisible group-hover:visible text-muted-foreground hover:text-destructive transition-colors"
-              onClick={() => onDelete(comment.id)}
-              data-testid={`button-delete-comment-${comment.id}`}
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
+          {isAuthor && !isEditing && (
+            <div className="ml-auto flex items-center gap-1 invisible group-hover:visible">
+              <button
+                type="button"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => { setEditValue(comment.content); setIsEditing(true); }}
+                data-testid={`button-edit-comment-${comment.id}`}
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
+              {onDelete && (
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-destructive transition-colors"
+                  onClick={() => onDelete(comment.id)}
+                  data-testid={`button-delete-comment-${comment.id}`}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           )}
         </div>
-        <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap">{comment.content}</p>
+        {isEditing ? (
+          <div className="mt-1 flex gap-2 items-start">
+            <Input
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveEdit();
+                if (e.key === "Escape") handleCancelEdit();
+              }}
+              className="text-sm flex-1 h-8"
+              autoFocus
+              data-testid={`input-edit-comment-${comment.id}`}
+            />
+            <button
+              type="button"
+              className="text-green-600 hover:text-green-700 transition-colors mt-1.5"
+              onClick={handleSaveEdit}
+              data-testid={`button-save-comment-${comment.id}`}
+            >
+              <Check className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground transition-colors mt-1.5"
+              onClick={handleCancelEdit}
+              data-testid={`button-cancel-comment-${comment.id}`}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <p className="text-sm text-foreground/90 mt-0.5 whitespace-pre-wrap">{comment.content}</p>
+        )}
       </div>
     </div>
   );
@@ -260,6 +323,18 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
     },
     onError: () => {
       toast({ title: "Erreur", description: "Impossible de supprimer le commentaire.", variant: "destructive" });
+    },
+  });
+
+  const editComment = useMutation({
+    mutationFn: async ({ commentId, content }: { commentId: string; content: string }) => {
+      return apiRequest(`/api/ticket-comments/${commentId}`, "PATCH", { content });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets", currentTask?.id, "task/comments"] });
+    },
+    onError: () => {
+      toast({ title: "Erreur", description: "Impossible de modifier le commentaire.", variant: "destructive" });
     },
   });
 
@@ -727,7 +802,7 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
             <Input
               value={localTitle}
               onChange={(e) => handleTitleChange(e.target.value)}
-              className="text-[28px] font-bold border-none shadow-none px-0 h-auto text-foreground focus-visible:ring-0 bg-transparent"
+              className="text-[30px] font-bold border-none shadow-none px-0 h-auto text-foreground focus-visible:ring-0 bg-transparent"
               placeholder="Titre de la tâche..."
               data-testid="input-queue-title"
             />
@@ -815,6 +890,7 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
                       users={users}
                       currentUserId={currentDbUser?.id}
                       onDelete={(id) => deleteComment.mutate(id)}
+                      onEdit={(id, content) => editComment.mutate({ commentId: id, content })}
                     />
                   ))}
                 </div>
