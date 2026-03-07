@@ -764,7 +764,7 @@ export default function CRM() {
   const wonClients = clients.filter(c => c.status === "signed" || c.status === "won").length;
   const conversionRate = (wonClients + activeProspects) > 0 ? Math.round((wonClients / (wonClients + activeProspects)) * 100) : 0;
   // Calculate opportunities from project budgets for clients in pipeline stages
-  const opportunityStatuses = ["prospecting", "qualified", "negotiation", "quote_sent", "prospect", "in_progress"];
+  const opportunityStatuses = ["prospecting", "qualified", "negotiation", "quote_sent", "quote_approved", "won", "signed", "prospect", "in_progress"];
   const totalOpportunities = clients
     .filter(c => opportunityStatuses.includes(c.status || ""))
     .reduce((sum, c) => {

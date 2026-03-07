@@ -225,6 +225,11 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
   }
   const [copiedFormat, setCopiedFormat] = useState<CopiedFormat | null>(null);
   
+  // Bubble menu state for text selection
+  const [bubbleMenuVisible, setBubbleMenuVisible] = useState(false);
+  const [bubbleMenuPos, setBubbleMenuPos] = useState({ top: 0, left: 0 });
+  const bubbleMenuRef = useRef<HTMLDivElement>(null);
+
   // Outline bar state (Notion-like)
   interface HeadingInfo {
     id: string;
@@ -306,7 +311,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none min-h-[400px] p-4',
+        class: `prose prose-sm max-w-none focus:outline-none min-h-[400px] ${borderless ? 'px-12 pt-4 pb-24' : 'p-4'}`,
       },
       handleClick: (view, pos, event) => {
         const target = event.target as HTMLElement;
@@ -591,6 +596,35 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     };
   }, [editor]);
 
+  // Track text selection to show/hide floating bubble menu
+  useEffect(() => {
+    if (!editor || !borderless) return;
+
+    const updateBubbleMenu = () => {
+      const { from, to, empty } = editor.state.selection;
+      if (empty || !editor.isEditable) {
+        setBubbleMenuVisible(false);
+        return;
+      }
+      const coords = editor.view.coordsAtPos(from);
+      const toCoords = editor.view.coordsAtPos(to);
+      const editorDom = editor.view.dom as HTMLElement;
+      const editorRect = editorDom.getBoundingClientRect();
+      const midX = (coords.left + toCoords.left) / 2;
+      const left = Math.max(0, midX - editorRect.left - 120);
+      const top = coords.top - editorRect.top - 44;
+      setBubbleMenuPos({ top, left });
+      setBubbleMenuVisible(true);
+    };
+
+    editor.on('selectionUpdate', updateBubbleMenu);
+    editor.on('blur', () => setBubbleMenuVisible(false));
+    return () => {
+      editor.off('selectionUpdate', updateBubbleMenu);
+      editor.off('blur', () => setBubbleMenuVisible(false));
+    };
+  }, [editor, borderless]);
+
   // Expose imperative methods for external control
   useImperativeHandle(ref, () => ({
     insertText: (text: string) => {
@@ -859,21 +893,42 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
   }
 
   return (
-    <div className={borderless ? "bg-background" : "border border-border rounded-md bg-background"}>
+    <div className={borderless ? "bg-background relative" : "border border-border rounded-md bg-background"}>
+      {/* Notion-style title — only in borderless (desktop) mode */}
+      {title !== undefined && borderless && (
+        <div className="px-12 pt-10 pb-6">
+          <input
+            type="text"
+            className="w-full text-4xl font-bold bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground leading-tight"
+            placeholder="Sans titre"
+            value={title ?? ''}
+            readOnly={!editable || !onTitleChange}
+            onChange={(e) => onTitleChange?.(e.target.value)}
+            data-testid="input-note-title"
+          />
+        </div>
+      )}
+      {/* Floating bubble menu for text selection (desktop borderless mode) */}
+      {borderless && bubbleMenuVisible && (
+        <div
+          ref={bubbleMenuRef}
+          style={{ position: 'absolute', top: bubbleMenuPos.top, left: bubbleMenuPos.left, zIndex: 50 }}
+          className="flex items-center gap-px p-1 rounded-md bg-white dark:bg-gray-900 border border-border shadow-lg pointer-events-auto"
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <Button variant={editor?.isActive('bold') ? 'secondary' : 'ghost'} size="sm" onClick={() => editor?.chain().focus().toggleBold().run()} className="h-7 w-7 p-0" data-testid="bubble-bold"><Bold className="w-3.5 h-3.5" /></Button>
+          <Button variant={editor?.isActive('italic') ? 'secondary' : 'ghost'} size="sm" onClick={() => editor?.chain().focus().toggleItalic().run()} className="h-7 w-7 p-0" data-testid="bubble-italic"><Italic className="w-3.5 h-3.5" /></Button>
+          <Button variant={editor?.isActive('underline') ? 'secondary' : 'ghost'} size="sm" onClick={() => editor?.chain().focus().toggleUnderline().run()} className="h-7 w-7 p-0" data-testid="bubble-underline"><UnderlineIcon className="w-3.5 h-3.5" /></Button>
+          <Button variant={editor?.isActive('strike') ? 'secondary' : 'ghost'} size="sm" onClick={() => editor?.chain().focus().toggleStrike().run()} className="h-7 w-7 p-0" data-testid="bubble-strike"><Strikethrough className="w-3.5 h-3.5" /></Button>
+          <Button variant={editor?.isActive('code') ? 'secondary' : 'ghost'} size="sm" onClick={() => editor?.chain().focus().toggleCode().run()} className="h-7 w-7 p-0" data-testid="bubble-code"><Code className="w-3.5 h-3.5" /></Button>
+          <div className="w-px h-5 bg-border mx-0.5" />
+          <Button variant={editor?.isActive('heading', { level: 1 }) ? 'secondary' : 'ghost'} size="sm" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className="h-7 w-7 p-0" data-testid="bubble-h1"><Heading1 className="w-3.5 h-3.5" /></Button>
+          <Button variant={editor?.isActive('heading', { level: 2 }) ? 'secondary' : 'ghost'} size="sm" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className="h-7 w-7 p-0" data-testid="bubble-h2"><Heading2 className="w-3.5 h-3.5" /></Button>
+          <Button variant={editor?.isActive('heading', { level: 3 }) ? 'secondary' : 'ghost'} size="sm" onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()} className="h-7 w-7 p-0" data-testid="bubble-h3"><Heading3 className="w-3.5 h-3.5" /></Button>
+        </div>
+      )}
       {editable && (
         <>
-          {onTitleChange && (
-            <div className="border-b border-border">
-              <input
-                type="text"
-                className="w-full px-4 py-3 text-2xl font-heading font-bold bg-transparent focus:outline-none"
-                placeholder="Titre de la note"
-                value={title}
-                onChange={(e) => onTitleChange(e.target.value)}
-                data-testid="input-note-title"
-              />
-            </div>
-          )}
           {!borderless && <div className={`sticky top-0 z-50 border-b border-border ${isMobile ? 'px-1 py-1.5' : 'p-2'} flex items-center gap-px bg-[#EFE8FC] dark:bg-background shadow-sm overflow-x-auto whitespace-nowrap`}>
             {/* Format Painter - hidden on mobile */}
             {!isMobile && (
@@ -1601,7 +1656,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       
       <div 
         ref={editorContainerRef}
-        className={`relative bg-white dark:bg-background ${isMobile ? 'min-h-[calc(100vh-180px)]' : ''}`}
+        className={`relative bg-white dark:bg-background ${isMobile ? 'min-h-[calc(100vh-180px)]' : borderless ? 'min-h-[calc(100vh-120px)]' : ''}`}
       >
         <div className="flex h-full">
           <div className="flex-1 min-w-0">

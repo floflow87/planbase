@@ -1,0 +1,70 @@
+Je veux construire une intégration Gmail complète dans PlanBase avec une interface spécifique type CRM/HubSpot.
+
+Objectifs produit :
+1. Connecter un compte Gmail à un utilisateur PlanBase.
+2. Synchroniser les emails (threads + messages) dans PlanBase.
+3. Faire matcher automatiquement chaque adresse email avec les contacts CRM existants.
+4. Afficher l’historique des emails dans les activités de chaque fiche contact et fiche client.
+5. Permettre d’envoyer un email depuis chaque fiche contact via une fenêtre flottante type Gmail/HubSpot en bas à droite.
+
+Fonctionnalités MVP :
+- Connexion Gmail OAuth
+- Sync des threads/messages Gmail
+- Stockage local en DB des threads/messages
+- Matching email -> contact -> client
+- Timeline emails dans la fiche contact / client
+- Bouton “Envoyer un email” sur la fiche contact
+- Fenêtre de composition flottante en bas à droite
+- Envoi d’email via Gmail
+- Réponse dans un thread existant
+- Support pièces jointes simple
+
+Modèle de données attendu :
+- mail_accounts
+- mail_threads
+- mail_messages
+- mail_attachments
+- contact_emails (si nécessaire)
+Merci de proposer les tables, relations et migrations.
+
+Règles de matching :
+- Si from/to/cc correspond à un email d’un contact CRM, associer automatiquement l’email au contact.
+- Si le contact est rattaché à un client, l’email doit aussi apparaître dans la fiche client.
+- Si aucun contact n’est trouvé, laisser le thread non associé (avec possibilité future de “Créer un contact”).
+
+UI attendue :
+1. Module global “E-mails”
+- liste des threads
+- aperçu du thread
+- recherche
+- filtres
+
+2. Dans chaque fiche contact
+- section ou onglet “E-mails”
+- historique des emails sous forme de timeline CRM
+- bouton “Rédiger un email”
+
+3. Composer flottant
+- s’ouvre en bas à droite
+- champs À / Cc / Bcc / Objet
+- éditeur riche
+- bouton envoyer
+- possibilité de réduire/agrandir
+- préremplissage automatique du contact sélectionné
+
+Contraintes techniques :
+- multi-tenant strict
+- tokens Gmail chiffrés
+- sync incrémental
+- ne pas faire dépendre l’UI directement de Gmail API : stocker les données en DB
+- architecture propre et scalable
+
+Livrables :
+1. Proposition d’architecture
+2. Modèle DB + migrations
+3. Endpoints backend
+4. Flow OAuth Gmail
+5. UI du module global E-mails
+6. Intégration fiche contact / fiche client
+7. Composer flottant
+8. Plan MVP + V2

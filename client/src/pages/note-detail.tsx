@@ -1348,16 +1348,6 @@ export default function NoteDetail() {
               </DropdownMenu>
             </div>
 
-            {/* Row 2: Title — Notion-style, full width, no badge */}
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => { setTitle(e.target.value); queueUpdate({ title: e.target.value }); }}
-              onBlur={flushImmediate}
-              className="w-full text-2xl font-bold bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground mt-4 pb-1"
-              placeholder="Sans titre"
-              data-testid="input-note-title-header"
-            />
           </div>
         )}
       </div>
@@ -1529,7 +1519,7 @@ export default function NoteDetail() {
 
       {/* Scrollable Content - maximize height on mobile */}
       <div className="flex-1 overflow-auto">
-        <div className="px-1 py-0 md:p-6">
+        <div className={isMobile ? "px-1 py-0" : ""}>
           {/* Editor — only mounted after resolved content is ready in state.
                key={id} forces a full remount when navigating between notes, so
                useEditor() always initialises with the correct content directly. */}
@@ -1543,6 +1533,10 @@ export default function NoteDetail() {
               editable={isEditMode}
               placeholder="Commencez à écrire votre note..."
               borderless={!isMobile}
+              {...(!isMobile ? {
+                title,
+                onTitleChange: (newTitle: string) => { setTitle(newTitle); queueUpdate({ title: newTitle }); },
+              } : {})}
             />
           ) : (
             <div className="min-h-[400px] flex items-center justify-center text-muted-foreground text-sm">
