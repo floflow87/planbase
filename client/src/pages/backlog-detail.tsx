@@ -238,6 +238,12 @@ export default function BacklogDetail() {
     enabled: !!accountId,
   });
 
+  // Fetch the current user's internal DB id (distinct from Supabase auth UUID)
+  const { data: meUser } = useQuery<AppUser>({
+    queryKey: ["/api/me"],
+    staleTime: Infinity,
+  });
+
   // Fetch projects for the edit backlog dialog
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -2394,7 +2400,7 @@ export default function BacklogDetail() {
                         setActiveTab("recette");
                         setSelectedTicket(null);
                       }}
-                      currentUserId={user?.id}
+                      currentUserId={meUser?.id}
                       ticketViewSettings={editTicketViewSettings}
                     />
                   </div>
@@ -2680,7 +2686,7 @@ export default function BacklogDetail() {
                       setActiveTab("recette");
                       setSelectedTicket(null);
                     }}
-                    currentUserId={user?.id}
+                    currentUserId={meUser?.id}
                     ticketViewSettings={editTicketViewSettings}
                   />
                 </div>

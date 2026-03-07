@@ -793,14 +793,14 @@ export function TicketDetailPanel({
                   setIsEditingTitle(false);
                 }
               }}
-              className="text-base font-semibold"
+              className="text-[18px] font-semibold"
               autoFocus
               data-testid="input-edit-title"
             />
           ) : (
             <h2 
               className={cn(
-                "text-base font-semibold",
+                "text-[18px] font-semibold",
                 !readOnly && "cursor-pointer hover:text-primary transition-colors"
               )}
               onClick={() => !readOnly && setIsEditingTitle(true)}
