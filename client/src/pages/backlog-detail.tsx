@@ -4881,7 +4881,7 @@ function CompletedTicketsView({
                 <PopoverContent className="w-[300px] p-0" align="start">
                   <Command>
                     <CommandInput placeholder="Rechercher un sprint..." />
-                    <CommandList style={{ maxHeight: '240px', overflowY: 'auto' }}>
+                    <CommandList style={{ maxHeight: '240px', overflowY: 'auto' }} onWheel={(e) => e.stopPropagation()}>
                       <CommandEmpty>Aucun sprint trouvé.</CommandEmpty>
                       <CommandGroup>
                         <CommandItem

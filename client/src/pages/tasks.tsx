@@ -1824,7 +1824,7 @@ export default function Tasks() {
                       <Play className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Commencer la file des tâches</TooltipContent>
+                  <TooltipContent className="bg-white text-foreground border">Commencer la file des tâches</TooltipContent>
                 </Tooltip>
               ) : null;
             })()}

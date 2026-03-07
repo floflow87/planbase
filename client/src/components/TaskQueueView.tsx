@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, formatDateForStorage } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
@@ -160,6 +161,7 @@ function CommentItem({
 export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: TaskQueueViewProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const [initialQueue] = useState<Task[]>(() => buildInitialQueue(tasks, taskColumns));
   const [pendingQueue, setPendingQueue] = useState<Task[]>(() => buildInitialQueue(tasks, taskColumns));
@@ -196,7 +198,7 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
 
   const patchTask = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Task> }) => {
-      return apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+      return apiRequest(`/api/tasks/${id}`, "PATCH", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -208,10 +210,7 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
 
   const addComment = useMutation({
     mutationFn: async ({ taskId, content }: { taskId: string; content: string }) => {
-      return apiRequest(`/api/tickets/${taskId}/task/comments`, {
-        method: "POST",
-        body: JSON.stringify({ content }),
-      });
+      return apiRequest(`/api/tickets/${taskId}/task/comments`, "POST", { content });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tickets", currentTask?.id, "task/comments"] });
@@ -403,7 +402,11 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
           </Badge>
         )}
         {currentProject && (
-          <Badge variant="secondary" className="text-xs max-w-[180px] truncate">
+          <Badge
+            variant="secondary"
+            className="text-xs max-w-[180px] truncate cursor-pointer hover-elevate"
+            onClick={() => { onClose(); setLocation(`/projects/${currentProject.id}`); }}
+          >
             {currentProject.name}
           </Badge>
         )}
@@ -682,7 +685,7 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
             <Input
               value={localTitle}
               onChange={(e) => handleTitleChange(e.target.value)}
-              className="text-2xl font-bold border-none shadow-none px-0 h-auto text-foreground focus-visible:ring-0 bg-transparent"
+              className="text-[26px] font-bold border-none shadow-none px-0 h-auto text-foreground focus-visible:ring-0 bg-transparent"
               placeholder="Titre de la tâche..."
               data-testid="input-queue-title"
             />
@@ -692,7 +695,7 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
               <Textarea
                 value={localDescription}
                 onChange={(e) => handleDescChange(e.target.value)}
-                className="min-h-[140px] resize-none text-sm text-foreground/90 border-muted focus-visible:ring-1"
+                className="min-h-[140px] resize-none text-sm text-foreground/90 border-muted focus-visible:ring-1 placeholder:text-xs"
                 placeholder="Description de la tâche... (optionnel)"
                 data-testid="textarea-queue-description"
               />
@@ -729,7 +732,7 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
                       }
                     }}
                     placeholder="Ajouter un commentaire..."
-                    className="text-sm flex-1"
+                    className="text-sm flex-1 placeholder:text-xs"
                     data-testid="input-queue-comment"
                   />
                   <Button
