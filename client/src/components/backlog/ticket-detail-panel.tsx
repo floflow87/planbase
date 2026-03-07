@@ -793,14 +793,14 @@ export function TicketDetailPanel({
                   setIsEditingTitle(false);
                 }
               }}
-              className="text-[18px] font-semibold"
+              className="text-xl font-bold"
               autoFocus
               data-testid="input-edit-title"
             />
           ) : (
             <h2 
               className={cn(
-                "text-[18px] font-semibold",
+                "text-xl font-bold",
                 !readOnly && "cursor-pointer hover:text-primary transition-colors"
               )}
               onClick={() => !readOnly && setIsEditingTitle(true)}
@@ -1841,7 +1841,17 @@ export function TicketDetailPanel({
           </div>
           
           {/* Add Comment Input */}
-          <div className="flex gap-2 pt-2 border-t">
+          <div className="flex gap-2 pt-2 border-t items-start">
+            {(() => {
+              const me = users.find(u => u.id === currentUserId);
+              const initials = me ? `${me.firstName?.[0] ?? ""}${me.lastName?.[0] ?? ""}`.toUpperCase() || me.email?.[0]?.toUpperCase() || "?" : "?";
+              return (
+                <Avatar className="h-7 w-7 mt-1 shrink-0" data-testid="avatar-comment-user">
+                  <AvatarImage src={me?.avatarUrl ?? undefined} />
+                  <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+                </Avatar>
+              );
+            })()}
             <Textarea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}

@@ -238,11 +238,12 @@ export default function BacklogDetail() {
     enabled: !!accountId,
   });
 
-  // Fetch the current user's internal DB id (distinct from Supabase auth UUID)
-  const { data: meUser } = useQuery<AppUser>({
-    queryKey: ["/api/me"],
-    staleTime: Infinity,
-  });
+  // Resolve the current user's internal DB record by matching email
+  // (user?.id from Supabase auth is a different UUID than the DB app_users.id)
+  const currentDbUser = useMemo(
+    () => users.find(u => u.email === user?.email),
+    [users, user?.email]
+  );
 
   // Fetch projects for the edit backlog dialog
   const { data: projects = [] } = useQuery<Project[]>({
@@ -342,7 +343,6 @@ export default function BacklogDetail() {
     const ticketId = urlParams.get('ticket');
     
     if (ticketId && !selectedTicket) {
-      // Transform all tickets to flat format to find the one with matching ID
       const allTickets = transformToFlatTickets(
         backlog.epics || [],
         backlog.userStories || [],
@@ -353,12 +353,25 @@ export default function BacklogDetail() {
       const foundTicket = allTickets.find(t => t.id === ticketId);
       if (foundTicket) {
         setSelectedTicket(foundTicket);
-        // Clear the query parameter from URL without reloading
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
       }
     }
   }, [backlog, users, selectedTicket]);
+
+  // Keep the URL in sync with the selected ticket
+  useEffect(() => {
+    if (!id) return;
+    const base = `/product/backlog/${id}`;
+    if (selectedTicket) {
+      const desired = `${base}?ticket=${selectedTicket.id}`;
+      if (window.location.pathname + window.location.search !== desired) {
+        navigate(desired);
+      }
+    } else {
+      if (window.location.search.includes('ticket=')) {
+        navigate(base);
+      }
+    }
+  }, [selectedTicket, id]);
 
   // Create new backlog mutation
   const createBacklogMutation = useMutation({
@@ -2400,7 +2413,7 @@ export default function BacklogDetail() {
                         setActiveTab("recette");
                         setSelectedTicket(null);
                       }}
-                      currentUserId={meUser?.id}
+                      currentUserId={currentDbUser?.id}
                       ticketViewSettings={editTicketViewSettings}
                     />
                   </div>
@@ -2686,7 +2699,7 @@ export default function BacklogDetail() {
                       setActiveTab("recette");
                       setSelectedTicket(null);
                     }}
-                    currentUserId={meUser?.id}
+                    currentUserId={currentDbUser?.id}
                     ticketViewSettings={editTicketViewSettings}
                   />
                 </div>
