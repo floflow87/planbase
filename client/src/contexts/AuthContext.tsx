@@ -20,6 +20,7 @@ interface AuthContextType {
   userProfile: UserProfile | null;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  updateUserProfile: (patch: Partial<UserProfile>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,14 +37,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     if (metadata) {
       setAccountId(metadata.account_id || null);
-      // Initial profile from metadata (role will be fetched from API)
       setUserProfile(prev => ({
         firstName: metadata.firstName,
         lastName: metadata.lastName,
         gender: metadata.gender,
         position: metadata.position,
         avatarUrl: metadata.avatarUrl,
-        role: prev?.role, // Keep existing role until API returns
+        role: prev?.role,
       }));
     } else {
       setAccountId(null);
@@ -51,13 +51,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Fetch user role from /api/me with proper auth headers
   const fetchUserRole = async () => {
     try {
-      // Get the current session token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
-        // No session yet, will be retried after auth is ready
         return;
       }
       
@@ -71,12 +68,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.ok) {
         const userData = await response.json();
         if (userData.role) {
-          // Merge role into existing profile without wiping other fields
           setUserProfile(prev => {
             if (prev) {
               return { ...prev, role: userData.role };
             }
-            // If no prev profile, create minimal one with just role
             return { role: userData.role };
           });
         }
@@ -87,22 +82,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       extractUserData(session);
       setLoading(false);
-      // Fetch role after session is established, with retry on 401
       if (session?.user) {
         fetchUserRole().catch(() => {
-          // Retry after a short delay if first attempt fails (e.g., 401)
           setTimeout(() => fetchUserRole(), 1000);
         });
       }
     });
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -110,7 +101,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       extractUserData(session);
       setLoading(false);
-      // Fetch role after auth change, with retry on 401
       if (session?.user) {
         fetchUserRole().catch(() => {
           setTimeout(() => fetchUserRole(), 1000);
@@ -132,11 +122,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setAccountId(null);
-    // Clear ALL React Query cache to prevent data leaks between accounts
     queryClient.clear();
-    // Clear localStorage
     localStorage.removeItem("demo_account_id");
     localStorage.removeItem("demo_user_id");
+  };
+
+  const updateUserProfile = (patch: Partial<UserProfile>) => {
+    setUserProfile(prev => prev ? { ...prev, ...patch } : patch as UserProfile);
   };
 
   const value = {
@@ -147,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     userProfile,
     signIn,
     signOut,
+    updateUserProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

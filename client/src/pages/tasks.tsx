@@ -59,6 +59,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useConfig } from "@/hooks/useConfig";
 import { queryClient, apiRequest, formatDateForStorage, optimisticUpdate, optimisticDelete, rollbackOptimistic } from "@/lib/queryClient";
+import { mutationQueueManager } from "@/lib/mutationQueue";
 import {
   DndContext,
   DragEndEvent,
@@ -1002,6 +1003,24 @@ export default function Tasks() {
     },
   });
 
+  const handleUpdateTask = (taskId: string, patch: Partial<Task>, debounceMs = 0) => {
+    const { previousData } = optimisticUpdate<Task>(["/api/tasks"], taskId, patch);
+    const rollback = () => {
+      if (previousData) rollbackOptimistic(["/api/tasks"], previousData);
+    };
+    mutationQueueManager.get(`task-${taskId}`).queuePatch(
+      patch as Record<string, any>,
+      async (p) => {
+        const response = await apiRequest(`/api/tasks/${taskId}`, "PATCH", p);
+        const result = await response.json();
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        return result;
+      },
+      rollback,
+      debounceMs,
+    );
+  };
+
   const deleteTaskMutation = useMutation({
     mutationFn: async (id: string) => {
       await apiRequest(`/api/tasks/${id}`, "DELETE");
@@ -1282,14 +1301,11 @@ export default function Tasks() {
       const newStatus = newColumn ? getStatusFromColumnName(newColumn.name) : task.status;
 
       if (newColumnId !== task.columnId || newPosition !== task.positionInColumn) {
-        await updateTaskMutation.mutateAsync({
-          id: taskId,
-          data: { 
-            columnId: newColumnId, 
-            positionInColumn: newPosition,
-            status: newStatus,
-          },
-        });
+        handleUpdateTask(taskId, {
+          columnId: newColumnId,
+          positionInColumn: newPosition,
+          status: newStatus,
+        }, 0);
       }
     }
 
@@ -1413,10 +1429,7 @@ export default function Tasks() {
   };
 
   const handleAssignTask = (task: Task, userId: string) => {
-    updateTaskMutation.mutate({
-      id: task.id,
-      data: { assignedToId: userId },
-    });
+    handleUpdateTask(task.id, { assignedToId: userId }, 0);
   };
 
   const handleMarkComplete = (task: Task) => {
@@ -1427,15 +1440,12 @@ export default function Tasks() {
         ? Math.max(...tasksInDoneColumn.map((t) => t.positionInColumn))
         : -1;
 
-      updateTaskMutation.mutate({
-        id: task.id,
-        data: {
-          columnId: doneColumn.id,
-          positionInColumn: maxPosition + 1,
-          status: "done",
-          progress: 100,
-        },
-      });
+      handleUpdateTask(task.id, {
+        columnId: doneColumn.id,
+        positionInColumn: maxPosition + 1,
+        status: "done",
+        progress: 100,
+      }, 0);
     }
   };
 
@@ -1500,10 +1510,7 @@ export default function Tasks() {
       updatedData.positionInColumn = maxPosition + 1;
     }
     
-    updateTaskMutation.mutate({
-      id: selectedTask.id,
-      data: updatedData,
-    });
+    handleUpdateTask(selectedTask.id, updatedData, 0);
     setIsTaskDetailOpen(false);
     setSelectedTask(null);
   };
@@ -1900,7 +1907,7 @@ export default function Tasks() {
                 onEditTask={handleTaskClick}
                 onDeleteTask={handleDeleteTask}
                 onUpdateTask={(taskId, data) => {
-                  updateTaskMutation.mutate({ id: taskId, data });
+                  handleUpdateTask(taskId, data, 0);
                 }}
                 quickAddTaskTitle={quickAddTaskTitle}
                 setQuickAddTaskTitle={setQuickAddTaskTitle}

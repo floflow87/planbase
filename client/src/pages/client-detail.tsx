@@ -5,7 +5,7 @@ import { FileExplorer } from "@/components/file-explorer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
@@ -1741,6 +1741,7 @@ export default function ClientDetail() {
                           return (
                             <div key={comment.id} className="flex gap-3 p-3 border rounded-md" data-testid={`comment-${comment.id}`}>
                               <Avatar className="w-7 h-7 shrink-0">
+                                <AvatarImage src={author?.avatarUrl || undefined} />
                                 <AvatarFallback className="text-[10px]">
                                   {author?.firstName?.[0]}{author?.lastName?.[0]}
                                 </AvatarFallback>

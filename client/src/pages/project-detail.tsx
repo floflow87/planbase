@@ -2797,11 +2797,6 @@ export default function ProjectDetail() {
     budget: "",
   });
 
-  // Task edit state with debounced autosave
-  const [taskEditData, setTaskEditData] = useState<Partial<Task>>({});
-  const taskSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastSavedTaskRef = useRef<string>("");
-
   // Billing fields state
   const [totalBilledValue, setTotalBilledValue] = useState<string>("");
   const [billingRateValue, setBillingRateValue] = useState<string>("");
@@ -3364,19 +3359,6 @@ export default function ProjectDetail() {
     },
   });
 
-  const updateTaskMutation = useMutation({
-    mutationFn: async ({ taskId, data }: { taskId: string; data: Partial<Task> }) => {
-      return await apiRequest(`/api/tasks/${taskId}`, "PATCH", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
-      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-    },
-    onError: () => {
-      toast({ title: "Erreur lors de la mise à jour de la tâche", variant: "destructive" });
-    },
-  });
-
   // Create note linked to project
   const createNoteMutation = useMutation({
     mutationFn: async () => {
@@ -3597,38 +3579,6 @@ export default function ProjectDetail() {
     }
     setIsActivityDialogOpen(true);
   };
-
-  // Debounced autosave for task edits
-  useEffect(() => {
-    if (!selectedTask || !taskEditData.id) return;
-
-    const currentData = JSON.stringify(taskEditData);
-    if (currentData === lastSavedTaskRef.current) return;
-
-    if (taskSaveTimeoutRef.current) {
-      clearTimeout(taskSaveTimeoutRef.current);
-    }
-
-    taskSaveTimeoutRef.current = setTimeout(() => {
-      const { id: taskId, ...dataToSave } = taskEditData;
-      updateTaskMutation.mutate({ taskId: taskId!, data: dataToSave });
-      lastSavedTaskRef.current = currentData;
-    }, 500);
-
-    return () => {
-      if (taskSaveTimeoutRef.current) {
-        clearTimeout(taskSaveTimeoutRef.current);
-      }
-    };
-  }, [taskEditData]);
-
-  // Initialize task edit data when opening dialog
-  useEffect(() => {
-    if (selectedTask && isTaskDetailDialogOpen) {
-      setTaskEditData(selectedTask);
-      lastSavedTaskRef.current = JSON.stringify(selectedTask);
-    }
-  }, [selectedTask, isTaskDetailDialogOpen]);
 
   const getBillingStatusColor = (status: string | null) => getBillingStatusColorClass(status);
 
@@ -4700,8 +4650,10 @@ export default function ProjectDetail() {
             </DialogContent>
           </Dialog>
 
-          <TabsContent value="fichiers" className="mt-0 h-[600px] flex flex-col">
-            <FileExplorer projectId={id} />
+          <TabsContent value="fichiers" className="mt-0">
+            <div className="h-[600px] flex flex-col">
+              <FileExplorer projectId={id} />
+            </div>
           </TabsContent>
 
           <TabsContent value="backlogs" className="mt-0">

@@ -20,14 +20,25 @@ export function useMutationQueue<T extends Record<string, any>>(
   const queuePatch = useCallback(
     (
       patch: Partial<T>,
-      commitFn: (patch: Partial<T>) => Promise<void>,
+      commitFn: (patch: Partial<T>) => Promise<any>,
       rollbackFn?: () => void,
     ) => {
       mutationQueueManager
         .get(entityKey)
-        .queuePatch(patch as Record<string, any>, commitFn as (patch: Record<string, any>) => Promise<void>, rollbackFn, debounceMs);
+        .queuePatch(patch as Record<string, any>, commitFn as (patch: Record<string, any>) => Promise<any>, rollbackFn, debounceMs);
     },
     [entityKey, debounceMs],
+  );
+
+  const queueAction = useCallback(
+    (
+      label: string,
+      fn: () => Promise<any>,
+      rollback?: () => void,
+    ) => {
+      mutationQueueManager.get(entityKey).queueAction(label, fn, rollback);
+    },
+    [entityKey],
   );
 
   const flush = useCallback(
@@ -35,5 +46,19 @@ export function useMutationQueue<T extends Record<string, any>>(
     [entityKey],
   );
 
-  return { ...state, queuePatch, flush };
+  const setServerRevision = useCallback(
+    (revision: number, updatedAt?: number) => {
+      mutationQueueManager.get(entityKey).setServerRevision(revision, updatedAt);
+    },
+    [entityKey],
+  );
+
+  return {
+    ...state,
+    isSyncing: state.isMutating,
+    queuePatch,
+    queueAction,
+    flush,
+    setServerRevision,
+  };
 }

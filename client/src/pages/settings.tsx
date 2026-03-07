@@ -840,7 +840,7 @@ function ProfileTypeCard({ currentProfileType, embedded = false }: { currentProf
 }
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, updateUserProfile } = useAuth();
   const { toast } = useToast();
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -945,6 +945,7 @@ export default function Settings() {
       const updatedUser = await res.json();
       queryClient.setQueryData(["/api/me"], updatedUser);
       setAvatarPreview(updatedUser.avatarUrl || null);
+      updateUserProfile({ avatarUrl: updatedUser.avatarUrl || undefined });
       toast({ title: "Photo mise à jour", variant: "success" as any });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Erreur", description: e.message });
