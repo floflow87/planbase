@@ -667,7 +667,7 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
                 size="sm"
                 onClick={handleComplete}
                 data-testid="button-queue-complete"
-                className="text-xs gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+                className="text-xs gap-1.5"
                 disabled={patchTask.isPending}
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />

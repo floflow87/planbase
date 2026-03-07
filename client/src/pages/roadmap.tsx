@@ -1045,12 +1045,7 @@ export default function RoadmapPage() {
               );
             })()}
           </div>
-        ) : (
-          <div className="flex items-center gap-3">
-            <Rocket className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold">Roadmap</h1>
-          </div>
-        )}
+        ) : null}
 
         <>
           {!selectedRoadmapId && (

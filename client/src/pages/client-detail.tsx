@@ -66,7 +66,7 @@ function ClientLogoUpload({ client }: { client: Client }) {
       queryClient.setQueryData(["/api/clients", client.id], updated);
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
       setPreview(updated.logoUrl || null);
-      toast({ title: "Logo mis à jour" });
+      toast({ title: "Logo mis à jour", variant: "success" });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Erreur", description: e.message });
     } finally {
