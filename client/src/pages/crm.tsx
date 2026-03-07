@@ -763,14 +763,12 @@ export default function CRM() {
   const activeProspects = clients.filter(c => ["prospect", "in_progress", "prospecting", "qualified", "negotiation", "quote_sent", "quote_approved"].includes(c.status || "")).length;
   const wonClients = clients.filter(c => c.status === "signed" || c.status === "won").length;
   const conversionRate = (wonClients + activeProspects) > 0 ? Math.round((wonClients / (wonClients + activeProspects)) * 100) : 0;
-  // Calculate opportunities from project budgets for clients in pipeline stages
-  const opportunityStatuses = ["prospecting", "qualified", "negotiation", "quote_sent", "quote_approved", "won", "signed", "prospect", "in_progress"];
-  const totalOpportunities = clients
-    .filter(c => opportunityStatuses.includes(c.status || ""))
-    .reduce((sum, c) => {
-      const clientProjects = projects.filter((p: Project) => p.clientId === c.id);
-      return sum + clientProjects.reduce((pSum, p: Project) => pSum + (Number(p.budget) || 0), 0);
-    }, 0);
+  // Same logic as the dashboard "Opportunités" toggle:
+  // projects in prospection stage with eligible billing statuses
+  const OPPORTUNITE_BILLING_STATUSES = ["brouillon", "devis_envoye", "devis_accepte", "bon_commande", "facture"];
+  const totalOpportunities = projects
+    .filter((p: Project) => p.stage === "prospection" && OPPORTUNITE_BILLING_STATUSES.includes(p.billingStatus || ""))
+    .reduce((sum, p: Project) => sum + (Number(p.totalBilled || p.budget) || 0), 0);
 
   const kpis = [
     {
