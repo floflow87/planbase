@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, formatDateForStorage } from "@/lib/queryClient";
@@ -178,6 +178,20 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
   const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+
+  // Find the current user's DB record (app_users ID, distinct from Supabase auth UUID)
+  const currentDbUser = useMemo(
+    () => users.find(u => u.email === user?.email),
+    [users, user?.email]
+  );
+
+  // Sync URL with queue view being open
+  useEffect(() => {
+    setLocation("/tasks?queue=1");
+    return () => {
+      setLocation("/tasks");
+    };
+  }, []);
 
   const [initialQueue] = useState<Task[]>(() => buildInitialQueue(tasks, taskColumns));
   const [pendingQueue, setPendingQueue] = useState<Task[]>(() => buildInitialQueue(tasks, taskColumns));
@@ -744,9 +758,11 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
               {/* Comment input */}
               <div className="flex gap-3">
                 <Avatar className="w-7 h-7 shrink-0 mt-1">
-                  <AvatarImage src={user?.avatarUrl || undefined} />
+                  <AvatarImage src={currentDbUser?.avatarUrl ?? undefined} />
                   <AvatarFallback className="text-[10px]">
-                    {user ? `${(user.firstName || "")[0] || ""}${(user.lastName || "")[0] || ""}`.toUpperCase() || "?" : "?"}
+                    {currentDbUser
+                      ? (`${(currentDbUser.firstName || "")[0] ?? ""}${(currentDbUser.lastName || "")[0] ?? ""}`.toUpperCase() || currentDbUser.email?.[0]?.toUpperCase() || "?")
+                      : "?"}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 flex gap-2">
@@ -797,7 +813,7 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
                       key={c.id}
                       comment={c}
                       users={users}
-                      currentUserId={user?.id}
+                      currentUserId={currentDbUser?.id}
                       onDelete={(id) => deleteComment.mutate(id)}
                     />
                   ))}
