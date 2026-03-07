@@ -606,13 +606,14 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
         setBubbleMenuVisible(false);
         return;
       }
-      const coords = editor.view.coordsAtPos(from);
-      const toCoords = editor.view.coordsAtPos(to);
-      const editorDom = editor.view.dom as HTMLElement;
-      const editorRect = editorDom.getBoundingClientRect();
-      const midX = (coords.left + toCoords.left) / 2;
-      const left = Math.max(0, midX - editorRect.left - 120);
-      const top = coords.top - editorRect.top - 44;
+      const startCoords = editor.view.coordsAtPos(from);
+      const endCoords = editor.view.coordsAtPos(to);
+      const midX = (startCoords.left + endCoords.left) / 2;
+      const TOOLBAR_HEIGHT = 48;
+      const OFFSET = 8;
+      const showBelow = startCoords.top < TOOLBAR_HEIGHT + OFFSET + 40;
+      const top = showBelow ? endCoords.bottom + OFFSET : startCoords.top - TOOLBAR_HEIGHT - OFFSET;
+      const left = Math.max(8, Math.min(midX - 280, window.innerWidth - 570));
       setBubbleMenuPos({ top, left });
       setBubbleMenuVisible(true);
     };
@@ -908,23 +909,108 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
           />
         </div>
       )}
-      {/* Floating bubble menu for text selection (desktop borderless mode) */}
-      {borderless && bubbleMenuVisible && (
+      {/* Floating bubble menu for text selection (desktop borderless mode) - full toolbar */}
+      {borderless && bubbleMenuVisible && editor && (
         <div
           ref={bubbleMenuRef}
-          style={{ position: 'absolute', top: bubbleMenuPos.top, left: bubbleMenuPos.left, zIndex: 50 }}
-          className="flex items-center gap-px p-1 rounded-md bg-white dark:bg-gray-900 border border-border shadow-lg pointer-events-auto"
+          style={{ position: 'fixed', top: bubbleMenuPos.top, left: bubbleMenuPos.left, zIndex: 9999 }}
+          className="flex items-center gap-px p-1.5 rounded-md bg-[#EFE8FC] dark:bg-gray-900 border border-border shadow-lg pointer-events-auto overflow-x-auto whitespace-nowrap max-w-[90vw]"
           onMouseDown={(e) => e.preventDefault()}
         >
-          <Button variant={editor?.isActive('bold') ? 'secondary' : 'ghost'} size="sm" onClick={() => editor?.chain().focus().toggleBold().run()} className="h-7 w-7 p-0" data-testid="bubble-bold"><Bold className="w-3.5 h-3.5" /></Button>
-          <Button variant={editor?.isActive('italic') ? 'secondary' : 'ghost'} size="sm" onClick={() => editor?.chain().focus().toggleItalic().run()} className="h-7 w-7 p-0" data-testid="bubble-italic"><Italic className="w-3.5 h-3.5" /></Button>
-          <Button variant={editor?.isActive('underline') ? 'secondary' : 'ghost'} size="sm" onClick={() => editor?.chain().focus().toggleUnderline().run()} className="h-7 w-7 p-0" data-testid="bubble-underline"><UnderlineIcon className="w-3.5 h-3.5" /></Button>
-          <Button variant={editor?.isActive('strike') ? 'secondary' : 'ghost'} size="sm" onClick={() => editor?.chain().focus().toggleStrike().run()} className="h-7 w-7 p-0" data-testid="bubble-strike"><Strikethrough className="w-3.5 h-3.5" /></Button>
-          <Button variant={editor?.isActive('code') ? 'secondary' : 'ghost'} size="sm" onClick={() => editor?.chain().focus().toggleCode().run()} className="h-7 w-7 p-0" data-testid="bubble-code"><Code className="w-3.5 h-3.5" /></Button>
-          <div className="w-px h-5 bg-border mx-0.5" />
-          <Button variant={editor?.isActive('heading', { level: 1 }) ? 'secondary' : 'ghost'} size="sm" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className="h-7 w-7 p-0" data-testid="bubble-h1"><Heading1 className="w-3.5 h-3.5" /></Button>
-          <Button variant={editor?.isActive('heading', { level: 2 }) ? 'secondary' : 'ghost'} size="sm" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className="h-7 w-7 p-0" data-testid="bubble-h2"><Heading2 className="w-3.5 h-3.5" /></Button>
-          <Button variant={editor?.isActive('heading', { level: 3 }) ? 'secondary' : 'ghost'} size="sm" onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()} className="h-7 w-7 p-0" data-testid="bubble-h3"><Heading3 className="w-3.5 h-3.5" /></Button>
+          {/* Undo/Redo */}
+          <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} className="h-7 w-7 p-0"><Undo className="w-3.5 h-3.5" /></Button>
+          <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} className="h-7 w-7 p-0"><Redo className="w-3.5 h-3.5" /></Button>
+          <div className="w-px h-5 bg-border mx-0.5 shrink-0" />
+          {/* Heading dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant={editor.isActive('heading') ? 'secondary' : 'ghost'} size="sm" className="h-7 px-1.5 gap-0.5"><Type className="w-3.5 h-3.5" /><ChevronDown className="w-2.5 h-2.5" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" style={{ zIndex: 10000 }} className="bg-white dark:bg-gray-900">
+              <DropdownMenuItem onClick={() => editor.chain().focus().setParagraph().run()} className={!editor.isActive('heading') ? 'bg-accent' : ''}>Paragraphe</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={editor.isActive('heading', { level: 1 }) ? 'bg-accent' : ''}><Heading1 className="w-4 h-4 mr-2" /><span className="text-xl font-bold">Titre 1</span></DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={editor.isActive('heading', { level: 2 }) ? 'bg-accent' : ''}><Heading2 className="w-4 h-4 mr-2" /><span className="text-lg font-bold">Titre 2</span></DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={editor.isActive('heading', { level: 3 }) ? 'bg-accent' : ''}><Heading3 className="w-4 h-4 mr-2" /><span className="text-base font-bold">Titre 3</span></DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()} className={editor.isActive('heading', { level: 4 }) ? 'bg-accent' : ''}><Heading4 className="w-4 h-4 mr-2" /><span className="text-sm font-bold">Titre 4</span></DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <div className="w-px h-5 bg-border mx-0.5 shrink-0" />
+          {/* Basic formatting */}
+          <Button variant={editor.isActive('bold') ? 'secondary' : 'ghost'} size="sm" onClick={() => editor.chain().focus().toggleBold().run()} className="h-7 w-7 p-0"><Bold className="w-3.5 h-3.5" /></Button>
+          <Button variant={editor.isActive('italic') ? 'secondary' : 'ghost'} size="sm" onClick={() => editor.chain().focus().toggleItalic().run()} className="h-7 w-7 p-0"><Italic className="w-3.5 h-3.5" /></Button>
+          <Button variant={editor.isActive('underline') ? 'secondary' : 'ghost'} size="sm" onClick={() => editor.chain().focus().toggleUnderline().run()} className="h-7 w-7 p-0"><UnderlineIcon className="w-3.5 h-3.5" /></Button>
+          <Button variant={editor.isActive('strike') ? 'secondary' : 'ghost'} size="sm" onClick={() => editor.chain().focus().toggleStrike().run()} className="h-7 w-7 p-0"><Strikethrough className="w-3.5 h-3.5" /></Button>
+          <Button variant={editor.isActive('code') ? 'secondary' : 'ghost'} size="sm" onClick={() => editor.chain().focus().toggleCode().run()} className="h-7 w-7 p-0"><Code className="w-3.5 h-3.5" /></Button>
+          <Button variant={editor.isActive('codeBlock') ? 'secondary' : 'ghost'} size="sm" onClick={() => editor.chain().focus().toggleCodeBlock().run()} className="h-7 w-7 p-0"><FileCode2 className="w-3.5 h-3.5" /></Button>
+          <div className="w-px h-5 bg-border mx-0.5 shrink-0" />
+          {/* Alignment */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant={editor.isActive({ textAlign: 'center' }) || editor.isActive({ textAlign: 'right' }) || editor.isActive({ textAlign: 'justify' }) ? 'secondary' : 'ghost'} size="sm" className="h-7 px-1.5 gap-0.5"><AlignLeft className="w-3.5 h-3.5" /><ChevronDown className="w-2.5 h-2.5" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" style={{ zIndex: 10000 }} className="bg-white dark:bg-gray-900">
+              <DropdownMenuItem onClick={() => editor.chain().focus().setTextAlign('left').run()} className={editor.isActive({ textAlign: 'left' }) ? 'bg-accent' : ''}><AlignLeft className="w-4 h-4 mr-2" />Gauche</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().setTextAlign('center').run()} className={editor.isActive({ textAlign: 'center' }) ? 'bg-accent' : ''}><AlignCenter className="w-4 h-4 mr-2" />Centre</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().setTextAlign('right').run()} className={editor.isActive({ textAlign: 'right' }) ? 'bg-accent' : ''}><AlignRight className="w-4 h-4 mr-2" />Droite</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().setTextAlign('justify').run()} className={editor.isActive({ textAlign: 'justify' }) ? 'bg-accent' : ''}><AlignJustify className="w-4 h-4 mr-2" />Justifier</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <div className="w-px h-5 bg-border mx-0.5 shrink-0" />
+          {/* Colors */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><Palette className="w-3.5 h-3.5" /></Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-3 bg-card" align="start" style={{ zIndex: 10000 }}>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Couleur du texte</p>
+              <div className="flex flex-wrap gap-1.5 max-w-[216px]">
+                {TEXT_COLORS.map((color, i) => (
+                  <button key={color.value} type="button" className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer" style={{ backgroundColor: color.value }} onClick={() => editor.chain().focus().setColor(color.value).run()} title={color.name} />
+                ))}
+                <button type="button" className="w-6 h-6 rounded border border-border cursor-pointer bg-background flex items-center justify-center text-xs" onClick={() => editor.chain().focus().unsetColor().run()} title="Réinitialiser">✕</button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant={editor.isActive('highlight') ? 'secondary' : 'ghost'} size="sm" className="h-7 w-7 p-0"><Highlighter className="w-3.5 h-3.5" /></Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-3 bg-card" align="start" style={{ zIndex: 10000 }}>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Surlignage</p>
+              <div className="flex flex-wrap gap-1.5 max-w-[216px]">
+                {HIGHLIGHT_COLORS.map((color, i) => (
+                  <button key={color.value} type="button" className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer" style={{ backgroundColor: color.value }} onClick={() => editor.chain().focus().toggleHighlight({ color: color.value }).run()} title={color.name} />
+                ))}
+                <button type="button" className="w-6 h-6 rounded border border-border cursor-pointer bg-background flex items-center justify-center text-xs" onClick={() => editor.chain().focus().unsetHighlight().run()} title="Réinitialiser">✕</button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <div className="w-px h-5 bg-border mx-0.5 shrink-0" />
+          {/* Lists */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant={editor.isActive('bulletList') || editor.isActive('orderedList') || editor.isActive('taskList') ? 'secondary' : 'ghost'} size="sm" className="h-7 px-1.5 gap-0.5"><List className="w-3.5 h-3.5" /><ChevronDown className="w-2.5 h-2.5" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" style={{ zIndex: 10000 }} className="bg-white dark:bg-gray-900">
+              <DropdownMenuItem onClick={() => editor.chain().focus().toggleBulletList().run()} className={editor.isActive('bulletList') ? 'bg-accent' : ''}><List className="w-4 h-4 mr-2" />Liste à puces</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().toggleOrderedList().run()} className={editor.isActive('orderedList') ? 'bg-accent' : ''}><ListOrdered className="w-4 h-4 mr-2" />Liste numérotée</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().toggleTaskList().run()} className={editor.isActive('taskList') ? 'bg-accent' : ''}><CheckSquare className="w-4 h-4 mr-2" />Liste de tâches</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button variant={editor.isActive('blockquote') ? 'secondary' : 'ghost'} size="sm" onClick={() => editor.chain().focus().toggleBlockquote().run()} className="h-7 w-7 p-0"><Quote className="w-3.5 h-3.5" /></Button>
+          <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().setHorizontalRule().run()} className="h-7 w-7 p-0"><Minus className="w-3.5 h-3.5" /></Button>
+          <div className="w-px h-5 bg-border mx-0.5 shrink-0" />
+          {/* Link & Upload */}
+          <Button variant={editor.isActive('link') ? 'secondary' : 'ghost'} size="sm" onClick={openLinkDialog} className="h-7 w-7 p-0"><LinkIcon className="w-3.5 h-3.5" /></Button>
+          <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="h-7 w-7 p-0"><Upload className="w-3.5 h-3.5" /></Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><Smile className="w-3.5 h-3.5" /></Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 bg-white dark:bg-card" style={{ zIndex: 10000 }} onPointerDownOutside={(e) => e.preventDefault()}>
+              <EmojiPicker onEmojiClick={handleEmojiClick} />
+            </PopoverContent>
+          </Popover>
         </div>
       )}
       {editable && (

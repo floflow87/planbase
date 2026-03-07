@@ -1813,19 +1813,19 @@ export default function Tasks() {
                 return true;
               }).length;
               return queueCount > 0 ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowQueueView(true)}
-                  data-testid="button-start-queue"
-                  className="gap-2 text-xs"
-                >
-                  <Play className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">File de tâches</span>
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                    {queueCount}
-                  </Badge>
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowQueueView(true)}
+                      data-testid="button-start-queue"
+                    >
+                      <Play className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Commencer la file des tâches</TooltipContent>
+                </Tooltip>
               ) : null;
             })()}
             {canCreate && !selectedProjectIds.includes("all") && selectedProjectIds.length === 1 && (

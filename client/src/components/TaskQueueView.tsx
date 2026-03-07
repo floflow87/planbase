@@ -337,7 +337,7 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
 
   if (initialQueue.length === 0) {
     return (
-      <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center gap-6 p-8">
+      <div className="fixed inset-0 z-50 bg-white dark:bg-background flex flex-col items-center justify-center gap-6 p-8">
         <div className="flex flex-col items-center gap-4 text-center max-w-sm">
           <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
             <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
@@ -356,7 +356,7 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
 
   if (pendingQueue.length === 0) {
     return (
-      <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center gap-6 p-8">
+      <div className="fixed inset-0 z-50 bg-white dark:bg-background flex flex-col items-center justify-center gap-6 p-8">
         <div className="flex flex-col items-center gap-4 text-center max-w-sm">
           <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
             <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
@@ -383,9 +383,9 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col" data-testid="task-queue-view">
+    <div className="fixed inset-0 z-50 bg-white dark:bg-background flex flex-col" data-testid="task-queue-view">
       {/* Top bar */}
-      <div className="flex items-center gap-4 px-6 py-3 border-b bg-background shrink-0">
+      <div className="flex items-center gap-4 px-6 py-3 border-b bg-white dark:bg-background shrink-0">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Play className="w-4 h-4 text-primary" />
           <span className="text-sm font-medium text-foreground">File de tâches</span>
