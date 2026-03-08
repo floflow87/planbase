@@ -2851,7 +2851,7 @@ export default function ProjectDetail() {
   const [renameProjectFileName, setRenameProjectFileName] = useState("");
   
   // Tab state for controlled navigation
-  const [activeTab, setActiveTab] = useState("billing");
+  const [activeTab, setActiveTab] = useState("activities");
   const searchString = useSearch();
   
   // Read tab parameter from URL
@@ -3736,17 +3736,17 @@ export default function ProjectDetail() {
                   <span className="text-sm text-muted-foreground">Client non défini</span>
                 )}
                 <span className="text-muted-foreground/40 select-none text-sm">·</span>
-                <Badge className={`${getStageColor(project.stage || "prospection")} text-xs`} data-testid="badge-stage">
+                <Badge className={`${getStageColor(project.stage || "prospection")} text-[10px] px-1.5 py-0.5`} data-testid="badge-stage">
                   {getStageLabel(project.stage || "prospection")}
                 </Badge>
                 {project.category && (
-                  <Badge variant="outline" className="text-xs" data-testid="badge-category">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0.5" data-testid="badge-category">
                     {project.category}
                   </Badge>
                 )}
                 {(project.totalBilled || project.budget) && (
-                  <Badge className="bg-budget text-budget-foreground text-xs" data-testid="badge-budget">
-                    <Euro className="h-3 w-3 mr-1" />
+                  <Badge className="bg-budget text-budget-foreground text-[10px] px-1.5 py-0.5" data-testid="badge-budget">
+                    <Euro className="h-2.5 w-2.5 mr-0.5" />
                     {project.totalBilled || project.budget}
                   </Badge>
                 )}
@@ -3755,7 +3755,7 @@ export default function ProjectDetail() {
                     <Badge 
                       data-testid="badge-billing-status-budget"
                       className={cn(
-                        "shrink-0 cursor-pointer border-transparent font-medium text-xs",
+                        "shrink-0 cursor-pointer border-transparent font-medium text-[10px] px-1.5 py-0.5",
                         ["devis_envoye", "annule"].includes(project.billingStatus || "brouillon") 
                           ? "text-gray-800" 
                           : "text-white"
@@ -3870,22 +3870,22 @@ export default function ProjectDetail() {
             </Button>
             <Button 
               variant="outline" 
-              size="sm"
+              size="icon"
               onClick={handleEditProject} 
               data-testid="button-edit-project" 
               className="bg-white dark:bg-card"
+              title="Modifier"
             >
-              <Edit className="h-4 w-4 sm:mr-1.5" />
-              <span className="hidden sm:inline text-xs">Modifier</span>
+              <Edit className="h-4 w-4" />
             </Button>
             <Button 
               variant="destructive" 
-              size="sm"
+              size="icon"
               onClick={() => setIsDeleteDialogOpen(true)}
               data-testid="button-delete-project"
+              title="Supprimer"
             >
-              <Trash2 className="h-4 w-4 sm:mr-1.5" />
-              <span className="hidden sm:inline text-xs">Supprimer</span>
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -4037,11 +4037,11 @@ export default function ProjectDetail() {
         <div className="mb-5 grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* LEFT: description + dates (compact) */}
           <div className="md:col-span-1">
-            <Card className="p-4 h-full flex flex-col gap-3">
+            <Card className="p-5 h-full flex flex-col gap-5">
               {/* Description */}
               <div>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Description</p>
-                <p className={cn("text-[13px] leading-relaxed line-clamp-3", !project.description && "text-muted-foreground italic")}>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Description</p>
+                <p className={cn("text-[13px] leading-relaxed line-clamp-4", !project.description && "text-muted-foreground italic")}>
                   {project.description || "Aucune description renseignée"}
                 </p>
               </div>
@@ -4129,14 +4129,14 @@ export default function ProjectDetail() {
 
           {/* RIGHT: timeline narrative (2/3) */}
           <div className="md:col-span-2">
-            <Card className="p-4 h-full">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-1.5">
+            <Card className="p-5 h-full">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-5 flex items-center gap-1.5">
                 <Layers className="h-3 w-3" /> Timeline
               </p>
               {(() => {
                 const BLOCK_COLORS = [
-                  "bg-violet-500", "bg-cyan-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500",
-                  "bg-blue-500", "bg-purple-500", "bg-teal-500", "bg-orange-500", "bg-indigo-500",
+                  "bg-violet-300", "bg-cyan-300", "bg-emerald-300", "bg-amber-300", "bg-rose-300",
+                  "bg-blue-300", "bg-purple-300", "bg-teal-300", "bg-orange-300", "bg-indigo-300",
                 ];
                 const SCOPE_TYPE_LABELS: Record<string, string> = {
                   functional: "Fonctionnel", technical: "Technique", design: "Design",
@@ -4260,15 +4260,69 @@ export default function ProjectDetail() {
                       </div>
                     )}
 
-                    {/* Legend: color dot + label */}
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
-                      {blocks.map((block) => (
-                        <div key={block.id} className="flex items-center gap-1.5">
-                          <div className={cn("w-2 h-2 rounded-sm shrink-0", block.color)} />
-                          <p className="text-[10px] text-muted-foreground truncate max-w-[140px]">{block.label}</p>
+                    {/* Circular progress bars by scope type */}
+                    {(() => {
+                      const TYPE_CONFIG: Record<string, { label: string; shortLabel: string; color: string; track: string }> = {
+                        functional: { label: "Fonctionnel", shortLabel: "Fonct.", color: "#8B5CF6", track: "#EDE9FE" },
+                        technical:  { label: "Technique",   shortLabel: "Tech.",  color: "#06B6D4", track: "#CFFAFE" },
+                        design:     { label: "Design",      shortLabel: "Design", color: "#EC4899", track: "#FCE7F3" },
+                        gestion:    { label: "Gestion",     shortLabel: "Gest.",  color: "#F59E0B", track: "#FEF3C7" },
+                        autre:      { label: "Autre",       shortLabel: "Autre",  color: "#6B7280", track: "#F3F4F6" },
+                      };
+                      // Group by scopeType — only types present in CDC
+                      const byType: Record<string, { estimatedDays: number; timeDays: number }> = {};
+                      blocks.forEach(b => {
+                        const t = b.scopeType || "autre";
+                        if (!byType[t]) byType[t] = { estimatedDays: 0, timeDays: 0 };
+                        byType[t].estimatedDays += b.estimatedDays;
+                        byType[t].timeDays += b.timeDays;
+                      });
+                      const types = Object.entries(byType);
+                      if (types.length === 0) return null;
+                      const SIZE = 52;
+                      const STROKE = 5;
+                      const R = (SIZE / 2) - STROKE / 2;
+                      const CIRC = 2 * Math.PI * R;
+                      return (
+                        <div className="flex flex-wrap gap-4 mt-2 pt-3 border-t">
+                          {types.map(([type, { estimatedDays, timeDays }]) => {
+                            const cfg = TYPE_CONFIG[type] || TYPE_CONFIG.autre;
+                            const pct = estimatedDays > 0 ? Math.min(100, Math.round((timeDays / estimatedDays) * 100)) : 0;
+                            const offset = CIRC * (1 - pct / 100);
+                            const isOver = estimatedDays > 0 && timeDays > estimatedDays;
+                            const strokeColor = isOver ? "#EF4444" : cfg.color;
+                            return (
+                              <Tooltip key={type}>
+                                <TooltipTrigger asChild>
+                                  <div className="flex flex-col items-center gap-1 cursor-default">
+                                    <div className="relative" style={{ width: SIZE, height: SIZE }}>
+                                      <svg width={SIZE} height={SIZE} className="-rotate-90">
+                                        <circle cx={SIZE/2} cy={SIZE/2} r={R} fill="none" stroke={cfg.track} strokeWidth={STROKE} />
+                                        <circle
+                                          cx={SIZE/2} cy={SIZE/2} r={R} fill="none"
+                                          stroke={strokeColor} strokeWidth={STROKE}
+                                          strokeLinecap="round"
+                                          strokeDasharray={CIRC}
+                                          strokeDashoffset={offset}
+                                          style={{ transition: "stroke-dashoffset 0.4s ease" }}
+                                        />
+                                      </svg>
+                                      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-foreground">{pct}%</span>
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground">{cfg.shortLabel}</p>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="bg-white dark:bg-gray-900 text-foreground border shadow-md">
+                                  <p className="font-semibold text-xs">{cfg.label}</p>
+                                  <p className="text-[11px] text-muted-foreground">{estimatedDays.toFixed(1)}j estimés · {timeDays.toFixed(1)}j passés</p>
+                                  {isOver && <p className="text-[11px] text-red-500 font-medium">Budget dépassé</p>}
+                                </TooltipContent>
+                              </Tooltip>
+                            );
+                          })}
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })()}
                   </div>
                 );
               })()}
@@ -4279,6 +4333,10 @@ export default function ProjectDetail() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="overflow-x-auto mb-3">
           <TabsList className="w-max justify-start flex-nowrap h-[42px]">
+            <TabsTrigger value="activities" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-activities">
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Activités</span>
+            </TabsTrigger>
             <TabsTrigger value="billing" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-billing">
               <DollarSign className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Facturation</span>
@@ -4290,10 +4348,6 @@ export default function ProjectDetail() {
             <TabsTrigger value="resources" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-resources">
               <Users className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Ressources</span>
-            </TabsTrigger>
-            <TabsTrigger value="activities" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-activities">
-              <MessageSquare className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Activités</span>
             </TabsTrigger>
             <TabsTrigger value="roadmap" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-roadmap">
               <Map className="h-3.5 w-3.5" />
