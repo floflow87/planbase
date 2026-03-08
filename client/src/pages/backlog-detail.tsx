@@ -2041,9 +2041,9 @@ export default function BacklogDetail() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-        <div className="px-4 md:px-6 border-b">
-          <TabsList className="h-10">
-            <TabsTrigger value="backlog" className="text-[12px]" data-testid="tab-backlog">
+        <div className="px-4 md:px-6 border-b overflow-x-auto scrollbar-none">
+          <TabsList className="h-10 w-max flex-nowrap">
+            <TabsTrigger value="backlog" className="text-[12px] whitespace-nowrap" data-testid="tab-backlog">
               Backlog
             </TabsTrigger>
             <TabsTrigger value="epics" className="text-[12px]" data-testid="tab-epics">
@@ -2150,27 +2150,51 @@ export default function BacklogDetail() {
                 {backlog.epics.length > 0 && (
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Epic</Label>
-                    <div className="space-y-0.5 max-h-40 overflow-y-auto border rounded-md p-1.5">
-                      <Button variant="ghost" size="sm" className="w-full justify-start text-sm" onClick={() => setEpicFilter([])}>
-                        <Check className={cn("h-4 w-4 mr-2 shrink-0", epicFilter.length === 0 ? "opacity-100" : "opacity-0")} />
-                        Toutes les Epics
-                      </Button>
-                      {backlog.epics.map(epic => (
+                    <Popover>
+                      <PopoverTrigger asChild>
                         <Button
-                          key={epic.id}
-                          variant="ghost"
-                          size="sm"
-                          className="w-full justify-start text-sm"
-                          onClick={() => setEpicFilter(prev =>
-                            prev.includes(epic.id) ? prev.filter(id => id !== epic.id) : [...prev, epic.id]
-                          )}
+                          variant="outline"
+                          role="combobox"
+                          className="w-full h-9 text-sm justify-between font-normal"
+                          data-testid="button-epic-filter-mobile"
                         >
-                          <Check className={cn("h-4 w-4 mr-2 shrink-0", epicFilter.includes(epic.id) ? "opacity-100" : "opacity-0")} />
-                          <span className="w-2 h-2 rounded-full mr-2 shrink-0" style={{ backgroundColor: epic.color || "#8B5CF6" }} />
-                          <span className="truncate">{epic.title}</span>
+                          <span className="truncate">
+                            {epicFilter.length === 0
+                              ? "Toutes les Epics"
+                              : epicFilter.length === 1
+                                ? backlog.epics.find(e => e.id === epicFilter[0])?.title || "1 sélectionnée"
+                                : `${epicFilter.length} Epics`}
+                          </span>
+                          <ChevronDown className="h-4 w-4 shrink-0 opacity-50 ml-2" />
                         </Button>
-                      ))}
-                    </div>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Rechercher..." className="h-8 text-sm" />
+                          <CommandList>
+                            <CommandEmpty>Aucune Epic trouvée</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem onSelect={() => setEpicFilter([])}>
+                                <Check className={cn("h-4 w-4 mr-2 shrink-0", epicFilter.length === 0 ? "opacity-100" : "opacity-0")} />
+                                Toutes les Epics
+                              </CommandItem>
+                              {backlog.epics.map(epic => (
+                                <CommandItem
+                                  key={epic.id}
+                                  onSelect={() => setEpicFilter(prev =>
+                                    prev.includes(epic.id) ? prev.filter(id => id !== epic.id) : [...prev, epic.id]
+                                  )}
+                                >
+                                  <Check className={cn("h-4 w-4 mr-2 shrink-0", epicFilter.includes(epic.id) ? "opacity-100" : "opacity-0")} />
+                                  <span className="w-2 h-2 rounded-full mr-2 shrink-0 inline-block" style={{ backgroundColor: epic.color || "#8B5CF6" }} />
+                                  <span className="truncate">{epic.title}</span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 )}
                 {/* Version filter */}
