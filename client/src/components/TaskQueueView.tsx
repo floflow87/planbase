@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Progress } from "@/components/ui/progress";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -285,8 +284,9 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
   // Mobile swipe state
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
+  const [swipeStartY, setSwipeStartY] = useState<number | null>(null);
+  const [swipeAxis, setSwipeAxis] = useState<"h" | "v" | null>(null);
   const [isSnapping, setIsSnapping] = useState(false);
-  const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false);
   const SWIPE_THRESHOLD = 90;
 
   const currentTask = pendingQueue[0] ?? null;
@@ -419,17 +419,29 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     setSwipeStartX(e.touches[0].clientX);
+    setSwipeStartY(e.touches[0].clientY);
+    setSwipeAxis(null);
     setIsSnapping(false);
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (swipeStartX === null) return;
-    const delta = e.touches[0].clientX - swipeStartX;
-    setSwipeOffset(delta);
-  }, [swipeStartX]);
+    if (swipeStartX === null || swipeStartY === null) return;
+    const dx = e.touches[0].clientX - swipeStartX;
+    const dy = e.touches[0].clientY - swipeStartY;
+    if (swipeAxis === null) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        setSwipeAxis(Math.abs(dx) >= Math.abs(dy) ? "h" : "v");
+      }
+      return;
+    }
+    if (swipeAxis === "h") {
+      e.preventDefault();
+      setSwipeOffset(dx);
+    }
+  }, [swipeStartX, swipeStartY, swipeAxis]);
 
   const handleTouchEnd = useCallback(() => {
-    if (Math.abs(swipeOffset) >= SWIPE_THRESHOLD) {
+    if (swipeAxis === "h" && Math.abs(swipeOffset) >= SWIPE_THRESHOLD) {
       if (swipeOffset > 0) {
         handleComplete();
       } else {
@@ -439,7 +451,9 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
     setIsSnapping(true);
     setSwipeOffset(0);
     setSwipeStartX(null);
-  }, [swipeOffset, handleComplete, handleSkip]);
+    setSwipeStartY(null);
+    setSwipeAxis(null);
+  }, [swipeOffset, swipeAxis, handleComplete, handleSkip]);
 
   const handleFieldPatch = useCallback(
     (field: keyof Task, value: unknown) => {
@@ -547,7 +561,7 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
     const swipeLeft = swipeOffset < -30;
     const rotation = swipeOffset * 0.04;
     const absOffset = Math.abs(swipeOffset);
-    const overlayOpacity = Math.min(absOffset / SWIPE_THRESHOLD, 1) * 0.85;
+    const overlayOpacity = Math.min(absOffset / SWIPE_THRESHOLD, 1) * 0.45;
 
     return (
       <div className="fixed inset-0 z-50 bg-background flex flex-col" data-testid="task-queue-view-mobile">
@@ -565,10 +579,10 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
           </Button>
         </div>
 
-        {/* Swipeable card area */}
-        <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
+        {/* Swipeable scrollable card */}
+        <div className="flex-1 overflow-hidden relative px-4 pt-4 pb-2">
           <div
-            className="w-full max-w-sm relative select-none"
+            className="h-full relative"
             style={{
               transform: `translateX(${swipeOffset}px) rotate(${rotation}deg)`,
               transition: isSnapping ? "transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94)" : "none",
@@ -578,101 +592,166 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            {/* Card */}
-            <div className="rounded-xl border bg-card shadow-md overflow-hidden relative" style={{ minHeight: "420px" }}>
-              {/* Green overlay — swipe right = complete */}
-              {swipeRight && (
-                <div
-                  className="absolute inset-0 z-10 flex items-center justify-start pl-8 rounded-xl pointer-events-none"
-                  style={{ backgroundColor: `rgba(16,185,129,${overlayOpacity})` }}
-                >
-                  <div className="flex flex-col items-center gap-1">
-                    <CheckCircle2 className="w-12 h-12 text-white" strokeWidth={2.5} />
-                    <span className="text-white font-bold text-lg uppercase tracking-widest">Terminer</span>
+            {/* Overlays — pointer-events-none so scroll still works */}
+            {swipeRight && (
+              <div
+                className="absolute inset-0 z-10 flex items-start justify-start pt-10 pl-6 rounded-xl pointer-events-none"
+                style={{ backgroundColor: `rgba(16,185,129,${overlayOpacity})` }}
+              >
+                <div className="flex items-center gap-2 border-2 border-green-500 rounded-lg px-3 py-1.5 bg-white/80 dark:bg-background/80">
+                  <CheckCircle2 className="w-5 h-5 text-green-600" strokeWidth={2.5} />
+                  <span className="text-green-700 dark:text-green-400 font-bold text-sm uppercase tracking-widest">Terminer</span>
+                </div>
+              </div>
+            )}
+            {swipeLeft && (
+              <div
+                className="absolute inset-0 z-10 flex items-start justify-end pt-10 pr-6 rounded-xl pointer-events-none"
+                style={{ backgroundColor: `rgba(239,68,68,${overlayOpacity})` }}
+              >
+                <div className="flex items-center gap-2 border-2 border-red-400 rounded-lg px-3 py-1.5 bg-white/80 dark:bg-background/80">
+                  <X className="w-5 h-5 text-red-500" strokeWidth={2.5} />
+                  <span className="text-red-600 dark:text-red-400 font-bold text-sm uppercase tracking-widest">Passer</span>
+                </div>
+              </div>
+            )}
+
+            {/* Scrollable card */}
+            <div className="h-full overflow-y-auto rounded-xl border bg-card shadow-sm">
+              <div className="p-5 space-y-5">
+
+                {/* ── Task header ── */}
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge className={`text-xs ${getTaskPriorityBadgeClass(currentTask?.priority || "medium")}`} data-testid="badge-mobile-queue-priority">
+                      {getTaskPriorityLabel(currentTask?.priority || "medium")}
+                    </Badge>
+                    {currentTask?.dueDate && (
+                      <Badge variant="outline" className="text-xs gap-1">
+                        <Clock className="w-3 h-3" />
+                        {format(new Date(currentTask.dueDate), "d MMM", { locale: fr })}
+                      </Badge>
+                    )}
+                    {currentProject && (
+                      <Badge variant="default" className="text-xs max-w-[140px] truncate" style={{ backgroundColor: getProjectColor(currentProject.id) }}>
+                        {currentProject.name}
+                      </Badge>
+                    )}
+                  </div>
+
+                  <Input
+                    value={localTitle}
+                    onChange={(e) => handleTitleChange(e.target.value)}
+                    className="font-bold border-none shadow-none px-0 h-auto text-foreground focus-visible:ring-0 bg-transparent text-xl"
+                    placeholder="Titre de la tâche..."
+                    data-testid="input-queue-title-mobile"
+                  />
+
+                  <Textarea
+                    value={localDescription}
+                    onChange={(e) => handleDescChange(e.target.value)}
+                    className="min-h-[80px] resize-none text-sm text-foreground/80 border-muted focus-visible:ring-1 placeholder:text-xs"
+                    placeholder="Description..."
+                    data-testid="textarea-queue-desc-mobile"
+                  />
+                </div>
+
+                <div className="border-t" />
+
+                {/* ── Editable fields ── */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                      <Tag className="w-3 h-3" /> Priorité
+                    </label>
+                    <Select value={currentTask?.priority || "medium"} onValueChange={(v) => handleFieldPatch("priority", v)}>
+                      <SelectTrigger className="h-8 text-xs" data-testid="select-queue-priority-mobile"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="high">Haute</SelectItem>
+                        <SelectItem value="medium">Moyenne</SelectItem>
+                        <SelectItem value="low">Basse</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                      <RotateCcw className="w-3 h-3" /> Statut
+                    </label>
+                    <Select value={currentTask?.columnId || ""} onValueChange={(v) => handleFieldPatch("columnId", v)}>
+                      <SelectTrigger className="h-8 text-xs" data-testid="select-queue-status-mobile"><SelectValue placeholder="Colonne..." /></SelectTrigger>
+                      <SelectContent>
+                        {taskColumns.map((col) => <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                      <User className="w-3 h-3" /> Assigné à
+                    </label>
+                    <Select value={currentTask?.assignedToId || "none"} onValueChange={(v) => handleFieldPatch("assignedToId", v === "none" ? null : v)}>
+                      <SelectTrigger className="h-8 text-xs" data-testid="select-queue-assignee-mobile"><SelectValue placeholder="Personne..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Aucun</SelectItem>
+                        {users.map((u) => <SelectItem key={u.id} value={u.id}>{`${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                      <Briefcase className="w-3 h-3" /> Projet
+                    </label>
+                    <Select value={currentTask?.projectId || "none"} onValueChange={(v) => handleFieldPatch("projectId", v === "none" ? null : v)}>
+                      <SelectTrigger className="h-8 text-xs" data-testid="select-queue-project-mobile"><SelectValue placeholder="Projet..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Aucun</SelectItem>
+                        {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              )}
-              {/* Red overlay — swipe left = skip */}
-              {swipeLeft && (
-                <div
-                  className="absolute inset-0 z-10 flex items-center justify-end pr-8 rounded-xl pointer-events-none"
-                  style={{ backgroundColor: `rgba(239,68,68,${overlayOpacity})` }}
-                >
-                  <div className="flex flex-col items-center gap-1">
-                    <X className="w-12 h-12 text-white" strokeWidth={2.5} />
-                    <span className="text-white font-bold text-lg uppercase tracking-widest">Passer</span>
-                  </div>
-                </div>
-              )}
 
-              {/* Card content */}
-              <div className="p-5 flex flex-col gap-4">
-                {/* Badges row */}
-                <div className="flex flex-wrap gap-2">
-                  <Badge
-                    className={`text-xs ${getTaskPriorityBadgeClass(currentTask?.priority || "medium")}`}
-                    data-testid="badge-mobile-queue-priority"
-                  >
-                    {getTaskPriorityLabel(currentTask?.priority || "medium")}
-                  </Badge>
-                  {currentTask?.dueDate && (
-                    <Badge variant="outline" className="text-xs gap-1">
-                      <Clock className="w-3 h-3" />
-                      {format(new Date(currentTask.dueDate), "d MMM", { locale: fr })}
-                    </Badge>
-                  )}
-                  {currentProject && (
-                    <Badge
-                      variant="default"
-                      className="text-xs max-w-[140px] truncate"
-                      style={{ backgroundColor: getProjectColor(currentProject.id) }}
-                    >
-                      {currentProject.name}
-                    </Badge>
-                  )}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                    <Star className="w-3 h-3" /> Effort
+                  </label>
+                  <StarRating value={currentTask?.effort ?? null} onChange={(v) => handleFieldPatch("effort", v)} />
                 </div>
 
-                {/* Title */}
-                <h2 className="text-xl font-bold text-foreground leading-snug">
-                  {currentTask?.title || "Sans titre"}
-                </h2>
+                <div className="border-t" />
 
-                {/* Description */}
-                {currentTask?.description && (
-                  <p className="text-sm text-muted-foreground line-clamp-4 leading-relaxed">
-                    {currentTask.description}
+                {/* ── Comments ── */}
+                <div className="space-y-3">
+                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                    <MessageSquare className="w-3 h-3" /> Commentaires {comments.length > 0 && `(${comments.length})`}
                   </p>
-                )}
-
-                {/* Meta chips */}
-                <div className="flex flex-col gap-2 pt-1">
-                  {currentClient && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <User className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate">{currentClient.name}</span>
+                  <div className="flex gap-2">
+                    <Input
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAddComment(); }}}
+                      placeholder="Ajouter un commentaire..."
+                      className="text-sm flex-1"
+                      data-testid="input-queue-comment-mobile"
+                    />
+                    <Button size="icon" variant="ghost" onClick={handleAddComment} disabled={!commentText.trim() || addComment.isPending}>
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {comments.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-1">Aucun commentaire.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {comments.map((c) => (
+                        <CommentItem key={c.id} comment={c} users={users} currentUserId={currentDbUser?.id} onDelete={(id) => deleteComment.mutate(id)} onEdit={(id, content) => editComment.mutate({ commentId: id, content })} />
+                      ))}
                     </div>
                   )}
-                  {(() => {
-                    const col = taskColumns.find(c => c.id === currentTask?.columnId);
-                    return col ? (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Tag className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate">{col.name}</span>
-                      </div>
-                    ) : null;
-                  })()}
                 </div>
 
                 {/* Swipe hint */}
-                <div className="flex items-center justify-between pt-3 mt-auto text-xs text-muted-foreground/60">
-                  <div className="flex items-center gap-1">
-                    <X className="w-3 h-3" />
-                    <span>Glisser à gauche pour passer</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span>Terminer</span>
-                    <CheckCircle2 className="w-3 h-3" />
-                  </div>
+                <div className="flex items-center justify-between pt-2 pb-1 text-[11px] text-muted-foreground/50">
+                  <div className="flex items-center gap-1"><X className="w-3 h-3" /><span>Glisser à gauche pour passer</span></div>
+                  <div className="flex items-center gap-1"><span>Glisser à droite pour terminer</span><CheckCircle2 className="w-3 h-3" /></div>
                 </div>
               </div>
             </div>
@@ -682,158 +761,30 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
         {/* Bottom action buttons */}
         <div className="flex items-center justify-center gap-6 px-6 py-4 border-t bg-background shrink-0">
           {skippedStack.length > 0 && (
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handleBack}
-              className="w-11 h-11 rounded-full border-muted-foreground/30"
-              data-testid="button-queue-back-mobile"
-            >
+            <Button variant="outline" size="icon" onClick={handleBack} className="w-11 h-11 rounded-full border-muted-foreground/30" data-testid="button-queue-back-mobile">
               <ChevronLeft className="w-5 h-5" />
             </Button>
           )}
-          {/* Skip button */}
           <Button
             variant="outline"
             size="icon"
             onClick={handleSkip}
-            className="w-14 h-14 rounded-full border-red-300 text-red-500 hover:bg-red-50 dark:hover:bg-red-950"
+            className="w-14 h-14 rounded-full border-red-200 text-red-400 dark:border-red-900 dark:text-red-400"
             disabled={patchTask.isPending}
             data-testid="button-queue-skip-mobile"
           >
             <X className="w-6 h-6" />
           </Button>
-          {/* Details button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setMobileDetailsOpen(true)}
-            className="text-xs text-muted-foreground"
-            data-testid="button-queue-details-mobile"
-          >
-            Détails
-          </Button>
-          {/* Complete button */}
           <Button
             size="icon"
             onClick={handleComplete}
-            className="w-14 h-14 rounded-full bg-green-500 hover:bg-green-600 text-white"
+            className="w-14 h-14 rounded-full bg-green-500 text-white"
             disabled={patchTask.isPending}
             data-testid="button-queue-complete-mobile"
           >
             <CheckCircle2 className="w-6 h-6" />
           </Button>
         </div>
-
-        {/* Details sheet */}
-        <Sheet open={mobileDetailsOpen} onOpenChange={setMobileDetailsOpen}>
-          <SheetContent side="bottom" className="h-[80vh] overflow-y-auto">
-            <SheetHeader className="pb-4">
-              <SheetTitle className="text-left">Détails de la tâche</SheetTitle>
-            </SheetHeader>
-            <div className="space-y-5">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Titre</label>
-                <Input
-                  value={localTitle}
-                  onChange={(e) => handleTitleChange(e.target.value)}
-                  className="font-semibold"
-                  data-testid="input-queue-title-mobile"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Description</label>
-                <Textarea
-                  value={localDescription}
-                  onChange={(e) => handleDescChange(e.target.value)}
-                  className="min-h-[100px] resize-none text-sm"
-                  data-testid="textarea-queue-desc-mobile"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block flex items-center gap-1">
-                    <Tag className="w-3 h-3" /> Priorité
-                  </label>
-                  <Select value={currentTask?.priority || "medium"} onValueChange={(v) => handleFieldPatch("priority", v)}>
-                    <SelectTrigger className="h-9 text-xs" data-testid="select-queue-priority-mobile">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="high">Haute</SelectItem>
-                      <SelectItem value="medium">Moyenne</SelectItem>
-                      <SelectItem value="low">Basse</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block flex items-center gap-1">
-                    <RotateCcw className="w-3 h-3" /> Statut
-                  </label>
-                  <Select value={currentTask?.columnId || ""} onValueChange={(v) => handleFieldPatch("columnId", v)}>
-                    <SelectTrigger className="h-9 text-xs" data-testid="select-queue-status-mobile">
-                      <SelectValue placeholder="Colonne..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {taskColumns.map((col) => (
-                        <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block flex items-center gap-1">
-                  <Star className="w-3 h-3" /> Effort
-                </label>
-                <StarRating value={currentTask?.effort ?? null} onChange={(v) => handleFieldPatch("effort", v)} />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block flex items-center gap-1">
-                  <User className="w-3 h-3" /> Assigné à
-                </label>
-                <Select value={currentTask?.assignedToId || "none"} onValueChange={(v) => handleFieldPatch("assignedToId", v === "none" ? null : v)}>
-                  <SelectTrigger className="h-9 text-xs" data-testid="select-queue-assignee-mobile">
-                    <SelectValue placeholder="Personne..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucun</SelectItem>
-                    {users.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>{`${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block flex items-center gap-1">
-                  <MessageSquare className="w-3 h-3" /> Commentaires
-                </label>
-                <div className="flex gap-2 mb-3">
-                  <Input
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAddComment(); }}}
-                    placeholder="Ajouter un commentaire..."
-                    className="text-sm flex-1"
-                    data-testid="input-queue-comment-mobile"
-                  />
-                  <Button size="icon" variant="ghost" onClick={handleAddComment} disabled={!commentText.trim() || addComment.isPending}>
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </div>
-                {comments.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Aucun commentaire.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {comments.map((c) => (
-                      <CommentItem key={c.id} comment={c} users={users} currentUserId={currentDbUser?.id} onDelete={(id) => deleteComment.mutate(id)} onEdit={(id, content) => editComment.mutate({ commentId: id, content })} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </SheetContent>
-        </Sheet>
       </div>
     );
   }
