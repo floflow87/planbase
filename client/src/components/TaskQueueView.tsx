@@ -280,6 +280,8 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
   const [localDescription, setLocalDescription] = useState("");
   const titleSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const descSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mobileTitleRef = useRef<HTMLTextAreaElement>(null);
+  const mobileDescRef = useRef<HTMLTextAreaElement>(null);
 
   // Mobile swipe state
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -298,6 +300,17 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
       setRescheduleDate(currentTask.dueDate ? new Date(currentTask.dueDate) : undefined);
     }
   }, [currentTask?.id]);
+
+  // Auto-size mobile title/desc textareas when task changes
+  useEffect(() => {
+    const autoSize = (el: HTMLTextAreaElement | null) => {
+      if (!el) return;
+      el.style.height = "auto";
+      el.style.height = el.scrollHeight + "px";
+    };
+    autoSize(mobileTitleRef.current);
+    autoSize(mobileDescRef.current);
+  }, [currentTask?.id, localTitle, localDescription]);
 
   const { data: comments = [], isLoading: commentsLoading } = useQuery<TicketComment[]>({
     queryKey: ["/api/tickets", currentTask?.id, "task/comments"],
@@ -639,18 +652,32 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
                     )}
                   </div>
 
-                  <Input
+                  <Textarea
+                    ref={mobileTitleRef}
                     value={localTitle}
-                    onChange={(e) => handleTitleChange(e.target.value)}
-                    className="font-bold border-none shadow-none px-0 h-auto text-foreground focus-visible:ring-0 bg-transparent text-xl"
+                    rows={1}
+                    onChange={(e) => {
+                      handleTitleChange(e.target.value);
+                      e.target.style.height = "auto";
+                      e.target.style.height = e.target.scrollHeight + "px";
+                    }}
+                    className="font-bold border-none shadow-none px-0 text-foreground focus-visible:ring-0 bg-transparent text-xl resize-none overflow-hidden leading-snug"
+                    style={{ height: "auto" }}
                     placeholder="Titre de la tâche..."
                     data-testid="input-queue-title-mobile"
                   />
 
                   <Textarea
+                    ref={mobileDescRef}
                     value={localDescription}
-                    onChange={(e) => handleDescChange(e.target.value)}
-                    className="min-h-[80px] resize-none text-sm text-foreground/80 border-muted focus-visible:ring-1 placeholder:text-xs"
+                    rows={1}
+                    onChange={(e) => {
+                      handleDescChange(e.target.value);
+                      e.target.style.height = "auto";
+                      e.target.style.height = e.target.scrollHeight + "px";
+                    }}
+                    className="resize-none overflow-hidden text-sm text-foreground/80 border-muted focus-visible:ring-1 placeholder:text-xs"
+                    style={{ height: "auto" }}
                     placeholder="Description..."
                     data-testid="textarea-queue-desc-mobile"
                   />
