@@ -1438,21 +1438,22 @@ function AppLayout() {
                     <MoreHorizontal className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-card">
+                <DropdownMenuContent align="end" className="bg-card min-w-[180px]">
                   {isTimeTrackingEnabled && (
-                    <DropdownMenuItem asChild onSelect={(e) => e.preventDefault()} className="p-0">
-                      <div className="px-1 py-0.5">
+                    <DropdownMenuItem asChild onSelect={(e) => e.preventDefault()} className="cursor-pointer">
+                      <div className="flex items-center gap-2 w-full">
                         <TimeTracker />
+                        <span className="text-sm">Time tracker</span>
                       </div>
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem data-testid="button-mail-mobile">
-                    <Mail className="w-4 h-4 mr-2 text-primary" />
-                    Mails
+                    <Mail className="w-4 h-4 text-primary" />
+                    <span>Mails</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setLocation("/calendar")} data-testid="button-calendar-mobile">
-                    <Calendar className="w-4 h-4 mr-2 text-primary" />
-                    Calendrier
+                    <Calendar className="w-4 h-4 text-primary" />
+                    <span>Calendrier</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
