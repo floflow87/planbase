@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation, useSearch } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell, Settings, FolderOpen, Upload, X, Download, Pencil, Image, Target } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell, Settings, FolderOpen, Upload, X, Download, Pencil, Image, Target, Lightbulb } from "lucide-react";
 import { FileExplorer } from "@/components/file-explorer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -204,7 +204,7 @@ function CategoryCombobox({ value, onChange, categories, coreProjectTypes = [] }
             onValueChange={setSearchValue}
             data-testid="input-category-search"
           />
-          <CommandList>
+          <CommandList className="max-h-[200px] overflow-y-scroll">
             <CommandEmpty>
               {searchValue.trim() && (
                 <button
@@ -4433,11 +4433,11 @@ export default function ProjectDetail() {
               };
 
               const alerts: Indicator[] = [];
-              const operational: Indicator[] = [];
-              const steering: Indicator[] = [];
+              const actions: Indicator[] = [];
               const business: Indicator[] = [];
+              const reco: Indicator[] = [];
 
-              // ── ALERTES ──
+              // ── ⚠️ ALERTES ──
               if (cdcEstimatedDays > 0 && totalTimeDays > cdcEstimatedDays) {
                 const excess = (totalTimeDays - cdcEstimatedDays).toFixed(1);
                 alerts.push({ id: "time-over", severity: "critical", icon: <Clock className="h-4 w-4" />, label: "Budget temps dépassé", detail: `+${excess}j au-delà des ${cdcEstimatedDays.toFixed(1)}j estimés (${consumptionPct}%)`, action: { label: "Voir temps", tab: "time" } });
@@ -4459,29 +4459,38 @@ export default function ProjectDetail() {
                 alerts.push({ id: "tasks-overdue", severity: "warning", icon: <Flag className="h-4 w-4" />, label: `${overdueTasks.length} tâche${overdueTasks.length > 1 ? "s" : ""} en retard`, detail: overdueTasks.slice(0, 2).map(t => t.title).join(", ") + (overdueTasks.length > 2 ? "…" : ""), action: { label: "Voir tâches", tab: "tasks" } });
               }
 
-              // ── ACTIONS OPÉRATIONNELLES ──
+              // ── 📌 ACTIONS À FAIRE (opérationnel + pilotage + admin) ──
               if (highPriorityTasks.length > 0) {
-                operational.push({ id: "high-prio", severity: "info", icon: <Flag className="h-4 w-4" />, label: `${highPriorityTasks.length} tâche${highPriorityTasks.length > 1 ? "s" : ""} prioritaire${highPriorityTasks.length > 1 ? "s" : ""}`, detail: highPriorityTasks.slice(0, 2).map(t => t.title).join(", ") + (highPriorityTasks.length > 2 ? "…" : ""), action: { label: "Voir tâches", tab: "tasks" } });
+                const nextCritical = highPriorityTasks.find(t => t.priority === "critical") || highPriorityTasks[0];
+                actions.push({ id: "high-prio", severity: "info", icon: <Flag className="h-4 w-4" />, label: `Prochaine tâche critique`, detail: nextCritical.title + (highPriorityTasks.length > 1 ? ` (+${highPriorityTasks.length - 1} autre${highPriorityTasks.length > 2 ? "s" : ""})` : ""), action: { label: "Voir tâches", tab: "tasks" } });
               }
               if (!activeSprint && readySprint) {
-                operational.push({ id: "sprint-ready", severity: "info", icon: <Play className="h-4 w-4" />, label: "Sprint prêt à démarrer", detail: `"${readySprint.name}" est en préparation`, action: { label: "Voir backlogs", tab: "backlogs" } });
+                actions.push({ id: "sprint-ready", severity: "info", icon: <Play className="h-4 w-4" />, label: "Sprint prêt à démarrer", detail: `"${readySprint.name}" est en préparation`, action: { label: "Voir backlogs", tab: "backlogs" } });
               }
               if (unestimatedTasks.length > 0 && projectTasks.length > 2) {
-                operational.push({ id: "unestimated", severity: "info", icon: <Clock className="h-4 w-4" />, label: `${unestimatedTasks.length} ticket${unestimatedTasks.length > 1 ? "s" : ""} sans estimation`, detail: "Estimez les tickets pour un meilleur pilotage", action: { label: "Voir tâches", tab: "tasks" } });
+                actions.push({ id: "unestimated", severity: "info", icon: <Clock className="h-4 w-4" />, label: `${unestimatedTasks.length} ticket${unestimatedTasks.length > 1 ? "s" : ""} sans estimation`, detail: "Estimez les tickets pour un meilleur pilotage", action: { label: "Voir tâches", tab: "tasks" } });
               }
-
-              // ── ACTIONS DE PILOTAGE ──
               if (projectScopeItems.length === 0) {
-                steering.push({ id: "no-cdc", severity: "warning", icon: <FileText className="h-4 w-4" />, label: "CDC non défini", detail: "Aucun élément de cahier des charges renseigné" });
+                actions.push({ id: "no-cdc", severity: "warning", icon: <FileText className="h-4 w-4" />, label: "CDC non défini", detail: "Aucun élément de cahier des charges renseigné" });
               }
               if (projectBacklogs.length === 0) {
-                steering.push({ id: "no-backlog", severity: "info", icon: <FolderKanban className="h-4 w-4" />, label: "Aucun backlog associé", detail: "Créez un backlog pour organiser les tickets" });
+                actions.push({ id: "no-backlog", severity: "info", icon: <FolderKanban className="h-4 w-4" />, label: "Aucun backlog associé", detail: "Créez un backlog pour organiser les tickets" });
               }
               if (tooManyOpen) {
-                steering.push({ id: "too-many-open", severity: "warning", icon: <ListTodo className="h-4 w-4" />, label: `${openTasks.length} tâches ouvertes`, detail: "Priorisation recommandée", action: { label: "Voir tâches", tab: "tasks" } });
+                actions.push({ id: "too-many-open", severity: "warning", icon: <ListTodo className="h-4 w-4" />, label: `${openTasks.length} tâches ouvertes`, detail: "Priorisation recommandée", action: { label: "Voir tâches", tab: "tasks" } });
+              }
+              // Actions administratives
+              if (!project?.billingType) {
+                actions.push({ id: "admin-billing-mode", severity: "warning", icon: <Briefcase className="h-4 w-4" />, label: "Mode de facturation non défini", detail: "Précisez le type : forfait, régie ou mixte", action: { label: "Voir facturation", tab: "billing" } });
+              }
+              if (!project?.internalDailyCost || parseFloat(project.internalDailyCost?.toString() || "0") === 0) {
+                actions.push({ id: "admin-daily-cost", severity: "warning", icon: <Euro className="h-4 w-4" />, label: "TJM manquant", detail: "Coût journalier non défini — calcul de rentabilité impossible", action: { label: "Voir facturation", tab: "billing" } });
+              }
+              if (!project?.billingRate || parseFloat(project.billingRate?.toString() || "0") === 0) {
+                actions.push({ id: "admin-resources", severity: "info", icon: <Users className="h-4 w-4" />, label: "Ressources non définies", detail: "Aucun taux journalier facturé configuré", action: { label: "Voir facturation", tab: "billing" } });
               }
 
-              // ── ACTIONS BUSINESS ──
+              // ── 💰 ACTIONS BUSINESS ──
               if (paceProjection?.alreadyExceeded) {
                 business.push({ id: "biz-exceeded", severity: "critical", icon: <TrendingUp className="h-4 w-4" />, label: "Budget dépassé", detail: `+${paceProjection.exceededBy?.toFixed(1)}j au-delà de l'estimation`, action: { label: "Analyser", tab: "billing" } });
               } else if (paceProjection?.available && !paceProjection.noEstimation && paceProjection.estimatedEndDate && project?.endDate) {
@@ -4489,7 +4498,7 @@ export default function ProjectDetail() {
                 const contractEnd = new Date(project.endDate);
                 if (projEnd > contractEnd) {
                   const diffDays = Math.ceil((projEnd.getTime() - contractEnd.getTime()) / (1000 * 60 * 60 * 24));
-                  business.push({ id: "biz-risk", severity: "warning", icon: <TrendingUp className="h-4 w-4" />, label: "Risque de dépassement", detail: `Projection : +${diffDays}j au-delà de la date de fin`, action: { label: "Voir temps", tab: "time" } });
+                  business.push({ id: "biz-risk", severity: "warning", icon: <TrendingUp className="h-4 w-4" />, label: "Risque de dépassement", detail: `Le projet pourrait dépasser de ${diffDays} jour${diffDays > 1 ? "s" : ""}`, action: { label: "Voir temps", tab: "time" } });
                 }
               }
               if (m && m.totalBilled > 0 && totalTimeDays > 0) {
@@ -4498,11 +4507,31 @@ export default function ProjectDetail() {
                   business.push({ id: "biz-tjm", severity: "warning", icon: <Euro className="h-4 w-4" />, label: "TJM effectif bas", detail: `${Math.round(effectiveTJM).toLocaleString("fr-FR")} €/j vs objectif ${m.targetTJM.toLocaleString("fr-FR")} €/j`, action: { label: "Voir facturation", tab: "billing" } });
                 }
               }
-              if (projectSprints.some((s: any) => s.status === "termine") && payments.filter(p => !p.isPaid).length > 0) {
-                business.push({ id: "biz-invoice", severity: "info", icon: <CheckCircle2 className="h-4 w-4" />, label: "Milestone terminé — facturation possible", detail: "Un sprint est terminé, vérifiez si une facture est à émettre", action: { label: "Voir facturation", tab: "billing" } });
+              {
+                const terminedSprint = projectSprints.find((s: any) => s.status === "termine");
+                if (terminedSprint && payments.filter(p => !p.isPaid).length > 0) {
+                  business.push({ id: "biz-invoice", severity: "info", icon: <CheckCircle2 className="h-4 w-4" />, label: "Facturation possible", detail: `Milestone "${terminedSprint.name}" terminé — vérifiez si une facture est à émettre`, action: { label: "Voir facturation", tab: "billing" } });
+                }
               }
 
-              const allClear = alerts.length === 0 && operational.length === 0 && steering.length === 0 && business.length === 0;
+              // ── 🧠 RECOMMANDATIONS ──
+              if (activeSprint) {
+                reco.push({ id: "reco-next-sprint", severity: "info", icon: <Lightbulb className="h-4 w-4" />, label: "Préparer le sprint suivant", detail: "Un sprint est en cours — anticipez le suivant pour maintenir le rythme" });
+              }
+              if (unestimatedTasks.length > 3) {
+                reco.push({ id: "reco-estimate", severity: "info", icon: <Lightbulb className="h-4 w-4" />, label: "Estimer les tickets avant le sprint", detail: `${unestimatedTasks.length} tickets sans estimation — utile pour la planification`, action: { label: "Voir tâches", tab: "tasks" } });
+              }
+              if (isMarginBelowTarget && !isMarginNegative) {
+                reco.push({ id: "reco-scope", severity: "info", icon: <Lightbulb className="h-4 w-4" />, label: "Réviser le scope pour améliorer la marge", detail: "La marge est sous l'objectif — envisagez un ajustement du périmètre", action: { label: "Voir CDC", tab: "scope" } });
+              }
+              if (projectScopeItems.length > 0 && projectBacklogs.length === 0) {
+                reco.push({ id: "reco-backlog", severity: "info", icon: <Lightbulb className="h-4 w-4" />, label: "Convertir le CDC en backlog", detail: "Des items de CDC existent — créez un backlog pour les suivre en sprint" });
+              }
+              if (daysSinceActivity !== null && daysSinceActivity >= 5 && daysSinceActivity < 10) {
+                reco.push({ id: "reco-activity", severity: "info", icon: <Lightbulb className="h-4 w-4" />, label: "Planifier un point client", detail: `Pas d'activité depuis ${daysSinceActivity} jours — un suivi régulier est recommandé`, action: { label: "Voir activités", tab: "activities" } });
+              }
+
+              const allClear = alerts.length === 0 && actions.length === 0 && business.length === 0 && reco.length === 0;
 
               const severityConfig = {
                 critical: { bg: "bg-red-50 dark:bg-red-950/30", border: "border-red-200 dark:border-red-900", icon: "text-red-600 dark:text-red-400", text: "text-red-900 dark:text-red-100", detail: "text-red-600 dark:text-red-400" },
@@ -4533,10 +4562,10 @@ export default function ProjectDetail() {
                 </div>
               );
 
-              type SectionProps = { title: string; icon: React.ReactNode; items: Indicator[]; emptyMsg: string };
-              const Section = ({ title, icon, items, emptyMsg }: SectionProps) => (
+              type SectionProps = { title: string; icon: React.ReactNode; items: Indicator[]; emptyMsg: string; accentClass?: string };
+              const Section = ({ title, icon, items, emptyMsg, accentClass }: SectionProps) => (
                 <Card className="p-4">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <p className={cn("text-[10px] font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5", accentClass || "text-muted-foreground")}>
                     {icon} {title}
                   </p>
                   {items.length > 0 ? renderIndicators(items) : (
@@ -4560,10 +4589,10 @@ export default function ProjectDetail() {
                     </Card>
                   )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Section title="Alertes projet" icon={<AlertTriangle className="h-3 w-3" />} items={alerts} emptyMsg="Aucune alerte active" />
-                    <Section title="Actions opérationnelles" icon={<ListTodo className="h-3 w-3" />} items={operational} emptyMsg="Aucune action immédiate" />
-                    <Section title="Pilotage" icon={<Target className="h-3 w-3" />} items={steering} emptyMsg="Projet bien structuré" />
-                    <Section title="Business & rentabilité" icon={<TrendingUp className="h-3 w-3" />} items={business} emptyMsg="Aucune opportunité détectée" />
+                    <Section title="Alertes" icon={<AlertTriangle className="h-3 w-3" />} items={alerts} emptyMsg="Aucune alerte active" accentClass="text-red-500 dark:text-red-400" />
+                    <Section title="Actions à faire" icon={<ListTodo className="h-3 w-3" />} items={actions} emptyMsg="Aucune action immédiate" accentClass="text-blue-600 dark:text-blue-400" />
+                    <Section title="Actions business" icon={<TrendingUp className="h-3 w-3" />} items={business} emptyMsg="Aucune opportunité détectée" accentClass="text-emerald-600 dark:text-emerald-400" />
+                    <Section title="Recommandations" icon={<Lightbulb className="h-3 w-3" />} items={reco} emptyMsg="Aucune recommandation pour le moment" accentClass="text-violet-600 dark:text-violet-400" />
                   </div>
                 </div>
               );
@@ -6210,6 +6239,7 @@ export default function ProjectDetail() {
                 id="edit-name"
                 value={projectFormData.name}
                 onChange={(e) => setProjectFormData({ ...projectFormData, name: e.target.value })}
+                className="text-sm placeholder:text-xs"
                 data-testid="input-edit-name"
               />
             </div>
@@ -6220,6 +6250,7 @@ export default function ProjectDetail() {
                 value={projectFormData.description}
                 onChange={(e) => setProjectFormData({ ...projectFormData, description: e.target.value })}
                 rows={3}
+                className="text-sm placeholder:text-xs"
                 data-testid="input-edit-description"
               />
             </div>
@@ -6229,7 +6260,7 @@ export default function ProjectDetail() {
                 value={projectFormData.clientId}
                 onValueChange={(value) => setProjectFormData({ ...projectFormData, clientId: value })}
               >
-                <SelectTrigger id="edit-client" data-testid="select-edit-client">
+                <SelectTrigger id="edit-client" className="text-sm [&>span[data-placeholder]]:text-xs" data-testid="select-edit-client">
                   <SelectValue placeholder="Sélectionner un client" />
                 </SelectTrigger>
                 <SelectContent>
@@ -6247,7 +6278,7 @@ export default function ProjectDetail() {
                 value={projectFormData.stage}
                 onValueChange={(value) => setProjectFormData({ ...projectFormData, stage: value })}
               >
-                <SelectTrigger id="edit-stage" data-testid="select-edit-stage">
+                <SelectTrigger id="edit-stage" className="text-sm" data-testid="select-edit-stage">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-white dark:bg-card">
@@ -6334,6 +6365,7 @@ export default function ProjectDetail() {
                 value={projectFormData.budget}
                 onChange={(e) => setProjectFormData({ ...projectFormData, budget: e.target.value })}
                 placeholder="ex: 10 000€"
+                className="text-sm placeholder:text-xs"
                 data-testid="input-edit-budget"
               />
             </div>
