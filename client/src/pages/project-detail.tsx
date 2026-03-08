@@ -3993,18 +3993,28 @@ export default function ProjectDetail() {
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Marge prévisionnelle</p>
                   <Trophy className="h-3.5 w-3.5 text-violet-500" />
                 </div>
-                <p className={cn(
-                  "text-base font-bold leading-tight",
-                  margin === null ? "text-muted-foreground" : margin >= targetMargin ? "text-green-600 dark:text-green-400" : margin >= 0 ? "text-amber-600" : "text-red-600"
-                )}>
-                  {margin !== null ? `${margin.toFixed(0)} %` : "—"}
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Cible : {targetMargin}%
-                  {margin !== null && margin >= targetMargin && " · Atteinte"}
-                  {margin !== null && margin < targetMargin && margin >= 0 && " · En dessous"}
-                  {margin !== null && margin < 0 && " · Déficit"}
-                </p>
+                {(() => {
+                  const margeColor = margin === null ? "text-muted-foreground" : margin >= targetMargin ? "text-green-600 dark:text-green-400" : margin >= 0 ? "text-amber-600" : "text-red-600";
+                  const margeAmount = m.totalBilled > 0 ? m.totalBilled - m.theoreticalDays * m.internalDailyCost : null;
+                  return (
+                    <>
+                      <p className={cn("text-base font-bold leading-tight", margeColor)}>
+                        {margin !== null ? `${margin.toFixed(0)} %` : "—"}
+                      </p>
+                      {margeAmount !== null && (
+                        <p className={cn("text-[11px] font-semibold mt-0.5", margeColor)}>
+                          {margeAmount.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })}
+                        </p>
+                      )}
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Cible : {targetMargin}%
+                        {margin !== null && margin >= targetMargin && " · Atteinte"}
+                        {margin !== null && margin < targetMargin && margin >= 0 && " · En dessous"}
+                        {margin !== null && margin < 0 && " · Déficit"}
+                      </p>
+                    </>
+                  );
+                })()}
               </Card>
             </div>
           );
@@ -4085,6 +4095,9 @@ export default function ProjectDetail() {
                   isCritical?: boolean;
                   progress?: number;
                   isOverdue?: boolean;
+                  estimatedDays?: number;
+                  timeDays?: number;
+                  consumption?: number;
                 };
                 const items: TimelineItem[] = [];
 
@@ -4103,9 +4116,20 @@ export default function ProjectDetail() {
                   items.push({ id: obj.id, type: 'okr', label: obj.title, date, progress: obj.progress || 0, isOverdue });
                 });
 
-                // CDC scope items (non terminés, max 4)
-                projectScopeItems.filter(s => !s.completedAt).slice(0, 4).forEach((item) => {
-                  items.push({ id: item.id, type: 'cdc', label: item.title, date: null, status: 'open' });
+                // CDC scope items (non terminés, max 5)
+                projectScopeItems.filter(s => !s.completedAt).slice(0, 5).forEach((item) => {
+                  const estimatedDays = parseFloat(item.estimatedDays?.toString() || "0");
+                  const itemTimeSeconds = projectTimeEntries
+                    .filter((e: any) => e.scopeItemId === item.id)
+                    .reduce((s: number, e: any) => s + (e.duration || 0), 0);
+                  const timeDays = itemTimeSeconds / 3600 / 8;
+                  const consumption = estimatedDays > 0 ? (timeDays / estimatedDays) * 100 : null;
+                  items.push({
+                    id: item.id, type: 'cdc', label: item.title, date: null, status: 'open',
+                    estimatedDays: estimatedDays > 0 ? estimatedDays : undefined,
+                    timeDays,
+                    consumption: consumption !== null ? consumption : undefined,
+                  });
                 });
 
                 // Sort: items with date first (chronological), then dateless
@@ -4152,7 +4176,7 @@ export default function ProjectDetail() {
                           <div className="flex-1 min-w-0 pt-0.5">
                             <div className="flex items-center gap-2 justify-between flex-wrap">
                               <p className={cn(
-                                "text-xs font-medium leading-snug truncate max-w-[200px]",
+                                "text-xs font-medium leading-snug truncate max-w-[180px]",
                                 item.isOverdue ? "text-red-600 dark:text-red-400" : "text-foreground"
                               )}>
                                 {item.label}
@@ -4161,7 +4185,13 @@ export default function ProjectDetail() {
                                 {item.type === 'okr' && item.progress !== undefined && (
                                   <Badge variant="outline" className="text-[10px] px-1.5 py-0">{item.progress}%</Badge>
                                 )}
-                                {item.isOverdue && (
+                                {item.type === 'cdc' && item.consumption !== undefined && item.consumption > 100 && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-red-600 border-red-300 dark:border-red-800">Dépassé</Badge>
+                                )}
+                                {item.type === 'cdc' && item.consumption !== undefined && item.consumption > 80 && item.consumption <= 100 && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600 border-amber-300 dark:border-amber-800">Risque</Badge>
+                                )}
+                                {item.isOverdue && item.type !== 'cdc' && (
                                   <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-red-600 border-red-300 dark:border-red-800">Retard</Badge>
                                 )}
                                 {item.isCritical && !item.isOverdue && (
@@ -4169,13 +4199,44 @@ export default function ProjectDetail() {
                                 )}
                               </div>
                             </div>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
-                              {item.type === 'milestone' && 'Milestone'}
-                              {item.type === 'okr' && 'OKR'}
-                              {item.type === 'cdc' && 'CDC'}
-                              {item.date && ` · ${format(item.date, 'd MMM yyyy', { locale: fr })}`}
-                              {!item.date && item.type === 'cdc' && ' · En cours'}
-                            </p>
+                            {/* CDC: progress bar + details */}
+                            {item.type === 'cdc' && (
+                              <div className="mt-1">
+                                {item.estimatedDays !== undefined ? (
+                                  <>
+                                    <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                                      <div
+                                        className={cn(
+                                          "h-full rounded-full transition-all",
+                                          (item.consumption || 0) > 100 ? "bg-red-500" :
+                                          (item.consumption || 0) > 80 ? "bg-amber-500" :
+                                          (item.consumption || 0) > 50 ? "bg-yellow-500" : "bg-emerald-500"
+                                        )}
+                                        style={{ width: `${Math.min(item.consumption || 0, 100)}%` }}
+                                      />
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                                      {(item.timeDays || 0).toFixed(1)}j passé · {item.estimatedDays.toFixed(1)}j estimé
+                                      {(item.consumption || 0) > 0 && ` · ${Math.round(item.consumption || 0)}%`}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                                    {(item.timeDays || 0) > 0
+                                      ? `${(item.timeDays || 0).toFixed(1)}j enregistré · pas d'estimation`
+                                      : 'Pas encore démarré'}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            {/* Milestone / OKR: date + type label */}
+                            {item.type !== 'cdc' && (
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                {item.type === 'milestone' && 'Milestone'}
+                                {item.type === 'okr' && 'OKR'}
+                                {item.date && ` · ${format(item.date, 'd MMM yyyy', { locale: fr })}`}
+                              </p>
+                            )}
                           </div>
                         </div>
                       ))}
