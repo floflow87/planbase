@@ -1,0 +1,163 @@
+Alertes projet (priorité haute)
+
+Ce sont les cas où quelque chose déraille ou risque de dérailler.
+
+Dépassement de temps
+
+Temps consommé > temps prévu
+
+Consommation trop rapide du budget temps
+
+Projection de dépassement
+
+Ex :
+
+⚠️ Le projet pourrait dépasser le budget de +12 jours
+
+Risque de marge
+
+Marge prévisionnelle < objectif
+
+Marge négative
+
+Marge qui se dégrade
+
+Ex :
+
+⚠️ La marge est passée sous l’objectif de 30%
+
+Facturation en retard
+
+Facture non payée
+
+Paiement prévu dépassé
+
+Facturation manquante
+
+Ex :
+
+⚠️ Une facture de 15 000 € est en attente depuis 12 jours
+
+Projet bloqué
+
+aucune activité depuis X jours
+
+aucune tâche en cours
+
+roadmap inactive
+
+Ex :
+
+⚠️ Aucune activité sur ce projet depuis 10 jours
+
+Roadmap incohérente
+
+milestone dépassé
+
+milestone sans tâches
+
+milestone sans estimation
+
+2️⃣ Actions opérationnelles (travail quotidien)
+
+Ces actions servent à faire avancer le projet.
+
+Prochaines tâches importantes
+
+tâche avec priorité haute
+
+tâche due bientôt
+
+tâche assignée à l’utilisateur
+
+Ex :
+
+📌 Prochaine tâche critique : Configurer Stripe
+
+Sprint à démarrer
+
+backlog prêt mais sprint non lancé
+
+Ticket non estimé
+
+tâche sans estimation
+
+Ticket bloqué
+
+ticket dépendant d’un autre
+
+ticket en attente
+
+Commentaires récents
+
+nouveau commentaire sur tâche
+
+feedback client
+
+Ex :
+
+💬 Nouveau commentaire sur "Page pricing"
+
+3️⃣ Actions de pilotage projet
+
+Là on entre dans la vraie valeur de PlanBase.
+
+Backlog vide
+
+projet sans backlog
+
+Roadmap manquante
+
+projet sans roadmap
+
+CDC non défini
+
+cahier des charges absent
+
+Phase non planifiée
+
+milestone sans dates
+
+Priorisation nécessaire
+
+trop de tickets ouverts
+
+Ex :
+
+⚠️ 37 tickets ouverts, aucune priorisation
+
+4️⃣ Actions business / rentabilité
+
+C’est la signature PlanBase.
+
+Ajustement budget
+
+estimation trop faible
+
+backlog supérieur au budget
+
+Renégociation client
+
+dépassement probable
+
+Ex :
+
+💰 Le projet risque de dépasser de 8 jours
+
+Opportunité d’upsell
+
+nouvelles demandes
+
+backlog supplémentaire
+
+Temps non facturé
+
+temps enregistré mais non facturé
+
+Facturation possible
+
+milestone terminé
+
+Ex :
+
+💰 Milestone terminé — facturation possible
