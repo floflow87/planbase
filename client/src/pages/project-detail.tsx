@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation, useSearch } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell, Settings, FolderOpen, Upload, X, Download, Pencil, Image } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell, Settings, FolderOpen, Upload, X, Download, Pencil, Image, Target } from "lucide-react";
 import { FileExplorer } from "@/components/file-explorer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -3081,6 +3081,13 @@ export default function ProjectDetail() {
     queryKey: ['/api/projects', id, 'roadmap', 'milestones'],
     enabled: !!id,
   });
+
+  interface OKRKeyResult { id: string; title: string; targetDate?: string | null; progress: number; }
+  interface OKRObjective { id: string; title: string; dueDate?: string | null; progress: number; status: string; keyResults: OKRKeyResult[]; }
+  const { data: okrObjectives } = useQuery<OKRObjective[]>({
+    queryKey: ['/api/projects', id, 'okr'],
+    enabled: !!id,
+  });
   
   // Calculate CDC estimated days for auto-completion
   const cdcEstimatedDays = useMemo(() => {
@@ -3884,7 +3891,9 @@ export default function ProjectDetail() {
         {projectProfitabilityData?.metrics && (() => {
           const m = projectProfitabilityData.metrics;
           const timeConsumedPct = m.theoreticalDays > 0 ? Math.min(100, (m.actualDaysWorked / m.theoreticalDays) * 100) : null;
-          const margin = m.marginPercent ?? null;
+          const margin = m.totalBilled > 0
+            ? Math.round(((m.totalBilled - m.theoreticalDays * m.internalDailyCost) / m.totalBilled) * 1000) / 10
+            : null;
           const targetMargin = profitabilityMetrics?.targetMarginPercent || 30;
           return (
             <div className="mb-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -4059,140 +4068,122 @@ export default function ProjectDetail() {
             </Card>
           </div>
 
-          {/* RIGHT: base de pilotage ou action zone (2/3) */}
+          {/* RIGHT: timeline narrative (2/3) */}
           <div className="md:col-span-2">
-            {project.onboardingSuggestionsDismissed !== 1 ? (
-              <PostCreationSuggestions
-                project={project}
-                scopeItems={projectScopeItems || []}
-                onOpenCdcWizard={() => setIsCdcWizardOpen(true)}
-                onDismiss={() => {}}
-              />
-            ) : (
-              <div className="flex flex-col gap-3 h-full">
-                {/* Accès rapide */}
-                <Card className="p-4">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Accès rapide</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {[
-                      { tab: "roadmap", icon: Map, label: "Roadmap", color: "text-violet-500" },
-                      { tab: "backlogs", icon: FolderKanban, label: "Backlogs", color: "text-blue-500" },
-                      { tab: "time", icon: Timer, label: "Temps", color: "text-primary" },
-                      { tab: "billing", icon: DollarSign, label: "Facturation", color: "text-cyan-500" },
-                    ].map(({ tab, icon: Icon, label, color }) => (
-                      <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className="flex flex-col items-center gap-1.5 p-2.5 rounded-md hover-elevate active-elevate-2 border text-center"
-                        data-testid={`shortcut-${tab}`}
-                      >
-                        <Icon className={cn("h-4 w-4", color)} />
-                        <span className="text-xs font-medium">{label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </Card>
+            <Card className="p-4 h-full">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                <Layers className="h-3 w-3" /> Timeline narrative
+              </p>
+              {(() => {
+                const today = new Date();
+                type TimelineItem = {
+                  id: string;
+                  type: 'milestone' | 'okr' | 'cdc';
+                  label: string;
+                  date: Date | null;
+                  status?: string;
+                  isCritical?: boolean;
+                  progress?: number;
+                  isOverdue?: boolean;
+                };
+                const items: TimelineItem[] = [];
 
-                {/* Zone alertes / points d'attention */}
-                {(dataWarnings.length > 0 || milestonesData?.nextMilestone || projectProfitabilityData?.metrics?.status === 'at_risk' || projectProfitabilityData?.metrics?.status === 'deficit') && (
-                  <Card className="p-4 flex-1">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                      <Bell className="h-3 w-3" /> Points d'attention
-                    </p>
-                    <div className="space-y-2">
-                      {/* Milestone reminder */}
-                      {milestonesData?.nextMilestone && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div
-                              className={cn(
-                                "flex items-center gap-2 p-2.5 rounded-md text-xs cursor-pointer",
-                                milestonesData.nextMilestone.milestoneStatus === 'overdue' && "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400",
-                                milestonesData.nextMilestone.milestoneStatus === 'at_risk' && "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400",
-                                (!milestonesData.nextMilestone.milestoneStatus || ['upcoming', 'achievable'].includes(milestonesData.nextMilestone.milestoneStatus ?? '')) && "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400"
-                              )}
-                              onClick={() => setActiveTab("roadmap")}
-                              data-testid="milestone-reminder"
-                            >
-                              {['overdue', 'at_risk'].includes(milestonesData.nextMilestone.milestoneStatus ?? '') ? (
-                                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                              ) : (
-                                <Bell className="h-3.5 w-3.5 shrink-0" />
-                              )}
-                              <div className="min-w-0 flex-1">
-                                <p className="font-medium truncate">Prochaine étape : {milestonesData.nextMilestone.title}</p>
-                                {(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate) && (
-                                  <p className="opacity-80 mt-0.5">
-                                    {format(new Date(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate!), "d MMM yyyy", { locale: fr })}
-                                  </p>
+                // Milestones
+                (milestonesData?.milestones || []).slice(0, 6).forEach((ms) => {
+                  const rawDate = ms.targetDate || ms.endDate;
+                  const date = rawDate ? new Date(rawDate) : null;
+                  const isOverdue = !!date && date < today && ms.status !== 'done';
+                  items.push({ id: ms.id, type: 'milestone', label: ms.title, date, status: ms.milestoneStatus || ms.status, isCritical: !!ms.isCritical, isOverdue });
+                });
+
+                // OKR objectives
+                (okrObjectives || []).forEach((obj) => {
+                  const date = obj.dueDate ? new Date(obj.dueDate) : null;
+                  const isOverdue = !!date && date < today;
+                  items.push({ id: obj.id, type: 'okr', label: obj.title, date, progress: obj.progress || 0, isOverdue });
+                });
+
+                // CDC scope items (non terminés, max 4)
+                projectScopeItems.filter(s => !s.completedAt).slice(0, 4).forEach((item) => {
+                  items.push({ id: item.id, type: 'cdc', label: item.title, date: null, status: 'open' });
+                });
+
+                // Sort: items with date first (chronological), then dateless
+                items.sort((a, b) => {
+                  if (!a.date && !b.date) return 0;
+                  if (!a.date) return 1;
+                  if (!b.date) return -1;
+                  return a.date.getTime() - b.date.getTime();
+                });
+
+                if (items.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-6 text-center gap-2">
+                      <Layers className="h-8 w-8 text-muted-foreground/30" />
+                      <p className="text-sm text-muted-foreground">Aucune donnée de pilotage disponible.</p>
+                      <p className="text-xs text-muted-foreground">Ajoutez des milestones, des OKR ou des éléments CDC pour voir votre timeline.</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="relative">
+                    <div className="absolute left-[13px] top-2 bottom-2 w-px bg-border" />
+                    <div className="space-y-0.5">
+                      {items.map((item) => (
+                        <div key={item.id} className="relative flex items-start gap-3 py-2 group">
+                          {/* Timeline dot */}
+                          <div className={cn(
+                            "relative z-10 w-[26px] h-[26px] shrink-0 rounded-full flex items-center justify-center",
+                            item.isOverdue && "bg-red-100 dark:bg-red-900/30",
+                            !item.isOverdue && item.type === 'milestone' && item.isCritical && "bg-violet-100 dark:bg-violet-900/30",
+                            !item.isOverdue && item.type === 'milestone' && !item.isCritical && "bg-blue-100 dark:bg-blue-900/30",
+                            !item.isOverdue && item.type === 'okr' && "bg-emerald-100 dark:bg-emerald-900/30",
+                            !item.isOverdue && item.type === 'cdc' && "bg-amber-100 dark:bg-amber-900/30"
+                          )}>
+                            {item.type === 'milestone' && (
+                              <Flag className={cn("h-3 w-3", item.isOverdue ? "text-red-600 dark:text-red-400" : item.isCritical ? "text-violet-600 dark:text-violet-400" : "text-blue-600 dark:text-blue-400")} />
+                            )}
+                            {item.type === 'okr' && <Target className={cn("h-3 w-3", item.isOverdue ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400")} />}
+                            {item.type === 'cdc' && <Layers className="h-3 w-3 text-amber-600 dark:text-amber-400" />}
+                          </div>
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0 pt-0.5">
+                            <div className="flex items-center gap-2 justify-between flex-wrap">
+                              <p className={cn(
+                                "text-xs font-medium leading-snug truncate max-w-[200px]",
+                                item.isOverdue ? "text-red-600 dark:text-red-400" : "text-foreground"
+                              )}>
+                                {item.label}
+                              </p>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {item.type === 'okr' && item.progress !== undefined && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">{item.progress}%</Badge>
+                                )}
+                                {item.isOverdue && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-red-600 border-red-300 dark:border-red-800">Retard</Badge>
+                                )}
+                                {item.isCritical && !item.isOverdue && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-violet-600 border-violet-300 dark:border-violet-800">Critique</Badge>
                                 )}
                               </div>
-                              {(milestonesData.atRiskCount > 0 || milestonesData.overdueCount > 0) && (
-                                <Badge variant="outline" className="text-[10px] shrink-0 border-current">
-                                  {milestonesData.overdueCount > 0 ? `${milestonesData.overdueCount} retard` : `${milestonesData.atRiskCount} risque`}
-                                </Badge>
-                              )}
                             </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom" className="max-w-xs bg-white text-foreground border">
-                            <div className="space-y-1">
-                              <p className="font-medium">Prochaine étape : {milestonesData.nextMilestone.title}</p>
-                              {(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate) && (
-                                <p className="text-xs text-muted-foreground">Date cible : {format(new Date(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate!), "d MMMM yyyy", { locale: fr })}</p>
-                              )}
-                              {milestonesData.upcomingCount > 1 && (
-                                <p className="text-xs text-muted-foreground">+{milestonesData.upcomingCount - 1} autre{milestonesData.upcomingCount > 2 ? 's' : ''} étape{milestonesData.upcomingCount > 2 ? 's' : ''} à venir</p>
-                              )}
-                              {(milestonesData.atRiskCount > 0 || milestonesData.overdueCount > 0) && (
-                                <p className="text-xs text-amber-600 dark:text-amber-400">
-                                  {milestonesData.overdueCount > 0 && `${milestonesData.overdueCount} en retard`}
-                                  {milestonesData.overdueCount > 0 && milestonesData.atRiskCount > 0 && ', '}
-                                  {milestonesData.atRiskCount > 0 && `${milestonesData.atRiskCount} à risque`}
-                                </p>
-                              )}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                      {/* Data warnings */}
-                      {dataWarnings.map((warning, index) => (
-                        <div
-                          key={index}
-                          className={cn(
-                            "flex items-center gap-2 p-2.5 rounded-md text-xs",
-                            warning.type === 'warning'
-                              ? "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
-                              : "bg-muted/50 text-muted-foreground"
-                          )}
-                          data-testid={`warning-${index}`}
-                        >
-                          {warning.type === 'warning' ? <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> : <Info className="h-3.5 w-3.5 shrink-0" />}
-                          <span>{warning.message}</span>
-                          {warning.action && <span className="ml-auto opacity-70 underline cursor-pointer">{warning.action}</span>}
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {item.type === 'milestone' && 'Milestone'}
+                              {item.type === 'okr' && 'OKR'}
+                              {item.type === 'cdc' && 'CDC'}
+                              {item.date && ` · ${format(item.date, 'd MMM yyyy', { locale: fr })}`}
+                              {!item.date && item.type === 'cdc' && ' · En cours'}
+                            </p>
+                          </div>
                         </div>
                       ))}
-                      {/* Trajectory alert */}
-                      {(projectProfitabilityData?.metrics?.status === 'at_risk' || projectProfitabilityData?.metrics?.status === 'deficit') && (
-                        <div className={cn(
-                          "flex items-center gap-2 p-2.5 rounded-md text-xs",
-                          projectProfitabilityData.metrics.status === 'deficit'
-                            ? "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400"
-                            : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
-                        )}>
-                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                          <span>
-                            {projectProfitabilityData.metrics.status === 'deficit'
-                              ? "Projet en déficit de rentabilité — action requise"
-                              : "Rentabilité à surveiller — risque identifié"}
-                          </span>
-                          <Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={() => setShowAnalysisDrawer(true)}>Analyser</Button>
-                        </div>
-                      )}
                     </div>
-                  </Card>
-                )}
-              </div>
-            )}
+                  </div>
+                );
+              })()}
+            </Card>
           </div>
         </div>
 
