@@ -1092,6 +1092,45 @@ export default function CRM() {
               </div>
             ) : (
               <>
+                {/* Mobile micro-cards - only on mobile, always shown */}
+                <div className="grid grid-cols-2 gap-2 p-2 md:hidden">
+                  {filteredClients.map((client) => {
+                    const clientProjects = projects.filter((p: any) => p.clientId === client.id);
+                    const totalBudget = clientProjects.reduce((sum: number, p: any) => sum + parseFloat(p.totalBilled || "0"), 0);
+                    const status = KANBAN_STATUSES.find(s => s.id === client.status);
+                    return (
+                      <Link key={client.id} href={`/crm/${client.id}`}>
+                        <Card className="hover-elevate active-elevate-2 cursor-pointer h-full" data-testid={`micro-card-${client.id}`}>
+                          <CardContent className="p-2.5 space-y-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <Avatar className="w-6 h-6 shrink-0">
+                                <AvatarImage src={(client as any).logoUrl || ""} alt={client.name} />
+                                <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
+                                  {((client as any).company || client.name).substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <p className="text-xs font-semibold text-foreground truncate leading-tight">{client.name}</p>
+                            </div>
+                            {(client as any).company && (client as any).company !== client.name && (
+                              <p className="text-[10px] text-muted-foreground truncate">{(client as any).company}</p>
+                            )}
+                            <div className="flex items-center justify-between gap-1 flex-wrap">
+                              {status && (
+                                <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${status.textColor} bg-current/10`} style={{ background: `${status.hex}20`, color: status.hex }}>
+                                  {status.label}
+                                </span>
+                              )}
+                              {totalBudget > 0 && (
+                                <span className="text-[10px] font-bold text-primary">€{totalBudget.toLocaleString()}</span>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    );
+                  })}
+                </div>
+
                 {/* Table View - Desktop only, shown when viewMode is "table" */}
                 {viewMode === "table" && (
                   <DndContext
@@ -1294,13 +1333,13 @@ export default function CRM() {
                   </DndContext>
                 )}
                 
-                {/* Kanban View - Always shown on mobile (< md), shown on desktop (>= md) when viewMode === "kanban" */}
+                {/* Kanban View - Desktop only (mobile uses micro-cards above) */}
                 <DndContext
                   sensors={sensors}
                   onDragStart={handleKanbanDragStart}
                   onDragEnd={handleKanbanDragEnd}
                 >
-                  <div className={`${viewMode === "table" ? "md:hidden" : ""}`}>
+                  <div className={viewMode === "table" ? "hidden" : "hidden md:block"}>
                     {/* Mobile-only toolbar with column visibility */}
                     <div className="flex items-center justify-between mb-3 md:hidden">
                       <Popover>

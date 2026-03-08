@@ -1199,10 +1199,10 @@ export default function ClientDetail() {
         </div>
 
         {/* Main layout: Info sidebar + Tabs */}
-        <div className="flex gap-5 items-start">
+        <div className="flex flex-col md:flex-row gap-5 items-start">
 
           {/* ── Info Sidebar ── */}
-          <Card className="w-64 shrink-0 bg-white dark:bg-card shadow-sm">
+          <Card className="w-full md:w-64 md:shrink-0 bg-white dark:bg-card shadow-sm">
             <CardContent className="p-4 space-y-4">
             {/* Avatar + name */}
             <div className="flex flex-col items-center gap-2 py-2">

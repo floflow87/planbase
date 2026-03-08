@@ -47,7 +47,7 @@ import ProjectDecisions from "@/pages/project-decisions";
 import ProjectExecutive from "@/pages/project-executive";
 import AcceptInvitation from "@/pages/accept-invitation";
 import NotFound from "@/pages/not-found";
-import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote, CalendarPlus } from "lucide-react";
+import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote, CalendarPlus, MoreHorizontal } from "lucide-react";
 import { AppointmentPanel } from "@/components/appointment-panel";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -1417,18 +1417,45 @@ function AppLayout() {
             </div>
             <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
               <QuickCreateMenu />
-              {isTimeTrackingEnabled && <TimeTracker />}
-              <Button variant="ghost" size="icon" data-testid="button-mail">
+              {/* Desktop: individual icons */}
+              {isTimeTrackingEnabled && <div className="hidden sm:flex"><TimeTracker /></div>}
+              <Button variant="ghost" size="icon" className="hidden sm:flex" data-testid="button-mail">
                 <Mail className="w-4 h-4 text-primary" />
               </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden sm:flex"
                 onClick={() => setLocation("/calendar")}
                 data-testid="button-calendar"
               >
                 <Calendar className="w-4 h-4 text-primary" />
               </Button>
+              {/* Mobile: collapsed dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="sm:hidden" data-testid="button-header-more">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-card">
+                  {isTimeTrackingEnabled && (
+                    <DropdownMenuItem asChild onSelect={(e) => e.preventDefault()} className="p-0">
+                      <div className="px-1 py-0.5">
+                        <TimeTracker />
+                      </div>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem data-testid="button-mail-mobile">
+                    <Mail className="w-4 h-4 mr-2 text-primary" />
+                    Mails
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLocation("/calendar")} data-testid="button-calendar-mobile">
+                    <Calendar className="w-4 h-4 mr-2 text-primary" />
+                    Calendrier
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <UserMenu />
             </div>
           </header>
