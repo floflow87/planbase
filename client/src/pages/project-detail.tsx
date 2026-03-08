@@ -1768,9 +1768,9 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                             <Badge variant="outline" className={`text-xs ${getHorizonStyles(rec.horizon)}`}>
                               {getHorizonLabel(rec.horizon)}
                             </Badge>
-                            <span className="font-semibold text-sm">{rec.title}</span>
+                            <span className="font-semibold text-xs">{rec.title}</span>
                           </div>
-                          <p className="text-sm">{rec.description}</p>
+                          <p className="text-xs">{rec.description}</p>
                           {impact && rec.severity !== "info" && (
                             <p className="text-xs mt-2 font-medium text-muted-foreground flex items-center gap-1">
                               <TrendingDown className="h-3 w-3" />
@@ -2810,6 +2810,8 @@ export default function ProjectDetail() {
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
   const [paymentDescription, setPaymentDescription] = useState<string>("");
+  const [isPeriodStartPickerOpen, setIsPeriodStartPickerOpen] = useState(false);
+  const [isPeriodEndPickerOpen, setIsPeriodEndPickerOpen] = useState(false);
   const [isPaymentDatePickerOpen, setIsPaymentDatePickerOpen] = useState(false);
   // Partial payments state
   const [isPartialPayments, setIsPartialPayments] = useState(false);
@@ -3022,10 +3024,11 @@ export default function ProjectDetail() {
     enabled: !!id,
   });
 
-  // Fetch profitability metrics for KPIs
+  // Fetch profitability metrics for KPIs (real-time: refresh every 30s)
   const { data: projectProfitabilityData } = useQuery<ProfitabilityAnalysis>({
     queryKey: ['/api/projects', id, 'profitability'],
     enabled: !!id,
+    refetchInterval: 30000,
   });
   const profitabilityMetrics = projectProfitabilityData?.metrics;
 
@@ -3987,35 +3990,45 @@ export default function ProjectDetail() {
               </Card>
 
               {/* 4. Marge prévisionnelle */}
-              <Card className="p-3.5 relative overflow-hidden">
-                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-violet-500" />
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Marge prévisionnelle</p>
-                  <Trophy className="h-3.5 w-3.5 text-violet-500" />
-                </div>
-                {(() => {
-                  const margeColor = margin === null ? "text-muted-foreground" : margin >= targetMargin ? "text-green-600 dark:text-green-400" : margin >= 0 ? "text-amber-600" : "text-red-600";
-                  const margeAmount = m.totalBilled > 0 ? m.totalBilled - m.theoreticalDays * m.internalDailyCost : null;
-                  return (
-                    <>
-                      <p className={cn("text-base font-bold leading-tight", margeColor)}>
-                        {margin !== null ? `${margin.toFixed(0)} %` : "—"}
-                      </p>
-                      {margeAmount !== null && (
-                        <p className={cn("text-[11px] font-semibold mt-0.5", margeColor)}>
-                          {margeAmount.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })}
-                        </p>
-                      )}
-                      <p className="text-[11px] text-muted-foreground mt-1">
-                        Cible : {targetMargin}%
-                        {margin !== null && margin >= targetMargin && " · Atteinte"}
-                        {margin !== null && margin < targetMargin && margin >= 0 && " · En dessous"}
-                        {margin !== null && margin < 0 && " · Déficit"}
-                      </p>
-                    </>
-                  );
-                })()}
-              </Card>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Card className="p-3.5 relative overflow-hidden cursor-help">
+                    <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-violet-500" />
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Marge prévisionnelle</p>
+                      <Trophy className="h-3.5 w-3.5 text-violet-500" />
+                    </div>
+                    {(() => {
+                      const margeColor = margin === null ? "text-muted-foreground" : margin >= targetMargin ? "text-green-600 dark:text-green-400" : margin >= 0 ? "text-amber-600" : "text-red-600";
+                      const margeAmount = m.totalBilled > 0 ? m.totalBilled - m.theoreticalDays * m.internalDailyCost : null;
+                      return (
+                        <>
+                          <p className={cn("text-base font-bold leading-tight", margeColor)}>
+                            {margin !== null ? `${margin.toFixed(0)} %` : "—"}
+                          </p>
+                          {margeAmount !== null && (
+                            <p className={cn("text-[11px] font-semibold mt-0.5", margeColor)}>
+                              {margeAmount.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })}
+                            </p>
+                          )}
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            Cible : {targetMargin}%
+                            {margin !== null && margin >= targetMargin && " · Atteinte"}
+                            {margin !== null && margin < targetMargin && margin >= 0 && " · En dessous"}
+                            {margin !== null && margin < 0 && " · Déficit"}
+                          </p>
+                        </>
+                      );
+                    })()}
+                  </Card>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[260px]">
+                  <p className="font-semibold text-sm mb-1">Marge prévisionnelle</p>
+                  <p className="text-xs text-muted-foreground">Projection basée sur le devis : budget facturé moins les jours estimés au CDC multiplié par votre coût journalier interne.</p>
+                  <p className="text-xs text-muted-foreground mt-1 font-mono">= Budget − (jours CDC × coût/j interne)</p>
+                  <p className="text-xs text-muted-foreground mt-1">Se met à jour toutes les 30 secondes. Différent de la marge actualisée de l'onglet Facturation qui utilise les jours réellement travaillés.</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
           );
         })()}
@@ -4028,7 +4041,7 @@ export default function ProjectDetail() {
               {/* Description */}
               <div>
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Description</p>
-                <p className={cn("text-sm leading-relaxed line-clamp-3", !project.description && "text-muted-foreground italic")}>
+                <p className={cn("text-[13px] leading-relaxed line-clamp-3", !project.description && "text-muted-foreground italic")}>
                   {project.description || "Aucune description renseignée"}
                 </p>
               </div>
@@ -4038,42 +4051,72 @@ export default function ProjectDetail() {
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
                   <CalendarIcon className="h-3 w-3" /> Période
                 </p>
-                {(project.startDate || project.endDate) ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground flex-wrap">
-                      <span className="font-medium text-foreground">
-                        {project.startDate ? format(new Date(project.startDate), "dd MMM yyyy", { locale: fr }) : "—"}
-                      </span>
-                      <span>→</span>
-                      <span className="font-medium text-foreground">
-                        {project.endDate ? format(new Date(project.endDate), "dd MMM yyyy", { locale: fr }) : "—"}
-                      </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {/* Start date picker */}
+                  <Popover open={isPeriodStartPickerOpen} onOpenChange={setIsPeriodStartPickerOpen}>
+                    <PopoverTrigger asChild>
+                      <button className="text-[13px] font-medium text-foreground hover-elevate rounded px-1 py-0.5 -mx-1 cursor-pointer" data-testid="button-period-start">
+                        {project.startDate ? format(new Date(project.startDate), "dd MMM yyyy", { locale: fr }) : <span className="text-muted-foreground italic">Début</span>}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={project.startDate ? new Date(project.startDate) : undefined}
+                        onSelect={async (date) => {
+                          setIsPeriodStartPickerOpen(false);
+                          await apiRequest(`/api/projects/${id}`, "PATCH", { startDate: date ? format(date, "yyyy-MM-dd") : null });
+                          queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+                          queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                        }}
+                        locale={fr}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <span className="text-muted-foreground text-xs">→</span>
+                  {/* End date picker */}
+                  <Popover open={isPeriodEndPickerOpen} onOpenChange={setIsPeriodEndPickerOpen}>
+                    <PopoverTrigger asChild>
+                      <button className="text-[13px] font-medium text-foreground hover-elevate rounded px-1 py-0.5 -mx-1 cursor-pointer" data-testid="button-period-end">
+                        {project.endDate ? format(new Date(project.endDate), "dd MMM yyyy", { locale: fr }) : <span className="text-muted-foreground italic">Fin</span>}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={project.endDate ? new Date(project.endDate) : undefined}
+                        onSelect={async (date) => {
+                          setIsPeriodEndPickerOpen(false);
+                          await apiRequest(`/api/projects/${id}`, "PATCH", { endDate: date ? format(date, "yyyy-MM-dd") : null });
+                          queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+                          queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                        }}
+                        locale={fr}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                {project.startDate && project.endDate && (() => {
+                  const start = new Date(project.startDate!);
+                  const end = new Date(project.endDate!);
+                  const today = new Date();
+                  const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                  const elapsedDays = Math.max(0, Math.ceil((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+                  const progressPct = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+                  const isOverdue = today > end;
+                  return (
+                    <div className="mt-2">
+                      <div className="h-1 bg-muted rounded-full overflow-hidden mb-1">
+                        <div className={cn("h-full rounded-full transition-all", isOverdue ? "bg-red-500" : progressPct > 80 ? "bg-amber-500" : "bg-cyan-500")} style={{ width: `${Math.min(100, progressPct)}%` }} />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        {isOverdue
+                          ? `En retard de ${Math.ceil((today.getTime() - end.getTime()) / (1000 * 60 * 60 * 24))}j`
+                          : `${Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))}j restants · ${totalDays}j au total`}
+                      </p>
                     </div>
-                    {project.startDate && project.endDate && (() => {
-                      const start = new Date(project.startDate!);
-                      const end = new Date(project.endDate!);
-                      const today = new Date();
-                      const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-                      const elapsedDays = Math.max(0, Math.ceil((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-                      const progressPct = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
-                      const isOverdue = today > end;
-                      return (
-                        <div>
-                          <div className="h-1 bg-muted rounded-full overflow-hidden mb-1">
-                            <div className={cn("h-full rounded-full transition-all", isOverdue ? "bg-red-500" : progressPct > 80 ? "bg-amber-500" : "bg-cyan-500")} style={{ width: `${Math.min(100, progressPct)}%` }} />
-                          </div>
-                          <p className="text-[10px] text-muted-foreground">
-                            {isOverdue
-                              ? `En retard de ${Math.ceil((today.getTime() - end.getTime()) / (1000 * 60 * 60 * 24))}j`
-                              : `${Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))}j restants · ${totalDays}j au total`}
-                          </p>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">Dates non définies</p>
-                )}
+                  );
+                })()}
               </div>
             </Card>
           </div>
@@ -4085,158 +4128,99 @@ export default function ProjectDetail() {
                 <Layers className="h-3 w-3" /> Timeline narrative
               </p>
               {(() => {
-                const today = new Date();
-                type TimelineItem = {
-                  id: string;
-                  type: 'milestone' | 'okr' | 'cdc';
-                  label: string;
-                  date: Date | null;
-                  status?: string;
-                  isCritical?: boolean;
-                  progress?: number;
-                  isOverdue?: boolean;
-                  estimatedDays?: number;
-                  timeDays?: number;
-                  consumption?: number;
-                };
-                const items: TimelineItem[] = [];
+                const BLOCK_COLORS = [
+                  { bg: "bg-violet-500", light: "bg-violet-100 dark:bg-violet-900/40", dot: "bg-violet-500" },
+                  { bg: "bg-cyan-500",   light: "bg-cyan-100 dark:bg-cyan-900/40",   dot: "bg-cyan-500" },
+                  { bg: "bg-emerald-500",light: "bg-emerald-100 dark:bg-emerald-900/40",dot: "bg-emerald-500" },
+                  { bg: "bg-amber-500",  light: "bg-amber-100 dark:bg-amber-900/40",  dot: "bg-amber-500" },
+                  { bg: "bg-rose-500",   light: "bg-rose-100 dark:bg-rose-900/40",   dot: "bg-rose-500" },
+                  { bg: "bg-blue-500",   light: "bg-blue-100 dark:bg-blue-900/40",   dot: "bg-blue-500" },
+                  { bg: "bg-purple-500", light: "bg-purple-100 dark:bg-purple-900/40",dot: "bg-purple-500" },
+                  { bg: "bg-teal-500",   light: "bg-teal-100 dark:bg-teal-900/40",   dot: "bg-teal-500" },
+                  { bg: "bg-orange-500", light: "bg-orange-100 dark:bg-orange-900/40",dot: "bg-orange-500" },
+                  { bg: "bg-indigo-500", light: "bg-indigo-100 dark:bg-indigo-900/40",dot: "bg-indigo-500" },
+                ];
 
-                // Milestones
-                (milestonesData?.milestones || []).slice(0, 6).forEach((ms) => {
-                  const rawDate = ms.targetDate || ms.endDate;
-                  const date = rawDate ? new Date(rawDate) : null;
-                  const isOverdue = !!date && date < today && ms.status !== 'done';
-                  items.push({ id: ms.id, type: 'milestone', label: ms.title, date, status: ms.milestoneStatus || ms.status, isCritical: !!ms.isCritical, isOverdue });
-                });
+                const cdcItems = projectScopeItems.filter(s => !s.completedAt);
 
-                // OKR objectives
-                (okrObjectives || []).forEach((obj) => {
-                  const date = obj.dueDate ? new Date(obj.dueDate) : null;
-                  const isOverdue = !!date && date < today;
-                  items.push({ id: obj.id, type: 'okr', label: obj.title, date, progress: obj.progress || 0, isOverdue });
-                });
-
-                // CDC scope items (non terminés, max 5)
-                projectScopeItems.filter(s => !s.completedAt).slice(0, 5).forEach((item) => {
-                  const estimatedDays = parseFloat(item.estimatedDays?.toString() || "0");
-                  const itemTimeSeconds = projectTimeEntries
-                    .filter((e: any) => e.scopeItemId === item.id)
-                    .reduce((s: number, e: any) => s + (e.duration || 0), 0);
-                  const timeDays = itemTimeSeconds / 3600 / 8;
-                  const consumption = estimatedDays > 0 ? (timeDays / estimatedDays) * 100 : null;
-                  items.push({
-                    id: item.id, type: 'cdc', label: item.title, date: null, status: 'open',
-                    estimatedDays: estimatedDays > 0 ? estimatedDays : undefined,
-                    timeDays,
-                    consumption: consumption !== null ? consumption : undefined,
-                  });
-                });
-
-                // Sort: items with date first (chronological), then dateless
-                items.sort((a, b) => {
-                  if (!a.date && !b.date) return 0;
-                  if (!a.date) return 1;
-                  if (!b.date) return -1;
-                  return a.date.getTime() - b.date.getTime();
-                });
-
-                if (items.length === 0) {
+                if (cdcItems.length === 0) {
                   return (
                     <div className="flex flex-col items-center justify-center py-6 text-center gap-2">
                       <Layers className="h-8 w-8 text-muted-foreground/30" />
-                      <p className="text-sm text-muted-foreground">Aucune donnée de pilotage disponible.</p>
-                      <p className="text-xs text-muted-foreground">Ajoutez des milestones, des OKR ou des éléments CDC pour voir votre timeline.</p>
+                      <p className="text-xs text-muted-foreground">Aucun élément de cahier des charges actif.</p>
+                      <p className="text-[10px] text-muted-foreground">Ajoutez des étapes dans l'onglet CDC pour visualiser la timeline.</p>
                     </div>
                   );
                 }
 
-                return (
-                  <div className="relative">
-                    <div className="absolute left-[13px] top-2 bottom-2 w-px bg-border" />
-                    <div className="space-y-0.5">
-                      {items.map((item) => (
-                        <div key={item.id} className="relative flex items-start gap-3 py-2 group">
-                          {/* Timeline dot */}
-                          <div className={cn(
-                            "relative z-10 w-[26px] h-[26px] shrink-0 rounded-full flex items-center justify-center",
-                            item.isOverdue && "bg-red-100 dark:bg-red-900/30",
-                            !item.isOverdue && item.type === 'milestone' && item.isCritical && "bg-violet-100 dark:bg-violet-900/30",
-                            !item.isOverdue && item.type === 'milestone' && !item.isCritical && "bg-blue-100 dark:bg-blue-900/30",
-                            !item.isOverdue && item.type === 'okr' && "bg-emerald-100 dark:bg-emerald-900/30",
-                            !item.isOverdue && item.type === 'cdc' && "bg-amber-100 dark:bg-amber-900/30"
-                          )}>
-                            {item.type === 'milestone' && (
-                              <Flag className={cn("h-3 w-3", item.isOverdue ? "text-red-600 dark:text-red-400" : item.isCritical ? "text-violet-600 dark:text-violet-400" : "text-blue-600 dark:text-blue-400")} />
-                            )}
-                            {item.type === 'okr' && <Target className={cn("h-3 w-3", item.isOverdue ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400")} />}
-                            {item.type === 'cdc' && <Layers className="h-3 w-3 text-amber-600 dark:text-amber-400" />}
-                          </div>
+                type CDCBlock = {
+                  id: string;
+                  title: string;
+                  estimatedDays: number;
+                  timeDays: number;
+                  consumption: number;
+                  color: typeof BLOCK_COLORS[0];
+                };
 
-                          {/* Content */}
-                          <div className="flex-1 min-w-0 pt-0.5">
-                            <div className="flex items-center gap-2 justify-between flex-wrap">
-                              <p className={cn(
-                                "text-xs font-medium leading-snug truncate max-w-[180px]",
-                                item.isOverdue ? "text-red-600 dark:text-red-400" : "text-foreground"
-                              )}>
-                                {item.label}
-                              </p>
-                              <div className="flex items-center gap-1 shrink-0">
-                                {item.type === 'okr' && item.progress !== undefined && (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">{item.progress}%</Badge>
-                                )}
-                                {item.type === 'cdc' && item.consumption !== undefined && item.consumption > 100 && (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-red-600 border-red-300 dark:border-red-800">Dépassé</Badge>
-                                )}
-                                {item.type === 'cdc' && item.consumption !== undefined && item.consumption > 80 && item.consumption <= 100 && (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600 border-amber-300 dark:border-amber-800">Risque</Badge>
-                                )}
-                                {item.isOverdue && item.type !== 'cdc' && (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-red-600 border-red-300 dark:border-red-800">Retard</Badge>
-                                )}
-                                {item.isCritical && !item.isOverdue && (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-violet-600 border-violet-300 dark:border-violet-800">Critique</Badge>
-                                )}
-                              </div>
-                            </div>
-                            {/* CDC: progress bar + details */}
-                            {item.type === 'cdc' && (
-                              <div className="mt-1">
-                                {item.estimatedDays !== undefined ? (
-                                  <>
-                                    <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                                      <div
-                                        className={cn(
-                                          "h-full rounded-full transition-all",
-                                          (item.consumption || 0) > 100 ? "bg-red-500" :
-                                          (item.consumption || 0) > 80 ? "bg-amber-500" :
-                                          (item.consumption || 0) > 50 ? "bg-yellow-500" : "bg-emerald-500"
-                                        )}
-                                        style={{ width: `${Math.min(item.consumption || 0, 100)}%` }}
-                                      />
-                                    </div>
-                                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                                      {(item.timeDays || 0).toFixed(1)}j passé · {item.estimatedDays.toFixed(1)}j estimé
-                                      {(item.consumption || 0) > 0 && ` · ${Math.round(item.consumption || 0)}%`}
-                                    </p>
-                                  </>
-                                ) : (
-                                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                                    {(item.timeDays || 0) > 0
-                                      ? `${(item.timeDays || 0).toFixed(1)}j enregistré · pas d'estimation`
-                                      : 'Pas encore démarré'}
-                                  </p>
-                                )}
-                              </div>
+                const blocks: CDCBlock[] = cdcItems.map((item, i) => {
+                  const estimatedDays = Math.max(parseFloat(item.estimatedDays?.toString() || "0"), 1);
+                  const itemTimeSec = projectTimeEntries
+                    .filter((e: any) => e.scopeItemId === item.id)
+                    .reduce((s: number, e: any) => s + (e.duration || 0), 0);
+                  const timeDays = itemTimeSec / 3600 / 8;
+                  const consumption = estimatedDays > 0 ? (timeDays / estimatedDays) * 100 : 0;
+                  return {
+                    id: item.id,
+                    title: item.title,
+                    estimatedDays,
+                    timeDays,
+                    consumption,
+                    color: BLOCK_COLORS[i % BLOCK_COLORS.length],
+                  };
+                });
+
+                const totalDays = blocks.reduce((s, b) => s + b.estimatedDays, 0);
+
+                return (
+                  <div className="flex gap-3 h-full" style={{ minHeight: 160 }}>
+                    {/* Vertical bar of colored blocks */}
+                    <div className="flex flex-col gap-[3px] w-8 shrink-0 self-stretch">
+                      {blocks.map((block) => (
+                        <Tooltip key={block.id}>
+                          <TooltipTrigger asChild>
+                            <div
+                              className={cn("rounded-sm cursor-default transition-opacity hover:opacity-75", block.color.bg)}
+                              style={{ flex: block.estimatedDays, minHeight: 6 }}
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-[200px]">
+                            <p className="font-semibold text-xs mb-0.5">{block.title}</p>
+                            <p className="text-xs text-muted-foreground">{block.estimatedDays.toFixed(1)}j estimés (jours ouvrés)</p>
+                            {block.timeDays > 0 && (
+                              <p className="text-xs text-muted-foreground">{block.timeDays.toFixed(1)}j passés · {Math.round(block.consumption)}%</p>
                             )}
-                            {/* Milestone / OKR: date + type label */}
-                            {item.type !== 'cdc' && (
-                              <p className="text-[10px] text-muted-foreground mt-0.5">
-                                {item.type === 'milestone' && 'Milestone'}
-                                {item.type === 'okr' && 'OKR'}
-                                {item.date && ` · ${format(item.date, 'd MMM yyyy', { locale: fr })}`}
-                              </p>
-                            )}
+                            {block.consumption > 100 && <p className="text-xs text-red-500 font-medium">Budget dépassé</p>}
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </div>
+
+                    {/* Legend — aligned proportionally to the bar */}
+                    <div className="flex flex-col gap-[3px] flex-1 min-w-0 self-stretch">
+                      {blocks.map((block) => (
+                        <div
+                          key={block.id}
+                          className={cn("flex items-center gap-2 rounded-sm px-2", block.color.light)}
+                          style={{ flex: block.estimatedDays, minHeight: 6 }}
+                        >
+                          <div className="min-w-0 overflow-hidden">
+                            <p className="text-[11px] font-medium leading-tight truncate text-foreground">{block.title}</p>
+                            <p className="text-[10px] text-muted-foreground leading-tight">
+                              {block.estimatedDays.toFixed(0)}j
+                              {block.timeDays > 0 && ` · ${block.timeDays.toFixed(1)}j passés`}
+                              {block.consumption > 100 && <span className="text-red-500 font-medium"> · Dépassé</span>}
+                              {block.consumption > 80 && block.consumption <= 100 && <span className="text-amber-600"> · Risque</span>}
+                            </p>
                           </div>
                         </div>
                       ))}
@@ -5009,7 +4993,7 @@ export default function ProjectDetail() {
                       <TooltipTrigger asChild>
                         <Card className="cursor-help">
                           <CardContent className="pt-4 pb-4">
-                            <div className="text-xs text-muted-foreground mb-1">Marge prévisionnelle</div>
+                            <div className="text-xs text-muted-foreground mb-1">Marge réelle actualisée</div>
                             <div 
                               className="text-lg font-bold" 
                               style={{
