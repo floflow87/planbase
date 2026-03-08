@@ -4022,7 +4022,7 @@ export default function ProjectDetail() {
                     })()}
                   </Card>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[260px]">
+                <TooltipContent side="bottom" className="max-w-[260px] bg-white dark:bg-gray-900 text-foreground border shadow-md">
                   <p className="font-semibold text-sm mb-1">Marge prévisionnelle</p>
                   <p className="text-xs text-muted-foreground">Projection basée sur le devis : budget facturé moins les jours estimés au CDC multiplié par votre coût journalier interne.</p>
                   <p className="text-xs text-muted-foreground mt-1 font-mono">= Budget − (jours CDC × coût/j interne)</p>
@@ -4065,11 +4065,14 @@ export default function ProjectDetail() {
                         selected={project.startDate ? new Date(project.startDate) : undefined}
                         onSelect={async (date) => {
                           setIsPeriodStartPickerOpen(false);
-                          await apiRequest(`/api/projects/${id}`, "PATCH", { startDate: date ? format(date, "yyyy-MM-dd") : null });
+                          const formatted = date ? format(date, "yyyy-MM-dd") : null;
+                          queryClient.setQueryData(['/api/projects', id], (old: any) => old ? { ...old, startDate: formatted } : old);
+                          await apiRequest(`/api/projects/${id}`, "PATCH", { startDate: formatted });
                           queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
                           queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
                         }}
                         locale={fr}
+                        weekStartsOn={1}
                       />
                     </PopoverContent>
                   </Popover>
@@ -4087,11 +4090,14 @@ export default function ProjectDetail() {
                         selected={project.endDate ? new Date(project.endDate) : undefined}
                         onSelect={async (date) => {
                           setIsPeriodEndPickerOpen(false);
-                          await apiRequest(`/api/projects/${id}`, "PATCH", { endDate: date ? format(date, "yyyy-MM-dd") : null });
+                          const formatted = date ? format(date, "yyyy-MM-dd") : null;
+                          queryClient.setQueryData(['/api/projects', id], (old: any) => old ? { ...old, endDate: formatted } : old);
+                          await apiRequest(`/api/projects/${id}`, "PATCH", { endDate: formatted });
                           queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
                           queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
                         }}
                         locale={fr}
+                        weekStartsOn={1}
                       />
                     </PopoverContent>
                   </Popover>
@@ -4125,21 +4131,29 @@ export default function ProjectDetail() {
           <div className="md:col-span-2">
             <Card className="p-4 h-full">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-1.5">
-                <Layers className="h-3 w-3" /> Timeline narrative
+                <Layers className="h-3 w-3" /> Timeline
               </p>
               {(() => {
                 const BLOCK_COLORS = [
-                  { bg: "bg-violet-500", light: "bg-violet-100 dark:bg-violet-900/40", dot: "bg-violet-500" },
-                  { bg: "bg-cyan-500",   light: "bg-cyan-100 dark:bg-cyan-900/40",   dot: "bg-cyan-500" },
-                  { bg: "bg-emerald-500",light: "bg-emerald-100 dark:bg-emerald-900/40",dot: "bg-emerald-500" },
-                  { bg: "bg-amber-500",  light: "bg-amber-100 dark:bg-amber-900/40",  dot: "bg-amber-500" },
-                  { bg: "bg-rose-500",   light: "bg-rose-100 dark:bg-rose-900/40",   dot: "bg-rose-500" },
-                  { bg: "bg-blue-500",   light: "bg-blue-100 dark:bg-blue-900/40",   dot: "bg-blue-500" },
-                  { bg: "bg-purple-500", light: "bg-purple-100 dark:bg-purple-900/40",dot: "bg-purple-500" },
-                  { bg: "bg-teal-500",   light: "bg-teal-100 dark:bg-teal-900/40",   dot: "bg-teal-500" },
-                  { bg: "bg-orange-500", light: "bg-orange-100 dark:bg-orange-900/40",dot: "bg-orange-500" },
-                  { bg: "bg-indigo-500", light: "bg-indigo-100 dark:bg-indigo-900/40",dot: "bg-indigo-500" },
+                  "bg-violet-500", "bg-cyan-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500",
+                  "bg-blue-500", "bg-purple-500", "bg-teal-500", "bg-orange-500", "bg-indigo-500",
                 ];
+                const SCOPE_TYPE_LABELS: Record<string, string> = {
+                  functional: "Fonctionnel", technical: "Technique", design: "Design",
+                  gestion: "Gestion", autre: "Autre",
+                };
+
+                // Add N working days to a date (skip Sat/Sun)
+                const addWorkingDays = (start: Date, days: number): Date => {
+                  const d = new Date(start);
+                  let count = 0;
+                  while (count < Math.round(days)) {
+                    d.setDate(d.getDate() + 1);
+                    const day = d.getDay();
+                    if (day !== 0 && day !== 6) count++;
+                  }
+                  return d;
+                };
 
                 const cdcItems = projectScopeItems.filter(s => !s.completedAt);
 
@@ -4155,12 +4169,19 @@ export default function ProjectDetail() {
 
                 type CDCBlock = {
                   id: string;
-                  title: string;
+                  label: string;
+                  scopeType: string;
+                  phase: string | null;
                   estimatedDays: number;
                   timeDays: number;
                   consumption: number;
-                  color: typeof BLOCK_COLORS[0];
+                  color: string;
+                  startDate: Date | null;
+                  endDate: Date | null;
                 };
+
+                const projectStart = project?.startDate ? new Date(project.startDate) : null;
+                let cursor = projectStart ? new Date(projectStart) : null;
 
                 const blocks: CDCBlock[] = cdcItems.map((item, i) => {
                   const estimatedDays = Math.max(parseFloat(item.estimatedDays?.toString() || "0"), 1);
@@ -4169,59 +4190,82 @@ export default function ProjectDetail() {
                     .reduce((s: number, e: any) => s + (e.duration || 0), 0);
                   const timeDays = itemTimeSec / 3600 / 8;
                   const consumption = estimatedDays > 0 ? (timeDays / estimatedDays) * 100 : 0;
+                  const startDate = cursor ? new Date(cursor) : null;
+                  const endDate = cursor ? addWorkingDays(cursor, estimatedDays) : null;
+                  if (endDate) cursor = new Date(endDate);
                   return {
                     id: item.id,
-                    title: item.title,
+                    label: (item as any).label || (item as any).title || "—",
+                    scopeType: (item as any).scopeType || "functional",
+                    phase: (item as any).phase || null,
                     estimatedDays,
                     timeDays,
                     consumption,
                     color: BLOCK_COLORS[i % BLOCK_COLORS.length],
+                    startDate,
+                    endDate,
                   };
                 });
 
-                const totalDays = blocks.reduce((s, b) => s + b.estimatedDays, 0);
-
                 return (
-                  <div className="flex gap-3 h-full" style={{ minHeight: 160 }}>
-                    {/* Vertical bar of colored blocks */}
-                    <div className="flex flex-col gap-[3px] w-8 shrink-0 self-stretch">
+                  <div className="flex flex-col gap-3">
+                    {/* Horizontal bar of colored blocks */}
+                    <div className="flex h-10 gap-[2px] w-full">
                       {blocks.map((block) => (
                         <Tooltip key={block.id}>
                           <TooltipTrigger asChild>
                             <div
-                              className={cn("rounded-sm cursor-default transition-opacity hover:opacity-75", block.color.bg)}
-                              style={{ flex: block.estimatedDays, minHeight: 6 }}
+                              className={cn("rounded-sm cursor-default transition-opacity hover:opacity-75", block.color)}
+                              style={{ flex: block.estimatedDays, minWidth: 4 }}
                             />
                           </TooltipTrigger>
-                          <TooltipContent side="right" className="max-w-[200px]">
-                            <p className="font-semibold text-xs mb-0.5">{block.title}</p>
-                            <p className="text-xs text-muted-foreground">{block.estimatedDays.toFixed(1)}j estimés (jours ouvrés)</p>
+                          <TooltipContent side="bottom" className="max-w-[220px] bg-white dark:bg-gray-900 text-foreground border shadow-md">
+                            <p className="font-semibold text-xs mb-1">{block.label}</p>
+                            <p className="text-[11px] text-muted-foreground">{SCOPE_TYPE_LABELS[block.scopeType] || block.scopeType}</p>
+                            {block.phase && <p className="text-[11px] text-muted-foreground">Phase {block.phase}</p>}
+                            <p className="text-[11px] mt-1">{block.estimatedDays.toFixed(1)}j estimés</p>
                             {block.timeDays > 0 && (
-                              <p className="text-xs text-muted-foreground">{block.timeDays.toFixed(1)}j passés · {Math.round(block.consumption)}%</p>
+                              <p className="text-[11px] text-muted-foreground">{block.timeDays.toFixed(1)}j passés · {Math.round(block.consumption)}%</p>
                             )}
-                            {block.consumption > 100 && <p className="text-xs text-red-500 font-medium">Budget dépassé</p>}
+                            {block.consumption > 100 && <p className="text-[11px] text-red-500 font-medium mt-0.5">Budget dépassé</p>}
                           </TooltipContent>
                         </Tooltip>
                       ))}
                     </div>
 
-                    {/* Legend — aligned proportionally to the bar */}
-                    <div className="flex flex-col gap-[3px] flex-1 min-w-0 self-stretch">
-                      {blocks.map((block) => (
-                        <div
-                          key={block.id}
-                          className={cn("flex items-center gap-2 rounded-sm px-2", block.color.light)}
-                          style={{ flex: block.estimatedDays, minHeight: 6 }}
-                        >
-                          <div className="min-w-0 overflow-hidden">
-                            <p className="text-[11px] font-medium leading-tight truncate text-foreground">{block.title}</p>
-                            <p className="text-[10px] text-muted-foreground leading-tight">
-                              {block.estimatedDays.toFixed(0)}j
-                              {block.timeDays > 0 && ` · ${block.timeDays.toFixed(1)}j passés`}
-                              {block.consumption > 100 && <span className="text-red-500 font-medium"> · Dépassé</span>}
-                              {block.consumption > 80 && block.consumption <= 100 && <span className="text-amber-600"> · Risque</span>}
+                    {/* X-axis: start dates per block */}
+                    {projectStart && (
+                      <div className="flex w-full relative">
+                        {blocks.map((block, i) => (
+                          <div
+                            key={block.id}
+                            className="flex flex-col items-start"
+                            style={{ flex: block.estimatedDays, minWidth: 0 }}
+                          >
+                            <div className="w-px h-1.5 bg-border mb-0.5" />
+                            <p className="text-[9px] text-muted-foreground whitespace-nowrap overflow-hidden">
+                              {block.startDate ? format(block.startDate, i === 0 ? "dd MMM" : "dd MMM", { locale: fr }) : ""}
                             </p>
                           </div>
+                        ))}
+                        {/* Last end date */}
+                        {blocks.length > 0 && blocks[blocks.length - 1].endDate && (
+                          <div className="flex flex-col items-end shrink-0">
+                            <div className="w-px h-1.5 bg-border mb-0.5" />
+                            <p className="text-[9px] text-muted-foreground whitespace-nowrap">
+                              {format(blocks[blocks.length - 1].endDate!, "dd MMM", { locale: fr })}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Legend: color dot + label */}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                      {blocks.map((block) => (
+                        <div key={block.id} className="flex items-center gap-1.5">
+                          <div className={cn("w-2 h-2 rounded-sm shrink-0", block.color)} />
+                          <p className="text-[10px] text-muted-foreground truncate max-w-[140px]">{block.label}</p>
                         </div>
                       ))}
                     </div>

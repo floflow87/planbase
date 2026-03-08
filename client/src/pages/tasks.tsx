@@ -59,6 +59,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useConfig } from "@/hooks/useConfig";
 import { queryClient, apiRequest, formatDateForStorage, optimisticUpdate, optimisticDelete, rollbackOptimistic } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
 import { mutationQueueManager } from "@/lib/mutationQueue";
 import {
   DndContext,
@@ -487,7 +488,7 @@ function SortableTaskCard({
       data-testid={`task-card-${task.id}`}
     >
       <Card
-        className="hover-elevate active-elevate-2 mb-2"
+        className={cn("hover-elevate active-elevate-2 mb-2", columnColor && "rounded-l-none")}
         style={columnColor ? { borderLeft: `4px solid ${columnColor}` } : undefined}
       >
         <CardContent className="p-3 space-y-2">
@@ -840,6 +841,13 @@ export default function Tasks() {
       setCreateTaskColumnId(firstColumn.id);
     }
   }, [newTaskProjectId, newTaskProjectColumns, globalTaskColumns, isCreateTaskDialogOpen, createTaskColumnId]);
+
+  // Default assignee to current user when dialog opens
+  useEffect(() => {
+    if (isCreateTaskDialogOpen && userId && newTaskAssignedTo === undefined) {
+      setNewTaskAssignedTo(userId);
+    }
+  }, [isCreateTaskDialogOpen, userId]);
 
   // Get completed column IDs (columns with names containing completion-related keywords)
   const completedColumnIds = useMemo(() => {
@@ -1387,7 +1395,7 @@ export default function Tasks() {
       description: newTaskDescription || null,
       priority: newTaskPriority,
       status: taskStatus,
-      assignedToId: newTaskAssignedTo || null,
+      assignedToId: newTaskAssignedTo || userId || null,
       assignees: [],
       progress: 0,
       positionInColumn: maxPosition + 1,
@@ -2056,7 +2064,7 @@ export default function Tasks() {
 
         {/* Create Task Sheet */}
         <Sheet open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>
-          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col " data-testid="sheet-create-task">
+          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col bg-white dark:bg-card" data-testid="sheet-create-task">
             <SheetHeader>
               <SheetTitle>Nouvelle tâche</SheetTitle>
             </SheetHeader>
@@ -2304,6 +2312,7 @@ export default function Tasks() {
                       selected={newTaskDueDate}
                       onSelect={setNewTaskDueDate}
                       initialFocus
+                      weekStartsOn={1}
                     />
                   </PopoverContent>
                 </Popover>
