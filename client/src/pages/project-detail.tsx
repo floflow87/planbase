@@ -3702,28 +3702,40 @@ export default function ProjectDetail() {
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden bg-[#F8FAFC] dark:bg-background">
       <div className="container mx-auto p-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-start gap-2 sm:gap-3 w-full sm:w-auto">
+        {/* ── COCKPIT HEADER ── */}
+        <div className="mb-5 flex items-start justify-between gap-3">
+          {/* Left: back + title block */}
+          <div className="flex items-start gap-2 min-w-0">
             <Link href="/projects">
-              <Button variant="ghost" size="icon" data-testid="button-back" className="shrink-0">
+              <Button variant="ghost" size="icon" data-testid="button-back" className="shrink-0 mt-0.5">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </Link>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start sm:items-center gap-2 flex-wrap">
-                <h1 className="text-[16px] sm:text-[26px] font-bold truncate" data-testid="project-title">{project.name}</h1>
-                <Badge className={`${getStageColor(project.stage || "prospection")} shrink-0`} data-testid="badge-stage">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold leading-tight truncate" data-testid="project-title">
+                {project.name}
+              </h1>
+              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                {project.client ? (
+                  <Link href={`/crm/${project.clientId}`}>
+                    <span className="text-sm text-muted-foreground hover:text-primary cursor-pointer hover:underline">
+                      {project.client.company || project.client.name}
+                    </span>
+                  </Link>
+                ) : (
+                  <span className="text-sm text-muted-foreground">Client non défini</span>
+                )}
+                <span className="text-muted-foreground/40 select-none text-sm">·</span>
+                <Badge className={`${getStageColor(project.stage || "prospection")} text-xs`} data-testid="badge-stage">
                   {getStageLabel(project.stage || "prospection")}
                 </Badge>
                 {project.category && (
-                  <Badge variant="outline" data-testid="badge-category" className="shrink-0">
+                  <Badge variant="outline" className="text-xs" data-testid="badge-category">
                     {project.category}
                   </Badge>
                 )}
-              </div>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
                 {(project.totalBilled || project.budget) && (
-                  <Badge className="bg-budget text-budget-foreground shrink-0" data-testid="badge-budget">
+                  <Badge className="bg-budget text-budget-foreground text-xs" data-testid="badge-budget">
                     <Euro className="h-3 w-3 mr-1" />
                     {project.totalBilled || project.budget}
                   </Badge>
@@ -3733,7 +3745,7 @@ export default function ProjectDetail() {
                     <Badge 
                       data-testid="badge-billing-status-budget"
                       className={cn(
-                        "shrink-0 cursor-pointer border-transparent font-medium",
+                        "shrink-0 cursor-pointer border-transparent font-medium text-xs",
                         ["devis_envoye", "annule"].includes(project.billingStatus || "brouillon") 
                           ? "text-gray-800" 
                           : "text-white"
@@ -3806,23 +3818,12 @@ export default function ProjectDetail() {
                     </div>
                   </PopoverContent>
                 </Popover>
-                {project.client ? (
-                  <Link href={`/crm/${project.clientId}`}>
-                    <p className="text-muted-foreground text-sm hover:text-primary cursor-pointer hover:underline">
-                      {project.client.company || project.client.name}
-                    </p>
-                  </Link>
-                ) : (
-                  <p className="text-muted-foreground text-sm">
-                    Client non défini
-                  </p>
-                )}
               </div>
             </div>
           </div>
-          <div className="flex gap-2 w-full sm:w-auto items-center">
-            {/* Navigation précédent/suivant */}
-            <div className="flex gap-1 mr-2">
+          {/* Right: prev/next + actions */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex gap-1">
               <Button
                 variant="outline"
                 size="icon"
@@ -3846,12 +3847,13 @@ export default function ProjectDetail() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
+            <div className="w-px h-6 bg-border mx-0.5 hidden sm:block" />
             <Button 
               variant="outline" 
               size="sm"
               onClick={() => setShowAnalysisDrawer(true)}
               data-testid="button-analyze-project"
-              className="flex-1 sm:flex-none bg-white dark:bg-card"
+              className="bg-white dark:bg-card"
             >
               <TrendingUp className="h-4 w-4 sm:mr-1.5" />
               <span className="hidden sm:inline text-xs">Analyser</span>
@@ -3861,7 +3863,7 @@ export default function ProjectDetail() {
               size="sm"
               onClick={handleEditProject} 
               data-testid="button-edit-project" 
-              className="flex-1 sm:flex-none bg-white dark:bg-card"
+              className="bg-white dark:bg-card"
             >
               <Edit className="h-4 w-4 sm:mr-1.5" />
               <span className="hidden sm:inline text-xs">Modifier</span>
@@ -3871,7 +3873,6 @@ export default function ProjectDetail() {
               size="sm"
               onClick={() => setIsDeleteDialogOpen(true)}
               data-testid="button-delete-project"
-              className="flex-1 sm:flex-none"
             >
               <Trash2 className="h-4 w-4 sm:mr-1.5" />
               <span className="hidden sm:inline text-xs">Supprimer</span>
@@ -3879,207 +3880,316 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        {/* Project Health Summary KPI Cards */}
-        {projectProfitabilityData?.metrics && (
-          <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Health Status Card */}
-            <Card className={cn(
-              "border-l-4 p-4",
-              projectProfitabilityData.metrics.status === 'profitable' && "border-l-green-500",
-              projectProfitabilityData.metrics.status === 'at_risk' && "border-l-amber-500",
-              projectProfitabilityData.metrics.status === 'deficit' && "border-l-red-500"
-            )}>
-              <div className="flex items-center gap-3 mb-3">
-                <div className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center",
-                  projectProfitabilityData.metrics.status === 'profitable' && "bg-green-100 dark:bg-green-900/30",
-                  projectProfitabilityData.metrics.status === 'at_risk' && "bg-amber-100 dark:bg-amber-900/30",
-                  projectProfitabilityData.metrics.status === 'deficit' && "bg-red-100 dark:bg-red-900/30"
-                )}>
-                  {projectProfitabilityData.metrics.status === 'profitable' && <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />}
-                  {projectProfitabilityData.metrics.status === 'at_risk' && <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />}
-                  {projectProfitabilityData.metrics.status === 'deficit' && <TrendingDown className="h-5 w-5 text-red-600 dark:text-red-400" />}
+        {/* ── KPI STRIP (4 cartes compactes) ── */}
+        {projectProfitabilityData?.metrics && (() => {
+          const m = projectProfitabilityData.metrics;
+          const timeConsumedPct = m.theoreticalDays > 0 ? Math.min(100, (m.actualDaysWorked / m.theoreticalDays) * 100) : null;
+          const margin = m.theoreticalMargin ?? null;
+          const targetMargin = profitabilityMetrics?.targetMarginPercent || 30;
+          return (
+            <div className="mb-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {/* 1. Santé projet */}
+              <Card className="p-3.5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Santé projet</p>
+                  <div className={cn(
+                    "w-6 h-6 rounded-full flex items-center justify-center",
+                    m.status === 'profitable' && "bg-green-100 dark:bg-green-900/30",
+                    m.status === 'at_risk' && "bg-amber-100 dark:bg-amber-900/30",
+                    m.status === 'deficit' && "bg-red-100 dark:bg-red-900/30"
+                  )}>
+                    {m.status === 'profitable' && <TrendingUp className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />}
+                    {m.status === 'at_risk' && <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />}
+                    {m.status === 'deficit' && <TrendingDown className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />}
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Santé projet</p>
-                  <p className={cn(
-                    "text-lg font-semibold",
-                    projectProfitabilityData.metrics.status === 'profitable' && "text-green-600 dark:text-green-400",
-                    projectProfitabilityData.metrics.status === 'at_risk' && "text-amber-600 dark:text-amber-400",
-                    projectProfitabilityData.metrics.status === 'deficit' && "text-red-600 dark:text-red-400"
-                  )} data-testid="health-label">
-                    {projectProfitabilityData.metrics.status === 'profitable' && "En bonne voie"}
-                    {projectProfitabilityData.metrics.status === 'at_risk' && "À surveiller"}
-                    {projectProfitabilityData.metrics.status === 'deficit' && "En difficulté"}
-                  </p>
-                </div>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Marge : {projectProfitabilityData.metrics.theoreticalMargin?.toFixed(0) || 0} %
-              </div>
-            </Card>
+                <p className={cn(
+                  "text-base font-bold leading-tight",
+                  m.status === 'profitable' && "text-green-600 dark:text-green-400",
+                  m.status === 'at_risk' && "text-amber-600 dark:text-amber-400",
+                  m.status === 'deficit' && "text-red-600 dark:text-red-400"
+                )} data-testid="health-label">
+                  {m.status === 'profitable' ? "En bonne voie" : m.status === 'at_risk' ? "À surveiller" : "En difficulté"}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {paceProjection?.available ? "Trajectoire calculée" : "Données insuffisantes"}
+                </p>
+              </Card>
 
-            {/* Time Summary Card */}
-            <Card className="border-l-4 border-l-primary p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Clock className="h-5 w-5 text-primary" />
+              {/* 2. Temps consommé */}
+              <Card className="p-3.5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Temps consommé</p>
+                  <Clock className="h-3.5 w-3.5 text-primary" />
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Temps consommé</p>
-                  <p className="text-lg font-semibold" data-testid="time-consumed">
-                    {projectProfitabilityData.metrics.actualDaysWorked.toFixed(1)} jours
-                  </p>
-                </div>
-              </div>
-              {projectProfitabilityData.metrics.theoreticalDays > 0 ? (
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-muted-foreground" data-testid="time-planned">
-                    sur {projectProfitabilityData.metrics.theoreticalDays.toFixed(1)}j prévus
-                  </span>
-                  {projectProfitabilityData.metrics.timeOverrunPercent > 10 && (
-                    <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
-                      +{projectProfitabilityData.metrics.timeOverrunPercent.toFixed(0)}%
-                    </Badge>
+                <p className="text-base font-bold leading-tight" data-testid="time-consumed">
+                  {m.actualDaysWorked.toFixed(1)}<span className="text-xs font-normal text-muted-foreground ml-1">j</span>
+                  {m.theoreticalDays > 0 && (
+                    <span className="text-xs font-normal text-muted-foreground"> / {m.theoreticalDays.toFixed(1)}j</span>
                   )}
-                </div>
-              ) : paceProjection?.available && paceProjection.pacePerDay ? (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span data-testid="time-pace-projection">
-                    Rythme : {(paceProjection.pacePerDay * 8).toFixed(1)}h/jour
-                  </span>
-                  <span>({paceProjection.windowLabel})</span>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">Aucune donnée de projection</p>
-              )}
-            </Card>
-
-            {/* Revenue Summary Card */}
-            <Card className="border-l-4 border-l-cyan-500 p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center">
-                  <Euro className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Montant facturé</p>
-                  <p className="text-lg font-semibold" data-testid="billed-amount">
-                    {(projectProfitabilityData.metrics.totalBilled || 0).toLocaleString("fr-FR")} €
+                </p>
+                {timeConsumedPct !== null ? (
+                  <div className="mt-2">
+                    <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                      <span data-testid="time-planned">{timeConsumedPct.toFixed(0)}% consommé</span>
+                      {m.timeOverrunPercent > 10 && <span className="text-amber-600">+{m.timeOverrunPercent.toFixed(0)}%</span>}
+                    </div>
+                    <div className="h-1 bg-muted rounded-full overflow-hidden">
+                      <div className={cn("h-full rounded-full", timeConsumedPct >= 100 ? "bg-red-500" : timeConsumedPct >= 80 ? "bg-amber-500" : "bg-primary")} style={{ width: `${Math.min(100, timeConsumedPct)}%` }} />
+                    </div>
+                  </div>
+                ) : paceProjection?.available && paceProjection.pacePerDay ? (
+                  <p className="text-[11px] text-muted-foreground mt-1" data-testid="time-pace-projection">
+                    {(paceProjection.pacePerDay * 8).toFixed(1)}h/j · {paceProjection.windowLabel}
                   </p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground mt-1">Aucune projection</p>
+                )}
+              </Card>
+
+              {/* 3. Montant facturé */}
+              <Card className="p-3.5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Montant facturé</p>
+                  <Euro className="h-3.5 w-3.5 text-cyan-500" />
                 </div>
+                <p className="text-base font-bold leading-tight" data-testid="billed-amount">
+                  {(m.totalBilled || 0).toLocaleString("fr-FR")}<span className="text-xs font-normal text-muted-foreground ml-1">€</span>
+                </p>
+                <div className="text-[11px] text-muted-foreground mt-1 space-y-0.5">
+                  {m.totalPaid > 0 && (
+                    <p className="text-green-600 dark:text-green-400" data-testid="paid-amount">
+                      {m.totalPaid.toLocaleString("fr-FR")} € encaissés
+                    </p>
+                  )}
+                  {m.remainingToPay > 0 && (
+                    <p className="text-amber-600">{m.remainingToPay.toLocaleString("fr-FR")} € à recevoir</p>
+                  )}
+                  {!m.totalPaid && !m.remainingToPay && <p>Aucun paiement reçu</p>}
+                </div>
+              </Card>
+
+              {/* 4. Marge */}
+              <Card className="p-3.5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Marge</p>
+                  <Trophy className="h-3.5 w-3.5 text-violet-500" />
+                </div>
+                <p className={cn(
+                  "text-base font-bold leading-tight",
+                  margin === null ? "text-muted-foreground" : margin >= targetMargin ? "text-green-600 dark:text-green-400" : margin >= 0 ? "text-amber-600" : "text-red-600"
+                )}>
+                  {margin !== null ? `${margin.toFixed(0)} %` : "—"}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Cible : {targetMargin}%
+                  {margin !== null && margin >= targetMargin && " · Atteinte"}
+                  {margin !== null && margin < targetMargin && margin >= 0 && " · En dessous"}
+                  {margin !== null && margin < 0 && " · Déficit"}
+                </p>
+              </Card>
+            </div>
+          );
+        })()}
+
+        {/* ── COCKPIT ZONE : info card + base de pilotage / action zone ── */}
+        <div className="mb-5 grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* LEFT: description + dates (compact) */}
+          <div className="md:col-span-1">
+            <Card className="p-4 h-full flex flex-col gap-3">
+              {/* Description */}
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Description</p>
+                <p className={cn("text-sm leading-relaxed line-clamp-3", !project.description && "text-muted-foreground italic")}>
+                  {project.description || "Aucune description renseignée"}
+                </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                {projectProfitabilityData.metrics.totalPaid > 0 && (
-                  <span className="text-green-600 dark:text-green-400" data-testid="paid-amount">
-                    {projectProfitabilityData.metrics.totalPaid.toLocaleString("fr-FR")} € encaissés
-                  </span>
-                )}
-                {projectProfitabilityData.metrics.remainingToPay > 0 && (
-                  <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
-                    {projectProfitabilityData.metrics.remainingToPay.toLocaleString("fr-FR")} € à recevoir
-                  </Badge>
-                )}
-                {!projectProfitabilityData.metrics.totalPaid && !projectProfitabilityData.metrics.remainingToPay && (
-                  <span className="text-muted-foreground">Aucun paiement reçu</span>
+              <Separator />
+              {/* Période */}
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <CalendarIcon className="h-3 w-3" /> Période
+                </p>
+                {(project.startDate || project.endDate) ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground flex-wrap">
+                      <span className="font-medium text-foreground">
+                        {project.startDate ? format(new Date(project.startDate), "dd MMM yyyy", { locale: fr }) : "—"}
+                      </span>
+                      <span>→</span>
+                      <span className="font-medium text-foreground">
+                        {project.endDate ? format(new Date(project.endDate), "dd MMM yyyy", { locale: fr }) : "—"}
+                      </span>
+                    </div>
+                    {project.startDate && project.endDate && (() => {
+                      const start = new Date(project.startDate!);
+                      const end = new Date(project.endDate!);
+                      const today = new Date();
+                      const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                      const elapsedDays = Math.max(0, Math.ceil((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+                      const progressPct = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+                      const isOverdue = today > end;
+                      return (
+                        <div>
+                          <div className="h-1 bg-muted rounded-full overflow-hidden mb-1">
+                            <div className={cn("h-full rounded-full transition-all", isOverdue ? "bg-red-500" : progressPct > 80 ? "bg-amber-500" : "bg-cyan-500")} style={{ width: `${Math.min(100, progressPct)}%` }} />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">
+                            {isOverdue
+                              ? `En retard de ${Math.ceil((today.getTime() - end.getTime()) / (1000 * 60 * 60 * 24))}j`
+                              : `${Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))}j restants · ${totalDays}j au total`}
+                          </p>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Dates non définies</p>
                 )}
               </div>
             </Card>
           </div>
-        )}
 
-        {/* Post-Creation Suggestions (adapts to CDC state) */}
-        {project.onboardingSuggestionsDismissed !== 1 && (
-          <div className="mb-4">
-            <PostCreationSuggestions
-              project={project}
-              scopeItems={projectScopeItems || []}
-              onOpenCdcWizard={() => setIsCdcWizardOpen(true)}
-              onDismiss={() => {}}
-            />
-          </div>
-        )}
+          {/* RIGHT: base de pilotage ou action zone (2/3) */}
+          <div className="md:col-span-2">
+            {project.onboardingSuggestionsDismissed !== 1 ? (
+              <PostCreationSuggestions
+                project={project}
+                scopeItems={projectScopeItems || []}
+                onOpenCdcWizard={() => setIsCdcWizardOpen(true)}
+                onDismiss={() => {}}
+              />
+            ) : (
+              <div className="flex flex-col gap-3 h-full">
+                {/* Accès rapide */}
+                <Card className="p-4">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Accès rapide</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { tab: "roadmap", icon: Map, label: "Roadmap", color: "text-violet-500" },
+                      { tab: "backlogs", icon: FolderKanban, label: "Backlogs", color: "text-blue-500" },
+                      { tab: "time", icon: Timer, label: "Temps", color: "text-primary" },
+                      { tab: "billing", icon: DollarSign, label: "Facturation", color: "text-cyan-500" },
+                    ].map(({ tab, icon: Icon, label, color }) => (
+                      <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className="flex flex-col items-center gap-1.5 p-2.5 rounded-md hover-elevate active-elevate-2 border text-center"
+                        data-testid={`shortcut-${tab}`}
+                      >
+                        <Icon className={cn("h-4 w-4", color)} />
+                        <span className="text-xs font-medium">{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </Card>
 
-        {/* Data Completeness Indicators & Roadmap Reminder */}
-        {(dataWarnings.length > 0 || milestonesData?.nextMilestone) && (
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            {dataWarnings.map((warning, index) => (
-              <Badge 
-                key={index}
-                variant="outline"
-                className={cn(
-                  "text-xs",
-                  warning.type === 'warning' 
-                    ? "border-amber-300 text-amber-600 dark:border-amber-600 dark:text-amber-400"
-                    : "border-muted-foreground/30 text-muted-foreground"
+                {/* Zone alertes / points d'attention */}
+                {(dataWarnings.length > 0 || milestonesData?.nextMilestone || projectProfitabilityData?.metrics?.status === 'at_risk' || projectProfitabilityData?.metrics?.status === 'deficit') && (
+                  <Card className="p-4 flex-1">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                      <Bell className="h-3 w-3" /> Points d'attention
+                    </p>
+                    <div className="space-y-2">
+                      {/* Milestone reminder */}
+                      {milestonesData?.nextMilestone && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div
+                              className={cn(
+                                "flex items-center gap-2 p-2.5 rounded-md text-xs cursor-pointer",
+                                milestonesData.nextMilestone.milestoneStatus === 'overdue' && "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400",
+                                milestonesData.nextMilestone.milestoneStatus === 'at_risk' && "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400",
+                                (!milestonesData.nextMilestone.milestoneStatus || ['upcoming', 'achievable'].includes(milestonesData.nextMilestone.milestoneStatus ?? '')) && "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400"
+                              )}
+                              onClick={() => setActiveTab("roadmap")}
+                              data-testid="milestone-reminder"
+                            >
+                              {['overdue', 'at_risk'].includes(milestonesData.nextMilestone.milestoneStatus ?? '') ? (
+                                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                              ) : (
+                                <Bell className="h-3.5 w-3.5 shrink-0" />
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium truncate">Prochaine étape : {milestonesData.nextMilestone.title}</p>
+                                {(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate) && (
+                                  <p className="opacity-80 mt-0.5">
+                                    {format(new Date(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate!), "d MMM yyyy", { locale: fr })}
+                                  </p>
+                                )}
+                              </div>
+                              {(milestonesData.atRiskCount > 0 || milestonesData.overdueCount > 0) && (
+                                <Badge variant="outline" className="text-[10px] shrink-0 border-current">
+                                  {milestonesData.overdueCount > 0 ? `${milestonesData.overdueCount} retard` : `${milestonesData.atRiskCount} risque`}
+                                </Badge>
+                              )}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="max-w-xs bg-white text-foreground border">
+                            <div className="space-y-1">
+                              <p className="font-medium">Prochaine étape : {milestonesData.nextMilestone.title}</p>
+                              {(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate) && (
+                                <p className="text-xs text-muted-foreground">Date cible : {format(new Date(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate!), "d MMMM yyyy", { locale: fr })}</p>
+                              )}
+                              {milestonesData.upcomingCount > 1 && (
+                                <p className="text-xs text-muted-foreground">+{milestonesData.upcomingCount - 1} autre{milestonesData.upcomingCount > 2 ? 's' : ''} étape{milestonesData.upcomingCount > 2 ? 's' : ''} à venir</p>
+                              )}
+                              {(milestonesData.atRiskCount > 0 || milestonesData.overdueCount > 0) && (
+                                <p className="text-xs text-amber-600 dark:text-amber-400">
+                                  {milestonesData.overdueCount > 0 && `${milestonesData.overdueCount} en retard`}
+                                  {milestonesData.overdueCount > 0 && milestonesData.atRiskCount > 0 && ', '}
+                                  {milestonesData.atRiskCount > 0 && `${milestonesData.atRiskCount} à risque`}
+                                </p>
+                              )}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      {/* Data warnings */}
+                      {dataWarnings.map((warning, index) => (
+                        <div
+                          key={index}
+                          className={cn(
+                            "flex items-center gap-2 p-2.5 rounded-md text-xs",
+                            warning.type === 'warning'
+                              ? "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
+                              : "bg-muted/50 text-muted-foreground"
+                          )}
+                          data-testid={`warning-${index}`}
+                        >
+                          {warning.type === 'warning' ? <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> : <Info className="h-3.5 w-3.5 shrink-0" />}
+                          <span>{warning.message}</span>
+                          {warning.action && <span className="ml-auto opacity-70 underline cursor-pointer">{warning.action}</span>}
+                        </div>
+                      ))}
+                      {/* Trajectory alert */}
+                      {(projectProfitabilityData?.metrics?.status === 'at_risk' || projectProfitabilityData?.metrics?.status === 'deficit') && (
+                        <div className={cn(
+                          "flex items-center gap-2 p-2.5 rounded-md text-xs",
+                          projectProfitabilityData.metrics.status === 'deficit'
+                            ? "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400"
+                            : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
+                        )}>
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                          <span>
+                            {projectProfitabilityData.metrics.status === 'deficit'
+                              ? "Projet en déficit de rentabilité — action requise"
+                              : "Rentabilité à surveiller — risque identifié"}
+                          </span>
+                          <Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={() => setShowAnalysisDrawer(true)}>Analyser</Button>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
                 )}
-                data-testid={`warning-${index}`}
-              >
-                {warning.type === 'warning' ? (
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                ) : (
-                  <Info className="h-3 w-3 mr-1" />
-                )}
-                {warning.message}
-              </Badge>
-            ))}
-            {/* Roadmap Milestone Reminder */}
-            {milestonesData?.nextMilestone && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div 
-                    className={cn(
-                      "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs cursor-pointer w-fit",
-                      milestonesData.nextMilestone.milestoneStatus === 'overdue' && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                      milestonesData.nextMilestone.milestoneStatus === 'at_risk' && "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-                      (!milestonesData.nextMilestone.milestoneStatus || milestonesData.nextMilestone.milestoneStatus === 'upcoming' || milestonesData.nextMilestone.milestoneStatus === 'achievable') && "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                    )}
-                    onClick={() => setActiveTab("roadmap")}
-                    data-testid="milestone-reminder"
-                  >
-                    {milestonesData.nextMilestone.milestoneStatus === 'overdue' ? (
-                      <AlertTriangle className="h-3 w-3" />
-                    ) : milestonesData.nextMilestone.milestoneStatus === 'at_risk' ? (
-                      <AlertTriangle className="h-3 w-3" />
-                    ) : (
-                      <Bell className="h-3 w-3" />
-                    )}
-                    <span className="font-medium">{milestonesData.nextMilestone.title}</span>
-                    {(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate) && (
-                      <span className="text-[10px] opacity-80">
-                        {format(new Date(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate!), "d MMM", { locale: fr })}
-                      </span>
-                    )}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-xs bg-white text-foreground border">
-                  <div className="space-y-1">
-                    <p className="font-medium">Prochaine étape : {milestonesData.nextMilestone.title}</p>
-                    {(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate) && (
-                      <p className="text-xs text-muted-foreground">
-                        Date cible : {format(new Date(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate!), "d MMMM yyyy", { locale: fr })}
-                      </p>
-                    )}
-                    {milestonesData.upcomingCount > 1 && (
-                      <p className="text-xs text-muted-foreground">
-                        +{milestonesData.upcomingCount - 1} autre{milestonesData.upcomingCount > 2 ? 's' : ''} étape{milestonesData.upcomingCount > 2 ? 's' : ''} à venir
-                      </p>
-                    )}
-                    {(milestonesData.atRiskCount > 0 || milestonesData.overdueCount > 0) && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400">
-                        {milestonesData.overdueCount > 0 && `${milestonesData.overdueCount} en retard`}
-                        {milestonesData.overdueCount > 0 && milestonesData.atRiskCount > 0 && ', '}
-                        {milestonesData.atRiskCount > 0 && `${milestonesData.atRiskCount} à risque`}
-                      </p>
-                    )}
-                  </div>
-                </TooltipContent>
-              </Tooltip>
+              </div>
             )}
           </div>
-        )}
+        </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full justify-start mb-3 flex-nowrap h-[42px]">
+          <div className="overflow-x-auto mb-3">
+          <TabsList className="w-max justify-start flex-nowrap h-[42px]">
             <TabsTrigger value="overview" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-overview">
               <Layers className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Vue générale</span>
@@ -4124,6 +4234,7 @@ export default function ProjectDetail() {
               <span className="hidden sm:inline">Backlogs</span>
             </TabsTrigger>
           </TabsList>
+          </div>
 
           {/* Vue générale Tab */}
           <TabsContent value="overview" className="mt-0">
