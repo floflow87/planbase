@@ -652,35 +652,37 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
                     )}
                   </div>
 
-                  <Textarea
-                    ref={mobileTitleRef}
-                    value={localTitle}
-                    rows={1}
-                    onChange={(e) => {
-                      handleTitleChange(e.target.value);
-                      e.target.style.height = "auto";
-                      e.target.style.height = e.target.scrollHeight + "px";
-                    }}
-                    className="font-bold border-none shadow-none px-0 text-foreground focus-visible:ring-0 bg-transparent text-xl resize-none overflow-hidden leading-snug"
-                    style={{ height: "auto" }}
-                    placeholder="Titre de la tâche..."
-                    data-testid="input-queue-title-mobile"
-                  />
+                  <div className="space-y-1">
+                    <Textarea
+                      ref={mobileTitleRef}
+                      value={localTitle}
+                      rows={1}
+                      onChange={(e) => {
+                        handleTitleChange(e.target.value);
+                        e.target.style.height = "auto";
+                        e.target.style.height = e.target.scrollHeight + "px";
+                      }}
+                      className="font-bold border-none shadow-none px-0 text-foreground focus-visible:ring-0 bg-transparent text-xl resize-none overflow-hidden leading-snug"
+                      style={{ height: "auto" }}
+                      placeholder="Titre de la tâche..."
+                      data-testid="input-queue-title-mobile"
+                    />
 
-                  <Textarea
-                    ref={mobileDescRef}
-                    value={localDescription}
-                    rows={1}
-                    onChange={(e) => {
-                      handleDescChange(e.target.value);
-                      e.target.style.height = "auto";
-                      e.target.style.height = e.target.scrollHeight + "px";
-                    }}
-                    className="resize-none overflow-hidden text-sm text-foreground/80 border-muted focus-visible:ring-1 placeholder:text-xs"
-                    style={{ height: "auto" }}
-                    placeholder="Description..."
-                    data-testid="textarea-queue-desc-mobile"
-                  />
+                    <Textarea
+                      ref={mobileDescRef}
+                      value={localDescription}
+                      rows={1}
+                      onChange={(e) => {
+                        handleDescChange(e.target.value);
+                        e.target.style.height = "auto";
+                        e.target.style.height = e.target.scrollHeight + "px";
+                      }}
+                      className="resize-none overflow-hidden text-sm text-foreground/80 border-muted focus-visible:ring-1 placeholder:text-xs"
+                      style={{ height: "auto" }}
+                      placeholder="Description..."
+                      data-testid="textarea-queue-desc-mobile"
+                    />
+                  </div>
                 </div>
 
                 <div className="border-t" />
