@@ -734,7 +734,9 @@ export default function Tasks() {
   // Dialog states
   const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false);
   const [isCreateColumnDialogOpen, setIsCreateColumnDialogOpen] = useState(false);
-  const [showQueueView, setShowQueueView] = useState(false);
+  const [showQueueView, setShowQueueView] = useState(() => {
+    return typeof window !== "undefined" && window.location.search.includes("queue=1");
+  });
   const [isRenameColumnDialogOpen, setIsRenameColumnDialogOpen] = useState(false);
   const [isColorColumnDialogOpen, setIsColorColumnDialogOpen] = useState(false);
   const [isDeleteColumnDialogOpen, setIsDeleteColumnDialogOpen] = useState(false);

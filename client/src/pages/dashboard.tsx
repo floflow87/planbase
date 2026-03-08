@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon, Check, CreditCard, AlertTriangle, Zap, ArrowRight, Clock, DollarSign, CheckCircle2, ExternalLink, X, Settings, GripVertical, Eye, EyeOff } from "lucide-react";
+import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon, Check, CreditCard, AlertTriangle, Zap, ArrowRight, Clock, DollarSign, CheckCircle2, ExternalLink, X, Settings, GripVertical, Eye, EyeOff, Play } from "lucide-react";
 import { clsx } from "clsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -2452,7 +2452,19 @@ export default function Dashboard() {
                 <CardTitle className="text-base font-heading font-semibold">
                   Ma Journée
                 </CardTitle>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {filteredMyDayTasks.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="text-xs gap-1.5"
+                      onClick={() => setLocation("/tasks?queue=1")}
+                      data-testid="button-dashboard-start-queue"
+                    >
+                      <Play className="w-3 h-3" />
+                      Démarrer la file
+                    </Button>
+                  )}
                   <Select value={myDayFilter} onValueChange={(value: any) => setMyDayFilter(value)}>
                     <SelectTrigger className="w-40 h-8 text-xs bg-card" data-testid="select-my-day-filter">
                       <SelectValue className="text-xs" />
