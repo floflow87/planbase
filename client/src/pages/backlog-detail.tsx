@@ -4,7 +4,7 @@ import { useParams, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { 
-  ArrowLeft, Plus, MoreVertical, ChevronDown, ChevronRight, 
+  ArrowLeft, Plus, MoreVertical, MoreHorizontal, ChevronDown, ChevronRight, 
   Folder, Clock, User, Calendar as CalendarIcon, Flag, Layers, ListTodo,
   Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search, Check, Trophy,
   CheckSquare, BarChart3, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2,
@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetTrigger } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -2065,8 +2065,157 @@ export default function BacklogDetail() {
         </div>
 
         <TabsContent value="backlog" className="flex-1 flex flex-col overflow-hidden mt-0 data-[state=inactive]:hidden">
-        {/* Fixed Header/Toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 p-4 md:px-6 md:py-4 border-b bg-background sticky top-0 z-10">
+
+        {/* ── Mobile Toolbar (single line) ── */}
+        <div className="flex md:hidden items-center gap-2 px-3 py-2.5 border-b bg-background sticky top-0 z-10">
+          {/* Search */}
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Rechercher..."
+              value={ticketSearch}
+              onChange={(e) => setTicketSearch(e.target.value)}
+              className="pl-8 h-8 w-full text-sm bg-white dark:bg-card"
+              data-testid="input-ticket-search"
+            />
+          </div>
+          {/* Create dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon" className="h-8 w-8 shrink-0 bg-violet-600 hover:bg-violet-700 text-white" data-testid="button-create-mobile">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-card">
+              <DropdownMenuItem onClick={() => setShowUserStoryDialog(true)} data-testid="button-add-user-story-mobile">
+                <FileText className="w-4 h-4 text-primary" />
+                <span>Créer une US</span>
+              </DropdownMenuItem>
+              {backlog.mode === "scrum" && (
+                <DropdownMenuItem onClick={() => setShowSprintDialog(true)} data-testid="button-add-sprint-mobile">
+                  <Play className="w-4 h-4 text-violet-600" />
+                  <span>Créer un sprint</span>
+                </DropdownMenuItem>
+              )}
+              {backlog.mode === "kanban" && (
+                <DropdownMenuItem onClick={() => setShowColumnDialog(true)} data-testid="button-add-column-mobile">
+                  <Layers className="w-4 h-4 text-primary" />
+                  <span>Créer une colonne</span>
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {/* Filters/Sort Sheet */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" data-testid="button-filters-mobile">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="h-auto max-h-[75vh] bg-card overflow-y-auto rounded-t-xl">
+              <SheetHeader className="mb-4">
+                <SheetTitle>Filtres et tri</SheetTitle>
+              </SheetHeader>
+              <div className="space-y-4 pb-6">
+                {/* Epic toggle */}
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="show-epic-column-mobile"
+                    checked={showEpicColumn}
+                    onCheckedChange={(checked) => setShowEpicColumn(checked === true)}
+                    data-testid="checkbox-show-epic-column-mobile"
+                  />
+                  <label htmlFor="show-epic-column-mobile" className="text-sm cursor-pointer flex items-center gap-1.5">
+                    <Layers className="h-4 w-4 text-muted-foreground" />
+                    Afficher la colonne Epic
+                  </label>
+                </div>
+                {/* Priority filter */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Priorité</Label>
+                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <SelectTrigger className="w-full h-9 text-sm" data-testid="select-priority-filter-mobile">
+                      <SelectValue placeholder="Toutes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Toutes</SelectItem>
+                      {backlogPriorityOptions.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Epic filter */}
+                {backlog.epics.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Epic</Label>
+                    <div className="space-y-0.5 max-h-40 overflow-y-auto border rounded-md p-1.5">
+                      <Button variant="ghost" size="sm" className="w-full justify-start text-sm" onClick={() => setEpicFilter([])}>
+                        <Check className={cn("h-4 w-4 mr-2 shrink-0", epicFilter.length === 0 ? "opacity-100" : "opacity-0")} />
+                        Toutes les Epics
+                      </Button>
+                      {backlog.epics.map(epic => (
+                        <Button
+                          key={epic.id}
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start text-sm"
+                          onClick={() => setEpicFilter(prev =>
+                            prev.includes(epic.id) ? prev.filter(id => id !== epic.id) : [...prev, epic.id]
+                          )}
+                        >
+                          <Check className={cn("h-4 w-4 mr-2 shrink-0", epicFilter.includes(epic.id) ? "opacity-100" : "opacity-0")} />
+                          <span className="w-2 h-2 rounded-full mr-2 shrink-0" style={{ backgroundColor: epic.color || "#8B5CF6" }} />
+                          <span className="truncate">{epic.title}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Version filter */}
+                {uniqueVersions.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Version</Label>
+                    <Select value={versionFilter} onValueChange={setVersionFilter}>
+                      <SelectTrigger className="w-full h-9 text-sm" data-testid="select-version-filter-mobile">
+                        <SelectValue placeholder="Toutes les versions" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Toutes les versions</SelectItem>
+                        <SelectItem value="none">Sans version</SelectItem>
+                        {uniqueVersions.map(version => (
+                          <SelectItem key={version} value={version}>{version}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {/* Sort */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Trier par</Label>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-full h-9 text-sm" data-testid="select-sort-by-mobile">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="state">État</SelectItem>
+                      <SelectItem value="priority_desc">Priorité décroissante</SelectItem>
+                      <SelectItem value="priority_asc">Priorité croissante</SelectItem>
+                      <SelectItem value="points_desc">Points décroissants</SelectItem>
+                      <SelectItem value="points_asc">Points croissants</SelectItem>
+                      <SelectItem value="title">Titre (A-Z)</SelectItem>
+                      <SelectItem value="epic">Epic</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+
+        {/* ── Desktop Toolbar ── */}
+        <div className="hidden md:flex flex-wrap items-center justify-between gap-3 p-4 md:px-6 md:py-4 border-b bg-background sticky top-0 z-10">
           {/* Left: Search + Creation buttons */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Search bar */}
@@ -2078,7 +2227,7 @@ export default function BacklogDetail() {
                 value={ticketSearch}
                 onChange={(e) => setTicketSearch(e.target.value)}
                 className="pl-8 h-8 w-[150px] text-sm bg-white dark:bg-card"
-                data-testid="input-ticket-search"
+                data-testid="input-ticket-search-desktop"
               />
             </div>
             <Button size="sm" className="bg-white dark:bg-card border border-input hover:bg-gray-50 dark:hover:bg-muted text-foreground" onClick={() => setShowUserStoryDialog(true)} data-testid="button-add-user-story">
