@@ -207,10 +207,12 @@ export function calculateTotalPaid(project: Project, payments: ProjectPayment[])
   if (project.billingStatus === 'paye') {
     return parseFloat(project.budget?.toString() || '0');
   }
-  // Otherwise, sum individual payments
-  return payments.reduce((sum, payment) => {
-    return sum + parseFloat(payment.amount?.toString() || '0');
-  }, 0);
+  // Otherwise, only sum payments explicitly marked as isPaid
+  return payments
+    .filter(p => p.isPaid === 1 || (p.isPaid as unknown as boolean) === true)
+    .reduce((sum, payment) => {
+      return sum + parseFloat(payment.amount?.toString() || '0');
+    }, 0);
 }
 
 // Determine project status based on margin

@@ -2849,7 +2849,7 @@ export default function ProjectDetail() {
   const [renameProjectFileName, setRenameProjectFileName] = useState("");
   
   // Tab state for controlled navigation
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("billing");
   const searchString = useSearch();
   
   // Read tab parameter from URL
@@ -3884,12 +3884,18 @@ export default function ProjectDetail() {
         {projectProfitabilityData?.metrics && (() => {
           const m = projectProfitabilityData.metrics;
           const timeConsumedPct = m.theoreticalDays > 0 ? Math.min(100, (m.actualDaysWorked / m.theoreticalDays) * 100) : null;
-          const margin = m.theoreticalMargin ?? null;
+          const margin = m.marginPercent ?? null;
           const targetMargin = profitabilityMetrics?.targetMarginPercent || 30;
           return (
             <div className="mb-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
               {/* 1. Santé projet */}
-              <Card className="p-3.5">
+              <Card className="p-3.5 relative overflow-hidden">
+                <div className={cn(
+                  "absolute left-0 top-0 bottom-0 w-[3px]",
+                  m.status === 'profitable' && "bg-green-500",
+                  m.status === 'at_risk' && "bg-amber-500",
+                  m.status === 'deficit' && "bg-red-500"
+                )} />
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Santé projet</p>
                   <div className={cn(
@@ -3917,7 +3923,8 @@ export default function ProjectDetail() {
               </Card>
 
               {/* 2. Temps consommé */}
-              <Card className="p-3.5">
+              <Card className="p-3.5 relative overflow-hidden">
+                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-primary" />
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Temps consommé</p>
                   <Clock className="h-3.5 w-3.5 text-primary" />
@@ -3948,7 +3955,8 @@ export default function ProjectDetail() {
               </Card>
 
               {/* 3. Montant facturé */}
-              <Card className="p-3.5">
+              <Card className="p-3.5 relative overflow-hidden">
+                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-cyan-500" />
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Montant facturé</p>
                   <Euro className="h-3.5 w-3.5 text-cyan-500" />
@@ -3969,10 +3977,11 @@ export default function ProjectDetail() {
                 </div>
               </Card>
 
-              {/* 4. Marge */}
-              <Card className="p-3.5">
+              {/* 4. Marge prévisionnelle */}
+              <Card className="p-3.5 relative overflow-hidden">
+                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-violet-500" />
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Marge</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Marge prévisionnelle</p>
                   <Trophy className="h-3.5 w-3.5 text-violet-500" />
                 </div>
                 <p className={cn(
@@ -4190,10 +4199,6 @@ export default function ProjectDetail() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="overflow-x-auto mb-3">
           <TabsList className="w-max justify-start flex-nowrap h-[42px]">
-            <TabsTrigger value="overview" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-overview">
-              <Layers className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Vue générale</span>
-            </TabsTrigger>
             <TabsTrigger value="billing" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-billing">
               <DollarSign className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Facturation</span>
@@ -4235,108 +4240,6 @@ export default function ProjectDetail() {
             </TabsTrigger>
           </TabsList>
           </div>
-
-          {/* Vue générale Tab */}
-          <TabsContent value="overview" className="mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Description */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="font-semibold tracking-tight text-sm flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-primary" />
-                    Description
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className={cn(
-                    "text-sm leading-relaxed",
-                    project.description ? "text-foreground" : "text-muted-foreground italic"
-                  )} data-testid="project-description-overview">
-                    {project.description || "Aucune description renseignée"}
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Période */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="tracking-tight font-semibold text-sm flex items-center gap-2">
-                    <CalendarIcon className="h-4 w-4 text-cyan-500" />
-                    Période
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {/* Dates row */}
-                    <div className="flex flex-wrap items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-muted-foreground">Début:</span>
-                        <span className="font-medium" data-testid="project-start-date-overview">
-                          {project.startDate 
-                            ? format(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
-                            : "Non définie"}
-                        </span>
-                      </div>
-                      <span className="text-muted-foreground">→</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-muted-foreground">Fin:</span>
-                        <span className="font-medium" data-testid="project-end-date-overview">
-                          {project.endDate 
-                            ? format(new Date(project.endDate), "dd MMM yyyy", { locale: fr })
-                            : "Non définie"}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {/* Duration & Progress indicator */}
-                    {project.startDate && project.endDate && (() => {
-                      const start = new Date(project.startDate);
-                      const end = new Date(project.endDate);
-                      const today = new Date();
-                      const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-                      const elapsedDays = Math.max(0, Math.ceil((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-                      const remainingDays = Math.max(0, Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
-                      const progressPercent = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
-                      const isOverdue = today > end;
-                      const overdueDays = isOverdue ? Math.ceil((today.getTime() - end.getTime()) / (1000 * 60 * 60 * 24)) : 0;
-                      
-                      return (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">Durée totale: <span className="font-medium text-foreground">{totalDays} jours</span></span>
-                            {isOverdue ? (
-                              <Badge variant="outline" className="text-red-600 border-red-300 text-xs">
-                                +{overdueDays}j de retard
-                              </Badge>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">
-                                {elapsedDays}j écoulés / {remainingDays}j restants
-                              </span>
-                            )}
-                          </div>
-                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div 
-                              className={cn(
-                                "h-full rounded-full transition-all",
-                                isOverdue ? "bg-red-500" : progressPercent > 80 ? "bg-amber-500" : "bg-cyan-500"
-                              )}
-                              style={{ width: `${Math.min(100, progressPercent)}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })()}
-                    
-                    {(!project.startDate || !project.endDate) && (
-                      <p className="text-xs text-muted-foreground italic">
-                        Définissez les dates pour voir la progression
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
 
           <TabsContent value="tasks" id="tasks-section" className="mt-0">
             <div className="space-y-4">
