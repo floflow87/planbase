@@ -47,7 +47,7 @@ import ProjectDecisions from "@/pages/project-decisions";
 import ProjectExecutive from "@/pages/project-executive";
 import AcceptInvitation from "@/pages/accept-invitation";
 import NotFound from "@/pages/not-found";
-import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote, CalendarPlus, MoreHorizontal } from "lucide-react";
+import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote, CalendarPlus, MoreHorizontal, Timer } from "lucide-react";
 import { AppointmentPanel } from "@/components/appointment-panel";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -1418,7 +1418,12 @@ function AppLayout() {
             <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
               <QuickCreateMenu />
               {/* Desktop: individual icons */}
-              {isTimeTrackingEnabled && <div className="hidden sm:flex"><TimeTracker /></div>}
+              {/* TimeTracker: visible on desktop, zero-width (but in DOM) on mobile so its popover still works */}
+              {isTimeTrackingEnabled && (
+                <div className="w-0 overflow-hidden sm:w-auto sm:overflow-visible">
+                  <TimeTracker />
+                </div>
+              )}
               <Button variant="ghost" size="icon" className="hidden sm:flex" data-testid="button-mail">
                 <Mail className="w-4 h-4 text-primary" />
               </Button>
@@ -1431,7 +1436,7 @@ function AppLayout() {
               >
                 <Calendar className="w-4 h-4 text-primary" />
               </Button>
-              {/* Mobile: collapsed dropdown */}
+              {/* Mobile: collapsed dropdown — all three items use identical icon+text layout */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="sm:hidden" data-testid="button-header-more">
@@ -1440,11 +1445,16 @@ function AppLayout() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="bg-card min-w-[180px]">
                   {isTimeTrackingEnabled && (
-                    <DropdownMenuItem asChild onSelect={(e) => e.preventDefault()} className="cursor-pointer">
-                      <div className="flex items-center gap-2 w-full">
-                        <TimeTracker />
-                        <span className="text-sm">Time tracker</span>
-                      </div>
+                    <DropdownMenuItem
+                      onSelect={(e) => e.preventDefault()}
+                      onClick={() => {
+                        const btn = document.querySelector<HTMLElement>('[data-testid="button-time-tracker"]');
+                        btn?.click();
+                      }}
+                      data-testid="button-time-tracker-mobile"
+                    >
+                      <Timer className="w-4 h-4 text-primary" />
+                      <span>Time tracker</span>
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem data-testid="button-mail-mobile">
