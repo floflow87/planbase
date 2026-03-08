@@ -2851,7 +2851,7 @@ export default function ProjectDetail() {
   const [renameProjectFileName, setRenameProjectFileName] = useState("");
   
   // Tab state for controlled navigation
-  const [activeTab, setActiveTab] = useState("activities");
+  const [activeTab, setActiveTab] = useState("overview");
   const searchString = useSearch();
   
   // Read tab parameter from URL
@@ -3740,14 +3740,8 @@ export default function ProjectDetail() {
                   {getStageLabel(project.stage || "prospection")}
                 </Badge>
                 {project.category && (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0.5" data-testid="badge-category">
+                  <Badge className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5" data-testid="badge-category">
                     {project.category}
-                  </Badge>
-                )}
-                {(project.totalBilled || project.budget) && (
-                  <Badge className="bg-budget text-budget-foreground text-[10px] px-1.5 py-0.5" data-testid="badge-budget">
-                    <Euro className="h-2.5 w-2.5 mr-0.5" />
-                    {project.totalBilled || project.budget}
                   </Badge>
                 )}
                 <Popover open={isBillingStatusPopoverOpen} onOpenChange={setIsBillingStatusPopoverOpen}>
@@ -4140,7 +4134,8 @@ export default function ProjectDetail() {
                 ];
                 const SCOPE_TYPE_LABELS: Record<string, string> = {
                   functional: "Fonctionnel", technical: "Technique", design: "Design",
-                  gestion: "Gestion", autre: "Autre",
+                  gestion: "Gestion", discovery: "Discovery", delivery: "Delivery",
+                  devops: "DevOps", communication: "Communication", gtm: "GTM", autre: "Autre",
                 };
 
                 // Add N working days to a date (skip Sat/Sun)
@@ -4263,11 +4258,16 @@ export default function ProjectDetail() {
                     {/* Circular progress bars by scope type */}
                     {(() => {
                       const TYPE_CONFIG: Record<string, { label: string; shortLabel: string; color: string; track: string }> = {
-                        functional: { label: "Fonctionnel", shortLabel: "Fonct.", color: "#8B5CF6", track: "#EDE9FE" },
-                        technical:  { label: "Technique",   shortLabel: "Tech.",  color: "#06B6D4", track: "#CFFAFE" },
-                        design:     { label: "Design",      shortLabel: "Design", color: "#EC4899", track: "#FCE7F3" },
-                        gestion:    { label: "Gestion",     shortLabel: "Gest.",  color: "#F59E0B", track: "#FEF3C7" },
-                        autre:      { label: "Autre",       shortLabel: "Autre",  color: "#6B7280", track: "#F3F4F6" },
+                        functional:    { label: "Fonctionnel",   shortLabel: "Fonct.",  color: "#8B5CF6", track: "#EDE9FE" },
+                        technical:     { label: "Technique",     shortLabel: "Tech.",   color: "#06B6D4", track: "#CFFAFE" },
+                        design:        { label: "Design",        shortLabel: "Design",  color: "#EC4899", track: "#FCE7F3" },
+                        gestion:       { label: "Gestion",       shortLabel: "Gest.",   color: "#F59E0B", track: "#FEF3C7" },
+                        discovery:     { label: "Discovery",     shortLabel: "Disco.",  color: "#6366F1", track: "#E0E7FF" },
+                        delivery:      { label: "Delivery",      shortLabel: "Deliv.",  color: "#10B981", track: "#D1FAE5" },
+                        devops:        { label: "DevOps",        shortLabel: "DevOps",  color: "#F97316", track: "#FFEDD5" },
+                        communication: { label: "Communication", shortLabel: "Comm.",   color: "#0EA5E9", track: "#E0F2FE" },
+                        gtm:           { label: "GTM",           shortLabel: "GTM",     color: "#84CC16", track: "#ECFCCB" },
+                        autre:         { label: "Autre",         shortLabel: "Autre",   color: "#6B7280", track: "#F3F4F6" },
                       };
                       // Group by scopeType — only types present in CDC
                       const byType: Record<string, { estimatedDays: number; timeDays: number }> = {};
@@ -4333,6 +4333,10 @@ export default function ProjectDetail() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="overflow-x-auto mb-3">
           <TabsList className="w-max justify-start flex-nowrap h-[42px]">
+            <TabsTrigger value="overview" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-overview">
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Vue d'ensemble</span>
+            </TabsTrigger>
             <TabsTrigger value="activities" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-activities">
               <MessageSquare className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Activités</span>
@@ -4374,6 +4378,197 @@ export default function ProjectDetail() {
             </TabsTrigger>
           </TabsList>
           </div>
+
+          {/* ── VUE D'ENSEMBLE ── */}
+          <TabsContent value="overview" className="mt-0">
+            {(() => {
+              const totalTimeSec = projectTimeEntries.reduce((sum, e) => sum + (e.duration || 0), 0);
+              const totalTimeDays = totalTimeSec / 3600 / 8;
+              const estimatedDays = cdcEstimatedDays > 0 ? cdcEstimatedDays : parseFloat(project?.numberOfDays?.toString() || "0") || 0;
+              const consumptionPct = estimatedDays > 0 ? Math.round((totalTimeDays / estimatedDays) * 100) : null;
+              const now = new Date();
+
+              // Facturation en retard
+              const overduePayments = payments.filter(p => !p.isPaid && p.dueDate && new Date(p.dueDate) < now);
+              const overdueTotal = overduePayments.reduce((sum, p) => sum + (parseFloat(p.amount?.toString() || "0")), 0);
+
+              // Projet bloqué
+              const lastActivityDate = projectActivities.length > 0
+                ? new Date(projectActivities[0].createdAt!)
+                : null;
+              const daysSinceActivity = lastActivityDate
+                ? Math.floor((now.getTime() - lastActivityDate.getTime()) / (1000 * 60 * 60 * 24))
+                : null;
+              const isBlocked = daysSinceActivity !== null && daysSinceActivity >= 10;
+
+              // Tâches
+              const openTasks = projectTasks.filter(t => {
+                const col = project.columns?.find((c: any) => c.id === t.columnId);
+                return !col?.isFinal;
+              });
+              const highPriorityTasks = openTasks.filter(t => t.priority === "critical" || t.priority === "high");
+              const overdueTasks = openTasks.filter(t => t.dueDate && new Date(t.dueDate) < now);
+              const unestimatedTasks = openTasks.filter(t => !t.estimatedHours || t.estimatedHours === 0);
+              const tooManyOpen = openTasks.length > 15;
+
+              // Marge
+              const m = profitabilityMetrics;
+              const marginPct = m?.marginPercent ?? null;
+              const targetMargin = m?.targetMarginPercent ?? 30;
+              const isMarginNegative = marginPct !== null && marginPct < 0;
+              const isMarginBelowTarget = marginPct !== null && marginPct >= 0 && marginPct < targetMargin;
+
+              // Sprint
+              const activeSprint = projectSprints.find((s: any) => s.status === "en_cours");
+              const readySprint = projectSprints.find((s: any) => s.status === "preparation");
+
+              type IndicatorSeverity = "critical" | "warning" | "info" | "ok";
+              type Indicator = {
+                id: string;
+                severity: IndicatorSeverity;
+                icon: React.ReactNode;
+                label: string;
+                detail?: string;
+                action?: { label: string; tab: string };
+              };
+
+              const alerts: Indicator[] = [];
+              const operational: Indicator[] = [];
+              const steering: Indicator[] = [];
+              const business: Indicator[] = [];
+
+              // ── ALERTES ──
+              if (cdcEstimatedDays > 0 && totalTimeDays > cdcEstimatedDays) {
+                const excess = (totalTimeDays - cdcEstimatedDays).toFixed(1);
+                alerts.push({ id: "time-over", severity: "critical", icon: <Clock className="h-4 w-4" />, label: "Budget temps dépassé", detail: `+${excess}j au-delà des ${cdcEstimatedDays.toFixed(1)}j estimés (${consumptionPct}%)`, action: { label: "Voir temps", tab: "time" } });
+              } else if (consumptionPct !== null && consumptionPct >= 80 && consumptionPct < 100) {
+                alerts.push({ id: "time-warn", severity: "warning", icon: <Clock className="h-4 w-4" />, label: "Consommation élevée du budget", detail: `${consumptionPct}% du budget temps consommé`, action: { label: "Voir temps", tab: "time" } });
+              }
+              if (isMarginNegative) {
+                alerts.push({ id: "margin-neg", severity: "critical", icon: <TrendingDown className="h-4 w-4" />, label: "Marge négative", detail: `${marginPct!.toFixed(0)}% — objectif : ${targetMargin}%`, action: { label: "Voir facturation", tab: "billing" } });
+              } else if (isMarginBelowTarget) {
+                alerts.push({ id: "margin-low", severity: "warning", icon: <TrendingDown className="h-4 w-4" />, label: "Marge sous objectif", detail: `${marginPct!.toFixed(0)}% vs objectif ${targetMargin}%`, action: { label: "Voir facturation", tab: "billing" } });
+              }
+              if (overduePayments.length > 0) {
+                alerts.push({ id: "payment-late", severity: "critical", icon: <Euro className="h-4 w-4" />, label: `${overduePayments.length} facture${overduePayments.length > 1 ? "s" : ""} en retard`, detail: overdueTotal > 0 ? `${overdueTotal.toLocaleString("fr-FR")} € en attente` : undefined, action: { label: "Voir facturation", tab: "billing" } });
+              }
+              if (isBlocked) {
+                alerts.push({ id: "blocked", severity: "warning", icon: <AlertTriangle className="h-4 w-4" />, label: "Projet inactif", detail: `Aucune activité depuis ${daysSinceActivity} jours`, action: { label: "Voir activités", tab: "activities" } });
+              }
+              if (overdueTasks.length > 0) {
+                alerts.push({ id: "tasks-overdue", severity: "warning", icon: <Flag className="h-4 w-4" />, label: `${overdueTasks.length} tâche${overdueTasks.length > 1 ? "s" : ""} en retard`, detail: overdueTasks.slice(0, 2).map(t => t.title).join(", ") + (overdueTasks.length > 2 ? "…" : ""), action: { label: "Voir tâches", tab: "tasks" } });
+              }
+
+              // ── ACTIONS OPÉRATIONNELLES ──
+              if (highPriorityTasks.length > 0) {
+                operational.push({ id: "high-prio", severity: "info", icon: <Flag className="h-4 w-4" />, label: `${highPriorityTasks.length} tâche${highPriorityTasks.length > 1 ? "s" : ""} prioritaire${highPriorityTasks.length > 1 ? "s" : ""}`, detail: highPriorityTasks.slice(0, 2).map(t => t.title).join(", ") + (highPriorityTasks.length > 2 ? "…" : ""), action: { label: "Voir tâches", tab: "tasks" } });
+              }
+              if (!activeSprint && readySprint) {
+                operational.push({ id: "sprint-ready", severity: "info", icon: <Play className="h-4 w-4" />, label: "Sprint prêt à démarrer", detail: `"${readySprint.name}" est en préparation`, action: { label: "Voir backlogs", tab: "backlogs" } });
+              }
+              if (unestimatedTasks.length > 0 && projectTasks.length > 2) {
+                operational.push({ id: "unestimated", severity: "info", icon: <Clock className="h-4 w-4" />, label: `${unestimatedTasks.length} ticket${unestimatedTasks.length > 1 ? "s" : ""} sans estimation`, detail: "Estimez les tickets pour un meilleur pilotage", action: { label: "Voir tâches", tab: "tasks" } });
+              }
+
+              // ── ACTIONS DE PILOTAGE ──
+              if (projectScopeItems.length === 0) {
+                steering.push({ id: "no-cdc", severity: "warning", icon: <FileText className="h-4 w-4" />, label: "CDC non défini", detail: "Aucun élément de cahier des charges renseigné" });
+              }
+              if (projectBacklogs.length === 0) {
+                steering.push({ id: "no-backlog", severity: "info", icon: <FolderKanban className="h-4 w-4" />, label: "Aucun backlog associé", detail: "Créez un backlog pour organiser les tickets" });
+              }
+              if (tooManyOpen) {
+                steering.push({ id: "too-many-open", severity: "warning", icon: <ListTodo className="h-4 w-4" />, label: `${openTasks.length} tâches ouvertes`, detail: "Priorisation recommandée", action: { label: "Voir tâches", tab: "tasks" } });
+              }
+
+              // ── ACTIONS BUSINESS ──
+              if (paceProjection?.alreadyExceeded) {
+                business.push({ id: "biz-exceeded", severity: "critical", icon: <TrendingUp className="h-4 w-4" />, label: "Budget dépassé", detail: `+${paceProjection.exceededBy?.toFixed(1)}j au-delà de l'estimation`, action: { label: "Analyser", tab: "billing" } });
+              } else if (paceProjection?.available && !paceProjection.noEstimation && paceProjection.estimatedEndDate && project?.endDate) {
+                const projEnd = paceProjection.estimatedEndDate;
+                const contractEnd = new Date(project.endDate);
+                if (projEnd > contractEnd) {
+                  const diffDays = Math.ceil((projEnd.getTime() - contractEnd.getTime()) / (1000 * 60 * 60 * 24));
+                  business.push({ id: "biz-risk", severity: "warning", icon: <TrendingUp className="h-4 w-4" />, label: "Risque de dépassement", detail: `Projection : +${diffDays}j au-delà de la date de fin`, action: { label: "Voir temps", tab: "time" } });
+                }
+              }
+              if (m && m.totalBilled > 0 && totalTimeDays > 0) {
+                const effectiveTJM = m.totalBilled / totalTimeDays;
+                if (effectiveTJM < m.targetTJM * 0.8) {
+                  business.push({ id: "biz-tjm", severity: "warning", icon: <Euro className="h-4 w-4" />, label: "TJM effectif bas", detail: `${Math.round(effectiveTJM).toLocaleString("fr-FR")} €/j vs objectif ${m.targetTJM.toLocaleString("fr-FR")} €/j`, action: { label: "Voir facturation", tab: "billing" } });
+                }
+              }
+              if (projectSprints.some((s: any) => s.status === "termine") && payments.filter(p => !p.isPaid).length > 0) {
+                business.push({ id: "biz-invoice", severity: "info", icon: <CheckCircle2 className="h-4 w-4" />, label: "Milestone terminé — facturation possible", detail: "Un sprint est terminé, vérifiez si une facture est à émettre", action: { label: "Voir facturation", tab: "billing" } });
+              }
+
+              const allClear = alerts.length === 0 && operational.length === 0 && steering.length === 0 && business.length === 0;
+
+              const severityConfig = {
+                critical: { bg: "bg-red-50 dark:bg-red-950/30", border: "border-red-200 dark:border-red-900", icon: "text-red-600 dark:text-red-400", text: "text-red-900 dark:text-red-100", detail: "text-red-600 dark:text-red-400" },
+                warning:  { bg: "bg-amber-50 dark:bg-amber-950/30", border: "border-amber-200 dark:border-amber-900", icon: "text-amber-600 dark:text-amber-400", text: "text-amber-900 dark:text-amber-100", detail: "text-amber-600 dark:text-amber-400" },
+                info:     { bg: "bg-blue-50 dark:bg-blue-950/30", border: "border-blue-200 dark:border-blue-900", icon: "text-blue-600 dark:text-blue-400", text: "text-blue-900 dark:text-blue-100", detail: "text-blue-600 dark:text-blue-400" },
+                ok:       { bg: "bg-green-50 dark:bg-green-950/30", border: "border-green-200 dark:border-green-900", icon: "text-green-600 dark:text-green-400", text: "text-green-900 dark:text-green-100", detail: "text-green-600 dark:text-green-400" },
+              };
+
+              const renderIndicators = (items: Indicator[]) => (
+                <div className="space-y-2">
+                  {items.map(item => {
+                    const cfg = severityConfig[item.severity];
+                    return (
+                      <div key={item.id} className={cn("flex items-start gap-3 rounded-md border px-3 py-2.5", cfg.bg, cfg.border)} data-testid={`indicator-${item.id}`}>
+                        <span className={cn("mt-0.5 shrink-0", cfg.icon)}>{item.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className={cn("text-[13px] font-medium leading-tight", cfg.text)}>{item.label}</p>
+                          {item.detail && <p className={cn("text-[11px] mt-0.5 leading-snug", cfg.detail)}>{item.detail}</p>}
+                        </div>
+                        {item.action && (
+                          <Button variant="ghost" size="sm" className="h-6 text-[11px] px-2 shrink-0" onClick={() => setActiveTab(item.action!.tab)}>
+                            {item.action.label}
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+
+              type SectionProps = { title: string; icon: React.ReactNode; items: Indicator[]; emptyMsg: string };
+              const Section = ({ title, icon, items, emptyMsg }: SectionProps) => (
+                <Card className="p-4">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                    {icon} {title}
+                  </p>
+                  {items.length > 0 ? renderIndicators(items) : (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <p className="text-xs">{emptyMsg}</p>
+                    </div>
+                  )}
+                </Card>
+              );
+
+              return (
+                <div className="space-y-4">
+                  {allClear && (
+                    <Card className="p-4 flex items-center gap-3 border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950/30">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-green-900 dark:text-green-100">Tout est en ordre</p>
+                        <p className="text-xs text-green-700 dark:text-green-400">Aucune alerte ni action en attente sur ce projet.</p>
+                      </div>
+                    </Card>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Section title="Alertes projet" icon={<AlertTriangle className="h-3 w-3" />} items={alerts} emptyMsg="Aucune alerte active" />
+                    <Section title="Actions opérationnelles" icon={<ListTodo className="h-3 w-3" />} items={operational} emptyMsg="Aucune action immédiate" />
+                    <Section title="Pilotage" icon={<Target className="h-3 w-3" />} items={steering} emptyMsg="Projet bien structuré" />
+                    <Section title="Business & rentabilité" icon={<TrendingUp className="h-3 w-3" />} items={business} emptyMsg="Aucune opportunité détectée" />
+                  </div>
+                </div>
+              );
+            })()}
+          </TabsContent>
 
           <TabsContent value="tasks" id="tasks-section" className="mt-0">
             <div className="space-y-4">
