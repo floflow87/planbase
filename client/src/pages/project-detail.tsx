@@ -3731,7 +3731,7 @@ export default function ProjectDetail() {
       {/* Full-width onboarding banner below the top bar */}
       <PostCreationSuggestions
         project={project}
-        scopeItems={scopeItems}
+        scopeItems={projectScopeItems}
         onOpenCdcWizard={() => setIsCdcWizardOpen(true)}
         onDismiss={() => {}}
       />
