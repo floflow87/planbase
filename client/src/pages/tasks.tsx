@@ -136,6 +136,18 @@ function getStatusFromColumnName(columnName: string): "todo" | "in_progress" | "
   return "in_progress";
 }
 
+// Vivid fallback colors per column status — used when no explicit column.color is set
+const STATUS_COLUMN_COLORS: Record<string, string> = {
+  todo:        "#94A3B8", // slate-400
+  in_progress: "#F59E0B", // amber-400
+  review:      "#A78BFA", // violet-400
+  done:        "#34D399", // emerald-400
+};
+
+function getColumnDefaultColor(columnName: string): string {
+  return STATUS_COLUMN_COLORS[getStatusFromColumnName(columnName)] || "#94A3B8";
+}
+
 // Calendar View Component
 interface CalendarViewProps {
   tasks: Task[];
@@ -701,7 +713,7 @@ function SortableColumn({
                 onClick={onTaskClick}
                 canUpdate={canUpdate}
                 canDelete={canDelete}
-                columnColor={column.color || undefined}
+                columnColor={column.color || getColumnDefaultColor(column.name)}
               />
             ))}
           </SortableContext>
