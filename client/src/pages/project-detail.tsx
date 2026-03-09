@@ -1910,20 +1910,35 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                                   {user.firstName} {user.lastName}
                                 </Badge>
                               )}
-                              {scopeItem && (
-                                <Badge 
-                                  variant="secondary" 
-                                  className="text-xs cursor-pointer"
-                                  onClick={() => {
-                                    const element = document.getElementById('scope-section');
-                                    if (element) element.scrollIntoView({ behavior: 'smooth' });
-                                  }}
-                                  data-testid={`badge-scope-${entry.id}`}
-                                >
-                                  <FileText className="h-3 w-3 mr-1" />
-                                  {scopeItem.label}
-                                </Badge>
-                              )}
+                              {scopeItem && (() => {
+                                const SCOPE_BADGE_COLORS: Record<string, string> = {
+                                  functional:    "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200 border-violet-200 dark:border-violet-800",
+                                  technical:     "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-200 border-cyan-200 dark:border-cyan-800",
+                                  design:        "bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-200 border-pink-200 dark:border-pink-800",
+                                  gestion:       "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200 border-amber-200 dark:border-amber-800",
+                                  strategy:      "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200 border-purple-200 dark:border-purple-800",
+                                  discovery:     "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200 border-indigo-200 dark:border-indigo-800",
+                                  delivery:      "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800",
+                                  devops:        "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200 border-orange-200 dark:border-orange-800",
+                                  communication: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200 border-sky-200 dark:border-sky-800",
+                                  gtm:           "bg-lime-100 text-lime-800 dark:bg-lime-900/40 dark:text-lime-200 border-lime-200 dark:border-lime-800",
+                                  autre:         "bg-gray-100 text-gray-700 dark:bg-gray-800/60 dark:text-gray-300 border-gray-200 dark:border-gray-700",
+                                };
+                                const colorClass = SCOPE_BADGE_COLORS[(scopeItem as any).scopeType] || SCOPE_BADGE_COLORS.autre;
+                                return (
+                                  <Badge 
+                                    className={cn("text-xs cursor-pointer border", colorClass)}
+                                    onClick={() => {
+                                      const element = document.getElementById('scope-section');
+                                      if (element) element.scrollIntoView({ behavior: 'smooth' });
+                                    }}
+                                    data-testid={`badge-scope-${entry.id}`}
+                                  >
+                                    <FileText className="h-3 w-3 mr-1" />
+                                    {scopeItem.label}
+                                  </Badge>
+                                );
+                              })()}
                               {task && (
                                 <Badge 
                                   variant="secondary" 
@@ -2852,6 +2867,8 @@ export default function ProjectDetail() {
   
   // Tab state for controlled navigation
   const [activeTab, setActiveTab] = useState("overview");
+  // Overview "voir plus" expanded sections
+  const [overviewExpanded, setOverviewExpanded] = useState<Record<string, boolean>>({});
   const searchString = useSearch();
   
   // Read tab parameter from URL
@@ -4209,46 +4226,75 @@ export default function ProjectDetail() {
                 return (
                   <div className="flex flex-col gap-3">
                     {/* Horizontal bar of colored blocks with progress overlay */}
-                    <div className="flex h-10 gap-[2px] w-full">
-                      {blocks.map((block) => {
-                        const pct = Math.min(100, Math.round(block.consumption));
-                        const isOver = block.consumption > 100;
+                    <div className="relative">
+                      <div className="flex h-10 gap-[2px] w-full">
+                        {blocks.map((block) => {
+                          const pct = Math.min(100, Math.round(block.consumption));
+                          const isOver = block.consumption > 100;
+                          return (
+                            <Tooltip key={block.id}>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className={cn("rounded-sm cursor-default transition-opacity hover:opacity-80 relative overflow-hidden", block.color)}
+                                  style={{ flex: block.estimatedDays, minWidth: 8 }}
+                                >
+                                  {/* Progress fill overlay */}
+                                  <div
+                                    className={cn("absolute inset-0 rounded-sm transition-all", isOver ? "bg-red-600/30" : "bg-black/20")}
+                                    style={{ width: `${100 - pct}%`, right: 0, left: "auto" }}
+                                  />
+                                  {/* Completion checkmark or % */}
+                                  {block.isCompleted && (
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                      <Check className="h-3.5 w-3.5 text-white drop-shadow" />
+                                    </div>
+                                  )}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="max-w-[220px] bg-white dark:bg-gray-900 text-foreground border shadow-md">
+                                <p className="font-semibold text-xs mb-1">{block.label}</p>
+                                <p className="text-[11px] text-muted-foreground">{SCOPE_TYPE_LABELS[block.scopeType] || block.scopeType}</p>
+                                {block.phase && <p className="text-[11px] text-muted-foreground">Phase {block.phase}</p>}
+                                <p className="text-[11px] mt-1">{block.estimatedDays.toFixed(1)}j estimés</p>
+                                {block.isCompleted
+                                  ? <p className="text-[11px] text-green-600 font-medium mt-0.5">Terminé — 100%</p>
+                                  : block.timeDays > 0
+                                    ? <p className="text-[11px] text-muted-foreground">{block.timeDays.toFixed(1)}j passés · {pct}%</p>
+                                    : <p className="text-[11px] text-muted-foreground">Aucune saisie temps liée</p>
+                                }
+                                {isOver && <p className="text-[11px] text-red-500 font-medium mt-0.5">Budget dépassé</p>}
+                              </TooltipContent>
+                            </Tooltip>
+                          );
+                        })}
+                      </div>
+                      {/* Current date vertical marker */}
+                      {(() => {
+                        if (!projectStart || blocks.length === 0) return null;
+                        const lastEnd = blocks[blocks.length - 1].endDate;
+                        if (!lastEnd) return null;
+                        const totalMs = lastEnd.getTime() - projectStart.getTime();
+                        if (totalMs <= 0) return null;
+                        const today = new Date();
+                        const elapsedMs = today.getTime() - projectStart.getTime();
+                        const pct = (elapsedMs / totalMs) * 100;
+                        if (pct <= 0 || pct >= 100) return null;
                         return (
-                          <Tooltip key={block.id}>
+                          <Tooltip>
                             <TooltipTrigger asChild>
                               <div
-                                className={cn("rounded-sm cursor-default transition-opacity hover:opacity-80 relative overflow-hidden", block.color)}
-                                style={{ flex: block.estimatedDays, minWidth: 8 }}
+                                className="absolute top-0 bottom-0 w-0.5 bg-red-300 dark:bg-red-600 pointer-events-auto cursor-default z-10"
+                                style={{ left: `${pct}%` }}
                               >
-                                {/* Progress fill overlay */}
-                                <div
-                                  className={cn("absolute inset-0 rounded-sm transition-all", isOver ? "bg-red-600/30" : "bg-black/20")}
-                                  style={{ width: `${100 - pct}%`, right: 0, left: "auto" }}
-                                />
-                                {/* Completion checkmark or % */}
-                                {block.isCompleted && (
-                                  <div className="absolute inset-0 flex items-center justify-center">
-                                    <Check className="h-3.5 w-3.5 text-white drop-shadow" />
-                                  </div>
-                                )}
+                                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-red-400 dark:bg-red-500" />
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-[220px] bg-white dark:bg-gray-900 text-foreground border shadow-md">
-                              <p className="font-semibold text-xs mb-1">{block.label}</p>
-                              <p className="text-[11px] text-muted-foreground">{SCOPE_TYPE_LABELS[block.scopeType] || block.scopeType}</p>
-                              {block.phase && <p className="text-[11px] text-muted-foreground">Phase {block.phase}</p>}
-                              <p className="text-[11px] mt-1">{block.estimatedDays.toFixed(1)}j estimés</p>
-                              {block.isCompleted
-                                ? <p className="text-[11px] text-green-600 font-medium mt-0.5">Terminé — 100%</p>
-                                : block.timeDays > 0
-                                  ? <p className="text-[11px] text-muted-foreground">{block.timeDays.toFixed(1)}j passés · {pct}%</p>
-                                  : <p className="text-[11px] text-muted-foreground">Aucune saisie temps liée</p>
-                              }
-                              {isOver && <p className="text-[11px] text-red-500 font-medium mt-0.5">Budget dépassé</p>}
+                            <TooltipContent side="top" className="bg-white dark:bg-gray-900 text-foreground border shadow-md">
+                              <p className="text-[11px] font-medium">Aujourd'hui · {format(today, "dd MMM yyyy", { locale: fr })}</p>
                             </TooltipContent>
                           </Tooltip>
                         );
-                      })}
+                      })()}
                     </div>
 
                     {/* X-axis: start dates per block */}
@@ -4589,20 +4635,40 @@ export default function ProjectDetail() {
                 </div>
               );
 
-              type SectionProps = { title: string; icon: React.ReactNode; items: Indicator[]; emptyMsg: string; accentClass?: string };
-              const Section = ({ title, icon, items, emptyMsg, accentClass }: SectionProps) => (
-                <Card className="p-4">
-                  <p className={cn("text-[10px] font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5", accentClass || "text-muted-foreground")}>
-                    {icon} {title}
-                  </p>
-                  {items.length > 0 ? renderIndicators(items) : (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      <p className="text-xs">{emptyMsg}</p>
-                    </div>
-                  )}
-                </Card>
-              );
+              type SectionProps = { sectionKey: string; max: number; title: string; icon: React.ReactNode; items: Indicator[]; emptyMsg: string; accentClass?: string };
+              const Section = ({ sectionKey, max, title, icon, items, emptyMsg, accentClass }: SectionProps) => {
+                const isExpanded = overviewExpanded[sectionKey] ?? false;
+                const displayed = isExpanded ? items : items.slice(0, max);
+                const hasMore = items.length > max;
+                return (
+                  <Card className="p-4">
+                    <p className={cn("text-[10px] font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5", accentClass || "text-muted-foreground")}>
+                      {icon} {title}
+                      {items.length > 0 && <span className="ml-auto text-[10px] font-normal text-muted-foreground normal-case tracking-normal">{items.length}</span>}
+                    </p>
+                    {items.length > 0 ? (
+                      <>
+                        {renderIndicators(displayed)}
+                        {hasMore && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full mt-2 h-7 text-[11px] text-muted-foreground"
+                            onClick={() => setOverviewExpanded(prev => ({ ...prev, [sectionKey]: !isExpanded }))}
+                          >
+                            {isExpanded ? `Réduire` : `Voir plus (${items.length - max} de plus)`}
+                          </Button>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        <p className="text-xs">{emptyMsg}</p>
+                      </div>
+                    )}
+                  </Card>
+                );
+              };
 
               return (
                 <div className="space-y-4">
@@ -4616,10 +4682,10 @@ export default function ProjectDetail() {
                     </Card>
                   )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Section title="Alertes" icon={<AlertTriangle className="h-3 w-3" />} items={alerts} emptyMsg="Aucune alerte active" accentClass="text-red-500 dark:text-red-400" />
-                    <Section title="Actions à faire" icon={<ListTodo className="h-3 w-3" />} items={actions} emptyMsg="Aucune action immédiate" accentClass="text-blue-600 dark:text-blue-400" />
-                    <Section title="Actions business" icon={<TrendingUp className="h-3 w-3" />} items={business} emptyMsg="Aucune opportunité détectée" accentClass="text-emerald-600 dark:text-emerald-400" />
-                    <Section title="Recommandations" icon={<Lightbulb className="h-3 w-3" />} items={reco} emptyMsg="Aucune recommandation pour le moment" accentClass="text-violet-600 dark:text-violet-400" />
+                    <Section sectionKey="alerts" max={3} title="Alertes" icon={<AlertTriangle className="h-3 w-3" />} items={alerts} emptyMsg="Aucune alerte active" accentClass="text-red-500 dark:text-red-400" />
+                    <Section sectionKey="actions" max={5} title="Actions à faire" icon={<ListTodo className="h-3 w-3" />} items={actions} emptyMsg="Aucune action immédiate" accentClass="text-blue-600 dark:text-blue-400" />
+                    <Section sectionKey="business" max={2} title="Actions business" icon={<TrendingUp className="h-3 w-3" />} items={business} emptyMsg="Aucune opportunité détectée" accentClass="text-emerald-600 dark:text-emerald-400" />
+                    <Section sectionKey="reco" max={3} title="Recommandations" icon={<Lightbulb className="h-3 w-3" />} items={reco} emptyMsg="Aucune recommandation pour le moment" accentClass="text-violet-600 dark:text-violet-400" />
                   </div>
                 </div>
               );

@@ -1,0 +1,1223 @@
+1. ALERTES
+
+Les alertes correspondent à une situation anormale, risquée, bloquante ou urgente.
+Elles doivent être peu nombreuses, prioritaires, et visibles immédiatement.
+
+1.1 Tâches en retard
+
+Use case
+Une ou plusieurs tâches ont dépassé leur date d’échéance.
+
+Variables
+
+nombre de tâches en retard
+
+date d’échéance
+
+nombre de jours de retard
+
+priorité de la tâche
+
+statut de la tâche
+
+assignation
+
+appartenance à une roadmap / milestone / backlog
+
+tâche critique ou non
+
+Scénarios
+
+1 tâche en retard
+
+plusieurs tâches en retard
+
+tâche critique en retard
+
+tâche en retard non assignée
+
+tâche en retard appartenant à une milestone proche
+
+tâche en retard depuis plus de X jours
+
+tâches en retard répétées sur le projet
+
+Message possible
+
+2 tâches en retard
+
+1 tâche critique en retard depuis 4 jours
+
+5 tâches en retard sur la milestone actuelle
+
+Action
+
+Voir les tâches
+
+Prioriser
+
+Réassigner
+
+Replanifier
+
+1.2 Dépassement ou risque de dépassement temps
+
+Use case
+Le temps consommé dépasse le temps prévu, ou la projection montre un dépassement probable.
+
+Variables
+
+temps prévu total
+
+temps consommé
+
+temps restant
+
+rythme actuel
+
+projection de fin
+
+écart en jours / heures
+
+% consommé
+
+phase concernée
+
+Scénarios
+
+temps consommé > temps prévu
+
+consommation > 80% alors que l’avancement métier est faible
+
+projection de dépassement selon le rythme actuel
+
+dépassement sur une étape CDC précise
+
+dépassement sur une ressource en particulier
+
+Message
+
+Le projet pourrait dépasser de 6,5 jours
+
+85% du temps consommé pour 40% du périmètre
+
+Dépassement projeté sur la phase “Back-office”
+
+Action
+
+Voir onglet Temps
+
+Ajuster planning
+
+Réduire scope
+
+Renégocier
+
+1.3 Risque de marge
+
+Use case
+La marge prévisionnelle est insuffisante, en baisse, ou devient négative.
+
+Variables
+
+marge prévisionnelle
+
+objectif de marge
+
+coût actualisé
+
+facturation
+
+budget
+
+TJM cible
+
+temps consommé
+
+encaissements
+
+coûts ressources
+
+Scénarios
+
+marge < objectif
+
+marge négative
+
+marge qui baisse fortement
+
+marge impossible à calculer faute de données
+
+marge artificiellement élevée car variables manquantes
+
+Message
+
+La marge est sous l’objectif de 30%
+
+La marge estimée devient négative
+
+Calcul de marge incomplet
+
+Action
+
+Voir facturation
+
+Définir TJM
+
+Définir ressources
+
+Revoir budget / périmètre
+
+1.4 Paiement en retard / facturation critique
+
+Use case
+Une échéance de paiement est dépassée ou un flux de facturation est incohérent.
+
+Variables
+
+montant facturé
+
+montant encaissé
+
+échéances prévues
+
+date de paiement attendue
+
+statut du paiement
+
+retard en jours
+
+nombre de paiements en retard
+
+mode de facturation
+
+Scénarios
+
+paiement prévu non reçu
+
+plusieurs échéances en retard
+
+montant facturé élevé non encaissé
+
+aucune facturation configurée
+
+facturation prévue alors que le projet avance
+
+Message
+
+15 000 € en attente depuis 12 jours
+
+Aucun paiement encaissé sur un projet déjà démarré
+
+Échéance de paiement dépassée
+
+Action
+
+Voir facturation
+
+Relancer client
+
+Marquer comme réglé
+
+Configurer échéancier
+
+1.5 Absence d’activité / projet inactif
+
+Use case
+Le projet semble à l’arrêt.
+
+Variables
+
+date de dernière activité
+
+dernière tâche complétée
+
+dernier commentaire
+
+dernier log temps
+
+date de dernière note
+
+statut projet
+
+sprint actif ou non
+
+Scénarios
+
+aucune activité depuis X jours
+
+pas de log temps depuis X jours
+
+aucun ticket modifié depuis X jours
+
+projet en cours sans activité récente
+
+Message
+
+Aucune activité détectée depuis 9 jours
+
+Aucun temps saisi depuis 2 semaines
+
+Action
+
+Voir activités
+
+Relancer le projet
+
+Ajouter une tâche
+
+Revoir roadmap
+
+1.6 Projet bloqué / dépendance bloquante
+
+Use case
+Le projet ne peut pas avancer à cause d’un blocage identifié.
+
+Variables
+
+tickets bloqués
+
+dépendances
+
+statut “bloqué”
+
+attente client
+
+attente décision
+
+attente livrable externe
+
+Scénarios
+
+ticket critique bloqué
+
+plusieurs tickets bloqués
+
+blocage client
+
+blocage interne
+
+milestone dépendante d’un ticket bloqué
+
+Message
+
+Une tâche critique bloque la milestone en cours
+
+Projet en attente de validation client
+
+Action
+
+Voir tâches
+
+Lever le blocage
+
+Relancer client
+
+Reprioriser
+
+1.7 Incohérence de structure projet
+
+Use case
+Le projet a des éléments fondamentaux manquants ou contradictoires.
+
+Variables
+
+présence roadmap
+
+présence backlog
+
+présence CDC
+
+présence baseline
+
+dates début / fin
+
+milestones
+
+tâches liées
+
+Scénarios
+
+projet sans backlog
+
+projet sans roadmap
+
+CDC défini mais non converti
+
+milestone sans tâche
+
+tâche hors backlog
+
+dates incohérentes
+
+Message
+
+La structure projet est incomplète
+
+Une milestone n’a aucune tâche associée
+
+Action
+
+Voir roadmap
+
+Voir backlog
+
+Générer backlog
+
+Corriger dates
+
+2. ACTIONS À FAIRE
+
+Ici on met ce qui doit être fait pour faire avancer le projet.
+C’est la rubrique la plus opérationnelle.
+
+2.1 Prochaine tâche critique
+
+Use case
+Identifier la prochaine tâche prioritaire.
+
+Variables
+
+priorité
+
+échéance
+
+statut
+
+dépendances
+
+assignation
+
+impact roadmap
+
+type de tâche
+
+Scénarios
+
+tâche P1 disponible
+
+tâche à échéance proche
+
+tâche non démarrée mais prioritaire
+
+tâche débloquant d’autres tâches
+
+Message
+
+Prochaine tâche critique : Configurer Stripe
+
+Action
+
+Voir tâche
+
+Démarrer
+
+Réassigner
+
+2.2 Créer un backlog
+
+Use case
+Le projet n’a pas encore de backlog exploitable.
+
+Variables
+
+nombre de tickets
+
+existence backlog
+
+présence CDC
+
+présence notes
+
+phase projet
+
+Scénarios
+
+aucun backlog associé
+
+backlog vide
+
+CDC existant mais pas structuré
+
+notes existantes sans tickets
+
+Message
+
+Aucun backlog associé
+
+Créez un backlog pour organiser les tickets
+
+Action
+
+Créer backlog
+
+Générer backlog depuis CDC
+
+Importer tickets
+
+2.3 Définir mode de facturation
+
+Use case
+Le projet ne peut pas être piloté correctement car la logique de facturation n’est pas définie.
+
+Variables
+
+mode de facturation
+
+budget
+
+paiements
+
+échéancier
+
+type de projet
+
+Scénarios
+
+mode non défini
+
+budget défini sans logique de facturation
+
+acompte manquant
+
+échéancier absent
+
+Message
+
+Mode de facturation non défini
+
+Action
+
+Configurer facturation
+
+2.4 Définir TJM
+
+Use case
+Le calcul de rentabilité est impossible sans coût journalier ou TJM.
+
+Variables
+
+TJM projet
+
+TJM cible
+
+taux journalier réel
+
+coûts ressources
+
+Scénarios
+
+TJM absent
+
+TJM incohérent
+
+TJM très éloigné du réel
+
+TJM non applicable selon le mode de facturation
+
+Message
+
+TJM manquant
+
+Calcul de rentabilité impossible
+
+Action
+
+Définir TJM
+
+2.5 Définir ressources
+
+Use case
+Le projet ne peut pas être piloté finement si aucune ressource ou coût n’est renseigné.
+
+Variables
+
+ressources assignées
+
+coût journalier
+
+rôle
+
+disponibilité
+
+temps planifié
+
+Scénarios
+
+aucune ressource définie
+
+ressources définies sans coût
+
+ressource assignée sans charge
+
+charge non équilibrée
+
+Message
+
+Ressources non définies
+
+Aucun taux journalier configuré
+
+Action
+
+Voir ressources
+
+Ajouter ressource
+
+Définir coût
+
+2.6 Compléter le brief projet
+
+Use case
+Le projet manque de contexte de base.
+
+Variables
+
+description
+
+objectif
+
+scope
+
+livrables
+
+client
+
+durée
+
+Scénarios
+
+description vide
+
+brief trop court
+
+aucun livrable défini
+
+aucun contexte
+
+Message
+
+Le brief projet est incomplet
+
+Action
+
+Modifier projet
+
+Ajouter description
+
+2.7 Démarrer / clore une étape
+
+Use case
+Le projet est prêt à passer à l’étape suivante.
+
+Variables
+
+milestones
+
+dates
+
+avancement
+
+tâches restantes
+
+dépendances
+
+Scénarios
+
+milestone prête à démarrer
+
+étape terminée
+
+étape quasi terminée
+
+étape bloquée
+
+Message
+
+La phase “Conception” peut être clôturée
+
+Démarrer la phase “Développement”
+
+Action
+
+Voir roadmap
+
+Démarrer phase
+
+Clôturer phase
+
+2.8 Répondre à une activité récente
+
+Use case
+Une activité récente nécessite une réponse ou une action.
+
+Variables
+
+commentaire récent
+
+événement récent
+
+mention utilisateur
+
+retour client
+
+activité liée à une tâche
+
+Scénarios
+
+nouveau commentaire
+
+feedback client
+
+changement de statut important
+
+mention sur une tâche
+
+Message
+
+Nouveau commentaire sur “Page pricing”
+
+Retour client à traiter
+
+Action
+
+Voir activité
+
+Répondre
+
+Mettre à jour tâche
+
+3. ACTIONS BUSINESS
+
+Ici on parle de business, rentabilité, opportunités, cash, upsell, sécurisation du projet.
+
+3.1 Facturation possible
+
+Use case
+Une étape ou un jalon permet de déclencher une facture.
+
+Variables
+
+milestone terminée
+
+pourcentage d’avancement
+
+échéancier
+
+conditions de facturation
+
+montant restant
+
+Scénarios
+
+milestone terminée
+
+acompte non facturé
+
+projet suffisamment avancé
+
+facture intermédiaire possible
+
+Message
+
+Milestone terminée : facturation possible
+
+Action
+
+Voir facturation
+
+Créer paiement
+
+Relancer
+
+3.2 Opportunité d’upsell
+
+Use case
+Le projet montre une opportunité de vente complémentaire.
+
+Variables
+
+nouvelles demandes client
+
+backlog hors périmètre
+
+notes de cadrage
+
+tickets non inclus
+
+volume d’ajouts
+
+Scénarios
+
+nombreuses demandes hors scope
+
+fonctionnalités supplémentaires récurrentes
+
+backlog supérieur au budget initial
+
+nouveaux besoins non contractualisés
+
+Message
+
+Plusieurs demandes semblent hors périmètre
+
+Une extension de budget pourrait être proposée
+
+Action
+
+Voir backlog
+
+Préparer devis complémentaire
+
+3.3 Temps non facturé
+
+Use case
+Du temps a été saisi mais n’est pas rattaché à la facturation.
+
+Variables
+
+temps saisi
+
+temps facturable
+
+temps déjà facturé
+
+mode de facturation
+
+période
+
+Scénarios
+
+temps saisi non facturé
+
+temps saisi hors forfait
+
+écart important entre temps réel et facturation
+
+oubli de facturation
+
+Message
+
+2,5 jours saisis non facturés
+
+Action
+
+Voir facturation
+
+Marquer comme facturable
+
+Créer échéance
+
+3.4 Renégociation nécessaire
+
+Use case
+Le projet dépasse ou risque de dépasser le cadre économique prévu.
+
+Variables
+
+dépassement projeté
+
+marge
+
+budget
+
+backlog
+
+temps restant
+
+demandes additionnelles
+
+Scénarios
+
+dépassement temps fort
+
+périmètre augmenté
+
+marge trop basse
+
+budget incohérent face à la charge
+
+Message
+
+Une renégociation semble nécessaire
+
+Le projet risque de dépasser de 8 jours
+
+Action
+
+Voir analyse
+
+Préparer ajustement budget
+
+Générer devis complémentaire
+
+3.5 Encaissement à relancer
+
+Use case
+Le cash est en retard et une relance business est nécessaire.
+
+Variables
+
+montant en attente
+
+date d’échéance
+
+jours de retard
+
+nombre de relances
+
+Scénarios
+
+facture impayée
+
+encaissement partiel
+
+gros montant non réglé
+
+retard répété sur le client
+
+Message
+
+30 000 € restent à encaisser
+
+Action
+
+Voir facturation
+
+Relancer client
+
+3.6 Rentabilité inexploitée
+
+Use case
+Le projet est très rentable mais sous-exploité commercialement.
+
+Variables
+
+marge élevée
+
+faible temps consommé
+
+fort budget restant
+
+satisfaction client
+
+faible structuration future
+
+Scénarios
+
+faible consommation + bonne marge
+
+client stratégique
+
+projet bien maîtrisé
+
+potentiel de mission complémentaire
+
+Message
+
+Le projet est très rentable : une extension pourrait être proposée
+
+Action
+
+Voir opportunités
+
+Préparer upsell
+
+4. RECOMMANDATIONS
+
+Ici on n’est pas dans l’alerte ni dans le strict opérationnel.
+Ce sont des conseils, suggestions, optimisations, futures briques IA.
+
+4.1 Convertir le CDC en backlog
+
+Use case
+Des éléments de cadrage existent mais ne sont pas encore exploitables en exécution.
+
+Variables
+
+présence CDC
+
+items CDC
+
+backlog vide
+
+roadmap existante ou non
+
+Scénarios
+
+CDC validé mais pas transformé
+
+plusieurs items non suivis
+
+projet démarré sans backlog
+
+Message
+
+Convertir le CDC en backlog
+
+Action
+
+Créer backlog
+
+Générer tickets
+
+4.2 Préparer la prochaine phase
+
+Use case
+Le projet avance correctement et il faut anticiper l’étape suivante.
+
+Variables
+
+avancement de phase
+
+proximité milestone
+
+backlog futur
+
+temps restant
+
+ressources disponibles
+
+Scénarios
+
+phase actuelle bientôt terminée
+
+sprint actuel presque fini
+
+prochaine phase vide
+
+Message
+
+Préparez la prochaine phase du projet
+
+Action
+
+Voir roadmap
+
+Créer tickets
+
+Planifier
+
+4.3 Documenter les bonnes pratiques
+
+Use case
+Le projet est fluide, faible consommation, bonne trajectoire : il est pertinent de documenter.
+
+Variables
+
+faible temps consommé
+
+bonne marge
+
+peu d’alertes
+
+progression saine
+
+Scénarios
+
+projet très bien maîtrisé
+
+activité positive répétée
+
+phase initiale terminée proprement
+
+Message
+
+Documentez les bonnes pratiques identifiées
+
+Action
+
+Créer note
+
+Ajouter documentation
+
+4.4 Regrouper / simplifier des tickets
+
+Use case
+Le backlog devient trop fragmenté.
+
+Variables
+
+nombre de tickets
+
+similarité des tickets
+
+priorité
+
+taille moyenne
+
+statut
+
+Scénarios
+
+beaucoup de micro-tickets
+
+tickets doublons
+
+backlog désorganisé
+
+tickets non priorisés
+
+Message
+
+5 tickets similaires pourraient être regroupés
+
+Action
+
+Voir backlog
+
+Regrouper
+
+Reprioriser
+
+4.5 Clarifier le scope
+
+Use case
+Le projet avance avec une définition de périmètre ambiguë.
+
+Variables
+
+tickets hors scope
+
+demandes récentes
+
+CDC vs backlog
+
+commentaires client
+
+Scénarios
+
+désalignement CDC / backlog
+
+demandes non cadrées
+
+scope mouvant
+
+backlog trop large
+
+Message
+
+Le scope du projet semble évoluer
+
+Action
+
+Voir CDC
+
+Clarifier avec le client
+
+4.6 Générer roadmap ou backlog
+
+Use case
+Le projet est insuffisamment structuré, mais assez d’information existe pour générer une base.
+
+Variables
+
+description
+
+notes
+
+CDC
+
+type projet
+
+dates
+
+budget
+
+Scénarios
+
+pas de roadmap
+
+pas de backlog
+
+brief suffisant
+
+Message
+
+Une roadmap peut être générée à partir des éléments existants
+
+Action
+
+Générer roadmap
+
+Générer backlog
+
+4.7 Optimiser la rentabilité
+
+Use case
+Le projet peut être mieux piloté économiquement.
+
+Variables
+
+temps consommé
+
+marge
+
+organisation tâches
+
+ressources
+
+taux journalier
+
+rythme
+
+Scénarios
+
+coût trop élevé sur certaines tâches
+
+mauvaise répartition
+
+manque de structuration
+
+rythme peu optimal
+
+Message
+
+Certaines actions pourraient améliorer la rentabilité
+
+Action
+
+Voir analyse
+
+Voir ressources
+
+Voir temps
+
+4.8 Anticiper un risque futur
+
+Use case
+Le projet n’est pas encore en alerte, mais certains signaux faibles apparaissent.
+
+Variables
+
+tendance de consommation
+
+nombre de tickets ouverts
+
+avancement réel
+
+charge future
+
+commentaires
+
+Scénarios
+
+augmentation récente du rythme de consommation
+
+backlog qui grossit
+
+phase future non préparée
+
+retours client fréquents
+
+Message
+
+Le rythme actuel pourrait générer un risque sur la prochaine phase
+
+Action
+
+Voir roadmap
+
+Reprioriser
+
+Ajuster planning
