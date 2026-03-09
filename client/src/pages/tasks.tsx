@@ -110,6 +110,15 @@ import {
   getTaskStatusColorClass,
 } from "@shared/config";
 
+// Darkens a hex color by the given factor (0–1) to produce a more vivid border color
+function darkenColor(hex: string, amount = 0.45): string {
+  if (!hex || !hex.startsWith('#')) return hex;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgb(${Math.round(r * (1 - amount))}, ${Math.round(g * (1 - amount))}, ${Math.round(b * (1 - amount))})`;
+}
+
 // Helper function to derive task status from column name
 function getStatusFromColumnName(columnName: string): "todo" | "in_progress" | "review" | "done" {
   const lowerName = columnName.toLowerCase();
@@ -489,7 +498,7 @@ function SortableTaskCard({
     >
       <Card
         className={cn("hover-elevate active-elevate-2 rounded-l-none")}
-        style={{ borderLeft: `3px solid ${columnColor || "hsl(var(--border))"}` }}
+        style={{ borderLeft: `3px solid ${columnColor ? darkenColor(columnColor) : "hsl(var(--border))"}`  }}
       >
         <CardContent className="p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
@@ -913,15 +922,19 @@ export default function Tasks() {
 
     if (taskSearchQuery.trim()) {
       const q = taskSearchQuery.trim().toLowerCase();
-      result = result.filter(t => 
-        (t.title || "").toLowerCase().includes(q) ||
-        (t.description || "").toLowerCase().includes(q) ||
-        (t.taskKey || "").toLowerCase().includes(q)
-      );
+      result = result.filter(t => {
+        const projectName = (projects.find(p => p.id === t.projectId)?.name || "").toLowerCase();
+        return (
+          (t.title || "").toLowerCase().includes(q) ||
+          (t.description || "").toLowerCase().includes(q) ||
+          (t.taskKey || "").toLowerCase().includes(q) ||
+          projectName.includes(q)
+        );
+      });
     }
     
     return result;
-  }, [tasks, selectedProjectIds, hideCompletedTasks, completedColumnIds, taskSearchQuery]);
+  }, [tasks, selectedProjectIds, hideCompletedTasks, completedColumnIds, taskSearchQuery, projects]);
 
   // Filter columns based on selected projects (multi-select)
   // Multi-selection or "all" shows everything; single project shows ONLY that project's columns
@@ -2021,7 +2034,7 @@ export default function Tasks() {
                             {showBeforeIndicator && (
                               <div className="w-1 bg-primary rounded-full mx-2 animate-pulse" />
                             )}
-                            <div className="min-w-[320px]">
+                            <div className="w-[300px] shrink-0">
                               <SortableColumn
                                 column={column}
                                 tasks={columnTasks}

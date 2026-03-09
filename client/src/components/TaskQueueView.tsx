@@ -503,7 +503,7 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
   const totalInitial = initialQueue.length;
   const remaining = pendingQueue.length;
   const position = totalInitial - remaining + 1;
-  const progressPct = totalInitial > 0 ? Math.round((processedCount / totalInitial) * 100) : 0;
+  const progressPct = totalInitial > 0 ? Math.round((Math.min(position, totalInitial) / totalInitial) * 100) : 0;
 
   const currentProject = currentTask?.projectId
     ? projects.find((p) => p.id === currentTask.projectId)
