@@ -4273,7 +4273,10 @@ export default function ProjectDetail() {
                               </TooltipTrigger>
                               <TooltipContent side="bottom" className="max-w-[220px] bg-white dark:bg-gray-900 text-foreground border shadow-md">
                                 <p className="font-semibold text-xs mb-1">{block.label}</p>
-                                <p className="text-[11px] text-muted-foreground">{SCOPE_TYPE_LABELS[block.scopeType] || block.scopeType}</p>
+                                <p className="text-[11px] flex items-center gap-1 mt-0.5">
+                                  <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: block.color }} />
+                                  <span style={{ color: block.color }}>{SCOPE_TYPE_LABELS[block.scopeType] || block.scopeType}</span>
+                                </p>
                                 {block.phase && <p className="text-[11px] text-muted-foreground">Phase {block.phase}</p>}
                                 <p className="text-[11px] mt-1">{block.estimatedDays.toFixed(1)}j estimés</p>
                                 {block.isCompleted
