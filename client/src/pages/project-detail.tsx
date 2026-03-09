@@ -4145,13 +4145,23 @@ export default function ProjectDetail() {
                 <Layers className="h-3 w-3" /> Timeline
               </p>
               {(() => {
-                const BLOCK_COLORS = [
-                  "bg-violet-300", "bg-cyan-300", "bg-emerald-300", "bg-amber-300", "bg-rose-300",
-                  "bg-blue-300", "bg-purple-300", "bg-teal-300", "bg-orange-300", "bg-indigo-300",
-                ];
+                // Single source of truth: one color per scopeType, shared by blocks, circular progress, and badges
+                const SCOPE_TYPE_BLOCK_COLORS: Record<string, string> = {
+                  functional:    "bg-violet-400 dark:bg-violet-500",
+                  technical:     "bg-cyan-400 dark:bg-cyan-500",
+                  design:        "bg-pink-400 dark:bg-pink-500",
+                  gestion:       "bg-amber-400 dark:bg-amber-500",
+                  strategy:      "bg-purple-400 dark:bg-purple-500",
+                  discovery:     "bg-indigo-400 dark:bg-indigo-500",
+                  delivery:      "bg-emerald-400 dark:bg-emerald-500",
+                  devops:        "bg-orange-400 dark:bg-orange-500",
+                  communication: "bg-sky-400 dark:bg-sky-500",
+                  gtm:           "bg-lime-400 dark:bg-lime-500",
+                  autre:         "bg-gray-400 dark:bg-gray-500",
+                };
                 const SCOPE_TYPE_LABELS: Record<string, string> = {
                   functional: "Fonctionnel", technical: "Technique", design: "Design",
-                  gestion: "Gestion", discovery: "Discovery", delivery: "Delivery",
+                  gestion: "Gestion", strategy: "Stratégie", discovery: "Discovery", delivery: "Delivery",
                   devops: "DevOps", communication: "Communication", gtm: "GTM", autre: "Autre",
                 };
 
@@ -4217,7 +4227,7 @@ export default function ProjectDetail() {
                     timeDays,
                     consumption,
                     isCompleted,
-                    color: BLOCK_COLORS[i % BLOCK_COLORS.length],
+                    color: SCOPE_TYPE_BLOCK_COLORS[(item as any).scopeType || "autre"] || SCOPE_TYPE_BLOCK_COLORS.autre,
                     startDate,
                     endDate,
                   };
@@ -4359,17 +4369,19 @@ export default function ProjectDetail() {
 
                     {/* Circular progress bars by scope type */}
                     {(() => {
+                      // TYPE_CONFIG hex colors aligned with SCOPE_TYPE_BLOCK_COLORS Tailwind classes
                       const TYPE_CONFIG: Record<string, { label: string; shortLabel: string; color: string; track: string }> = {
-                        functional:    { label: "Fonctionnel",   shortLabel: "Fonct.",  color: "#8B5CF6", track: "#EDE9FE" },
-                        technical:     { label: "Technique",     shortLabel: "Tech.",   color: "#06B6D4", track: "#CFFAFE" },
-                        design:        { label: "Design",        shortLabel: "Design",  color: "#EC4899", track: "#FCE7F3" },
-                        gestion:       { label: "Gestion",       shortLabel: "Gest.",   color: "#F59E0B", track: "#FEF3C7" },
-                        discovery:     { label: "Discovery",     shortLabel: "Disco.",  color: "#6366F1", track: "#E0E7FF" },
-                        delivery:      { label: "Delivery",      shortLabel: "Deliv.",  color: "#10B981", track: "#D1FAE5" },
-                        devops:        { label: "DevOps",        shortLabel: "DevOps",  color: "#F97316", track: "#FFEDD5" },
-                        communication: { label: "Communication", shortLabel: "Comm.",   color: "#0EA5E9", track: "#E0F2FE" },
-                        gtm:           { label: "GTM",           shortLabel: "GTM",     color: "#84CC16", track: "#ECFCCB" },
-                        autre:         { label: "Autre",         shortLabel: "Autre",   color: "#6B7280", track: "#F3F4F6" },
+                        functional:    { label: "Fonctionnel",   shortLabel: "Fonct.",  color: "#A78BFA", track: "#EDE9FE" }, // violet-400
+                        technical:     { label: "Technique",     shortLabel: "Tech.",   color: "#22D3EE", track: "#CFFAFE" }, // cyan-400
+                        design:        { label: "Design",        shortLabel: "Design",  color: "#F472B6", track: "#FCE7F3" }, // pink-400
+                        gestion:       { label: "Gestion",       shortLabel: "Gest.",   color: "#FBBF24", track: "#FEF3C7" }, // amber-400
+                        strategy:      { label: "Stratégie",     shortLabel: "Strat.",  color: "#C084FC", track: "#F3E8FF" }, // purple-400
+                        discovery:     { label: "Discovery",     shortLabel: "Disco.",  color: "#818CF8", track: "#E0E7FF" }, // indigo-400
+                        delivery:      { label: "Delivery",      shortLabel: "Deliv.",  color: "#34D399", track: "#D1FAE5" }, // emerald-400
+                        devops:        { label: "DevOps",        shortLabel: "DevOps",  color: "#FB923C", track: "#FFEDD5" }, // orange-400
+                        communication: { label: "Communication", shortLabel: "Comm.",   color: "#38BDF8", track: "#E0F2FE" }, // sky-400
+                        gtm:           { label: "GTM",           shortLabel: "GTM",     color: "#A3E635", track: "#ECFCCB" }, // lime-400
+                        autre:         { label: "Autre",         shortLabel: "Autre",   color: "#9CA3AF", track: "#F3F4F6" }, // gray-400
                       };
                       // Group by scopeType — only types present in CDC
                       // For completed items, treat timeDays = estimatedDays (100%)
