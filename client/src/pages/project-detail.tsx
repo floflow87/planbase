@@ -4157,15 +4157,15 @@ export default function ProjectDetail() {
               {(() => {
                 // Single source of truth: one color per scopeType, shared by blocks, circular progress, and badges
                 const SCOPE_TYPE_BLOCK_COLORS: Record<string, string> = {
-                  functional:    "bg-violet-300 dark:bg-violet-400",
+                  functional:    "bg-sky-300 dark:bg-sky-400",
                   technical:     "bg-cyan-300 dark:bg-cyan-400",
-                  design:        "bg-pink-300 dark:bg-pink-400",
+                  design:        "bg-fuchsia-300 dark:bg-fuchsia-400",
                   gestion:       "bg-amber-300 dark:bg-amber-400",
                   strategy:      "bg-purple-300 dark:bg-purple-400",
-                  discovery:     "bg-indigo-300 dark:bg-indigo-400",
-                  delivery:      "bg-emerald-300 dark:bg-emerald-400",
+                  discovery:     "bg-rose-300 dark:bg-rose-400",
+                  delivery:      "bg-teal-300 dark:bg-teal-400",
                   devops:        "bg-orange-300 dark:bg-orange-400",
-                  communication: "bg-sky-300 dark:bg-sky-400",
+                  communication: "bg-violet-300 dark:bg-violet-400",
                   gtm:           "bg-lime-300 dark:bg-lime-400",
                   autre:         "bg-gray-300 dark:bg-gray-400",
                 };
@@ -4381,15 +4381,15 @@ export default function ProjectDetail() {
                     {(() => {
                       // TYPE_CONFIG hex colors matching SCOPE_TYPE_BLOCK_COLORS -300 Tailwind shades
                       const TYPE_CONFIG: Record<string, { label: string; shortLabel: string; color: string; track: string }> = {
-                        functional:    { label: "Fonctionnel",   shortLabel: "Fonct.",  color: "#C4B5FD", track: "#EDE9FE" }, // violet-300
+                        functional:    { label: "Fonctionnel",   shortLabel: "Fonct.",  color: "#7DD3FC", track: "#E0F2FE" }, // sky-300
                         technical:     { label: "Technique",     shortLabel: "Tech.",   color: "#67E8F9", track: "#CFFAFE" }, // cyan-300
-                        design:        { label: "Design",        shortLabel: "Design",  color: "#F9A8D4", track: "#FCE7F3" }, // pink-300
+                        design:        { label: "Design",        shortLabel: "Design",  color: "#F0ABFC", track: "#FAE8FF" }, // fuchsia-300
                         gestion:       { label: "Gestion",       shortLabel: "Gest.",   color: "#FCD34D", track: "#FEF3C7" }, // amber-300
                         strategy:      { label: "Stratégie",     shortLabel: "Strat.",  color: "#D8B4FE", track: "#F3E8FF" }, // purple-300
-                        discovery:     { label: "Discovery",     shortLabel: "Disco.",  color: "#A5B4FC", track: "#E0E7FF" }, // indigo-300
-                        delivery:      { label: "Delivery",      shortLabel: "Deliv.",  color: "#6EE7B7", track: "#D1FAE5" }, // emerald-300
+                        discovery:     { label: "Discovery",     shortLabel: "Disco.",  color: "#FDA4AF", track: "#FFE4E6" }, // rose-300 (saumon)
+                        delivery:      { label: "Delivery",      shortLabel: "Deliv.",  color: "#5EEAD4", track: "#CCFBF1" }, // teal-300 (turquoise)
                         devops:        { label: "DevOps",        shortLabel: "DevOps",  color: "#FDBA74", track: "#FFEDD5" }, // orange-300
-                        communication: { label: "Communication", shortLabel: "Comm.",   color: "#7DD3FC", track: "#E0F2FE" }, // sky-300
+                        communication: { label: "Communication", shortLabel: "Comm.",   color: "#C4B5FD", track: "#EDE9FE" }, // violet-300
                         gtm:           { label: "GTM",           shortLabel: "GTM",     color: "#BEF264", track: "#ECFCCB" }, // lime-300
                         autre:         { label: "Autre",         shortLabel: "Autre",   color: "#D1D5DB", track: "#F3F4F6" }, // gray-300
                       };
