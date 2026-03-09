@@ -4150,13 +4150,13 @@ export default function ProjectDetail() {
                   return d;
                 };
 
-                const cdcItems = projectScopeItems.filter(s => !s.completedAt);
+                const cdcItems = projectScopeItems;
 
                 if (cdcItems.length === 0) {
                   return (
                     <div className="flex flex-col items-center justify-center py-6 text-center gap-2">
                       <Layers className="h-8 w-8 text-muted-foreground/30" />
-                      <p className="text-xs text-muted-foreground">Aucun élément de cahier des charges actif.</p>
+                      <p className="text-xs text-muted-foreground">Aucun élément de cahier des charges.</p>
                       <p className="text-[10px] text-muted-foreground">Ajoutez des étapes dans l'onglet CDC pour visualiser la timeline.</p>
                     </div>
                   );
@@ -4170,6 +4170,7 @@ export default function ProjectDetail() {
                   estimatedDays: number;
                   timeDays: number;
                   consumption: number;
+                  isCompleted: boolean;
                   color: string;
                   startDate: Date | null;
                   endDate: Date | null;
@@ -4180,11 +4181,13 @@ export default function ProjectDetail() {
 
                 const blocks: CDCBlock[] = cdcItems.map((item, i) => {
                   const estimatedDays = Math.max(parseFloat(item.estimatedDays?.toString() || "0"), 1);
+                  const isCompleted = !!(item as any).completedAt;
                   const itemTimeSec = projectTimeEntries
                     .filter((e: any) => e.scopeItemId === item.id)
                     .reduce((s: number, e: any) => s + (e.duration || 0), 0);
                   const timeDays = itemTimeSec / 3600 / 8;
-                  const consumption = estimatedDays > 0 ? (timeDays / estimatedDays) * 100 : 0;
+                  // If marked as completed → 100%, else derive from time entries
+                  const consumption = isCompleted ? 100 : (estimatedDays > 0 ? (timeDays / estimatedDays) * 100 : 0);
                   const startDate = cursor ? new Date(cursor) : null;
                   const endDate = cursor ? addWorkingDays(cursor, estimatedDays) : null;
                   if (endDate) cursor = new Date(endDate);
@@ -4196,6 +4199,7 @@ export default function ProjectDetail() {
                     estimatedDays,
                     timeDays,
                     consumption,
+                    isCompleted,
                     color: BLOCK_COLORS[i % BLOCK_COLORS.length],
                     startDate,
                     endDate,
@@ -4204,28 +4208,47 @@ export default function ProjectDetail() {
 
                 return (
                   <div className="flex flex-col gap-3">
-                    {/* Horizontal bar of colored blocks */}
+                    {/* Horizontal bar of colored blocks with progress overlay */}
                     <div className="flex h-10 gap-[2px] w-full">
-                      {blocks.map((block) => (
-                        <Tooltip key={block.id}>
-                          <TooltipTrigger asChild>
-                            <div
-                              className={cn("rounded-sm cursor-default transition-opacity hover:opacity-75", block.color)}
-                              style={{ flex: block.estimatedDays, minWidth: 4 }}
-                            />
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom" className="max-w-[220px] bg-white dark:bg-gray-900 text-foreground border shadow-md">
-                            <p className="font-semibold text-xs mb-1">{block.label}</p>
-                            <p className="text-[11px] text-muted-foreground">{SCOPE_TYPE_LABELS[block.scopeType] || block.scopeType}</p>
-                            {block.phase && <p className="text-[11px] text-muted-foreground">Phase {block.phase}</p>}
-                            <p className="text-[11px] mt-1">{block.estimatedDays.toFixed(1)}j estimés</p>
-                            {block.timeDays > 0 && (
-                              <p className="text-[11px] text-muted-foreground">{block.timeDays.toFixed(1)}j passés · {Math.round(block.consumption)}%</p>
-                            )}
-                            {block.consumption > 100 && <p className="text-[11px] text-red-500 font-medium mt-0.5">Budget dépassé</p>}
-                          </TooltipContent>
-                        </Tooltip>
-                      ))}
+                      {blocks.map((block) => {
+                        const pct = Math.min(100, Math.round(block.consumption));
+                        const isOver = block.consumption > 100;
+                        return (
+                          <Tooltip key={block.id}>
+                            <TooltipTrigger asChild>
+                              <div
+                                className={cn("rounded-sm cursor-default transition-opacity hover:opacity-80 relative overflow-hidden", block.color)}
+                                style={{ flex: block.estimatedDays, minWidth: 8 }}
+                              >
+                                {/* Progress fill overlay */}
+                                <div
+                                  className={cn("absolute inset-0 rounded-sm transition-all", isOver ? "bg-red-600/30" : "bg-black/20")}
+                                  style={{ width: `${100 - pct}%`, right: 0, left: "auto" }}
+                                />
+                                {/* Completion checkmark or % */}
+                                {block.isCompleted && (
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                    <Check className="h-3.5 w-3.5 text-white drop-shadow" />
+                                  </div>
+                                )}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-[220px] bg-white dark:bg-gray-900 text-foreground border shadow-md">
+                              <p className="font-semibold text-xs mb-1">{block.label}</p>
+                              <p className="text-[11px] text-muted-foreground">{SCOPE_TYPE_LABELS[block.scopeType] || block.scopeType}</p>
+                              {block.phase && <p className="text-[11px] text-muted-foreground">Phase {block.phase}</p>}
+                              <p className="text-[11px] mt-1">{block.estimatedDays.toFixed(1)}j estimés</p>
+                              {block.isCompleted
+                                ? <p className="text-[11px] text-green-600 font-medium mt-0.5">Terminé — 100%</p>
+                                : block.timeDays > 0
+                                  ? <p className="text-[11px] text-muted-foreground">{block.timeDays.toFixed(1)}j passés · {pct}%</p>
+                                  : <p className="text-[11px] text-muted-foreground">Aucune saisie temps liée</p>
+                              }
+                              {isOver && <p className="text-[11px] text-red-500 font-medium mt-0.5">Budget dépassé</p>}
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })}
                     </div>
 
                     {/* X-axis: start dates per block */}
@@ -4270,12 +4293,14 @@ export default function ProjectDetail() {
                         autre:         { label: "Autre",         shortLabel: "Autre",   color: "#6B7280", track: "#F3F4F6" },
                       };
                       // Group by scopeType — only types present in CDC
-                      const byType: Record<string, { estimatedDays: number; timeDays: number }> = {};
+                      // For completed items, treat timeDays = estimatedDays (100%)
+                      const byType: Record<string, { estimatedDays: number; timeDays: number; hasCompleted: boolean }> = {};
                       blocks.forEach(b => {
                         const t = b.scopeType || "autre";
-                        if (!byType[t]) byType[t] = { estimatedDays: 0, timeDays: 0 };
+                        if (!byType[t]) byType[t] = { estimatedDays: 0, timeDays: 0, hasCompleted: false };
                         byType[t].estimatedDays += b.estimatedDays;
-                        byType[t].timeDays += b.timeDays;
+                        byType[t].timeDays += b.isCompleted ? b.estimatedDays : b.timeDays;
+                        if (b.isCompleted) byType[t].hasCompleted = true;
                       });
                       const types = Object.entries(byType);
                       if (types.length === 0) return null;
@@ -4285,12 +4310,13 @@ export default function ProjectDetail() {
                       const CIRC = 2 * Math.PI * R;
                       return (
                         <div className="flex flex-wrap gap-4 mt-2 pt-3 border-t">
-                          {types.map(([type, { estimatedDays, timeDays }]) => {
+                          {types.map(([type, { estimatedDays, timeDays, hasCompleted }]) => {
                             const cfg = TYPE_CONFIG[type] || TYPE_CONFIG.autre;
                             const pct = estimatedDays > 0 ? Math.min(100, Math.round((timeDays / estimatedDays) * 100)) : 0;
                             const offset = CIRC * (1 - pct / 100);
                             const isOver = estimatedDays > 0 && timeDays > estimatedDays;
-                            const strokeColor = isOver ? "#EF4444" : cfg.color;
+                            const isDone = pct === 100 && !isOver;
+                            const strokeColor = isOver ? "#EF4444" : isDone ? "#10B981" : cfg.color;
                             return (
                               <Tooltip key={type}>
                                 <TooltipTrigger asChild>
@@ -4307,7 +4333,7 @@ export default function ProjectDetail() {
                                           style={{ transition: "stroke-dashoffset 0.4s ease" }}
                                         />
                                       </svg>
-                                      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-foreground">{pct}%</span>
+                                      <span className={cn("absolute inset-0 flex items-center justify-center text-[10px] font-semibold", isDone ? "text-emerald-600" : isOver ? "text-red-600" : "text-foreground")}>{pct}%</span>
                                     </div>
                                     <p className="text-[10px] text-muted-foreground">{cfg.shortLabel}</p>
                                   </div>
@@ -4315,6 +4341,7 @@ export default function ProjectDetail() {
                                 <TooltipContent side="top" className="bg-white dark:bg-gray-900 text-foreground border shadow-md">
                                   <p className="font-semibold text-xs">{cfg.label}</p>
                                   <p className="text-[11px] text-muted-foreground">{estimatedDays.toFixed(1)}j estimés · {timeDays.toFixed(1)}j passés</p>
+                                  {hasCompleted && <p className="text-[11px] text-green-600 font-medium">Inclut des éléments terminés</p>}
                                   {isOver && <p className="text-[11px] text-red-500 font-medium">Budget dépassé</p>}
                                 </TooltipContent>
                               </Tooltip>
