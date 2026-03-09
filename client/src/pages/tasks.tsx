@@ -148,6 +148,19 @@ function getColumnDefaultColor(columnName: string): string {
   return STATUS_COLUMN_COLORS[getStatusFromColumnName(columnName)] || "#94A3B8";
 }
 
+// Returns a vivid color suitable for a border: uses column.color only if it is dark/saturated
+// enough to be visible on a white card (luminance < 0.82). Otherwise falls back to status color.
+function getColumnBorderColor(columnName: string, columnColor?: string | null): string {
+  if (columnColor && columnColor.startsWith('#') && columnColor.length >= 7) {
+    const r = parseInt(columnColor.slice(1, 3), 16);
+    const g = parseInt(columnColor.slice(3, 5), 16);
+    const b = parseInt(columnColor.slice(5, 7), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    if (luminance < 0.82) return columnColor;
+  }
+  return getColumnDefaultColor(columnName);
+}
+
 // Calendar View Component
 interface CalendarViewProps {
   tasks: Task[];
@@ -716,7 +729,7 @@ function SortableColumn({
                 onClick={onTaskClick}
                 canUpdate={canUpdate}
                 canDelete={canDelete}
-                columnColor={column.color || getColumnDefaultColor(column.name)}
+                columnColor={getColumnBorderColor(column.name, column.color)}
               />
             ))}
           </SortableContext>
