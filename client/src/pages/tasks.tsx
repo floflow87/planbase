@@ -139,7 +139,7 @@ function getStatusFromColumnName(columnName: string): "todo" | "in_progress" | "
 // Vivid fallback colors per column status — used when no explicit column.color is set
 const STATUS_COLUMN_COLORS: Record<string, string> = {
   todo:        "#94A3B8", // slate-400
-  in_progress: "#F59E0B", // amber-400
+  in_progress: "#60A5FA", // blue-400
   review:      "#A78BFA", // violet-400
   done:        "#34D399", // emerald-400
 };
@@ -509,8 +509,12 @@ function SortableTaskCard({
       data-testid={`task-card-${task.id}`}
     >
       <Card
-        className={cn("hover-elevate active-elevate-2 rounded-l-none")}
-        style={{ borderLeft: `3px solid ${columnColor || "#94A3B8"}` }}
+        className={cn("hover-elevate active-elevate-2")}
+        style={{
+          borderLeft: `3px solid ${columnColor || "#94A3B8"}`,
+          borderTopLeftRadius: 0,
+          borderBottomLeftRadius: 0,
+        }}
       >
         <CardContent className="p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">

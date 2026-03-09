@@ -62,7 +62,7 @@ import { fr } from "date-fns/locale";
 import type { Task, TaskColumn, AppUser, Project, InsertTask } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest, formatDateForStorage } from "@/lib/queryClient";
-import { getTaskPriorityBadgeClass, getTaskPriorityLabel, TASK_PRIORITIES } from "@shared/config";
+import { getTaskPriorityBadgeClass, getTaskPriorityLabel, TASK_PRIORITIES, getStatusFromColumnName } from "@shared/config";
 
 interface ListViewProps {
   tasks: Task[];
@@ -856,15 +856,20 @@ export function ListView({
                                   </TableCell>
                                 );
                               case 'status':
-                                // Fallback status labels and colors when no column is found
-                                const statusFallback: Record<string, { label: string; color: string }> = {
-                                  todo: { label: "À faire", color: "#e2e8f0" },
-                                  in_progress: { label: "En cours", color: "#93c5fd" },
-                                  review: { label: "En revue", color: "#fcd34d" },
-                                  done: { label: "Terminée", color: "#86efac" },
+                                // Always use pastel status colors (never raw column.color which may be vivid)
+                                const statusFallback: Record<string, { label: string; color: string; text: string }> = {
+                                  todo:        { label: "À faire",    color: "#e2e8f0", text: "#374151" },
+                                  in_progress: { label: "En cours",   color: "#bfdbfe", text: "#1d4ed8" },
+                                  review:      { label: "En révision",color: "#ede9fe", text: "#6d28d9" },
+                                  testing:     { label: "Testing",    color: "#cffafe", text: "#0e7490" },
+                                  to_fix:      { label: "To fix",     color: "#ffedd5", text: "#c2410c" },
+                                  done:        { label: "Terminé",    color: "#dcfce7", text: "#15803d" },
                                 };
                                 const fallback = statusFallback[task.status] || statusFallback.todo;
-                                const displayColor = taskColumn?.color || fallback.color;
+                                const taskStatus = taskColumn ? getStatusFromColumnName(taskColumn.name) : task.status;
+                                const statusEntry = statusFallback[taskStatus] || fallback;
+                                const displayColor = statusEntry.color;
+                                const displayText = statusEntry.text;
                                 const displayLabel = taskColumn?.name || fallback.label;
                                 
                                 // Get available columns for the popover (task's project or global if no project)
@@ -887,8 +892,8 @@ export function ListView({
                                     >
                                       <PopoverTrigger asChild>
                                         <Badge 
-                                          style={{ backgroundColor: displayColor }}
-                                          className="text-foreground min-w-[80px] cursor-pointer hover-elevate text-[10px]"
+                                          style={{ backgroundColor: displayColor, color: displayText }}
+                                          className="min-w-[80px] cursor-pointer hover-elevate text-[10px] border-0"
                                           data-testid={`badge-status-${task.id}`}
                                         >
                                           {displayLabel}
@@ -908,7 +913,8 @@ export function ListView({
                                                   onUpdateTask(task.id, {
                                                     columnId: col.id,
                                                     positionInColumn: maxPosition + 1,
-                                                  });
+                                                    status: getStatusFromColumnName(col.name),
+                                                  } as any);
                                                   setEditingCell(null);
                                                 }}
                                                 className="w-full text-left px-3 py-2 rounded hover-elevate flex items-center gap-2"
