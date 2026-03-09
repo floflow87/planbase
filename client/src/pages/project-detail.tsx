@@ -5,7 +5,7 @@ import { FileExplorer } from "@/components/file-explorer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -3745,9 +3745,19 @@ export default function ProjectDetail() {
               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                 {project.client ? (
                   <Link href={`/crm/${project.clientId}`}>
-                    <span className="text-sm text-muted-foreground hover:text-primary cursor-pointer hover:underline">
-                      {project.client.company || project.client.name}
-                    </span>
+                    <div className="flex items-center gap-1.5 group">
+                      {project.client.logoUrl && (
+                        <Avatar className="h-5 w-5 shrink-0">
+                          <AvatarImage src={project.client.logoUrl} alt={project.client.company || project.client.name || ""} />
+                          <AvatarFallback className="text-[9px] font-medium">
+                            {(project.client.company || project.client.name || "?").charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                      <span className="text-sm text-muted-foreground group-hover:text-primary cursor-pointer group-hover:underline">
+                        {project.client.company || project.client.name}
+                      </span>
+                    </div>
                   </Link>
                 ) : (
                   <span className="text-sm text-muted-foreground">Client non défini</span>
