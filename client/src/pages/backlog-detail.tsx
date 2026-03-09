@@ -2044,8 +2044,8 @@ export default function BacklogDetail() {
         </Badge>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-        <div className="px-4 md:px-6 border-b overflow-x-auto scrollbar-none">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden min-h-0">
+        <div className="px-4 md:px-6 border-b overflow-x-auto scrollbar-none flex-shrink-0">
           <TabsList className="h-10 w-max flex-nowrap">
             <TabsTrigger value="backlog" className="text-[12px] whitespace-nowrap" data-testid="tab-backlog">
               Backlog
@@ -2606,7 +2606,7 @@ export default function BacklogDetail() {
         </TabsContent>
 
         {/* Epics tab */}
-        <TabsContent value="epics" className="overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
+        <TabsContent value="epics" className="flex-1 min-h-0 overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
           <div className="space-y-4">
             {/* Header with Search and Create button */}
             <div className="flex items-center justify-between gap-4">
@@ -2839,7 +2839,7 @@ export default function BacklogDetail() {
         </TabsContent>
 
         {/* Tickets terminés tab */}
-        <TabsContent value="done" className="overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
+        <TabsContent value="done" className="flex-1 min-h-0 overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
           <div className="relative h-full">
             <CompletedTicketsView 
               tickets={flatTickets.filter(t => t.state === "termine")}
@@ -2888,17 +2888,17 @@ export default function BacklogDetail() {
         </TabsContent>
 
         {/* Recette tab */}
-        <TabsContent value="recette" className="overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
+        <TabsContent value="recette" className="flex-1 min-h-0 overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
           <RecetteView backlogId={id!} sprints={backlog.sprints} />
         </TabsContent>
 
         {/* Rétrospective tab */}
-        <TabsContent value="retrospective" className="overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
+        <TabsContent value="retrospective" className="flex-1 min-h-0 overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
           <RetrospectiveView backlogId={id!} sprints={backlog.sprints} />
         </TabsContent>
 
         {/* Statistiques tab */}
-        <TabsContent value="statistiques" className="overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
+        <TabsContent value="statistiques" className="flex-1 min-h-0 overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
           <BacklogStats 
             userStories={backlog.userStories}
             epics={backlog.epics}

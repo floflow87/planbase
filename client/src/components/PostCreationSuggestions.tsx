@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { FileText, Map, Calculator, X, BarChart3, ListTodo, Clock, CheckCircle2, ChevronRight, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -50,6 +49,8 @@ const PROJECT_TYPE_DESCRIPTIONS: Record<string, string> = {
   autre: 'Projet personnalisé. Adaptez le pilotage selon vos besoins.',
 };
 
+const tooltipContentClass = "max-w-xs text-xs bg-white text-foreground border shadow-md";
+
 export function PostCreationSuggestions({
   project,
   scopeItems,
@@ -82,6 +83,16 @@ export function PostCreationSuggestions({
 
   const btnClass = "flex items-center gap-1.5 text-xs font-medium bg-white/15 hover:bg-white/30 text-white border border-white/30 rounded px-3 py-2 transition-colors cursor-pointer";
 
+  const DismissButton = () => (
+    <button
+      onClick={() => dismissMutation.mutate()}
+      className="shrink-0 ml-auto text-white/70 hover:text-white text-[10px] font-medium whitespace-nowrap transition-colors cursor-pointer"
+      data-testid="button-dismiss-suggestions"
+    >
+      Ne plus afficher
+    </button>
+  );
+
   if (hasCdc) {
     return (
       <div
@@ -95,7 +106,7 @@ export function PostCreationSuggestions({
               Base de pilotage définie
             </span>
           </TooltipTrigger>
-          <TooltipContent side="bottom" className="max-w-xs text-xs">
+          <TooltipContent side="bottom" className={tooltipContentClass}>
             Votre Cahier des Charges a été généré avec {scopeItems.length} item{scopeItems.length > 1 ? "s" : ""}. Le temps loggé sera comparé à vos estimations pour mesurer la rentabilité en temps réel.
           </TooltipContent>
         </Tooltip>
@@ -114,20 +125,12 @@ export function PostCreationSuggestions({
                     {item.label}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-xs text-xs">{item.tooltip}</TooltipContent>
+                <TooltipContent side="bottom" className={tooltipContentClass}>{item.tooltip}</TooltipContent>
               </Tooltip>
             </span>
           ))}
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => dismissMutation.mutate()}
-          className="shrink-0 ml-auto text-white/70 hover:text-white hover:bg-white/20"
-          data-testid="button-dismiss-suggestions"
-        >
-          <X className="h-3.5 w-3.5" />
-        </Button>
+        <DismissButton />
       </div>
     );
   }
@@ -144,7 +147,7 @@ export function PostCreationSuggestions({
             Projet pré-configuré
           </span>
         </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-xs text-xs space-y-1">
+        <TooltipContent side="bottom" className={`${tooltipContentClass} space-y-1`}>
           <p className="font-medium">{PROJECT_TYPE_LABELS[projectType] || 'Projet'} · {BILLING_MODE_LABELS[billingMode] || billingMode}</p>
           <p className="text-muted-foreground">{PROJECT_TYPE_DESCRIPTIONS[projectType]}</p>
           <p className="text-muted-foreground">{BILLING_MODE_DESCRIPTIONS[billingMode]}</p>
@@ -165,20 +168,12 @@ export function PostCreationSuggestions({
                   {item.label}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-xs text-xs">{item.tooltip}</TooltipContent>
+              <TooltipContent side="bottom" className={tooltipContentClass}>{item.tooltip}</TooltipContent>
             </Tooltip>
           </span>
         ))}
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => dismissMutation.mutate()}
-        className="shrink-0 ml-auto text-white/70 hover:text-white hover:bg-white/20"
-        data-testid="button-dismiss-suggestions"
-      >
-        <X className="h-3.5 w-3.5" />
-      </Button>
+      <DismissButton />
     </div>
   );
 }

@@ -99,6 +99,19 @@ function ticketTypeColor(type: TicketType, epicColor?: string | null): string {
   }
 }
 
+function ticketTypePastelColors(type: TicketType, epicColor?: string | null): { bg: string; text: string } {
+  switch (type) {
+    case "epic":
+      return { bg: epicColor ? epicColor + "33" : "#EDE9FE", text: epicColor || "#6D28D9" };
+    case "user_story":
+      return { bg: "#DCFCE7", text: "#15803D" };
+    case "task":
+      return { bg: "#DBEAFE", text: "#1D4ED8" };
+    case "bug":
+      return { bg: "#FEE2E2", text: "#DC2626" };
+  }
+}
+
 function getStateStyle(state: string | null | undefined) {
   switch (state) {
     case "termine":
@@ -269,6 +282,7 @@ interface TicketRowProps {
 
 export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSelect, onUpdateState, onUpdateField, onConvertType, onTicketAction, isSelected, isDraggable = true, isChecked = false, onCheckChange, showCheckbox = false, backlogPrefix }: TicketRowProps) {
   const typeColor = ticketTypeColor(ticket.type, ticket.color);
+  const pastelColors = ticketTypePastelColors(ticket.type, ticket.color);
   const assignee = users?.find(u => u.id === ticket.assigneeId);
   const ticketEpic = epics?.find(e => e.id === ticket.epicId);
   const isCompleted = ticket.state === "termine";
@@ -351,12 +365,12 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
               <PopoverTrigger asChild>
                 <div 
                   className="flex items-center justify-center h-5 w-5 rounded flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/50"
-                  style={{ backgroundColor: typeColor }}
+                  style={{ backgroundColor: pastelColors.bg }}
                   onClick={(e) => e.stopPropagation()}
                   onPointerDown={(e) => e.stopPropagation()}
                   data-testid={`ticket-type-selector-${ticket.id}`}
                 >
-                  <span className="text-white">{ticketTypeIcon(ticket.type)}</span>
+                  <span style={{ color: pastelColors.text }}>{ticketTypeIcon(ticket.type)}</span>
                 </div>
               </PopoverTrigger>
             </TooltipTrigger>
@@ -397,9 +411,9 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
       ) : (
         <div 
           className="flex items-center justify-center h-5 w-5 rounded flex-shrink-0"
-          style={{ backgroundColor: typeColor }}
+          style={{ backgroundColor: pastelColors.bg }}
         >
-          <span className="text-white">{ticketTypeIcon(ticket.type)}</span>
+          <span style={{ color: pastelColors.text }}>{ticketTypeIcon(ticket.type)}</span>
         </div>
       )}
       
@@ -738,7 +752,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
             }}
           >
             <SelectTrigger 
-              className={cn("h-6 w-auto min-w-[90px] text-xs px-2 border cursor-pointer bg-white dark:bg-white", getStateStyle(ticket.state))}
+              className={cn("h-5 w-auto min-w-[70px] text-[10px] px-1.5 border cursor-pointer bg-white dark:bg-white", getStateStyle(ticket.state))}
               onPointerDown={(e) => e.stopPropagation()}
               data-testid={`select-inline-state-${ticket.id}`}
             >
