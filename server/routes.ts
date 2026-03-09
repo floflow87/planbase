@@ -2021,12 +2021,13 @@ app.get("/config/feature-flags", async (_req, res) => {
       const totalPaid = payments.filter(p => p.isPaid).reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
       const budget = parseFloat(project.budget || "0");
 
-      // Auto-update billing status based on actually paid payments
+      // Auto-update billing status: "partiel" as soon as one payment is paid, "paye" if budget reached
       let newBillingStatus = project.billingStatus;
-      if (budget > 0) {
-        if (totalPaid >= budget) {
+      const paidPaymentsCount = payments.filter(p => p.isPaid).length;
+      if (paidPaymentsCount > 0) {
+        if (budget > 0 && totalPaid >= budget) {
           newBillingStatus = "paye";
-        } else if (totalPaid > 0) {
+        } else {
           newBillingStatus = "partiel";
         }
       }
@@ -2062,14 +2063,15 @@ app.get("/config/feature-flags", async (_req, res) => {
       const budget = parseFloat(project?.budget || "0");
 
       let newBillingStatus = project?.billingStatus;
-      if (budget > 0) {
-        if (totalPaid >= budget) {
+      const paidCount = payments.filter(p => p.isPaid).length;
+      if (paidCount > 0) {
+        if (budget > 0 && totalPaid >= budget) {
           newBillingStatus = "paye";
-        } else if (totalPaid > 0) {
-          newBillingStatus = "partiel";
         } else {
-          newBillingStatus = "a_facturer";
+          newBillingStatus = "partiel";
         }
+      } else {
+        newBillingStatus = "a_facturer";
       }
 
       if (project && newBillingStatus !== project.billingStatus) {
@@ -2095,23 +2097,23 @@ app.get("/config/feature-flags", async (_req, res) => {
 
       await storage.deletePayment(req.params.paymentId);
 
-      // Recalculate billing status after deletion
+      // Recalculate billing status after deletion (only count isPaid:true)
       const payments = await storage.getPaymentsByProjectId(payment.projectId);
-      const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
+      const totalPaid = payments.filter(p => p.isPaid).reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
       const project = await storage.getProject(payment.projectId);
       const budget = parseFloat(project?.budget || "0");
 
       let newBillingStatus = project?.billingStatus;
-      if (budget > 0) {
-        if (totalPaid >= budget) {
+      const paidAfterDelete = payments.filter(p => p.isPaid).length;
+      if (paidAfterDelete > 0) {
+        if (budget > 0 && totalPaid >= budget) {
           newBillingStatus = "paye";
-        } else if (totalPaid > 0) {
-          newBillingStatus = "partiel";
         } else {
-          // Reset to previous status if no payments (keep current if set)
-          if (project?.billingStatus === "paye" || project?.billingStatus === "partiel") {
-            newBillingStatus = "facture"; // Reset to "facture" if we had payments before
-          }
+          newBillingStatus = "partiel";
+        }
+      } else {
+        if (project?.billingStatus === "paye" || project?.billingStatus === "partiel") {
+          newBillingStatus = "facture";
         }
       }
 

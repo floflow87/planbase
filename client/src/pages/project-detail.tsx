@@ -4147,17 +4147,17 @@ export default function ProjectDetail() {
               {(() => {
                 // Single source of truth: one color per scopeType, shared by blocks, circular progress, and badges
                 const SCOPE_TYPE_BLOCK_COLORS: Record<string, string> = {
-                  functional:    "bg-violet-400 dark:bg-violet-500",
-                  technical:     "bg-cyan-400 dark:bg-cyan-500",
-                  design:        "bg-pink-400 dark:bg-pink-500",
-                  gestion:       "bg-amber-400 dark:bg-amber-500",
-                  strategy:      "bg-purple-400 dark:bg-purple-500",
-                  discovery:     "bg-indigo-400 dark:bg-indigo-500",
-                  delivery:      "bg-emerald-400 dark:bg-emerald-500",
-                  devops:        "bg-orange-400 dark:bg-orange-500",
-                  communication: "bg-sky-400 dark:bg-sky-500",
-                  gtm:           "bg-lime-400 dark:bg-lime-500",
-                  autre:         "bg-gray-400 dark:bg-gray-500",
+                  functional:    "bg-violet-300 dark:bg-violet-400",
+                  technical:     "bg-cyan-300 dark:bg-cyan-400",
+                  design:        "bg-pink-300 dark:bg-pink-400",
+                  gestion:       "bg-amber-300 dark:bg-amber-400",
+                  strategy:      "bg-purple-300 dark:bg-purple-400",
+                  discovery:     "bg-indigo-300 dark:bg-indigo-400",
+                  delivery:      "bg-emerald-300 dark:bg-emerald-400",
+                  devops:        "bg-orange-300 dark:bg-orange-400",
+                  communication: "bg-sky-300 dark:bg-sky-400",
+                  gtm:           "bg-lime-300 dark:bg-lime-400",
+                  autre:         "bg-gray-300 dark:bg-gray-400",
                 };
                 const SCOPE_TYPE_LABELS: Record<string, string> = {
                   functional: "Fonctionnel", technical: "Technique", design: "Design",
@@ -4369,19 +4369,19 @@ export default function ProjectDetail() {
 
                     {/* Circular progress bars by scope type */}
                     {(() => {
-                      // TYPE_CONFIG hex colors aligned with SCOPE_TYPE_BLOCK_COLORS Tailwind classes
+                      // TYPE_CONFIG hex colors matching SCOPE_TYPE_BLOCK_COLORS -300 Tailwind shades
                       const TYPE_CONFIG: Record<string, { label: string; shortLabel: string; color: string; track: string }> = {
-                        functional:    { label: "Fonctionnel",   shortLabel: "Fonct.",  color: "#A78BFA", track: "#EDE9FE" }, // violet-400
-                        technical:     { label: "Technique",     shortLabel: "Tech.",   color: "#22D3EE", track: "#CFFAFE" }, // cyan-400
-                        design:        { label: "Design",        shortLabel: "Design",  color: "#F472B6", track: "#FCE7F3" }, // pink-400
-                        gestion:       { label: "Gestion",       shortLabel: "Gest.",   color: "#FBBF24", track: "#FEF3C7" }, // amber-400
-                        strategy:      { label: "Stratégie",     shortLabel: "Strat.",  color: "#C084FC", track: "#F3E8FF" }, // purple-400
-                        discovery:     { label: "Discovery",     shortLabel: "Disco.",  color: "#818CF8", track: "#E0E7FF" }, // indigo-400
-                        delivery:      { label: "Delivery",      shortLabel: "Deliv.",  color: "#34D399", track: "#D1FAE5" }, // emerald-400
-                        devops:        { label: "DevOps",        shortLabel: "DevOps",  color: "#FB923C", track: "#FFEDD5" }, // orange-400
-                        communication: { label: "Communication", shortLabel: "Comm.",   color: "#38BDF8", track: "#E0F2FE" }, // sky-400
-                        gtm:           { label: "GTM",           shortLabel: "GTM",     color: "#A3E635", track: "#ECFCCB" }, // lime-400
-                        autre:         { label: "Autre",         shortLabel: "Autre",   color: "#9CA3AF", track: "#F3F4F6" }, // gray-400
+                        functional:    { label: "Fonctionnel",   shortLabel: "Fonct.",  color: "#C4B5FD", track: "#EDE9FE" }, // violet-300
+                        technical:     { label: "Technique",     shortLabel: "Tech.",   color: "#67E8F9", track: "#CFFAFE" }, // cyan-300
+                        design:        { label: "Design",        shortLabel: "Design",  color: "#F9A8D4", track: "#FCE7F3" }, // pink-300
+                        gestion:       { label: "Gestion",       shortLabel: "Gest.",   color: "#FCD34D", track: "#FEF3C7" }, // amber-300
+                        strategy:      { label: "Stratégie",     shortLabel: "Strat.",  color: "#D8B4FE", track: "#F3E8FF" }, // purple-300
+                        discovery:     { label: "Discovery",     shortLabel: "Disco.",  color: "#A5B4FC", track: "#E0E7FF" }, // indigo-300
+                        delivery:      { label: "Delivery",      shortLabel: "Deliv.",  color: "#6EE7B7", track: "#D1FAE5" }, // emerald-300
+                        devops:        { label: "DevOps",        shortLabel: "DevOps",  color: "#FDBA74", track: "#FFEDD5" }, // orange-300
+                        communication: { label: "Communication", shortLabel: "Comm.",   color: "#7DD3FC", track: "#E0F2FE" }, // sky-300
+                        gtm:           { label: "GTM",           shortLabel: "GTM",     color: "#BEF264", track: "#ECFCCB" }, // lime-300
+                        autre:         { label: "Autre",         shortLabel: "Autre",   color: "#D1D5DB", track: "#F3F4F6" }, // gray-300
                       };
                       // Group by scopeType — only types present in CDC
                       // For completed items, treat timeDays = estimatedDays (100%)
