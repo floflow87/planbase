@@ -3728,6 +3728,13 @@ export default function ProjectDetail() {
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden bg-[#F8FAFC] dark:bg-background">
+      {/* Full-width onboarding banner below the top bar */}
+      <PostCreationSuggestions
+        project={project}
+        scopeItems={scopeItems}
+        onOpenCdcWizard={() => setIsCdcWizardOpen(true)}
+        onDismiss={() => {}}
+      />
       <div className="container mx-auto p-6">
         {/* ── COCKPIT HEADER ── */}
         <div className="mb-5 flex items-start justify-between gap-3">

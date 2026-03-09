@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Sheet,
   SheetContent,
@@ -22,15 +22,19 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon, Star, Trash2, CheckCircle2, ListTodo, Check, ChevronsUpDown } from "lucide-react";
+import { CalendarIcon, Star, Trash2, CheckCircle2, ListTodo, Check, ChevronsUpDown, Paperclip, File, Image, Plus, Download } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 import type { Task, AppUser, Project, TaskColumn, Backlog, Sprint } from "@shared/schema";
-import { formatDateForStorage } from "@/lib/queryClient";
+import { formatDateForStorage, apiRequest, queryClient } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 type BacklogWithSprints = Backlog & { sprints?: Sprint[] };
 
@@ -76,6 +80,7 @@ export function TaskDetailModal({
   onDelete,
   onCreateTicket,
 }: TaskDetailModalProps) {
+  const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
@@ -84,6 +89,64 @@ export function TaskDetailModal({
   const [selectedColumnId, setSelectedColumnId] = useState<string>("");
   const [projectId, setProjectId] = useState<string | undefined>();
   const [effort, setEffort] = useState<number | null>(null);
+
+  // File attachments
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [previewFile, setPreviewFile] = useState<{ name: string; url: string; mimeType: string } | null>(null);
+  const taskFilesQK = ["/api/files", task?.id ?? "", "task-attachments"] as const;
+  const { data: taskFiles = [] } = useQuery<any[]>({
+    queryKey: taskFilesQK,
+    queryFn: async () => {
+      if (!task?.id) return [];
+      const res = await apiRequest(`/api/files?taskId=${task.id}&kind=upload`, "GET");
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!task?.id && isOpen,
+  });
+  const deleteFileMutation = useMutation({
+    mutationFn: (fileId: string) => apiRequest(`/api/files/${fileId}`, "DELETE"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: taskFilesQK });
+      toast({ title: "Fichier supprimé", variant: "success" as any });
+    },
+  });
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0 || !task?.id) return;
+    setUploadingFiles(true);
+    let ok = 0; let ko = 0;
+    for (const file of Array.from(fileList)) {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("taskId", task.id);
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || "";
+        const res = await fetch("/api/files/upload", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData });
+        if (!res.ok) throw new Error(await res.text());
+        ok++;
+      } catch { ko++; }
+    }
+    setUploadingFiles(false);
+    queryClient.invalidateQueries({ queryKey: taskFilesQK });
+    if (e.target) e.target.value = "";
+    if (ok > 0) toast({ title: `${ok} fichier${ok > 1 ? "s" : ""} joint${ok > 1 ? "s" : ""}`, variant: "success" as any });
+    if (ko > 0) toast({ title: "Erreur", description: `${ko} fichier(s) n'ont pas pu être joints`, variant: "destructive" });
+  };
+  const handleOpenFilePreview = async (file: any) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch(`/api/files/${file.id}/download-url`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error();
+      const { url } = await res.json();
+      setPreviewFile({ name: file.name, url, mimeType: file.mimeType || "" });
+    } catch {
+      toast({ title: "Erreur", description: "Impossible d'ouvrir l'aperçu", variant: "destructive" });
+    }
+  };
   
   // Create ticket dialog state
   const [showCreateTicketDialog, setShowCreateTicketDialog] = useState(false);
@@ -202,8 +265,8 @@ export function TaskDetailModal({
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col bg-white dark:bg-card" data-testid="dialog-task-detail">
-        <SheetHeader className="space-y-0 pb-4">
+      <SheetContent className="sm:max-w-lg w-full overflow-y-auto flex flex-col bg-white dark:bg-card" data-testid="dialog-task-detail">
+        <SheetHeader className="space-y-0 pb-2">
           <div className="flex items-center gap-3">
             <SheetTitle>Détails de la tâche</SheetTitle>
             {/* Check button just after title on the left */}
@@ -410,7 +473,100 @@ export function TaskDetailModal({
               </PopoverContent>
             </Popover>
           </div>
+
+          {/* File attachments */}
+          <Separator />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Paperclip className="h-3 w-3" />
+                Fichiers joints ({taskFiles.length})
+              </Label>
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  multiple
+                  accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip"
+                  onChange={handleFileUpload}
+                  data-testid="input-task-file-upload"
+                />
+                <Button
+                  size="icon"
+                  className="bg-primary"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingFiles}
+                  data-testid="button-add-task-file"
+                >
+                  {uploadingFiles ? (
+                    <span className="h-3 w-3 animate-spin border border-white border-t-transparent rounded-full" />
+                  ) : (
+                    <Plus className="h-4 w-4 text-white" />
+                  )}
+                </Button>
+              </div>
+            </div>
+            {taskFiles.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {taskFiles.map((f: any) => {
+                  const isImage = f.mimeType && f.mimeType.startsWith("image/");
+                  return (
+                    <div
+                      key={f.id}
+                      className="group relative border rounded-md p-2 bg-muted/30 hover-elevate cursor-pointer flex flex-col gap-1"
+                      onClick={() => handleOpenFilePreview(f)}
+                      data-testid={`task-file-${f.id}`}
+                    >
+                      <div className="flex items-center justify-center h-10">
+                        {isImage ? <Image className="h-6 w-6 text-muted-foreground" /> : <File className="h-6 w-6 text-muted-foreground" />}
+                      </div>
+                      <p className="text-[10px] text-center truncate leading-tight">{f.name}</p>
+                      <div className="absolute top-0.5 right-0.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={e => { e.stopPropagation(); deleteFileMutation.mutate(f.id); }}
+                          data-testid={`button-delete-task-file-${f.id}`}
+                        >
+                          <Trash2 className="h-2.5 w-2.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* File preview dialog */}
+        <Dialog open={!!previewFile} onOpenChange={open => !open && setPreviewFile(null)}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>{previewFile?.name}</DialogTitle>
+              <DialogDescription />
+            </DialogHeader>
+            <div className="flex items-center justify-center min-h-[300px] bg-muted/30 rounded-md overflow-hidden">
+              {previewFile?.mimeType?.startsWith("image/") ? (
+                <img src={previewFile.url} alt={previewFile.name} className="max-w-full max-h-[65vh] object-contain" />
+              ) : previewFile?.mimeType === "application/pdf" ? (
+                <iframe src={previewFile.url} className="w-full h-[65vh] border-0" title={previewFile.name} />
+              ) : (
+                <div className="text-center space-y-3 p-8">
+                  <File className="h-12 w-12 text-muted-foreground mx-auto" />
+                  <p className="text-sm text-muted-foreground">Aperçu non disponible pour ce type de fichier.</p>
+                  <Button size="sm" asChild>
+                    <a href={previewFile?.url} download={previewFile?.name} target="_blank" rel="noreferrer">
+                      <Download className="h-4 w-4 mr-2" />
+                      Télécharger
+                    </a>
+                  </Button>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <div className="flex gap-2 justify-between pt-4 border-t">
           <div className="flex gap-2">

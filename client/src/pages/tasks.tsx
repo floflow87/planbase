@@ -895,11 +895,13 @@ export default function Tasks() {
   }, [newTaskProjectId, newTaskProjectColumns, globalTaskColumns, isCreateTaskDialogOpen, createTaskColumnId]);
 
   // Default assignee to current user when dialog opens
+  // Use the DB user ID (found by email match) — user?.id is the Supabase JWT sub, not the DB UUID
   useEffect(() => {
-    if (isCreateTaskDialogOpen && userId && newTaskAssignedTo === undefined) {
-      setNewTaskAssignedTo(userId);
+    if (isCreateTaskDialogOpen && newTaskAssignedTo === undefined && users.length > 0) {
+      const dbUser = users.find(u => u.email === user?.email);
+      if (dbUser) setNewTaskAssignedTo(dbUser.id);
     }
-  }, [isCreateTaskDialogOpen, userId]);
+  }, [isCreateTaskDialogOpen, user?.email, users]);
 
   // Get completed column IDs (columns with names containing completion-related keywords)
   const completedColumnIds = useMemo(() => {
@@ -2120,7 +2122,7 @@ export default function Tasks() {
 
         {/* Create Task Sheet */}
         <Sheet open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>
-          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col bg-white dark:bg-card" data-testid="sheet-create-task">
+          <SheetContent className="sm:max-w-lg w-full overflow-y-auto flex flex-col bg-white dark:bg-card" data-testid="sheet-create-task">
             <SheetHeader>
               <SheetTitle>Nouvelle tâche</SheetTitle>
             </SheetHeader>
