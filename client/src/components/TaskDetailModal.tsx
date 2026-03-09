@@ -25,6 +25,7 @@ import {
 import { CalendarIcon, Star, Trash2, CheckCircle2, ListTodo, Check, ChevronsUpDown } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Task, AppUser, Project, TaskColumn, Backlog, Sprint } from "@shared/schema";
 import { formatDateForStorage } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -224,52 +225,54 @@ export function TaskDetailModal({
           </div>
         </SheetHeader>
         
-        <div className="grid gap-4 py-4 flex-1">
-          <div className="grid gap-2">
-            <Label htmlFor="title">Titre</Label>
+        <div className="grid gap-2 py-2 flex-1">
+          <div className="grid gap-1">
+            <Label htmlFor="title" className="text-xs">Titre</Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              className="h-8 text-sm"
               data-testid="input-task-title"
             />
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="description">Description</Label>
+          <div className="grid gap-1">
+            <Label htmlFor="description" className="text-xs">Description</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={4}
+              rows={2}
+              className="text-sm"
               data-testid="textarea-task-description"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="priority">Priorité</Label>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="grid gap-1">
+              <Label htmlFor="priority" className="text-xs">Priorité</Label>
               <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger id="priority" data-testid="select-task-priority">
+                <SelectTrigger id="priority" className="h-8 text-xs" data-testid="select-task-priority">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">Basse</SelectItem>
-                  <SelectItem value="medium">Moyenne</SelectItem>
-                  <SelectItem value="high">Haute</SelectItem>
+                  <SelectItem value="low" className="text-xs">Basse</SelectItem>
+                  <SelectItem value="medium" className="text-xs">Moyenne</SelectItem>
+                  <SelectItem value="high" className="text-xs">Haute</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="status">Statut</Label>
+            <div className="grid gap-1">
+              <Label htmlFor="status" className="text-xs">Statut</Label>
               <Select value={selectedColumnId} onValueChange={setSelectedColumnId}>
-                <SelectTrigger id="status" data-testid="select-task-status">
+                <SelectTrigger id="status" className="h-8 text-xs" data-testid="select-task-status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {columnOptions.map((column) => (
-                    <SelectItem key={column.id} value={column.id}>
+                    <SelectItem key={column.id} value={column.id} className="text-xs">
                       {column.name}
                     </SelectItem>
                   ))}
@@ -278,9 +281,9 @@ export function TaskDetailModal({
             </div>
           </div>
 
-          <div className="grid gap-2">
-            <Label>Effort / Complexité</Label>
-            <div className="flex items-center gap-1">
+          <div className="grid gap-1">
+            <Label className="text-xs">Effort / Complexité</Label>
+            <div className="flex items-center gap-0.5">
               {[1, 2, 3, 4, 5].map(rating => (
                 <button
                   key={rating}
@@ -290,7 +293,7 @@ export function TaskDetailModal({
                   data-testid={`button-effort-${rating}`}
                 >
                   <Star
-                    className={`h-6 w-6 transition-colors ${(effort ?? 0) >= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-200'}`}
+                    className={`h-4 w-4 transition-colors ${(effort ?? 0) >= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-200'}`}
                   />
                 </button>
               ))}
@@ -298,7 +301,7 @@ export function TaskDetailModal({
                 <button
                   type="button"
                   onClick={() => setEffort(null)}
-                  className="ml-2 text-sm text-muted-foreground hover:text-foreground"
+                  className="ml-1 text-xs text-muted-foreground hover:text-foreground"
                   data-testid="button-clear-effort"
                 >
                   Effacer
@@ -307,49 +310,70 @@ export function TaskDetailModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="assignedTo">Assigné à</Label>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="grid gap-1">
+              <Label htmlFor="assignedTo" className="text-xs">Assigné à</Label>
               <Select 
                 value={assignedToId || "unassigned"} 
                 onValueChange={(value) => setAssignedToId(value === "unassigned" ? undefined : value)}
               >
-                <SelectTrigger id="assignedTo" data-testid="select-task-assignee">
-                  <SelectValue />
+                <SelectTrigger id="assignedTo" className="h-8" data-testid="select-task-assignee">
+                  {(() => {
+                    const sel = users.find(u => u.id === assignedToId);
+                    if (!sel) return <span className="text-xs text-muted-foreground">Non assigné</span>;
+                    const initials = sel.firstName ? sel.firstName[0] + (sel.lastName?.[0] || "") : sel.email[0];
+                    const name = sel.firstName ? `${sel.firstName} ${sel.lastName || ""}`.trim() : sel.email;
+                    return (
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Avatar className="h-5 w-5 shrink-0">
+                          <AvatarImage src={sel.avatarUrl || ""} />
+                          <AvatarFallback className="text-[9px]">{initials.toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs truncate">{name}</span>
+                      </div>
+                    );
+                  })()}
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="unassigned">Non assigné</SelectItem>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.firstName && user.lastName 
-                        ? `${user.firstName} ${user.lastName}` 
-                        : user.email}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="unassigned" className="text-xs">Non assigné</SelectItem>
+                  {users.map((u) => {
+                    const initials = u.firstName ? u.firstName[0] + (u.lastName?.[0] || "") : u.email[0];
+                    const name = u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.email;
+                    return (
+                      <SelectItem key={u.id} value={u.id} className="text-xs">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-5 w-5 shrink-0">
+                            <AvatarImage src={u.avatarUrl || ""} />
+                            <AvatarFallback className="text-[9px]">{initials.toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <span>{name}</span>
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="project">Projet</Label>
+            <div className="grid gap-1">
+              <Label htmlFor="project" className="text-xs">Projet</Label>
               <Select 
                 value={projectId || "no-project"} 
                 onValueChange={(value) => {
                   const newProjectId = value === "no-project" ? undefined : value;
                   setProjectId(newProjectId);
-                  // Reset columnId when project changes - get first column of new project or empty
                   const newProjectColumns = columns.filter(col => col.projectId === newProjectId);
                   const sortedColumns = [...newProjectColumns].sort((a, b) => a.order - b.order);
                   setSelectedColumnId(sortedColumns[0]?.id || "");
                 }}
               >
-                <SelectTrigger id="project" data-testid="select-task-project">
+                <SelectTrigger id="project" className="h-8 text-xs" data-testid="select-task-project">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="no-project">Aucun projet</SelectItem>
+                  <SelectItem value="no-project" className="text-xs">Aucun projet</SelectItem>
                   {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
+                    <SelectItem key={project.id} value={project.id} className="text-xs">
                       {project.name}
                     </SelectItem>
                   ))}
@@ -358,16 +382,16 @@ export function TaskDetailModal({
             </div>
           </div>
 
-          <div className="grid gap-2">
-            <Label>Date d'échéance</Label>
+          <div className="grid gap-1">
+            <Label className="text-xs">Date d'échéance</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="justify-start text-left font-normal text-[14px] pt-[0px] pb-[0px] pl-[16px] pr-[16px]"
+                  className="h-8 justify-start text-left font-normal text-xs"
                   data-testid="button-task-due-date"
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  <CalendarIcon className="mr-2 h-3.5 w-3.5" />
                   {dueDate ? (
                     format(dueDate, "PPP", { locale: fr })
                   ) : (
