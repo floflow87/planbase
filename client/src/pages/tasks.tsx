@@ -488,8 +488,8 @@ function SortableTaskCard({
       data-testid={`task-card-${task.id}`}
     >
       <Card
-        className={cn("hover-elevate active-elevate-2 mb-2", columnColor && "rounded-l-none")}
-        style={columnColor ? { borderLeft: `4px solid ${columnColor}` } : undefined}
+        className={cn("hover-elevate active-elevate-2 rounded-l-none")}
+        style={{ borderLeft: `3px solid ${columnColor || "hsl(var(--border))"}` }}
       >
         <CardContent className="p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
@@ -656,7 +656,7 @@ function SortableColumn({
         style={{ backgroundColor: column.color }}
         data-testid={`column-${column.id}`}
       >
-        <CardHeader className="pb-3" {...listeners}>
+        <CardHeader className="px-2 py-2" {...listeners}>
           <div className="flex items-center justify-between gap-2">
             <CardTitle className="text-xs font-medium">
               {column.name}
@@ -674,7 +674,7 @@ function SortableColumn({
             </div>
           </div>
         </CardHeader>
-        <CardContent ref={setDroppableRef} className="flex-1 overflow-y-auto pt-0 space-y-2">
+        <CardContent ref={setDroppableRef} className="flex-1 overflow-y-auto px-2 pb-2 pt-0 space-y-1.5">
           <SortableContext
             items={sortedTasks.map((t) => t.id)}
             strategy={verticalListSortingStrategy}
