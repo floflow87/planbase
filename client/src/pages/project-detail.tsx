@@ -4155,19 +4155,19 @@ export default function ProjectDetail() {
                 <Layers className="h-3 w-3" /> Timeline
               </p>
               {(() => {
-                // Single source of truth: one color per scopeType, shared by blocks, circular progress, and badges
-                const SCOPE_TYPE_BLOCK_COLORS: Record<string, string> = {
-                  functional:    "bg-sky-300 dark:bg-sky-400",
-                  technical:     "bg-cyan-300 dark:bg-cyan-400",
-                  design:        "bg-fuchsia-300 dark:bg-fuchsia-400",
-                  gestion:       "bg-amber-300 dark:bg-amber-400",
-                  strategy:      "bg-purple-300 dark:bg-purple-400",
-                  discovery:     "bg-rose-300 dark:bg-rose-400",
-                  delivery:      "bg-teal-300 dark:bg-teal-400",
-                  devops:        "bg-orange-300 dark:bg-orange-400",
-                  communication: "bg-violet-300 dark:bg-violet-400",
-                  gtm:           "bg-lime-300 dark:bg-lime-400",
-                  autre:         "bg-gray-300 dark:bg-gray-400",
+                // Hex colors per scopeType — used for both timeline blocks (inline style) and circular progress bars
+                const SCOPE_TYPE_HEX: Record<string, string> = {
+                  functional:    "#7DD3FC", // sky-300    — bleu ciel
+                  technical:     "#67E8F9", // cyan-300   — cyan
+                  design:        "#F0ABFC", // fuchsia-300 — fuschia
+                  gestion:       "#FCD34D", // amber-300  — ambre
+                  strategy:      "#D8B4FE", // purple-300 — mauve
+                  discovery:     "#FDA4AF", // rose-300   — saumon
+                  delivery:      "#5EEAD4", // teal-300   — turquoise
+                  devops:        "#FDBA74", // orange-300 — orange
+                  communication: "#C4B5FD", // violet-300 — violet
+                  gtm:           "#BEF264", // lime-300   — lime
+                  autre:         "#D1D5DB", // gray-300   — gris
                 };
                 const SCOPE_TYPE_LABELS: Record<string, string> = {
                   functional: "Fonctionnel", technical: "Technique", design: "Design",
@@ -4237,7 +4237,7 @@ export default function ProjectDetail() {
                     timeDays,
                     consumption,
                     isCompleted,
-                    color: SCOPE_TYPE_BLOCK_COLORS[(item as any).scopeType || "autre"] || SCOPE_TYPE_BLOCK_COLORS.autre,
+                    color: SCOPE_TYPE_HEX[(item as any).scopeType || "autre"] || SCOPE_TYPE_HEX.autre,
                     startDate,
                     endDate,
                   };
@@ -4255,8 +4255,8 @@ export default function ProjectDetail() {
                             <Tooltip key={block.id}>
                               <TooltipTrigger asChild>
                                 <div
-                                  className={cn("rounded-sm cursor-default transition-opacity hover:opacity-80 relative overflow-hidden", block.color)}
-                                  style={{ flex: block.estimatedDays, minWidth: 8 }}
+                                  className="rounded-sm cursor-default transition-opacity hover:opacity-80 relative overflow-hidden"
+                                  style={{ flex: block.estimatedDays, minWidth: 8, backgroundColor: block.color }}
                                 >
                                   {/* Progress fill overlay */}
                                   <div
@@ -4379,20 +4379,33 @@ export default function ProjectDetail() {
 
                     {/* Circular progress bars by scope type */}
                     {(() => {
-                      // TYPE_CONFIG hex colors matching SCOPE_TYPE_BLOCK_COLORS -300 Tailwind shades
-                      const TYPE_CONFIG: Record<string, { label: string; shortLabel: string; color: string; track: string }> = {
-                        functional:    { label: "Fonctionnel",   shortLabel: "Fonct.",  color: "#7DD3FC", track: "#E0F2FE" }, // sky-300
-                        technical:     { label: "Technique",     shortLabel: "Tech.",   color: "#67E8F9", track: "#CFFAFE" }, // cyan-300
-                        design:        { label: "Design",        shortLabel: "Design",  color: "#F0ABFC", track: "#FAE8FF" }, // fuchsia-300
-                        gestion:       { label: "Gestion",       shortLabel: "Gest.",   color: "#FCD34D", track: "#FEF3C7" }, // amber-300
-                        strategy:      { label: "Stratégie",     shortLabel: "Strat.",  color: "#D8B4FE", track: "#F3E8FF" }, // purple-300
-                        discovery:     { label: "Discovery",     shortLabel: "Disco.",  color: "#FDA4AF", track: "#FFE4E6" }, // rose-300 (saumon)
-                        delivery:      { label: "Delivery",      shortLabel: "Deliv.",  color: "#5EEAD4", track: "#CCFBF1" }, // teal-300 (turquoise)
-                        devops:        { label: "DevOps",        shortLabel: "DevOps",  color: "#FDBA74", track: "#FFEDD5" }, // orange-300
-                        communication: { label: "Communication", shortLabel: "Comm.",   color: "#C4B5FD", track: "#EDE9FE" }, // violet-300
-                        gtm:           { label: "GTM",           shortLabel: "GTM",     color: "#BEF264", track: "#ECFCCB" }, // lime-300
-                        autre:         { label: "Autre",         shortLabel: "Autre",   color: "#D1D5DB", track: "#F3F4F6" }, // gray-300
+                      // TYPE_CONFIG — labels + track colors; main color from SCOPE_TYPE_HEX (single source of truth)
+                      const TYPE_TRACK: Record<string, string> = {
+                        functional: "#E0F2FE", technical: "#CFFAFE", design: "#FAE8FF",
+                        gestion: "#FEF3C7", strategy: "#F3E8FF", discovery: "#FFE4E6",
+                        delivery: "#CCFBF1", devops: "#FFEDD5", communication: "#EDE9FE",
+                        gtm: "#ECFCCB", autre: "#F3F4F6",
                       };
+                      const TYPE_LABELS: Record<string, { label: string; shortLabel: string }> = {
+                        functional:    { label: "Fonctionnel",   shortLabel: "Fonct."  },
+                        technical:     { label: "Technique",     shortLabel: "Tech."   },
+                        design:        { label: "Design",        shortLabel: "Design"  },
+                        gestion:       { label: "Gestion",       shortLabel: "Gest."   },
+                        strategy:      { label: "Stratégie",     shortLabel: "Strat."  },
+                        discovery:     { label: "Discovery",     shortLabel: "Disco."  },
+                        delivery:      { label: "Delivery",      shortLabel: "Deliv."  },
+                        devops:        { label: "DevOps",        shortLabel: "DevOps"  },
+                        communication: { label: "Communication", shortLabel: "Comm."   },
+                        gtm:           { label: "GTM",           shortLabel: "GTM"     },
+                        autre:         { label: "Autre",         shortLabel: "Autre"   },
+                      };
+                      const TYPE_CONFIG: Record<string, { label: string; shortLabel: string; color: string; track: string }> = Object.fromEntries(
+                        Object.keys(TYPE_LABELS).map(k => [k, {
+                          ...TYPE_LABELS[k],
+                          color: SCOPE_TYPE_HEX[k] || SCOPE_TYPE_HEX.autre,
+                          track: TYPE_TRACK[k] || TYPE_TRACK.autre,
+                        }])
+                      );
                       // Group by scopeType — only types present in CDC
                       // For completed items, treat timeDays = estimatedDays (100%)
                       const byType: Record<string, { estimatedDays: number; timeDays: number; hasCompleted: boolean }> = {};
