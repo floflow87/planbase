@@ -84,13 +84,22 @@ export function PostCreationSuggestions({
   const btnClass = "flex items-center gap-1.5 text-xs font-medium bg-white/15 hover:bg-white/30 text-white border border-white/30 rounded px-3 py-2 transition-colors cursor-pointer";
 
   const DismissButton = () => (
-    <button
-      onClick={() => dismissMutation.mutate()}
-      className="shrink-0 ml-auto text-white/70 hover:text-white text-[10px] font-medium whitespace-nowrap transition-colors cursor-pointer"
-      data-testid="button-dismiss-suggestions"
-    >
-      Ne plus afficher
-    </button>
+    <div className="shrink-0 ml-auto flex items-center gap-1">
+      <button
+        onClick={() => dismissMutation.mutate()}
+        className="text-white/70 hover:text-white text-[10px] font-medium whitespace-nowrap transition-colors cursor-pointer"
+        data-testid="button-dismiss-suggestions"
+      >
+        Ne plus afficher
+      </button>
+      <button
+        onClick={() => dismissMutation.mutate()}
+        className="flex items-center justify-center rounded p-0.5 text-white/70 hover:text-white hover:bg-white/20 transition-colors cursor-pointer"
+        data-testid="button-dismiss-suggestions-x"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
   );
 
   if (hasCdc) {

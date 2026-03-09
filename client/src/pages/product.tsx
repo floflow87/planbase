@@ -586,7 +586,7 @@ export default function Product() {
                 data-testid={`card-backlog-${backlog.id}`}
               >
                 <CardHeader className="flex flex-row items-center gap-2 p-3 pb-1">
-                  <CardTitle className="text-[14px] font-light text-foreground truncate flex-1 min-w-0">{backlog.name}</CardTitle>
+                  <CardTitle className="text-[14px] font-light text-primary truncate flex-1 min-w-0">{backlog.name}</CardTitle>
                   {backlog.project && (
                     <Badge variant="outline" className="flex items-center gap-1 text-[10px] shrink-0" onClick={(e) => e.stopPropagation()}>
                       <Folder className="h-2.5 w-2.5" />
