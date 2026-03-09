@@ -510,7 +510,7 @@ function SortableTaskCard({
     >
       <Card
         className={cn("hover-elevate active-elevate-2 rounded-l-none")}
-        style={{ borderLeft: `3px solid ${columnColor ? darkenColor(columnColor) : "hsl(var(--border))"}`  }}
+        style={{ borderLeft: `3px solid ${columnColor || "#94A3B8"}` }}
       >
         <CardContent className="p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
@@ -713,7 +713,7 @@ function SortableColumn({
                 onClick={onTaskClick}
                 canUpdate={canUpdate}
                 canDelete={canDelete}
-                columnColor={column.color || getColumnDefaultColor(column.name)}
+                columnColor={getColumnDefaultColor(column.name)}
               />
             ))}
           </SortableContext>
