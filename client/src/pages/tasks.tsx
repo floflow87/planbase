@@ -512,8 +512,7 @@ function SortableTaskCard({
         className={cn("hover-elevate active-elevate-2")}
         style={{
           borderLeft: `3px solid ${columnColor || "#94A3B8"}`,
-          borderTopLeftRadius: 0,
-          borderBottomLeftRadius: 0,
+          borderRadius: "0 0.75rem 0.75rem 0",
         }}
       >
         <CardContent className="p-3 space-y-2">
@@ -717,7 +716,7 @@ function SortableColumn({
                 onClick={onTaskClick}
                 canUpdate={canUpdate}
                 canDelete={canDelete}
-                columnColor={getColumnDefaultColor(column.name)}
+                columnColor={column.color || getColumnDefaultColor(column.name)}
               />
             ))}
           </SortableContext>
