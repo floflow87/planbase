@@ -529,10 +529,25 @@ function SortableTaskCard({
             </p>
           )}
           <div className="flex items-center justify-between gap-2 ml-6">
-            <div className="flex items-center gap-2 flex-1">
+            <div className="flex items-center gap-2 flex-1 flex-wrap">
               <Badge className={`text-[10px] ${getPriorityColor(task.priority)}`}>
                 {getPriorityLabel(task.priority)}
               </Badge>
+              {task.effort != null && task.effort > 0 && (
+                <div className="flex items-center gap-0.5" data-testid={`effort-stars-${task.id}`}>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      className="h-3 w-3"
+                      style={{
+                        fill: i < task.effort! ? "#FBBF24" : "none",
+                        stroke: i < task.effort! ? "#FBBF24" : "#D1D5DB",
+                        strokeWidth: 1.5,
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
               {task.dueDate && (
                 <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                   <CalendarLucide className="h-3 w-3" />
