@@ -4174,6 +4174,13 @@ export default function ProjectDetail() {
                   gestion: "Gestion", strategy: "Stratégie", discovery: "Discovery", delivery: "Delivery",
                   devops: "DevOps", communication: "Communication", gtm: "GTM", autre: "Autre",
                 };
+                // Track (pastel) colors — mirrors TYPE_TRACK in progress bars — used for non-completed blocks
+                const SCOPE_TYPE_TRACK: Record<string, string> = {
+                  functional: "#E0F2FE", technical: "#CFFAFE", design: "#FAE8FF",
+                  gestion: "#FEF3C7", strategy: "#F3E8FF", discovery: "#FFE4E6",
+                  delivery: "#CCFBF1", devops: "#FFEDD5", communication: "#EDE9FE",
+                  gtm: "#ECFCCB", autre: "#F3F4F6",
+                };
 
                 // Add N working days to a date (skip Sat/Sun)
                 const addWorkingDays = (start: Date, days: number): Date => {
@@ -4256,13 +4263,21 @@ export default function ProjectDetail() {
                               <TooltipTrigger asChild>
                                 <div
                                   className="rounded-sm cursor-default transition-opacity hover:opacity-80 relative overflow-hidden"
-                                  style={{ flex: block.estimatedDays, minWidth: 8, backgroundColor: block.color }}
+                                  style={{
+                                    flex: block.estimatedDays,
+                                    minWidth: 8,
+                                    background: block.isCompleted
+                                      ? block.color
+                                      : `linear-gradient(to right, ${block.color} ${pct}%, ${SCOPE_TYPE_TRACK[block.scopeType] || "#F3F4F6"} ${pct}%)`,
+                                  }}
                                 >
-                                  {/* Progress fill overlay */}
-                                  <div
-                                    className={cn("absolute inset-0 rounded-sm transition-all", isOver ? "bg-red-600/30" : "bg-black/20")}
-                                    style={{ width: `${100 - pct}%`, right: 0, left: "auto" }}
-                                  />
+                                  {/* Over-budget overlay only (gradient already handles normal progress) */}
+                                  {isOver && !block.isCompleted && (
+                                    <div
+                                      className="absolute inset-0 rounded-sm bg-red-600/20"
+                                      style={{ width: `${100 - pct}%`, right: 0, left: "auto" }}
+                                    />
+                                  )}
                                   {/* Completion checkmark or % */}
                                   {block.isCompleted && (
                                     <div className="absolute inset-0 flex items-center justify-center">
