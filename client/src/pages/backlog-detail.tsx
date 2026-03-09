@@ -1715,11 +1715,12 @@ export default function BacklogDetail() {
 
     if (previousData) {
       const newData = { ...previousData };
+      const defaultAssigneeId = currentDbUser?.id || null;
       if (type === "user_story") {
         newData.userStories = [...newData.userStories, {
           id: tempId, title, sprintId, priority: "medium", state: "a_faire",
           backlogId: id!, epicId: null, description: null, acceptanceCriteria: null,
-          estimatePoints: null, complexity: null, assigneeId: null, reporterId: null,
+          estimatePoints: null, complexity: null, assigneeId: defaultAssigneeId, reporterId: null,
           order: newData.userStories.length, version: null, createdAt: new Date().toISOString(),
           tasks: [], checklistItems: []
         } as any];
@@ -1733,7 +1734,7 @@ export default function BacklogDetail() {
         newData.backlogTasks = [...newData.backlogTasks, {
           id: tempId, title, sprintId, priority: "medium", state: "a_faire",
           backlogId: id!, userStoryId: null, epicId: null, description: null,
-          estimatePoints: null, complexity: null, assigneeId: null, reporterId: null,
+          estimatePoints: null, complexity: null, assigneeId: defaultAssigneeId, reporterId: null,
           order: newData.backlogTasks.length, version: null, taskType: "task",
           createdAt: new Date().toISOString()
         } as any];
@@ -1742,6 +1743,7 @@ export default function BacklogDetail() {
     }
 
     try {
+      const defaultAssigneeId = currentDbUser?.id || null;
       let endpoint = "";
       let data: Record<string, any> = { title, sprintId };
 
@@ -1750,10 +1752,10 @@ export default function BacklogDetail() {
         data = { title, sprintId, priority: "medium", state: "a_faire" };
       } else if (type === "user_story") {
         endpoint = `/api/backlogs/${id}/user-stories`;
-        data = { title, sprintId, priority: "medium", state: "a_faire" };
+        data = { title, sprintId, priority: "medium", state: "a_faire", assigneeId: defaultAssigneeId };
       } else {
         endpoint = `/api/backlogs/${id}/tasks`;
-        data = { title, sprintId, priority: "medium", state: "a_faire", order: 0 };
+        data = { title, sprintId, priority: "medium", state: "a_faire", order: 0, assigneeId: defaultAssigneeId };
       }
 
       await apiRequest(endpoint, "POST", data);
@@ -1773,11 +1775,12 @@ export default function BacklogDetail() {
 
     if (previousData) {
       const newData = { ...previousData };
+      const defaultAssigneeId = currentDbUser?.id || null;
       if (type === "user_story") {
         newData.userStories = [...newData.userStories, {
           id: tempId, title, sprintId: null, priority: "medium", state: "a_faire",
           backlogId: id!, epicId: null, description: null, acceptanceCriteria: null,
-          estimatePoints: null, complexity: null, assigneeId: null, reporterId: null,
+          estimatePoints: null, complexity: null, assigneeId: defaultAssigneeId, reporterId: null,
           order: newData.userStories.length, version: null, createdAt: new Date().toISOString(),
           tasks: [], checklistItems: []
         } as any];
@@ -1791,7 +1794,7 @@ export default function BacklogDetail() {
         newData.backlogTasks = [...newData.backlogTasks, {
           id: tempId, title, sprintId: null, priority: "medium", state: "a_faire",
           backlogId: id!, userStoryId: null, epicId: null, description: null,
-          estimatePoints: null, complexity: null, assigneeId: null, reporterId: null,
+          estimatePoints: null, complexity: null, assigneeId: defaultAssigneeId, reporterId: null,
           order: newData.backlogTasks.length, version: null, taskType: "task",
           createdAt: new Date().toISOString()
         } as any];
@@ -1800,6 +1803,7 @@ export default function BacklogDetail() {
     }
 
     try {
+      const defaultAssigneeId = currentDbUser?.id || null;
       let endpoint = "";
       let data: Record<string, any> = { title };
 
@@ -1808,10 +1812,10 @@ export default function BacklogDetail() {
         data = { title, priority: "medium", state: "a_faire" };
       } else if (type === "user_story") {
         endpoint = `/api/backlogs/${id}/user-stories`;
-        data = { title, priority: "medium", state: "a_faire" };
+        data = { title, priority: "medium", state: "a_faire", assigneeId: defaultAssigneeId };
       } else {
         endpoint = `/api/backlogs/${id}/tasks`;
-        data = { title, priority: "medium", state: "a_faire", order: 0 };
+        data = { title, priority: "medium", state: "a_faire", order: 0, assigneeId: defaultAssigneeId };
       }
 
       await apiRequest(endpoint, "POST", data);

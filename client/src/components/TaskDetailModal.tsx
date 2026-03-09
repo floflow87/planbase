@@ -122,6 +122,7 @@ export function TaskDetailModal({
         const formData = new FormData();
         formData.append("file", file);
         formData.append("taskId", task.id);
+        if (task.projectId) formData.append("projectId", task.projectId);
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token || "";
         const res = await fetch("/api/files/upload", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData });
@@ -572,8 +573,9 @@ export function TaskDetailModal({
           <div className="flex gap-2">
             {onDelete && (
               <Button
+                size="sm"
                 variant="outline"
-                className="text-destructive hover:text-destructive"
+                className="text-xs text-destructive hover:text-destructive"
                 onClick={() => {
                   if (task) {
                     onDelete(task);
@@ -582,30 +584,36 @@ export function TaskDetailModal({
                 }}
                 data-testid="button-delete-task"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                 Supprimer
               </Button>
             )}
             {onCreateTicket && backlogs.length > 0 && (
               <Button
+                size="sm"
                 variant="outline"
+                className="text-xs"
                 onClick={handleOpenCreateTicket}
                 data-testid="button-create-ticket-from-task"
               >
-                <ListTodo className="h-4 w-4 mr-2" />
+                <ListTodo className="h-3.5 w-3.5 mr-1.5" />
                 Créer un ticket
               </Button>
             )}
           </div>
           <div className="flex gap-2 ml-auto">
             <Button 
-              variant="outline" 
+              size="sm"
+              variant="outline"
+              className="text-xs"
               onClick={onClose}
               data-testid="button-cancel"
             >
               Annuler
             </Button>
             <Button 
+              size="sm"
+              className="text-xs"
               onClick={handleSave}
               data-testid="button-save-task"
             >

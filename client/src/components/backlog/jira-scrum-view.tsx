@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from "react";
 import { 
   ChevronDown, ChevronRight, ChevronUp, Plus, MoreVertical, 
   Flag, User, Calendar, GripVertical, Play, Pause,
-  Check, Layers, BookOpen, ListTodo, AlertCircle, Pencil,
+  Check, Layers, Bookmark, ListTodo, AlertCircle, Pencil,
   ArrowUp, ArrowDown, Copy, Trash2, UserPlus, Hash, ExternalLink,
   CheckSquare, Square, MoreHorizontal, Link2, Wrench, Tag, X, Bug, Timer
 } from "lucide-react";
@@ -78,7 +78,7 @@ function ticketTypeIcon(type: TicketType) {
     case "epic":
       return <Layers className="h-4 w-4" />;
     case "user_story":
-      return <BookOpen className="h-4 w-4" />;
+      return <Bookmark className="h-4 w-4" />;
     case "task":
       return <ListTodo className="h-4 w-4" />;
     case "bug":
@@ -613,18 +613,18 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                   {ticketEpic ? (
                     <Badge 
                       variant="outline" 
-                      className="text-xs px-2 py-0.5 bg-white border truncate max-w-[100px]"
+                      className="text-[10px] px-1 py-0 bg-white border truncate max-w-[80px]"
                       style={{ borderColor: ticketEpic.color || "#8B5CF6" }}
                     >
                       <div 
-                        className="h-2 w-2 rounded-full mr-1.5 flex-shrink-0" 
+                        className="h-1.5 w-1.5 rounded-full mr-1 flex-shrink-0" 
                         style={{ backgroundColor: ticketEpic.color || "#8B5CF6" }}
                       />
                       <span className="truncate">{ticketEpic.title}</span>
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="text-xs px-2 py-0.5 bg-white text-muted-foreground">
-                      <Layers className="h-3 w-3 mr-1" />
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 bg-white text-muted-foreground">
+                      <Layers className="h-2.5 w-2.5 mr-0.5" />
                       Aucun
                     </Badge>
                   )}
@@ -677,18 +677,18 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
         ticketEpic ? (
           <Badge 
             variant="outline" 
-            className="text-xs px-2 py-0.5 truncate max-w-[100px]"
+            className="text-[10px] px-1 py-0 truncate max-w-[80px]"
             style={{ borderColor: ticketEpic.color || "#8B5CF6" }}
           >
             <div 
-              className="h-2 w-2 rounded-full mr-1.5 flex-shrink-0" 
+              className="h-1.5 w-1.5 rounded-full mr-1 flex-shrink-0" 
               style={{ backgroundColor: ticketEpic.color || "#8B5CF6" }}
             />
             <span className="truncate">{ticketEpic.title}</span>
           </Badge>
         ) : (
-          <Badge variant="outline" className="text-xs px-2 py-0.5 text-muted-foreground">
-            <Layers className="h-3 w-3 mr-1" />
+          <Badge variant="outline" className="text-[10px] px-1 py-0 text-muted-foreground">
+            <Layers className="h-2.5 w-2.5 mr-0.5" />
             -
           </Badge>
         )
@@ -763,10 +763,10 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
         ) : (
           <Badge 
             variant="secondary" 
-            className={cn("text-xs px-1.5 py-0 cursor-pointer", getStateStyle(ticket.state))}
+            className={cn("text-[10px] px-1 py-0 cursor-pointer", getStateStyle(ticket.state))}
             data-testid={`ticket-state-${ticket.id}`}
           >
-            <span className={cn("w-2 h-2 rounded-full mr-1.5 inline-block", getStateDot(ticket.state))} />
+            <span className={cn("w-1.5 h-1.5 rounded-full mr-1 inline-block", getStateDot(ticket.state))} />
             {getStateLabel(ticket.state)}
           </Badge>
         )}
@@ -1626,7 +1626,7 @@ export function SprintSection({
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setNewTicketType("user_story")} className="text-gray-900">
                       <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-green-500">
-                        <BookOpen className="h-3 w-3 text-white" />
+                        <Bookmark className="h-3 w-3 text-white" />
                       </div>
                       User Story
                     </DropdownMenuItem>
@@ -1863,7 +1863,7 @@ export function BacklogPool({
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setNewTicketType("user_story")} className="text-gray-900">
                       <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-green-500">
-                        <BookOpen className="h-3 w-3 text-white" />
+                        <Bookmark className="h-3 w-3 text-white" />
                       </div>
                       User Story
                     </DropdownMenuItem>

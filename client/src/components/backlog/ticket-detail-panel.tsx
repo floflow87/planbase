@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { 
-  X, Layers, BookOpen, ListTodo, Flag, User, Calendar,
+  X, Layers, Bookmark, ListTodo, Flag, User, Calendar,
   Pencil, Trash2, Clock, Check, Tag, Link2, ChevronDown, MessageSquare, History, Send, FileText, Plus, ChevronsUpDown, ClipboardList, FlaskConical, ExternalLink, Wrench, ArrowRight, Upload, Image, File, Download, Paperclip
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -55,7 +55,7 @@ function ticketTypeIcon(type: TicketType) {
     case "epic":
       return <Layers className="h-5 w-5" />;
     case "user_story":
-      return <BookOpen className="h-5 w-5" />;
+      return <Bookmark className="h-5 w-5" />;
     case "task":
       return <ListTodo className="h-5 w-5" />;
     case "bug":
@@ -708,7 +708,7 @@ export function TicketDetailPanel({
                 disabled={ticket.type === "user_story"}
               >
                 <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-green-500">
-                  <BookOpen className="h-3 w-3 text-white" />
+                  <Bookmark className="h-3 w-3 text-white" />
                 </div>
                 User Story
               </DropdownMenuItem>

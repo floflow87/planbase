@@ -2402,7 +2402,9 @@ export default function Tasks() {
             </div>
             <div className="flex gap-2 justify-end border-t pt-4">
               <Button
+                size="sm"
                 variant="outline"
+                className="text-xs"
                 onClick={() => {
                   setIsCreateTaskDialogOpen(false);
                   setNewTaskTitle("");
@@ -2418,7 +2420,9 @@ export default function Tasks() {
                 Annuler
               </Button>
               <Button
+                size="sm"
                 variant="outline"
+                className="text-xs"
                 onClick={() => handleCreateTask(true)}
                 disabled={!newTaskTitle.trim() || createTaskMutation.isPending}
                 data-testid="button-create-and-add-task"
@@ -2426,6 +2430,8 @@ export default function Tasks() {
                 Créer et ajouter
               </Button>
               <Button
+                size="sm"
+                className="text-xs"
                 onClick={() => handleCreateTask(false)}
                 disabled={!newTaskTitle.trim() || createTaskMutation.isPending}
                 data-testid="button-submit-create-task"
