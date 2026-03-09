@@ -4297,30 +4297,63 @@ export default function ProjectDetail() {
                       })()}
                     </div>
 
-                    {/* X-axis: start dates per block */}
-                    {projectStart && (
-                      <div className="flex w-full relative">
-                        {blocks.map((block, i) => (
-                          <div
-                            key={block.id}
-                            className="flex flex-col items-start"
-                            style={{ flex: block.estimatedDays, minWidth: 0 }}
-                          >
-                            <div className="w-px h-1.5 bg-border mb-0.5" />
-                            <p className="text-[9px] text-muted-foreground whitespace-nowrap overflow-hidden">
-                              {block.startDate ? format(block.startDate, i === 0 ? "dd MMM" : "dd MMM", { locale: fr }) : ""}
-                            </p>
-                          </div>
-                        ))}
-                        {/* Last end date */}
-                        {blocks.length > 0 && blocks[blocks.length - 1].endDate && (
-                          <div className="flex flex-col items-end shrink-0">
-                            <div className="w-px h-1.5 bg-border mb-0.5" />
-                            <p className="text-[9px] text-muted-foreground whitespace-nowrap">
-                              {format(blocks[blocks.length - 1].endDate!, "dd MMM", { locale: fr })}
-                            </p>
-                          </div>
-                        )}
+                    {/* X-axis: spaced date labels (absolute positioning to avoid overlaps) */}
+                    {projectStart && blocks.length > 0 && (
+                      <div className="relative h-6 w-full">
+                        {(() => {
+                          const totalDays = blocks.reduce((sum, b) => sum + b.estimatedDays, 0);
+                          if (totalDays === 0) return null;
+                          const minSpacePct = 11;
+
+                          // Collect candidate labels with % position
+                          type LabelItem = { label: string; pct: number; isFirst: boolean; isLast: boolean };
+                          const candidates: LabelItem[] = [];
+                          let cumulative = 0;
+                          blocks.forEach((block) => {
+                            const pct = (cumulative / totalDays) * 100;
+                            if (block.startDate) {
+                              candidates.push({ label: format(block.startDate, "dd MMM", { locale: fr }), pct, isFirst: cumulative === 0, isLast: false });
+                            }
+                            cumulative += block.estimatedDays;
+                          });
+                          const lastBlock = blocks[blocks.length - 1];
+                          if (lastBlock?.endDate) {
+                            candidates.push({ label: format(lastBlock.endDate, "dd MMM", { locale: fr }), pct: 100, isFirst: false, isLast: true });
+                          }
+
+                          // Filter: only show labels spaced >= minSpacePct% apart
+                          const visible: LabelItem[] = [];
+                          let lastPct = -Infinity;
+                          candidates.forEach((item, i) => {
+                            const isLast = i === candidates.length - 1;
+                            if (isLast) {
+                              // Show last only if far enough from previous
+                              if (item.pct - lastPct >= minSpacePct) {
+                                visible.push(item);
+                                lastPct = item.pct;
+                              }
+                            } else if (item.pct - lastPct >= minSpacePct) {
+                              visible.push(item);
+                              lastPct = item.pct;
+                            }
+                          });
+
+                          return visible.map((item) => {
+                            const translate = item.isFirst ? "0" : item.isLast ? "-100%" : "-50%";
+                            return (
+                              <div
+                                key={`label-${item.pct}`}
+                                className="absolute top-0 flex flex-col"
+                                style={{ left: `${item.pct}%`, transform: `translateX(${translate})` }}
+                              >
+                                <div className="w-px h-1.5 bg-border mb-0.5" />
+                                <p className="text-[9px] text-muted-foreground whitespace-nowrap">
+                                  {item.label}
+                                </p>
+                              </div>
+                            );
+                          });
+                        })()}
                       </div>
                     )}
 
@@ -4540,7 +4573,7 @@ export default function ProjectDetail() {
               if (!activeSprint && readySprint) {
                 actions.push({ id: "sprint-ready", severity: "info", icon: <Play className="h-4 w-4" />, label: "Sprint prêt à démarrer", detail: `"${readySprint.name}" est en préparation`, action: { label: "Voir backlogs", tab: "backlogs" } });
               }
-              if (unestimatedTasks.length > 0 && projectTasks.length > 2) {
+              if (projectBacklogs.length > 0 && unestimatedTasks.length > 0 && projectTasks.length > 2) {
                 actions.push({ id: "unestimated", severity: "info", icon: <Clock className="h-4 w-4" />, label: `${unestimatedTasks.length} ticket${unestimatedTasks.length > 1 ? "s" : ""} sans estimation`, detail: "Estimez les tickets pour un meilleur pilotage", action: { label: "Voir tâches", tab: "tasks" } });
               }
               if (projectScopeItems.length === 0) {
@@ -4556,7 +4589,7 @@ export default function ProjectDetail() {
               if (!project?.billingType) {
                 actions.push({ id: "admin-billing-mode", severity: "warning", icon: <Briefcase className="h-4 w-4" />, label: "Mode de facturation non défini", detail: "Précisez le type : forfait, régie ou mixte", action: { label: "Voir facturation", tab: "billing" } });
               }
-              if (!project?.internalDailyCost || parseFloat(project.internalDailyCost?.toString() || "0") === 0) {
+              if (project?.billingType !== 'fixed_price' && (!project?.internalDailyCost || parseFloat(project.internalDailyCost?.toString() || "0") === 0)) {
                 actions.push({ id: "admin-daily-cost", severity: "warning", icon: <Euro className="h-4 w-4" />, label: "TJM manquant", detail: "Coût journalier non défini — calcul de rentabilité impossible", action: { label: "Voir facturation", tab: "billing" } });
               }
               if (!project?.billingRate || parseFloat(project.billingRate?.toString() || "0") === 0) {
@@ -4591,7 +4624,7 @@ export default function ProjectDetail() {
               if (activeSprint) {
                 reco.push({ id: "reco-next-sprint", severity: "info", icon: <Lightbulb className="h-4 w-4" />, label: "Préparer le sprint suivant", detail: "Un sprint est en cours — anticipez le suivant pour maintenir le rythme" });
               }
-              if (unestimatedTasks.length > 3) {
+              if (projectBacklogs.length > 0 && unestimatedTasks.length > 3) {
                 reco.push({ id: "reco-estimate", severity: "info", icon: <Lightbulb className="h-4 w-4" />, label: "Estimer les tickets avant le sprint", detail: `${unestimatedTasks.length} tickets sans estimation — utile pour la planification`, action: { label: "Voir tâches", tab: "tasks" } });
               }
               if (isMarginBelowTarget && !isMarginNegative) {
