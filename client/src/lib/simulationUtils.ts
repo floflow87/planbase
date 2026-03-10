@@ -3,6 +3,9 @@ export interface SimulationInputs {
   simulationDaysPerWeek: number;
   targetMode: "days" | "date";
   targetEndDate?: Date | null;
+  simBillingType?: "fixed_price" | "time_based" | null;
+  simTJM?: number;
+  simBilledDays?: number;
 }
 
 export interface SimulationCurrentState {
@@ -22,13 +25,15 @@ export interface SimulationResult {
   calendarDaysNeeded: number;
   newEndDate: Date;
   remainingCalendarLabel: string;
+  availableWorkDaysInWindow: number | null;
+  simTotalBilled: number;
+  simMonthlyAmount: number | null;
+  durationInMonths: number | null;
   remainingToInvoice: number;
   projectedRemainingCost: number;
   projectedTotalCost: number;
   projectedMargin: number;
   projectedMarginPercent: number;
-  projectedBilling: number | null;
-  availableWorkDaysInWindow: number | null;
   deltaEndDays: number | null;
   riskLevel: "ok" | "warning" | "danger" | "unknown";
   riskLabel: string;
@@ -60,11 +65,6 @@ export function computeSimulation(
   state: SimulationCurrentState
 ): SimulationResult {
   const missingFields: string[] = [];
-
-  if (state.totalEstimatedDays <= 0) missingFields.push("jours estimés totaux");
-  if (state.internalDailyCost <= 0) missingFields.push("coût journalier interne");
-  if (state.totalBilled <= 0 && state.billingType !== "time_based") missingFields.push("montant facturé");
-
   const daysPerWeek = Math.max(1, Math.min(7, inputs.simulationDaysPerWeek));
 
   let remainingWorkDays: number;
@@ -88,14 +88,22 @@ export function computeSimulation(
 
   const remainingCalendarLabel = formatCalendarDuration(calendarDaysNeeded);
 
-  let projectedBilling: number | null = null;
-  let effectiveTotalBilled = state.totalBilled;
+  const durationInMonths = calendarDaysNeeded > 0 ? calendarDaysNeeded / 30.4 : null;
 
-  if (state.billingType === "time_based" && state.billingRate && state.billingRate > 0) {
-    const totalDaysProjected = state.actualDaysWorked + remainingWorkDays;
-    projectedBilling = totalDaysProjected * state.billingRate;
-    effectiveTotalBilled = projectedBilling;
-  }
+  const effectiveBillingType = inputs.simBillingType ?? state.billingType ?? "fixed_price";
+  const effectiveTJM = (inputs.simTJM !== undefined && inputs.simTJM > 0) ? inputs.simTJM : (state.billingRate ?? 0);
+  const effectiveBilledDays = inputs.simBilledDays !== undefined ? inputs.simBilledDays : remainingWorkDays;
+
+  const simTotalBilled = effectiveTJM > 0 ? effectiveTJM * effectiveBilledDays : 0;
+  const simMonthlyAmount = (durationInMonths && durationInMonths > 0 && simTotalBilled > 0)
+    ? simTotalBilled / durationInMonths
+    : null;
+
+  const effectiveTotalBilled = simTotalBilled > 0 ? simTotalBilled : state.totalBilled;
+
+  if (effectiveTotalBilled <= 0) missingFields.push("montant facturé");
+  if (effectiveTJM <= 0) missingFields.push("TJM");
+  if (state.internalDailyCost <= 0) missingFields.push("coût journalier interne");
 
   const remainingToInvoice = Math.max(0, effectiveTotalBilled - state.totalPaid);
   const projectedRemainingCost = remainingWorkDays * state.internalDailyCost;
@@ -111,27 +119,20 @@ export function computeSimulation(
 
   let riskLevel: SimulationResult["riskLevel"] = "unknown";
   let riskLabel = "Données insuffisantes";
-  const hasBilling = effectiveTotalBilled > 0;
-  const hasCost = state.internalDailyCost > 0;
 
-  if (hasBilling) {
-    if (hasCost) {
+  if (effectiveTotalBilled > 0) {
+    if (state.internalDailyCost > 0) {
       if (projectedMarginPercent >= 25) {
-        riskLevel = "ok";
-        riskLabel = "Trajectoire saine";
+        riskLevel = "ok"; riskLabel = "Trajectoire saine";
       } else if (projectedMarginPercent >= 10) {
-        riskLevel = "warning";
-        riskLabel = "Marge réduite";
+        riskLevel = "warning"; riskLabel = "Marge réduite";
       } else if (projectedMarginPercent >= 0) {
-        riskLevel = "danger";
-        riskLabel = "Marge critique";
+        riskLevel = "danger"; riskLabel = "Marge critique";
       } else {
-        riskLevel = "danger";
-        riskLabel = "Dépassement de budget";
+        riskLevel = "danger"; riskLabel = "Dépassement de budget";
       }
     } else {
-      riskLevel = "unknown";
-      riskLabel = "Coût journalier non renseigné";
+      riskLevel = "unknown"; riskLabel = "Coût journalier non renseigné";
     }
   }
 
@@ -140,13 +141,15 @@ export function computeSimulation(
     calendarDaysNeeded,
     newEndDate,
     remainingCalendarLabel,
+    availableWorkDaysInWindow,
+    simTotalBilled,
+    simMonthlyAmount,
+    durationInMonths,
     remainingToInvoice,
     projectedRemainingCost,
     projectedTotalCost,
     projectedMargin,
     projectedMarginPercent,
-    projectedBilling,
-    availableWorkDaysInWindow,
     deltaEndDays,
     riskLevel,
     riskLabel,

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -9,13 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Info, RotateCcw, FlaskConical, Calendar as CalendarIcon } from "lucide-react";
+import {
+  TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Info,
+  RotateCcw, FlaskConical, Calendar as CalendarIcon, RefreshCw,
+} from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { computeSimulation, type SimulationCurrentState } from "@/lib/simulationUtils";
+import { computeSimulation, daysBetween, type SimulationCurrentState } from "@/lib/simulationUtils";
 import type { Project } from "@shared/schema";
 
 interface SimulationDrawerProps {
@@ -34,6 +37,15 @@ function fmtPct(n: number) {
 function fmtDate(d: Date) {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 }
+function fmtMonths(n: number) {
+  if (n < 1) return `${Math.round(n * 30.4)}j`;
+  const months = Math.floor(n);
+  const days = Math.round((n - months) * 30.4);
+  if (days === 0) return `${months} mois`;
+  return `${months} mois et ${days}j`;
+}
+
+type BillingType = "fixed_price" | "time_based";
 
 export function SimulationDrawer({ open, onClose, project, currentState }: SimulationDrawerProps) {
   const { toast } = useToast();
@@ -41,6 +53,10 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
   const defaultDaysPerWeek = project.simulationDaysPerWeek
     ? parseFloat(project.simulationDaysPerWeek.toString())
     : 5;
+  const defaultBillingType: BillingType =
+    (project.billingType === "fixed_price" || project.billingType === "time_based")
+      ? project.billingType
+      : "fixed_price";
 
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [isStartOpen, setIsStartOpen] = useState(false);
@@ -51,12 +67,46 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
   );
   const [isEndOpen, setIsEndOpen] = useState(false);
 
+  const [simBillingType, setSimBillingType] = useState<BillingType>(defaultBillingType);
+  const [simTJMStr, setSimTJMStr] = useState<string>(
+    currentState.billingRate && currentState.billingRate > 0
+      ? currentState.billingRate.toString()
+      : ""
+  );
+  const [simBilledDaysStr, setSimBilledDaysStr] = useState<string>("");
+  const [billedDaysLocked, setBilledDaysLocked] = useState(false);
+
+  const simTJM = parseFloat(simTJMStr) || 0;
+
+  const autoFillDays = useMemo(() => {
+    if (simBillingType === "time_based") {
+      return currentState.remainingDays;
+    } else {
+      if (targetMode === "date" && targetEndDate) {
+        const calendarWindow = Math.max(0, daysBetween(startDate, targetEndDate));
+        return Math.floor((calendarWindow * daysPerWeek) / 7);
+      }
+      return currentState.remainingDays;
+    }
+  }, [simBillingType, targetMode, startDate, targetEndDate, daysPerWeek, currentState.remainingDays]);
+
+  useEffect(() => {
+    if (!billedDaysLocked) {
+      setSimBilledDaysStr(autoFillDays > 0 ? autoFillDays.toFixed(1) : "");
+    }
+  }, [autoFillDays, billedDaysLocked]);
+
+  const simBilledDays = parseFloat(simBilledDaysStr) || 0;
+
   const inputs = useMemo(() => ({
     simulationStartDate: startDate,
     simulationDaysPerWeek: daysPerWeek,
     targetMode,
     targetEndDate: targetMode === "date" ? (targetEndDate ?? null) : null,
-  }), [startDate, daysPerWeek, targetMode, targetEndDate]);
+    simBillingType,
+    simTJM: simTJM > 0 ? simTJM : undefined,
+    simBilledDays: simBilledDays > 0 ? simBilledDays : undefined,
+  }), [startDate, daysPerWeek, targetMode, targetEndDate, simBillingType, simTJM, simBilledDays]);
 
   const result = useMemo(() => computeSimulation(inputs, currentState), [inputs, currentState]);
 
@@ -86,9 +136,12 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
 
   const handleReset = () => {
     setStartDate(new Date());
-    setDaysPerWeek(5);
+    setDaysPerWeek(defaultDaysPerWeek);
     setTargetMode("days");
     setTargetEndDate(currentState.currentEndDate ? new Date(currentState.currentEndDate) : undefined);
+    setSimBillingType(defaultBillingType);
+    setSimTJMStr(currentState.billingRate && currentState.billingRate > 0 ? currentState.billingRate.toString() : "");
+    setBilledDaysLocked(false);
   };
 
   const riskIcon = result.riskLevel === "ok"
@@ -115,12 +168,7 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
     ? fmtDate(currentState.currentEndDate)
     : "Non définie";
 
-  const billingLabel =
-    project.billingType === "fixed_price" ? "Forfait" :
-    project.billingType === "time_based" ? "Régie" :
-    "Non défini";
-
-  const isTimeBasedBilling = project.billingType === "time_based";
+  const billingLabel = (t: string) => t === "fixed_price" ? "Forfait" : t === "time_based" ? "Régie" : "Non défini";
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -131,22 +179,23 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
             <SheetTitle className="text-base">Simuler la trajectoire</SheetTitle>
           </div>
           <SheetDescription className="text-xs text-muted-foreground">
-            Projetez un nouveau scénario de charge et de facturation. Validez pour l'appliquer au projet.
+            Ajustez les hypothèses pour projeter votre facturation et votre marge.
           </SheetDescription>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
 
           {/* ─── BLOC 1 : Hypothèses ─── */}
-          <div>
-            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold flex items-center gap-2">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white text-[10px] font-bold shrink-0">1</span>
               Hypothèses de simulation
             </h4>
+
+            {/* Dates + rythme */}
             <div className="grid grid-cols-2 gap-3">
-              {/* Date de début */}
               <div className="space-y-1">
-                <Label className="text-xs">Date de début du scénario</Label>
+                <Label className="text-xs">Date de début</Label>
                 <Popover open={isStartOpen} onOpenChange={setIsStartOpen}>
                   <PopoverTrigger asChild>
                     <Button
@@ -160,150 +209,169 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={startDate}
-                      onSelect={(d) => { if (d) { setStartDate(d); setIsStartOpen(false); } }}
-                      initialFocus
-                      locale={fr}
-                    />
+                    <Calendar mode="single" selected={startDate} onSelect={(d) => { if (d) { setStartDate(d); setIsStartOpen(false); } }} initialFocus locale={fr} />
                   </PopoverContent>
                 </Popover>
               </div>
 
-              {/* Jours / semaine */}
               <div className="space-y-1">
                 <Label className="text-xs flex items-center gap-1">
-                  Jours travaillés / semaine
+                  Jours / semaine
                   <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">
-                      Ex : 5 = full time, 3 = mi-temps+, 1 = journée/semaine
-                    </TooltipContent>
+                    <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help" /></TooltipTrigger>
+                    <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">5 = full time · 3 = mi-temps+ · 1 = 1 jour/semaine</TooltipContent>
                   </Tooltip>
                 </Label>
                 <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min={0.5}
-                    max={7}
-                    step={0.5}
-                    value={daysPerWeek}
-                    onChange={(e) => setDaysPerWeek(parseFloat(e.target.value) || 1)}
-                    className="text-xs"
-                    data-testid="input-simulation-days-per-week"
-                  />
+                  <Input type="number" min={0.5} max={7} step={0.5} value={daysPerWeek} onChange={(e) => setDaysPerWeek(parseFloat(e.target.value) || 1)} className="text-xs" data-testid="input-simulation-days-per-week" />
                   <span className="text-xs text-muted-foreground whitespace-nowrap">j/sem.</span>
                 </div>
                 <div className="flex gap-1 flex-wrap mt-1">
                   {[1, 2, 3, 4, 5].map((d) => (
-                    <button
-                      key={d}
-                      onClick={() => setDaysPerWeek(d)}
-                      className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors cursor-pointer ${
-                        daysPerWeek === d
-                          ? "bg-primary text-white border-primary"
-                          : "border-border text-muted-foreground hover:border-primary hover:text-primary"
-                      }`}
-                      data-testid={`btn-days-preset-${d}`}
-                    >
-                      {d}j
-                    </button>
+                    <button key={d} onClick={() => setDaysPerWeek(d)}
+                      className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors cursor-pointer ${daysPerWeek === d ? "bg-primary text-white border-primary" : "border-border text-muted-foreground hover:border-primary hover:text-primary"}`}
+                      data-testid={`btn-days-preset-${d}`}>{d}j</button>
                   ))}
                 </div>
               </div>
             </div>
 
-            {/* ─── Date limite cible ─── */}
-            <div className="mt-3 space-y-2">
+            {/* Date limite cible */}
+            <div className="space-y-2">
               <Label className="text-xs flex items-center gap-1">
                 Date limite cible
                 <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">
-                    Conserver le nombre de jours estimés pour projeter une date de fin, ou fixer une date pour voir combien de jours (et de facturation) sont disponibles.
-                  </TooltipContent>
+                  <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help" /></TooltipTrigger>
+                  <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">Conserver le nb de jours estimés pour projeter la fin, ou fixer une date pour calculer ce qui est disponible.</TooltipContent>
                 </Tooltip>
               </Label>
               <div className="flex gap-1">
-                <button
-                  onClick={() => setTargetMode("days")}
-                  className={`flex-1 text-[10px] px-2 py-1.5 rounded border transition-colors cursor-pointer ${
-                    targetMode === "days"
-                      ? "bg-primary text-white border-primary"
-                      : "border-border text-muted-foreground hover:border-primary hover:text-primary"
-                  }`}
-                  data-testid="btn-target-mode-days"
-                >
-                  Garder les jours estimés
-                </button>
-                <button
-                  onClick={() => setTargetMode("date")}
-                  className={`flex-1 text-[10px] px-2 py-1.5 rounded border transition-colors cursor-pointer ${
-                    targetMode === "date"
-                      ? "bg-primary text-white border-primary"
-                      : "border-border text-muted-foreground hover:border-primary hover:text-primary"
-                  }`}
-                  data-testid="btn-target-mode-date"
-                >
-                  Fixer une date limite
-                </button>
+                <button onClick={() => setTargetMode("days")}
+                  className={`flex-1 text-[10px] px-2 py-1.5 rounded border transition-colors cursor-pointer ${targetMode === "days" ? "bg-primary text-white border-primary" : "border-border text-muted-foreground hover:border-primary hover:text-primary"}`}
+                  data-testid="btn-target-mode-days">Garder les jours estimés</button>
+                <button onClick={() => setTargetMode("date")}
+                  className={`flex-1 text-[10px] px-2 py-1.5 rounded border transition-colors cursor-pointer ${targetMode === "date" ? "bg-primary text-white border-primary" : "border-border text-muted-foreground hover:border-primary hover:text-primary"}`}
+                  data-testid="btn-target-mode-date">Fixer une date limite</button>
               </div>
-
               {targetMode === "date" && (
                 <Popover open={isEndOpen} onOpenChange={setIsEndOpen}>
                   <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={cn("w-full justify-start text-left font-normal text-xs", !targetEndDate && "text-muted-foreground")}
-                      data-testid="button-simulation-end-date"
-                    >
+                    <Button variant="outline" size="sm" className={cn("w-full justify-start text-left font-normal text-xs", !targetEndDate && "text-muted-foreground")} data-testid="button-simulation-end-date">
                       <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       {targetEndDate ? format(targetEndDate, "dd/MM/yyyy", { locale: fr }) : "Choisir une date limite"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={targetEndDate}
-                      onSelect={(d) => { if (d) { setTargetEndDate(d); setIsEndOpen(false); } }}
-                      disabled={(d) => d <= startDate}
-                      initialFocus
-                      locale={fr}
-                    />
+                    <Calendar mode="single" selected={targetEndDate} onSelect={(d) => { if (d) { setTargetEndDate(d); setIsEndOpen(false); } }} disabled={(d) => d <= startDate} initialFocus locale={fr} />
                   </PopoverContent>
                 </Popover>
               )}
             </div>
 
+            {/* ─── Paramètres de facturation ─── */}
+            <div className="rounded-md border border-border bg-muted/20 p-3 space-y-3">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Paramètres de facturation</p>
+
+              {/* Type + TJM */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Type</Label>
+                  <div className="flex gap-1">
+                    {(["fixed_price", "time_based"] as BillingType[]).map((t) => (
+                      <button key={t} onClick={() => setSimBillingType(t)}
+                        className={`flex-1 text-[10px] px-2 py-1.5 rounded border transition-colors cursor-pointer ${simBillingType === t ? "bg-primary text-white border-primary" : "border-border text-muted-foreground hover:border-primary hover:text-primary"}`}
+                        data-testid={`btn-billing-type-${t}`}>
+                        {t === "fixed_price" ? "Forfait" : "Régie"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">TJM (€/j)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={50}
+                    value={simTJMStr}
+                    onChange={(e) => setSimTJMStr(e.target.value)}
+                    placeholder="Ex. 800"
+                    className="text-xs"
+                    data-testid="input-simulation-tjm"
+                  />
+                </div>
+              </div>
+
+              {/* Nb jours facturés */}
+              <div className="space-y-1">
+                <Label className="text-xs flex items-center gap-1">
+                  Jours facturés
+                  <Tooltip>
+                    <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help" /></TooltipTrigger>
+                    <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">
+                      {simBillingType === "time_based"
+                        ? "Régie : pré-rempli avec les jours restants selon le CDC."
+                        : "Forfait : pré-rempli avec jours/semaine × semaines totales sur la période."}
+                    </TooltipContent>
+                  </Tooltip>
+                  {billedDaysLocked && (
+                    <button
+                      onClick={() => setBilledDaysLocked(false)}
+                      className="ml-auto flex items-center gap-0.5 text-[10px] text-primary hover:underline cursor-pointer"
+                      data-testid="button-reset-billed-days"
+                    >
+                      <RefreshCw className="h-2.5 w-2.5" /> Auto
+                    </button>
+                  )}
+                  {!billedDaysLocked && (
+                    <span className="ml-auto text-[10px] text-muted-foreground italic">auto</span>
+                  )}
+                </Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={simBilledDaysStr}
+                  onChange={(e) => { setSimBilledDaysStr(e.target.value); setBilledDaysLocked(true); }}
+                  placeholder="Nb de jours"
+                  className="text-xs"
+                  data-testid="input-simulation-billed-days"
+                />
+              </div>
+
+              {/* Résumé calculé */}
+              {simTJM > 0 && simBilledDays > 0 && (
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="rounded bg-primary/10 border border-primary/20 px-2.5 py-2">
+                    <p className="text-[9px] text-muted-foreground mb-0.5">Total facturé simulé</p>
+                    <p className="text-xs font-semibold text-primary">{fmt(result.simTotalBilled)}</p>
+                    <p className="text-[9px] text-muted-foreground">{simBilledDays.toFixed(1)}j × {fmt(simTJM)}</p>
+                  </div>
+                  {result.simMonthlyAmount !== null && result.durationInMonths !== null && (
+                    <div className="rounded bg-primary/10 border border-primary/20 px-2.5 py-2">
+                      <p className="text-[9px] text-muted-foreground mb-0.5">Ramené au mois</p>
+                      <p className="text-xs font-semibold text-primary">{fmt(result.simMonthlyAmount)}/mois</p>
+                      <p className="text-[9px] text-muted-foreground">sur {fmtMonths(result.durationInMonths)}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Résumé textuel */}
             {targetMode === "days" && result.remainingWorkDays > 0 && (
-              <div className="mt-3 p-2.5 bg-primary/5 border border-primary/20 rounded-md text-xs text-foreground leading-relaxed">
-                En passant à <strong>{daysPerWeek}j/semaine</strong> à partir du{" "}
-                <strong>{format(startDate, "d MMMM yyyy", { locale: fr })}</strong>, le projet se terminerait
-                le <strong>{fmtDate(result.newEndDate)}</strong>{" "}
+              <div className="p-2.5 bg-primary/5 border border-primary/20 rounded-md text-xs text-foreground leading-relaxed">
+                À <strong>{daysPerWeek}j/semaine</strong> dès le{" "}
+                <strong>{format(startDate, "d MMMM yyyy", { locale: fr })}</strong>, le projet se terminerait le{" "}
+                <strong>{fmtDate(result.newEndDate)}</strong>{" "}
                 <span className="text-muted-foreground">({result.remainingCalendarLabel})</span>.
               </div>
             )}
-            {targetMode === "days" && result.remainingWorkDays === 0 && currentState.totalEstimatedDays > 0 && (
-              <div className="mt-3 p-2.5 bg-green-50 border border-green-200 rounded-md text-xs text-green-700">
-                Le projet est déjà terminé selon les estimations de temps.
-              </div>
-            )}
             {targetMode === "date" && targetEndDate && result.availableWorkDaysInWindow !== null && (
-              <div className="mt-3 p-2.5 bg-primary/5 border border-primary/20 rounded-md text-xs text-foreground leading-relaxed">
+              <div className="p-2.5 bg-primary/5 border border-primary/20 rounded-md text-xs text-foreground leading-relaxed">
                 Entre le <strong>{format(startDate, "d MMMM yyyy", { locale: fr })}</strong> et le{" "}
-                <strong>{format(targetEndDate, "d MMMM yyyy", { locale: fr })}</strong> à{" "}
-                <strong>{daysPerWeek}j/semaine</strong>, il reste{" "}
-                <strong>{result.availableWorkDaysInWindow.toFixed(0)}j</strong> disponibles{" "}
-                {isTimeBasedBilling && result.projectedBilling !== null && (
-                  <>— soit <strong>{fmt(result.projectedBilling)}</strong> facturables à ce rythme</>
-                )}.
+                <strong>{format(targetEndDate, "d MMMM yyyy", { locale: fr })}</strong> à <strong>{daysPerWeek}j/semaine</strong> ={" "}
+                <strong>{result.availableWorkDaysInWindow}j disponibles</strong>
+                {simTJM > 0 && <> · <strong>{fmt(simTJM * result.availableWorkDaysInWindow)}</strong> facturables</>}.
               </div>
             )}
           </div>
@@ -317,26 +385,20 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
               Situation actuelle
             </h4>
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-              <Row label="Mode de facturation" value={billingLabel} />
-              <Row label="Budget total" value={currentState.totalBilled > 0 ? fmt(currentState.totalBilled) : "—"} />
-              <Row label="Déjà encaissé" value={currentState.totalPaid > 0 ? fmt(currentState.totalPaid) : "—"} />
+              <Row label="Mode de facturation" value={billingLabel(project.billingType ?? "")} />
+              <Row label="Budget / total facturé" value={currentState.totalBilled > 0 ? fmt(currentState.totalBilled) : "—"} />
+              <Row label="Encaissé" value={currentState.totalPaid > 0 ? fmt(currentState.totalPaid) : "—"} />
               <Row label="Restant à encaisser" value={currentState.totalBilled > 0 ? fmt(Math.max(0, currentState.totalBilled - currentState.totalPaid)) : "—"} />
               <Row label="Temps consommé" value={currentState.actualDaysWorked > 0 ? `${currentState.actualDaysWorked.toFixed(1)}j` : "—"} />
-              <Row label="Temps restant estimé" value={currentState.remainingDays > 0 ? `${currentState.remainingDays.toFixed(1)}j` : "—"} />
-              <Row label="Date de fin actuelle" value={currentEndDateFormatted} />
-              <Row
-                label="Coût journalier interne"
-                value={currentState.internalDailyCost > 0 ? fmt(currentState.internalDailyCost) + "/j" : "—"}
-                missing={currentState.internalDailyCost <= 0}
-              />
-              {isTimeBasedBilling && currentState.billingRate && currentState.billingRate > 0 && (
-                <Row label="TJM facturé" value={fmt(currentState.billingRate) + "/j"} />
+              <Row label="Temps restant CDC" value={currentState.remainingDays > 0 ? `${currentState.remainingDays.toFixed(1)}j` : "—"} />
+              <Row label="Date de fin" value={currentEndDateFormatted} />
+              <Row label="Coût journalier" value={currentState.internalDailyCost > 0 ? fmt(currentState.internalDailyCost) + "/j" : "—"} missing={currentState.internalDailyCost <= 0} />
+              {currentState.billingRate && currentState.billingRate > 0 && (
+                <Row label="TJM actuel" value={fmt(currentState.billingRate) + "/j"} />
               )}
             </div>
             {currentState.internalDailyCost <= 0 && (
-              <p className="text-[10px] text-amber-600 mt-2">
-                Coût journalier non renseigné — les projections de marge ne seront pas disponibles.
-              </p>
+              <p className="text-[10px] text-amber-600 mt-2">Coût journalier non renseigné — les projections de marge ne seront pas disponibles.</p>
             )}
           </div>
 
@@ -353,9 +415,8 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
             </h4>
 
             <div className="space-y-2">
-              {/* Date de fin projetée */}
               <ResultCard
-                label={targetMode === "date" ? "Date limite cible" : "Nouvelle date de fin projetée"}
+                label={targetMode === "date" ? "Date limite cible" : "Date de fin projetée"}
                 value={fmtDate(result.newEndDate)}
                 sub={result.remainingCalendarLabel}
                 delta={deltaLabel}
@@ -363,32 +424,37 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
                 highlight
               />
 
-              {/* Jours disponibles en mode date */}
               {targetMode === "date" && result.availableWorkDaysInWindow !== null && (
                 <ResultCard
                   label="Jours disponibles dans la fenêtre"
-                  value={`${result.availableWorkDaysInWindow.toFixed(0)}j`}
+                  value={`${result.availableWorkDaysInWindow}j`}
                   sub={`à ${daysPerWeek}j/semaine`}
-                  highlight={false}
                 />
               )}
 
-              {/* Facturation projetée en régie */}
-              {isTimeBasedBilling && result.projectedBilling !== null && (
-                <ResultCard
-                  label={targetMode === "date" ? "Facturation dans cette fenêtre" : "Facturation projetée totale"}
-                  value={fmt(result.projectedBilling)}
-                  sub={`${(currentState.actualDaysWorked + result.remainingWorkDays).toFixed(1)}j × TJM`}
-                  highlight
-                />
+              {result.simTotalBilled > 0 && (
+                <div className="grid grid-cols-2 gap-2">
+                  <ResultCard
+                    label="Total facturé simulé"
+                    value={fmt(result.simTotalBilled)}
+                    sub={`${simBilledDays.toFixed(1)}j × ${fmt(simTJM)}/j`}
+                    highlight
+                  />
+                  {result.simMonthlyAmount !== null && result.durationInMonths !== null && (
+                    <ResultCard
+                      label="Revenu mensuel moyen"
+                      value={fmt(result.simMonthlyAmount) + "/mois"}
+                      sub={`sur ${fmtMonths(result.durationInMonths)}`}
+                      highlight
+                    />
+                  )}
+                </div>
               )}
 
               <div className="grid grid-cols-2 gap-2">
                 <ResultCard
                   label="Restant à facturer"
-                  value={(currentState.totalBilled > 0 || (isTimeBasedBilling && result.projectedBilling !== null))
-                    ? fmt(result.remainingToInvoice)
-                    : "—"}
+                  value={result.remainingToInvoice > 0 ? fmt(result.remainingToInvoice) : "—"}
                   sub="hors acomptes versés"
                 />
                 {currentState.internalDailyCost > 0 && (
@@ -400,7 +466,7 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
                 )}
               </div>
 
-              {currentState.internalDailyCost > 0 && (currentState.totalBilled > 0 || (isTimeBasedBilling && result.projectedBilling !== null)) && (
+              {currentState.internalDailyCost > 0 && result.simTotalBilled > 0 && (
                 <div className="grid grid-cols-2 gap-2">
                   <ResultCard
                     label="Marge projetée"
@@ -409,7 +475,7 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
                     delta={result.projectedMargin < 0 ? "Déficit !" : undefined}
                   />
                   <ResultCard
-                    label="Marge projetée %"
+                    label="Marge %"
                     value={fmtPct(result.projectedMarginPercent)}
                     deltaPositive={result.projectedMarginPercent >= 25}
                     delta={
@@ -425,7 +491,7 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
 
             {result.missingFields.length > 0 && (
               <p className="text-[10px] text-muted-foreground mt-2">
-                Données manquantes pour un calcul complet : {result.missingFields.join(", ")}.
+                Données manquantes : {result.missingFields.join(", ")}.
               </p>
             )}
           </div>
@@ -433,26 +499,11 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
 
         {/* ─── Actions ─── */}
         <div className="border-t px-6 py-4 flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs"
-            onClick={handleReset}
-            data-testid="button-reset-simulation"
-          >
-            <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-            Réinitialiser
+          <Button variant="ghost" size="sm" className="text-xs" onClick={handleReset} data-testid="button-reset-simulation">
+            <RotateCcw className="h-3.5 w-3.5 mr-1.5" />Réinitialiser
           </Button>
           <div className="flex-1" />
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs"
-            onClick={onClose}
-            data-testid="button-cancel-simulation"
-          >
-            Annuler
-          </Button>
+          <Button variant="outline" size="sm" className="text-xs" onClick={onClose} data-testid="button-cancel-simulation">Annuler</Button>
           <Button
             size="sm"
             className="text-xs"
@@ -461,7 +512,7 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
             data-testid="button-validate-simulation"
           >
             <FlaskConical className="h-3.5 w-3.5 mr-1.5" />
-            {validateMutation.isPending ? "Application…" : "Valider la simulation"}
+            {validateMutation.isPending ? "Application…" : "Valider"}
           </Button>
         </div>
       </SheetContent>
@@ -481,12 +532,7 @@ function Row({ label, value, missing }: { label: string; value: string; missing?
 function ResultCard({
   label, value, sub, delta, deltaPositive, highlight,
 }: {
-  label: string;
-  value: string;
-  sub?: string;
-  delta?: string | null;
-  deltaPositive?: boolean;
-  highlight?: boolean;
+  label: string; value: string; sub?: string; delta?: string | null; deltaPositive?: boolean; highlight?: boolean;
 }) {
   return (
     <div className={`rounded-md p-3 border ${highlight ? "bg-primary/5 border-primary/20" : "bg-muted/30 border-border"}`}>
