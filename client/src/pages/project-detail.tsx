@@ -7330,24 +7330,31 @@ export default function ProjectDetail() {
       </Sheet>
 
       {/* Simulation Drawer */}
-      {isSimulationOpen && (
-        <SimulationDrawer
-          open={isSimulationOpen}
-          onClose={() => setIsSimulationOpen(false)}
-          project={project}
-          currentState={{
-            totalEstimatedDays,
-            actualDaysWorked: profitabilityMetrics?.actualDaysWorked ?? (totalTimeDays / 8),
-            remainingDays,
-            totalBilled: parseFloat(totalBilledValue || "0") || 0,
-            totalPaid,
-            internalDailyCost: project.internalDailyCost ? parseFloat(project.internalDailyCost.toString()) : 0,
-            currentEndDate: project.endDate ? new Date(project.endDate + "T00:00:00") : null,
-            billingType: project.billingType,
-            billingRate: project.billingRate ? parseFloat(project.billingRate.toString()) : undefined,
-          }}
-        />
-      )}
+      {isSimulationOpen && (() => {
+        const simEstimatedDays = cdcEstimatedDays > 0
+          ? cdcEstimatedDays
+          : (parseFloat(project?.numberOfDays?.toString() || "0") || 0);
+        const simActualDays = profitabilityMetrics?.actualDaysWorked || 0;
+        const simRemainingDays = Math.max(0, simEstimatedDays - simActualDays);
+        return (
+          <SimulationDrawer
+            open={isSimulationOpen}
+            onClose={() => setIsSimulationOpen(false)}
+            project={project}
+            currentState={{
+              totalEstimatedDays: simEstimatedDays,
+              actualDaysWorked: simActualDays,
+              remainingDays: simRemainingDays,
+              totalBilled: parseFloat(totalBilledValue || "0") || 0,
+              totalPaid,
+              internalDailyCost: project.internalDailyCost ? parseFloat(project.internalDailyCost.toString()) : 0,
+              currentEndDate: project.endDate ? new Date(project.endDate + "T00:00:00") : null,
+              billingType: project.billingType,
+              billingRate: project.billingRate ? parseFloat(project.billingRate.toString()) : undefined,
+            }}
+          />
+        );
+      })()}
 
       {/* CDC Wizard */}
       <CdcWizard
