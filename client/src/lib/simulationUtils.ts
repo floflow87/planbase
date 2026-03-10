@@ -1,6 +1,8 @@
 export interface SimulationInputs {
   simulationStartDate: Date;
   simulationDaysPerWeek: number;
+  targetMode: "days" | "date";
+  targetEndDate?: Date | null;
 }
 
 export interface SimulationCurrentState {
@@ -25,6 +27,8 @@ export interface SimulationResult {
   projectedTotalCost: number;
   projectedMargin: number;
   projectedMarginPercent: number;
+  projectedBilling: number | null;
+  availableWorkDaysInWindow: number | null;
   deltaEndDays: number | null;
   riskLevel: "ok" | "warning" | "danger" | "unknown";
   riskLabel: string;
@@ -59,26 +63,47 @@ export function computeSimulation(
 
   if (state.totalEstimatedDays <= 0) missingFields.push("jours estimés totaux");
   if (state.internalDailyCost <= 0) missingFields.push("coût journalier interne");
-  if (state.totalBilled <= 0) missingFields.push("montant facturé");
-
-  const remainingWorkDays = Math.max(0, state.remainingDays);
+  if (state.totalBilled <= 0 && state.billingType !== "time_based") missingFields.push("montant facturé");
 
   const daysPerWeek = Math.max(1, Math.min(7, inputs.simulationDaysPerWeek));
-  const calendarDaysNeeded =
-    daysPerWeek > 0
+
+  let remainingWorkDays: number;
+  let calendarDaysNeeded: number;
+  let newEndDate: Date;
+  let availableWorkDaysInWindow: number | null = null;
+
+  if (inputs.targetMode === "date" && inputs.targetEndDate) {
+    const calendarWindow = Math.max(0, daysBetween(inputs.simulationStartDate, inputs.targetEndDate));
+    availableWorkDaysInWindow = Math.floor((calendarWindow * daysPerWeek) / 7);
+    remainingWorkDays = availableWorkDaysInWindow;
+    calendarDaysNeeded = calendarWindow;
+    newEndDate = new Date(inputs.targetEndDate);
+  } else {
+    remainingWorkDays = Math.max(0, state.remainingDays);
+    calendarDaysNeeded = daysPerWeek > 0
       ? Math.ceil((remainingWorkDays / daysPerWeek) * 7)
       : 0;
+    newEndDate = addCalendarDays(inputs.simulationStartDate, calendarDaysNeeded);
+  }
 
-  const newEndDate = addCalendarDays(inputs.simulationStartDate, calendarDaysNeeded);
   const remainingCalendarLabel = formatCalendarDuration(calendarDaysNeeded);
 
-  const remainingToInvoice = Math.max(0, state.totalBilled - state.totalPaid);
+  let projectedBilling: number | null = null;
+  let effectiveTotalBilled = state.totalBilled;
+
+  if (state.billingType === "time_based" && state.billingRate && state.billingRate > 0) {
+    const totalDaysProjected = state.actualDaysWorked + remainingWorkDays;
+    projectedBilling = totalDaysProjected * state.billingRate;
+    effectiveTotalBilled = projectedBilling;
+  }
+
+  const remainingToInvoice = Math.max(0, effectiveTotalBilled - state.totalPaid);
   const projectedRemainingCost = remainingWorkDays * state.internalDailyCost;
   const alreadySpentCost = state.actualDaysWorked * state.internalDailyCost;
   const projectedTotalCost = alreadySpentCost + projectedRemainingCost;
-  const projectedMargin = state.totalBilled - projectedTotalCost;
+  const projectedMargin = effectiveTotalBilled - projectedTotalCost;
   const projectedMarginPercent =
-    state.totalBilled > 0 ? (projectedMargin / state.totalBilled) * 100 : 0;
+    effectiveTotalBilled > 0 ? (projectedMargin / effectiveTotalBilled) * 100 : 0;
 
   const deltaEndDays = state.currentEndDate
     ? daysBetween(state.currentEndDate, newEndDate)
@@ -86,21 +111,25 @@ export function computeSimulation(
 
   let riskLevel: SimulationResult["riskLevel"] = "unknown";
   let riskLabel = "Données insuffisantes";
-  if (missingFields.length === 0 || (missingFields.length === 1 && missingFields[0] === "coût journalier interne")) {
-    if (projectedMarginPercent >= 25) {
-      riskLevel = "ok";
-      riskLabel = "Trajectoire saine";
-    } else if (projectedMarginPercent >= 10) {
-      riskLevel = "warning";
-      riskLabel = "Marge réduite";
-    } else if (projectedMarginPercent >= 0) {
-      riskLevel = "danger";
-      riskLabel = "Marge critique";
+  const hasBilling = effectiveTotalBilled > 0;
+  const hasCost = state.internalDailyCost > 0;
+
+  if (hasBilling) {
+    if (hasCost) {
+      if (projectedMarginPercent >= 25) {
+        riskLevel = "ok";
+        riskLabel = "Trajectoire saine";
+      } else if (projectedMarginPercent >= 10) {
+        riskLevel = "warning";
+        riskLabel = "Marge réduite";
+      } else if (projectedMarginPercent >= 0) {
+        riskLevel = "danger";
+        riskLabel = "Marge critique";
+      } else {
+        riskLevel = "danger";
+        riskLabel = "Dépassement de budget";
+      }
     } else {
-      riskLevel = "danger";
-      riskLabel = "Dépassement de budget";
-    }
-    if (missingFields.includes("coût journalier interne")) {
       riskLevel = "unknown";
       riskLabel = "Coût journalier non renseigné";
     }
@@ -116,6 +145,8 @@ export function computeSimulation(
     projectedTotalCost,
     projectedMargin,
     projectedMarginPercent,
+    projectedBilling,
+    availableWorkDaysInWindow,
     deltaEndDays,
     riskLevel,
     riskLabel,
