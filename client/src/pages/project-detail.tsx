@@ -5375,7 +5375,7 @@ export default function ProjectDetail() {
                         </div>
                         <div className="text-[10px] text-muted-foreground mt-1" data-testid="kpi-billing-type">
                           {project?.billingType === "fixed_price" ? "Au forfait" : 
-                           project?.billingType === "time_based" ? "Au temps passé" : 
+                           project?.billingType === "time_based" ? "En régie" : 
                            "Mode de facturation non défini"}
                         </div>
                       </CardContent>
@@ -7103,14 +7103,14 @@ export default function ProjectDetail() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="time">Temps passé</SelectItem>
+                  <SelectItem value="time">Régie</SelectItem>
                   <SelectItem value="fixed">Forfait</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">
                 {project?.billingType === "fixed" 
                   ? "Facturation au forfait : montant total fixe"
-                  : "Facturation au temps passé : taux horaire ou journalier"}
+                  : "Facturation en régie : taux journalier (TJM)"}
               </p>
             </div>
 

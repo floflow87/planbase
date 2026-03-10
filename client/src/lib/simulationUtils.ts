@@ -82,14 +82,22 @@ function addDaysToDate(date: Date, n: number): Date {
   return d;
 }
 
+function snapToEndOfMonth(date: Date): Date {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + 1, 0);
+  return d;
+}
+
 export function computePaymentSchedule(
   rhythm: PaymentRhythm,
   totalAmount: number,
   startDate: Date,
   endDate: Date,
   depositPct: number = 30,
-  milestoneCount: number = 3
+  milestoneCount: number = 3,
+  endOfMonth: boolean = false
 ): PaymentInstallment[] {
+  const snap = (d: Date) => endOfMonth ? snapToEndOfMonth(d) : d;
   if (totalAmount <= 0) return [];
 
   const durationMs = Math.max(0, endDate.getTime() - startDate.getTime());
@@ -98,18 +106,18 @@ export function computePaymentSchedule(
 
   switch (rhythm) {
     case "at_order":
-      return [{ date: new Date(startDate), amount: totalAmount, label: "À la commande", pct: 100, type: "regular" }];
+      return [{ date: snap(new Date(startDate)), amount: totalAmount, label: "À la commande", pct: 100, type: "regular" }];
 
     case "at_delivery":
-      return [{ date: new Date(endDate), amount: totalAmount, label: "À la livraison", pct: 100, type: "regular" }];
+      return [{ date: snap(new Date(endDate)), amount: totalAmount, label: "À la livraison", pct: 100, type: "regular" }];
 
     case "30d_after_delivery":
-      return [{ date: addDaysToDate(endDate, 30), amount: totalAmount, label: "30j après livraison", pct: 100, type: "regular" }];
+      return [{ date: snap(addDaysToDate(endDate, 30)), amount: totalAmount, label: "30j après livraison", pct: 100, type: "regular" }];
 
     case "monthly": {
       const perMonth = totalAmount / durationMonths;
       return Array.from({ length: durationMonths }, (_, i) => ({
-        date: addMonths(startDate, i + 1),
+        date: snap(addMonths(startDate, i + 1)),
         amount: perMonth,
         label: `Mensualité ${i + 1}/${durationMonths}`,
         pct: 100 / durationMonths,
@@ -121,7 +129,7 @@ export function computePaymentSchedule(
       const quarters = Math.max(1, Math.ceil(durationMonths / 3));
       const perQuarter = totalAmount / quarters;
       return Array.from({ length: quarters }, (_, i) => ({
-        date: addMonths(startDate, (i + 1) * 3),
+        date: snap(addMonths(startDate, (i + 1) * 3)),
         amount: perQuarter,
         label: `Trimestre ${i + 1}/${quarters}`,
         pct: 100 / quarters,
@@ -134,7 +142,7 @@ export function computePaymentSchedule(
       const perMilestone = totalAmount / count;
       const intervalDays = durationDays / count;
       return Array.from({ length: count }, (_, i) => ({
-        date: addDaysToDate(startDate, Math.round(intervalDays * (i + 1))),
+        date: snap(addDaysToDate(startDate, Math.round(intervalDays * (i + 1)))),
         amount: perMilestone,
         label: `Milestone ${i + 1}/${count}`,
         pct: 100 / count,
@@ -147,7 +155,7 @@ export function computePaymentSchedule(
       const balance = totalAmount - deposit;
       return [
         { date: new Date(startDate), amount: deposit, label: `Acompte (${depositPct}%)`, pct: depositPct, type: "deposit" },
-        { date: new Date(endDate), amount: balance, label: `Solde à la livraison (${100 - depositPct}%)`, pct: 100 - depositPct, type: "balance" },
+        { date: snap(new Date(endDate)), amount: balance, label: `Solde à la livraison (${100 - depositPct}%)`, pct: 100 - depositPct, type: "balance" },
       ];
     }
 
@@ -161,7 +169,7 @@ export function computePaymentSchedule(
       ];
       for (let i = 0; i < months; i++) {
         schedule.push({
-          date: addMonths(startDate, i + 1),
+          date: snap(addMonths(startDate, i + 1)),
           amount: perMonth,
           label: `Mensuel ${i + 1}/${months}`,
           pct: (100 - depositPct) / months,

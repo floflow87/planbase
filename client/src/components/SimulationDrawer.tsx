@@ -87,6 +87,7 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
   const [paymentRhythm, setPaymentRhythm] = useState<PaymentRhythm>(
     (project.paymentRhythm as PaymentRhythm) || "at_delivery"
   );
+  const [endOfMonth, setEndOfMonth] = useState(false);
   const [depositPctStr, setDepositPctStr] = useState<string>("30");
   const [depositAmtStr, setDepositAmtStr] = useState<string>("");
   const [milestoneCountStr, setMilestoneCountStr] = useState<string>("3");
@@ -154,9 +155,10 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
       startDate,
       result.newEndDate,
       depositPct,
-      milestoneCount
+      milestoneCount,
+      endOfMonth
     );
-  }, [paymentRhythm, result.simTotalBilled, startDate, result.newEndDate, depositPct, milestoneCount]);
+  }, [paymentRhythm, result.simTotalBilled, startDate, result.newEndDate, depositPct, milestoneCount, endOfMonth]);
 
   const validateMutation = useMutation({
     mutationFn: async () => {
@@ -164,6 +166,10 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
         simulationDaysPerWeek: daysPerWeek.toString(),
         simulationStartDate: startDate.toISOString().split("T")[0],
         endDate: result.newEndDate.toISOString().split("T")[0],
+        billingType: simBillingType,
+        ...(simTJM > 0 ? { billingRate: simTJM.toFixed(2) } : {}),
+        ...(simBilledDays > 0 ? { numberOfDays: simBilledDays.toFixed(2) } : {}),
+        ...(result.simTotalBilled > 0 ? { totalBilled: result.simTotalBilled.toFixed(2) } : {}),
       };
       await apiRequest(`/api/projects/${project.id}`, "PATCH", payload);
 
@@ -185,9 +191,11 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/profitability"] });
       queryClient.invalidateQueries({ queryKey: ["/api/projects", project.id] });
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${project.id}/payments`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", project.id, "payments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", project.id, "profitability"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
       const syncMsg = syncPayments && paymentSchedule.length > 0 ? ` · ${paymentSchedule.length} échéances créées` : "";
-      toast({ title: "Simulation appliquée", description: `Fin projetée : ${fmtDate(result.newEndDate)}${syncMsg}` });
+      toast({ title: "Simulation appliquée", description: `Fin projetée : ${fmtDate(result.newEndDate)}${syncMsg}`, className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600" });
       onClose();
     },
     onError: () => {
@@ -204,6 +212,7 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
     setSimTJMStr(currentState.billingRate && currentState.billingRate > 0 ? currentState.billingRate.toString() : "");
     setBilledDaysLocked(false);
     setPaymentRhythm((project.paymentRhythm as PaymentRhythm) || "at_delivery");
+    setEndOfMonth(false);
     setDepositPctStr("30");
     setDepositAmtStr("");
     setMilestoneCountStr("3");
@@ -410,6 +419,16 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
                     ))}
                   </SelectContent>
                 </Select>
+                <label className="flex items-center gap-2 cursor-pointer select-none mt-1.5" data-testid="checkbox-end-of-month-label">
+                  <input
+                    type="checkbox"
+                    checked={endOfMonth}
+                    onChange={(e) => setEndOfMonth(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer"
+                    data-testid="checkbox-end-of-month"
+                  />
+                  <span className="text-xs text-muted-foreground">Echéances en fin de mois</span>
+                </label>
               </div>
 
               {/* Options conditionnelles */}
