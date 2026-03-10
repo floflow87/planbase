@@ -79,13 +79,32 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
   const [billedDaysLocked, setBilledDaysLocked] = useState(false);
 
   // ── rythme de règlement
-  const [paymentRhythm, setPaymentRhythm] = useState<PaymentRhythm>("at_delivery");
+  const [paymentRhythm, setPaymentRhythm] = useState<PaymentRhythm>(
+    (project.paymentRhythm as PaymentRhythm) || "at_delivery"
+  );
   const [depositPctStr, setDepositPctStr] = useState<string>("30");
+  const [depositAmtStr, setDepositAmtStr] = useState<string>("");
   const [milestoneCountStr, setMilestoneCountStr] = useState<string>("3");
 
   const simTJM = parseFloat(simTJMStr) || 0;
   const depositPct = Math.min(99, Math.max(1, parseFloat(depositPctStr) || 30));
+  const depositAmt = parseFloat(depositAmtStr) || 0;
   const milestoneCount = Math.max(2, Math.min(10, parseInt(milestoneCountStr) || 3));
+
+  const handleDepositPctChange = (val: string) => {
+    setDepositPctStr(val);
+    const pct = parseFloat(val);
+    if (!isNaN(pct) && result.simTotalBilled > 0) {
+      setDepositAmtStr(Math.round((pct / 100) * result.simTotalBilled).toString());
+    }
+  };
+  const handleDepositAmtChange = (val: string) => {
+    setDepositAmtStr(val);
+    const amt = parseFloat(val);
+    if (!isNaN(amt) && result.simTotalBilled > 0) {
+      setDepositPctStr(((amt / result.simTotalBilled) * 100).toFixed(1));
+    }
+  };
 
   // ── auto-fill des jours facturés
   const autoFillDays = useMemo(() => {
@@ -163,8 +182,9 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
     setSimBillingType(defaultBillingType);
     setSimTJMStr(currentState.billingRate && currentState.billingRate > 0 ? currentState.billingRate.toString() : "");
     setBilledDaysLocked(false);
-    setPaymentRhythm("at_delivery");
+    setPaymentRhythm((project.paymentRhythm as PaymentRhythm) || "at_delivery");
     setDepositPctStr("30");
+    setDepositAmtStr("");
     setMilestoneCountStr("3");
   };
 
@@ -364,24 +384,37 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
               </div>
 
               {/* Options conditionnelles */}
-              {(RHYTHMS_WITH_DEPOSIT.includes(paymentRhythm) || RHYTHMS_WITH_MILESTONE.includes(paymentRhythm)) && (
-                <div className="grid grid-cols-2 gap-3">
-                  {RHYTHMS_WITH_DEPOSIT.includes(paymentRhythm) && (
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Acompte (%)</Label>
+              {RHYTHMS_WITH_DEPOSIT.includes(paymentRhythm) && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Acompte</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="relative">
                       <Input type="number" min={1} max={99} step={5} value={depositPctStr}
-                        onChange={(e) => setDepositPctStr(e.target.value)}
-                        className="h-8 text-xs" data-testid="input-deposit-pct" />
+                        onChange={(e) => handleDepositPctChange(e.target.value)}
+                        className="h-8 text-xs pr-6" data-testid="input-deposit-pct" />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">%</span>
                     </div>
-                  )}
-                  {RHYTHMS_WITH_MILESTONE.includes(paymentRhythm) && (
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Nb de milestones</Label>
-                      <Input type="number" min={2} max={10} step={1} value={milestoneCountStr}
-                        onChange={(e) => setMilestoneCountStr(e.target.value)}
-                        className="h-8 text-xs" data-testid="input-milestone-count" />
+                    <div className="relative">
+                      <Input type="number" min={0} step={100} value={depositAmtStr}
+                        onChange={(e) => handleDepositAmtChange(e.target.value)}
+                        placeholder={result.simTotalBilled > 0 ? Math.round((depositPct / 100) * result.simTotalBilled).toString() : "Montant"}
+                        className="h-8 text-xs pr-6" data-testid="input-deposit-amt" />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">€</span>
                     </div>
+                  </div>
+                  {result.simTotalBilled > 0 && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Acompte : <strong>{fmt(Math.round((depositPct / 100) * result.simTotalBilled))}</strong> · Solde : <strong>{fmt(Math.round(result.simTotalBilled - (depositPct / 100) * result.simTotalBilled))}</strong>
+                    </p>
                   )}
+                </div>
+              )}
+              {RHYTHMS_WITH_MILESTONE.includes(paymentRhythm) && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Nb de milestones</Label>
+                  <Input type="number" min={2} max={10} step={1} value={milestoneCountStr}
+                    onChange={(e) => setMilestoneCountStr(e.target.value)}
+                    className="h-8 text-xs" data-testid="input-milestone-count" />
                 </div>
               )}
 

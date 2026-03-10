@@ -2229,6 +2229,13 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Projects simulation fields added");
 
+    // Add payment_rhythm field to projects
+    await db.execute(sql`
+      ALTER TABLE projects
+      ADD COLUMN IF NOT EXISTS payment_rhythm TEXT;
+    `);
+    console.log("✅ Projects payment_rhythm field added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

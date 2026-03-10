@@ -38,6 +38,7 @@ import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { PostCreationSuggestions } from "@/components/PostCreationSuggestions";
 import { CdcWizard } from "@/components/cdc/CdcWizard";
 import { SimulationDrawer } from "@/components/SimulationDrawer";
+import { PAYMENT_RHYTHM_LABELS, type PaymentRhythm } from "@/lib/simulationUtils";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 
@@ -7133,6 +7134,32 @@ export default function ProjectDetail() {
                 <SelectContent>
                   <SelectItem value="hour">À l'heure</SelectItem>
                   <SelectItem value="day">À la journée</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Rythme de règlement */}
+            <div>
+              <Label htmlFor="sheet-payment-rhythm" className="text-sm font-medium">Rythme de règlement</Label>
+              <Select
+                value={project?.paymentRhythm || "at_delivery"}
+                onValueChange={async (value) => {
+                  try {
+                    await apiRequest(`/api/projects/${id}`, "PATCH", { paymentRhythm: value });
+                    queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                    toast({ title: "Rythme de règlement mis à jour", variant: "success" });
+                  } catch (error: any) {
+                    toast({ title: "Erreur", description: error.message, variant: "destructive" });
+                  }
+                }}
+              >
+                <SelectTrigger id="sheet-payment-rhythm" data-testid="select-sheet-payment-rhythm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.entries(PAYMENT_RHYTHM_LABELS) as [PaymentRhythm, string][]).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

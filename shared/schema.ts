@@ -477,6 +477,8 @@ export const projects = pgTable("projects", {
   expectedScopeTypes: jsonb("expected_scope_types").$type<string[]>(), // Expected CDC line types
   onboardingSuggestionsShown: integer("onboarding_suggestions_shown").default(0), // 0 = not shown, 1 = shown
   onboardingSuggestionsDismissed: integer("onboarding_suggestions_dismissed").default(0), // 0 = not dismissed, 1 = dismissed
+  // Payment rhythm
+  paymentRhythm: text("payment_rhythm"), // 'at_order' | 'monthly' | 'at_milestone' | 'quarterly' | 'at_delivery' | 'deposit_monthly' | 'deposit_delivery' | '30d_after_delivery'
   // Simulation fields (last validated simulation scenario)
   simulationDaysPerWeek: numeric("simulation_days_per_week", { precision: 5, scale: 1 }), // Working days/week used in last simulation
   simulationStartDate: date("simulation_start_date"), // Start date of last validated simulation
