@@ -25,7 +25,6 @@ import {
   FileDown,
   Copy,
   Check,
-  Puzzle,
   ChevronDown,
   ChevronUp
 } from "lucide-react";
@@ -114,7 +113,6 @@ interface ScopeItemRowProps {
 }
 
 function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
-  const [isEditing, setIsEditing] = useState(false);
   const [isEnriching, setIsEnriching] = useState(false);
   const [label, setLabel] = useState(item.label);
   const [estimatedDays, setEstimatedDays] = useState(item.estimatedDays?.toString() || "0");
@@ -144,7 +142,7 @@ function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
       estimatedDays: days.toString(),
       description: description || null,
     });
-    setIsEditing(false);
+    setIsEnriching(false);
   };
 
   const scopeTypeInfo = SCOPE_TYPES.find(t => t.value === item.scopeType);
@@ -154,8 +152,9 @@ function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-background border rounded-md ${isDragging ? 'shadow-lg' : 'hover-elevate'}`}
+      className={`bg-background border rounded-md ${isDragging ? 'shadow-lg' : ''}`}
     >
+      {/* Row — click opens enrichment panel */}
       <div className="flex items-center gap-2 px-2 py-1.5">
         <div
           {...attributes}
@@ -165,159 +164,160 @@ function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
           <GripVertical className="h-3.5 w-3.5" />
         </div>
 
-        {isEditing ? (
-          <div className="flex-1 space-y-1.5">
-            <Input
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="Intitulé de la rubrique"
-              className="h-8 text-sm"
-              data-testid={`input-scope-label-${item.id}`}
-            />
-            <div className="flex gap-2 items-center">
-              <div className="w-20">
-                <Input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  value={estimatedDays}
-                  onChange={(e) => setEstimatedDays(e.target.value)}
-                  placeholder="Jours"
-                  className="h-8 text-sm"
-                  data-testid={`input-scope-days-${item.id}`}
-                />
-              </div>
-              <Textarea
+        <div
+          className="flex-1 min-w-0 cursor-pointer"
+          onClick={() => { setIsEnriching(true); setLabel(item.label); setEstimatedDays(item.estimatedDays?.toString() || "0"); setDescription(item.description || ""); }}
+        >
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm truncate">{item.label}</span>
+            {item.isOptional === 1 && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">Opt.</Badge>
+            )}
+            {scopeTypeInfo && (
+              <Badge className={`text-[10px] px-1.5 py-0 shrink-0 ${scopeTypeInfo.color}`}>
+                {scopeTypeInfo.label}
+              </Badge>
+            )}
+            {item.phase && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 border-primary/50">
+                {item.phase}
+              </Badge>
+            )}
+            {item.isBillable === 1 && (
+              <Badge className="text-[10px] px-1.5 py-0 shrink-0 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                <DollarSign className="h-2.5 w-2.5" />
+              </Badge>
+            )}
+          </div>
+          {item.description && (
+            <p className="text-[11px] text-muted-foreground truncate">{item.description}</p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 text-xs px-1.5 py-0">
+            <Clock className="h-3 w-3 mr-0.5" />
+            {parseFloat(item.estimatedDays?.toString() || "0")} j
+          </Badge>
+          <Switch
+            id={`optional-${item.id}`}
+            checked={item.isOptional === 1}
+            onCheckedChange={(checked) => onUpdate(item.id, { isOptional: checked ? 1 : 0 })}
+            className="scale-75"
+            data-testid={`switch-optional-${item.id}`}
+          />
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+            onClick={() => onDelete(item.id)}
+            data-testid={`button-delete-scope-${item.id}`}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Enrichment panel — opened on row click */}
+      {isEnriching && (
+        <div className="px-3 pb-3 pt-2 border-t bg-muted/20 space-y-3">
+          {/* Title + Days */}
+          <div className="flex gap-2 items-start">
+            <div className="w-1/2">
+              <Label className="text-[10px] text-muted-foreground mb-1 block">Intitulé</Label>
+              <Input
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="Intitulé de la rubrique"
+                className="h-7 text-xs"
+                data-testid={`input-scope-label-${item.id}`}
+              />
+            </div>
+            <div className="w-20">
+              <Label className="text-[10px] text-muted-foreground mb-1 block">Jours</Label>
+              <Input
+                type="number"
+                step="0.5"
+                min="0"
+                value={estimatedDays}
+                onChange={(e) => setEstimatedDays(e.target.value)}
+                placeholder="0"
+                className="h-7 text-xs"
+                data-testid={`input-scope-days-${item.id}`}
+              />
+            </div>
+            <div className="flex-1">
+              <Label className="text-[10px] text-muted-foreground mb-1 block">Description</Label>
+              <Input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Description (optionnel)"
-                className="flex-1 resize-none text-sm min-h-[32px]"
-                rows={1}
+                className="h-7 text-xs"
                 data-testid={`input-scope-description-${item.id}`}
               />
             </div>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={handleSave} data-testid={`button-save-scope-${item.id}`}>
-                Enregistrer
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setIsEditing(false)}>
-                Annuler
-              </Button>
-            </div>
           </div>
-        ) : (
-          <>
-            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setIsEditing(true)}>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm truncate">{item.label}</span>
-                {item.isOptional === 1 && (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">Opt.</Badge>
-                )}
-                {scopeTypeInfo && (
-                  <Badge className={`text-[10px] px-1.5 py-0 shrink-0 ${scopeTypeInfo.color}`}>
-                    {scopeTypeInfo.label}
-                  </Badge>
-                )}
-                {item.phase && (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 border-primary/50">
-                    {item.phase}
-                  </Badge>
-                )}
-                {item.isBillable === 1 && (
-                  <Badge className="text-[10px] px-1.5 py-0 shrink-0 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                    <DollarSign className="h-2.5 w-2.5" />
-                  </Badge>
-                )}
-              </div>
-              {item.description && (
-                <p className="text-[11px] text-muted-foreground truncate">{item.description}</p>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 text-xs px-1.5 py-0">
-                <Clock className="h-3 w-3 mr-0.5" />
-                {parseFloat(item.estimatedDays?.toString() || "0")} j
-              </Badge>
-              <Button
-                size="icon"
-                variant="ghost"
-                className={`h-7 w-7 ${hasEnrichment ? 'text-primary' : 'text-muted-foreground'} hover:text-primary`}
-                onClick={() => setIsEnriching(!isEnriching)}
-                data-testid={`button-enrich-scope-${item.id}`}
-                title="Enrichir avec type, phase, facturable"
+
+          {/* Type / Phase / Billable */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <Label className="text-[10px] text-muted-foreground">Type :</Label>
+              <Select
+                value={item.scopeType || ''}
+                onValueChange={(value) => onUpdate(item.id, { scopeType: value || null })}
               >
-                {isEnriching ? <ChevronUp className="h-3.5 w-3.5" /> : <Puzzle className="h-3.5 w-3.5" />}
-              </Button>
+                <SelectTrigger className="h-7 w-28 text-xs" data-testid={`select-scope-type-${item.id}`}>
+                  <SelectValue placeholder="Choisir..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {SCOPE_TYPES.map(type => (
+                    <SelectItem key={type.value} value={type.value} className="text-xs">
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <Label className="text-[10px] text-muted-foreground">Phase :</Label>
+              <Select
+                value={item.phase || ''}
+                onValueChange={(value) => onUpdate(item.id, { phase: value || null })}
+              >
+                <SelectTrigger className="h-7 w-20 text-xs" data-testid={`select-phase-${item.id}`}>
+                  <SelectValue placeholder="--" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PHASES.map(phase => (
+                    <SelectItem key={phase.value} value={phase.value} className="text-xs">
+                      {phase.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor={`billable-${item.id}`} className="text-[10px] text-muted-foreground">Facturable :</Label>
               <Switch
-                id={`optional-${item.id}`}
-                checked={item.isOptional === 1}
-                onCheckedChange={(checked) => onUpdate(item.id, { isOptional: checked ? 1 : 0 })}
+                id={`billable-${item.id}`}
+                checked={item.isBillable === 1}
+                onCheckedChange={(checked) => onUpdate(item.id, { isBillable: checked ? 1 : 0 })}
                 className="scale-75"
-                data-testid={`switch-optional-${item.id}`}
+                data-testid={`switch-billable-${item.id}`}
               />
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                onClick={() => onDelete(item.id)}
-                data-testid={`button-delete-scope-${item.id}`}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
             </div>
-          </>
-        )}
-      </div>
-
-      {isEnriching && !isEditing && (
-        <div className="px-2 pb-2 pt-1 border-t bg-muted/30 flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground">Type:</Label>
-            <Select
-              value={item.scopeType || ''}
-              onValueChange={(value) => onUpdate(item.id, { scopeType: value || null })}
-            >
-              <SelectTrigger className="h-7 w-28 text-xs" data-testid={`select-scope-type-${item.id}`}>
-                <SelectValue placeholder="Choisir..." />
-              </SelectTrigger>
-              <SelectContent>
-                {SCOPE_TYPES.map(type => (
-                  <SelectItem key={type.value} value={type.value} className="text-xs">
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground">Phase:</Label>
-            <Select
-              value={item.phase || ''}
-              onValueChange={(value) => onUpdate(item.id, { phase: value || null })}
-            >
-              <SelectTrigger className="h-7 w-20 text-xs" data-testid={`select-phase-${item.id}`}>
-                <SelectValue placeholder="--" />
-              </SelectTrigger>
-              <SelectContent>
-                {PHASES.map(phase => (
-                  <SelectItem key={phase.value} value={phase.value} className="text-xs">
-                    {phase.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Label htmlFor={`billable-${item.id}`} className="text-xs text-muted-foreground">Facturable:</Label>
-            <Switch
-              id={`billable-${item.id}`}
-              checked={item.isBillable === 1}
-              onCheckedChange={(checked) => onUpdate(item.id, { isBillable: checked ? 1 : 0 })}
-              className="scale-75"
-              data-testid={`switch-billable-${item.id}`}
-            />
+          {/* Actions */}
+          <div className="flex gap-2">
+            <Button size="sm" onClick={handleSave} data-testid={`button-save-scope-${item.id}`}>
+              Enregistrer
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setIsEnriching(false)}>
+              Annuler
+            </Button>
           </div>
         </div>
       )}

@@ -5909,11 +5909,12 @@ export default function ProjectDetail() {
                       Aucun paiement enregistré
                     </p>
                   ) : (
-                    <div className="space-y-2">
-                      {[...payments].sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()).map((payment) => (
+                    <div>
+                      {[...payments].sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()).map((payment, idx) => (
+                        <div key={payment.id}>
+                        {idx > 0 && <hr className="border-border" />}
                         <div
-                          key={payment.id}
-                          className="flex items-center justify-between p-3 rounded-lg border bg-card hover-elevate"
+                          className="flex items-center justify-between py-2.5"
                           data-testid={`payment-item-${payment.id}`}
                         >
                           <div className="flex items-center gap-3">
@@ -5980,6 +5981,7 @@ export default function ProjectDetail() {
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
+                        </div>
                         </div>
                       ))}
                     </div>
@@ -7368,6 +7370,7 @@ export default function ProjectDetail() {
             open={isSimulationOpen}
             onClose={() => setIsSimulationOpen(false)}
             project={project}
+            payments={payments}
             currentState={{
               totalEstimatedDays: simEstimatedDays,
               actualDaysWorked: simActualDays,

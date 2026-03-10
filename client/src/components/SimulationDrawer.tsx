@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -31,6 +32,7 @@ interface SimulationDrawerProps {
   onClose: () => void;
   project: Project;
   currentState: SimulationCurrentState;
+  payments?: { id: string; isPaid: boolean }[];
 }
 
 function fmt(n: number) {
@@ -52,13 +54,16 @@ type BillingType = "fixed_price" | "time_based";
 const RHYTHMS_WITH_DEPOSIT: PaymentRhythm[] = ["deposit_monthly", "deposit_delivery"];
 const RHYTHMS_WITH_MILESTONE: PaymentRhythm[] = ["at_milestone"];
 
-export function SimulationDrawer({ open, onClose, project, currentState }: SimulationDrawerProps) {
+export function SimulationDrawer({ open, onClose, project, currentState, payments = [] }: SimulationDrawerProps) {
   const { toast } = useToast();
 
   const defaultDaysPerWeek = project.simulationDaysPerWeek ? parseFloat(project.simulationDaysPerWeek.toString()) : 5;
   const defaultBillingType: BillingType =
     project.billingType === "fixed_price" || project.billingType === "time_based"
       ? project.billingType : "fixed_price";
+
+  // ── sync paiements
+  const [syncPayments, setSyncPayments] = useState(true);
 
   // ── hypothèses temporelles
   const [startDate, setStartDate] = useState<Date>(new Date());
@@ -160,13 +165,29 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
         simulationStartDate: startDate.toISOString().split("T")[0],
         endDate: result.newEndDate.toISOString().split("T")[0],
       };
-      return apiRequest(`/api/projects/${project.id}`, "PATCH", payload);
+      await apiRequest(`/api/projects/${project.id}`, "PATCH", payload);
+
+      if (syncPayments && paymentSchedule.length > 0) {
+        const unpaid = payments.filter(p => !p.isPaid);
+        await Promise.all(unpaid.map(p => apiRequest(`/api/payments/${p.id}`, "DELETE")));
+        await Promise.all(paymentSchedule.map(inst =>
+          apiRequest(`/api/projects/${project.id}/payments`, "POST", {
+            projectId: project.id,
+            amount: inst.amount.toFixed(2),
+            paymentDate: inst.date.toISOString().split("T")[0],
+            description: inst.label,
+            isPaid: false,
+          })
+        ));
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/profitability"] });
       queryClient.invalidateQueries({ queryKey: ["/api/projects", project.id] });
-      toast({ title: "Simulation appliquée", description: `Fin projetée : ${fmtDate(result.newEndDate)}` });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${project.id}/payments`] });
+      const syncMsg = syncPayments && paymentSchedule.length > 0 ? ` · ${paymentSchedule.length} échéances créées` : "";
+      toast({ title: "Simulation appliquée", description: `Fin projetée : ${fmtDate(result.newEndDate)}${syncMsg}` });
       onClose();
     },
     onError: () => {
@@ -563,10 +584,20 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
         </div>
 
         {/* ─── Actions ─── */}
-        <div className="border-t px-6 py-4 flex items-center gap-2">
+        <div className="border-t px-6 py-4 flex flex-wrap items-center gap-3">
           <Button variant="ghost" size="sm" className="text-xs" onClick={handleReset} data-testid="button-reset-simulation">
             <RotateCcw className="h-3.5 w-3.5 mr-1.5" />Réinitialiser
           </Button>
+          {paymentSchedule.length > 0 && (
+            <label className="flex items-center gap-1.5 cursor-pointer select-none" data-testid="toggle-sync-payments">
+              <Switch
+                checked={syncPayments}
+                onCheckedChange={setSyncPayments}
+                className="scale-75"
+              />
+              <span className="text-[11px] text-muted-foreground">Sync suivi paiements</span>
+            </label>
+          )}
           <div className="flex-1" />
           <Button variant="outline" size="sm" className="text-xs" onClick={onClose} data-testid="button-cancel-simulation">Annuler</Button>
           <Button size="sm" className="text-xs" onClick={() => validateMutation.mutate()}
