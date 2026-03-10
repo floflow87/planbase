@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -18,7 +19,11 @@ import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { computeSimulation, daysBetween, type SimulationCurrentState } from "@/lib/simulationUtils";
+import {
+  computeSimulation, computePaymentSchedule, daysBetween,
+  type SimulationCurrentState, type PaymentRhythm, PAYMENT_RHYTHM_LABELS,
+  type PaymentInstallment,
+} from "@/lib/simulationUtils";
 import type { Project } from "@shared/schema";
 
 interface SimulationDrawerProps {
@@ -31,12 +36,9 @@ interface SimulationDrawerProps {
 function fmt(n: number) {
   return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
-function fmtPct(n: number) {
-  return `${n.toFixed(1)}%`;
-}
-function fmtDate(d: Date) {
-  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-}
+function fmtPct(n: number) { return `${n.toFixed(1)}%`; }
+function fmtDate(d: Date) { return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }); }
+function fmtShortDate(d: Date) { return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }); }
 function fmtMonths(n: number) {
   if (n < 1) return `${Math.round(n * 30.4)}j`;
   const months = Math.floor(n);
@@ -47,17 +49,18 @@ function fmtMonths(n: number) {
 
 type BillingType = "fixed_price" | "time_based";
 
+const RHYTHMS_WITH_DEPOSIT: PaymentRhythm[] = ["deposit_monthly", "deposit_delivery"];
+const RHYTHMS_WITH_MILESTONE: PaymentRhythm[] = ["at_milestone"];
+
 export function SimulationDrawer({ open, onClose, project, currentState }: SimulationDrawerProps) {
   const { toast } = useToast();
 
-  const defaultDaysPerWeek = project.simulationDaysPerWeek
-    ? parseFloat(project.simulationDaysPerWeek.toString())
-    : 5;
+  const defaultDaysPerWeek = project.simulationDaysPerWeek ? parseFloat(project.simulationDaysPerWeek.toString()) : 5;
   const defaultBillingType: BillingType =
-    (project.billingType === "fixed_price" || project.billingType === "time_based")
-      ? project.billingType
-      : "fixed_price";
+    project.billingType === "fixed_price" || project.billingType === "time_based"
+      ? project.billingType : "fixed_price";
 
+  // ── hypothèses temporelles
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [isStartOpen, setIsStartOpen] = useState(false);
   const [daysPerWeek, setDaysPerWeek] = useState<number>(defaultDaysPerWeek);
@@ -67,21 +70,30 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
   );
   const [isEndOpen, setIsEndOpen] = useState(false);
 
+  // ── paramètres de facturation
   const [simBillingType, setSimBillingType] = useState<BillingType>(defaultBillingType);
   const [simTJMStr, setSimTJMStr] = useState<string>(
-    currentState.billingRate && currentState.billingRate > 0
-      ? currentState.billingRate.toString()
-      : ""
+    currentState.billingRate && currentState.billingRate > 0 ? currentState.billingRate.toString() : ""
   );
   const [simBilledDaysStr, setSimBilledDaysStr] = useState<string>("");
   const [billedDaysLocked, setBilledDaysLocked] = useState(false);
 
-  const simTJM = parseFloat(simTJMStr) || 0;
+  // ── rythme de règlement
+  const [paymentRhythm, setPaymentRhythm] = useState<PaymentRhythm>("at_delivery");
+  const [depositPctStr, setDepositPctStr] = useState<string>("30");
+  const [milestoneCountStr, setMilestoneCountStr] = useState<string>("3");
 
+  const simTJM = parseFloat(simTJMStr) || 0;
+  const depositPct = Math.min(99, Math.max(1, parseFloat(depositPctStr) || 30));
+  const milestoneCount = Math.max(2, Math.min(10, parseInt(milestoneCountStr) || 3));
+
+  // ── auto-fill des jours facturés
   const autoFillDays = useMemo(() => {
     if (simBillingType === "time_based") {
+      // Régie : jours restants du CDC
       return currentState.remainingDays;
     } else {
+      // Forfait : j/sem × semaines dans la fenêtre de dates
       if (targetMode === "date" && targetEndDate) {
         const calendarWindow = Math.max(0, daysBetween(startDate, targetEndDate));
         return Math.floor((calendarWindow * daysPerWeek) / 7);
@@ -110,6 +122,18 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
 
   const result = useMemo(() => computeSimulation(inputs, currentState), [inputs, currentState]);
 
+  const paymentSchedule = useMemo<PaymentInstallment[]>(() => {
+    if (result.simTotalBilled <= 0) return [];
+    return computePaymentSchedule(
+      paymentRhythm,
+      result.simTotalBilled,
+      startDate,
+      result.newEndDate,
+      depositPct,
+      milestoneCount
+    );
+  }, [paymentRhythm, result.simTotalBilled, startDate, result.newEndDate, depositPct, milestoneCount]);
+
   const validateMutation = useMutation({
     mutationFn: async () => {
       const payload: Record<string, unknown> = {
@@ -123,10 +147,7 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/profitability"] });
       queryClient.invalidateQueries({ queryKey: ["/api/projects", project.id] });
-      toast({
-        title: "Simulation appliquée",
-        description: `Nouvelle date de fin projetée : ${fmtDate(result.newEndDate)}`,
-      });
+      toast({ title: "Simulation appliquée", description: `Fin projetée : ${fmtDate(result.newEndDate)}` });
       onClose();
     },
     onError: () => {
@@ -142,14 +163,15 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
     setSimBillingType(defaultBillingType);
     setSimTJMStr(currentState.billingRate && currentState.billingRate > 0 ? currentState.billingRate.toString() : "");
     setBilledDaysLocked(false);
+    setPaymentRhythm("at_delivery");
+    setDepositPctStr("30");
+    setMilestoneCountStr("3");
   };
 
   const riskIcon = result.riskLevel === "ok"
     ? <CheckCircle2 className="h-4 w-4 text-green-500" />
-    : result.riskLevel === "warning"
-    ? <AlertTriangle className="h-4 w-4 text-amber-500" />
-    : result.riskLevel === "danger"
-    ? <AlertTriangle className="h-4 w-4 text-red-500" />
+    : result.riskLevel === "warning" ? <AlertTriangle className="h-4 w-4 text-amber-500" />
+    : result.riskLevel === "danger" ? <AlertTriangle className="h-4 w-4 text-red-500" />
     : <Info className="h-4 w-4 text-muted-foreground" />;
 
   const riskBadgeClass =
@@ -164,11 +186,7 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
     : `${result.deltaEndDays}j vs actuel`
     : null;
 
-  const currentEndDateFormatted = currentState.currentEndDate
-    ? fmtDate(currentState.currentEndDate)
-    : "Non définie";
-
-  const billingLabel = (t: string) => t === "fixed_price" ? "Forfait" : t === "time_based" ? "Régie" : "Non défini";
+  const currentEndDateFormatted = currentState.currentEndDate ? fmtDate(currentState.currentEndDate) : "Non définie";
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -179,7 +197,7 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
             <SheetTitle className="text-base">Simuler la trajectoire</SheetTitle>
           </div>
           <SheetDescription className="text-xs text-muted-foreground">
-            Ajustez les hypothèses pour projeter votre facturation et votre marge.
+            Ajustez les hypothèses pour projeter votre facturation, votre marge et votre échéancier.
           </SheetDescription>
         </SheetHeader>
 
@@ -187,23 +205,17 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
 
           {/* ─── BLOC 1 : Hypothèses ─── */}
           <div className="space-y-4">
-            <h4 className="text-sm font-semibold flex items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white text-[10px] font-bold shrink-0">1</span>
-              Hypothèses de simulation
-            </h4>
+            <SectionTitle index={1} label="Hypothèses de simulation" />
 
-            {/* Dates + rythme */}
+            {/* Date de début + Jours / semaine — même taille */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Date de début</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Date de début</Label>
                 <Popover open={isStartOpen} onOpenChange={setIsStartOpen}>
                   <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={cn("w-full justify-start text-left font-normal text-xs", !startDate && "text-muted-foreground")}
-                      data-testid="button-simulation-start-date"
-                    >
+                    <Button variant="outline" size="sm"
+                      className={cn("w-full h-8 justify-start text-left font-normal text-xs", !startDate && "text-muted-foreground")}
+                      data-testid="button-simulation-start-date">
                       <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       {startDate ? format(startDate, "dd/MM/yyyy", { locale: fr }) : "Sélectionner"}
                     </Button>
@@ -214,19 +226,24 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
                 </Popover>
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs flex items-center gap-1">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
                   Jours / semaine
                   <Tooltip>
-                    <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help" /></TooltipTrigger>
-                    <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">5 = full time · 3 = mi-temps+ · 1 = 1 jour/semaine</TooltipContent>
+                    <TooltipTrigger asChild><Info className="h-3 w-3 cursor-help" /></TooltipTrigger>
+                    <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">
+                      5 = full time · 3 = mi-temps+ · 1 = 1 jour/semaine
+                    </TooltipContent>
                   </Tooltip>
                 </Label>
-                <div className="flex items-center gap-2">
-                  <Input type="number" min={0.5} max={7} step={0.5} value={daysPerWeek} onChange={(e) => setDaysPerWeek(parseFloat(e.target.value) || 1)} className="text-xs" data-testid="input-simulation-days-per-week" />
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">j/sem.</span>
-                </div>
-                <div className="flex gap-1 flex-wrap mt-1">
+                <Input
+                  type="number" min={0.5} max={7} step={0.5}
+                  value={daysPerWeek}
+                  onChange={(e) => setDaysPerWeek(parseFloat(e.target.value) || 1)}
+                  className="h-8 text-xs w-full"
+                  data-testid="input-simulation-days-per-week"
+                />
+                <div className="flex gap-1 flex-wrap">
                   {[1, 2, 3, 4, 5].map((d) => (
                     <button key={d} onClick={() => setDaysPerWeek(d)}
                       className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors cursor-pointer ${daysPerWeek === d ? "bg-primary text-white border-primary" : "border-border text-muted-foreground hover:border-primary hover:text-primary"}`}
@@ -238,11 +255,13 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
 
             {/* Date limite cible */}
             <div className="space-y-2">
-              <Label className="text-xs flex items-center gap-1">
-                Date limite cible
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                Mode de calcul de la durée
                 <Tooltip>
-                  <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help" /></TooltipTrigger>
-                  <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">Conserver le nb de jours estimés pour projeter la fin, ou fixer une date pour calculer ce qui est disponible.</TooltipContent>
+                  <TooltipTrigger asChild><Info className="h-3 w-3 cursor-help" /></TooltipTrigger>
+                  <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">
+                    Conserver les jours estimés du CDC pour projeter la fin, ou fixer une date limite pour calculer les jours disponibles.
+                  </TooltipContent>
                 </Tooltip>
               </Label>
               <div className="flex gap-1">
@@ -256,7 +275,9 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
               {targetMode === "date" && (
                 <Popover open={isEndOpen} onOpenChange={setIsEndOpen}>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className={cn("w-full justify-start text-left font-normal text-xs", !targetEndDate && "text-muted-foreground")} data-testid="button-simulation-end-date">
+                    <Button variant="outline" size="sm"
+                      className={cn("w-full h-8 justify-start text-left font-normal text-xs", !targetEndDate && "text-muted-foreground")}
+                      data-testid="button-simulation-end-date">
                       <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       {targetEndDate ? format(targetEndDate, "dd/MM/yyyy", { locale: fr }) : "Choisir une date limite"}
                     </Button>
@@ -274,8 +295,17 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
 
               {/* Type + TJM */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Type</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    Type
+                    <Tooltip>
+                      <TooltipTrigger asChild><Info className="h-3 w-3 cursor-help" /></TooltipTrigger>
+                      <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">
+                        <strong>Forfait</strong> : prix fixe, jours calculés sur la durée de la mission.<br />
+                        <strong>Régie</strong> : facturation au temps passé, jours pré-remplis depuis le CDC.
+                      </TooltipContent>
+                    </Tooltip>
+                  </Label>
                   <div className="flex gap-1">
                     {(["fixed_price", "time_based"] as BillingType[]).map((t) => (
                       <button key={t} onClick={() => setSimBillingType(t)}
@@ -286,59 +316,76 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
                     ))}
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">TJM (€/j)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step={50}
-                    value={simTJMStr}
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">TJM (€/j)</Label>
+                  <Input type="number" min={0} step={50} value={simTJMStr}
                     onChange={(e) => setSimTJMStr(e.target.value)}
-                    placeholder="Ex. 800"
-                    className="text-xs"
-                    data-testid="input-simulation-tjm"
-                  />
+                    placeholder="Ex. 800" className="h-8 text-xs"
+                    data-testid="input-simulation-tjm" />
                 </div>
               </div>
 
-              {/* Nb jours facturés */}
-              <div className="space-y-1">
-                <Label className="text-xs flex items-center gap-1">
+              {/* Jours facturés */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
                   Jours facturés
                   <Tooltip>
-                    <TooltipTrigger asChild><Info className="h-3 w-3 text-muted-foreground cursor-help" /></TooltipTrigger>
+                    <TooltipTrigger asChild><Info className="h-3 w-3 cursor-help" /></TooltipTrigger>
                     <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">
                       {simBillingType === "time_based"
-                        ? "Régie : pré-rempli avec les jours restants selon le CDC."
-                        : "Forfait : pré-rempli avec jours/semaine × semaines totales sur la période."}
+                        ? "Régie : pré-rempli avec les jours restants du CDC."
+                        : "Forfait : pré-rempli avec j/semaine × semaines totales sur la période."}
                     </TooltipContent>
                   </Tooltip>
-                  {billedDaysLocked && (
-                    <button
-                      onClick={() => setBilledDaysLocked(false)}
-                      className="ml-auto flex items-center gap-0.5 text-[10px] text-primary hover:underline cursor-pointer"
-                      data-testid="button-reset-billed-days"
-                    >
-                      <RefreshCw className="h-2.5 w-2.5" /> Auto
-                    </button>
-                  )}
-                  {!billedDaysLocked && (
-                    <span className="ml-auto text-[10px] text-muted-foreground italic">auto</span>
-                  )}
+                  {billedDaysLocked
+                    ? <button onClick={() => setBilledDaysLocked(false)} className="ml-auto flex items-center gap-0.5 text-[10px] text-primary hover:underline cursor-pointer" data-testid="button-reset-billed-days"><RefreshCw className="h-2.5 w-2.5" /> Auto</button>
+                    : <span className="ml-auto text-[10px] text-muted-foreground italic">auto</span>
+                  }
                 </Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  value={simBilledDaysStr}
+                <Input type="number" min={0} step={0.5} value={simBilledDaysStr}
                   onChange={(e) => { setSimBilledDaysStr(e.target.value); setBilledDaysLocked(true); }}
-                  placeholder="Nb de jours"
-                  className="text-xs"
-                  data-testid="input-simulation-billed-days"
-                />
+                  placeholder="Nb de jours" className="h-8 text-xs"
+                  data-testid="input-simulation-billed-days" />
               </div>
 
-              {/* Résumé calculé */}
+              {/* Rythme de règlement */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Rythme de règlement</Label>
+                <Select value={paymentRhythm} onValueChange={(v) => setPaymentRhythm(v as PaymentRhythm)}>
+                  <SelectTrigger className="h-8 text-xs" data-testid="select-payment-rhythm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.entries(PAYMENT_RHYTHM_LABELS) as [PaymentRhythm, string][]).map(([value, label]) => (
+                      <SelectItem key={value} value={value} className="text-xs">{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Options conditionnelles */}
+              {(RHYTHMS_WITH_DEPOSIT.includes(paymentRhythm) || RHYTHMS_WITH_MILESTONE.includes(paymentRhythm)) && (
+                <div className="grid grid-cols-2 gap-3">
+                  {RHYTHMS_WITH_DEPOSIT.includes(paymentRhythm) && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Acompte (%)</Label>
+                      <Input type="number" min={1} max={99} step={5} value={depositPctStr}
+                        onChange={(e) => setDepositPctStr(e.target.value)}
+                        className="h-8 text-xs" data-testid="input-deposit-pct" />
+                    </div>
+                  )}
+                  {RHYTHMS_WITH_MILESTONE.includes(paymentRhythm) && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Nb de milestones</Label>
+                      <Input type="number" min={2} max={10} step={1} value={milestoneCountStr}
+                        onChange={(e) => setMilestoneCountStr(e.target.value)}
+                        className="h-8 text-xs" data-testid="input-milestone-count" />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Résumé calculé facturation */}
               {simTJM > 0 && simBilledDays > 0 && (
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <div className="rounded bg-primary/10 border border-primary/20 px-2.5 py-2">
@@ -360,17 +407,13 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
             {/* Résumé textuel */}
             {targetMode === "days" && result.remainingWorkDays > 0 && (
               <div className="p-2.5 bg-primary/5 border border-primary/20 rounded-md text-xs text-foreground leading-relaxed">
-                À <strong>{daysPerWeek}j/semaine</strong> dès le{" "}
-                <strong>{format(startDate, "d MMMM yyyy", { locale: fr })}</strong>, le projet se terminerait le{" "}
-                <strong>{fmtDate(result.newEndDate)}</strong>{" "}
+                À <strong>{daysPerWeek}j/semaine</strong> dès le <strong>{format(startDate, "d MMMM yyyy", { locale: fr })}</strong>, le projet se terminerait le <strong>{fmtDate(result.newEndDate)}</strong>{" "}
                 <span className="text-muted-foreground">({result.remainingCalendarLabel})</span>.
               </div>
             )}
             {targetMode === "date" && targetEndDate && result.availableWorkDaysInWindow !== null && (
               <div className="p-2.5 bg-primary/5 border border-primary/20 rounded-md text-xs text-foreground leading-relaxed">
-                Entre le <strong>{format(startDate, "d MMMM yyyy", { locale: fr })}</strong> et le{" "}
-                <strong>{format(targetEndDate, "d MMMM yyyy", { locale: fr })}</strong> à <strong>{daysPerWeek}j/semaine</strong> ={" "}
-                <strong>{result.availableWorkDaysInWindow}j disponibles</strong>
+                Entre le <strong>{format(startDate, "d MMMM yyyy", { locale: fr })}</strong> et le <strong>{format(targetEndDate, "d MMMM yyyy", { locale: fr })}</strong> à <strong>{daysPerWeek}j/semaine</strong> = <strong>{result.availableWorkDaysInWindow}j disponibles</strong>
                 {simTJM > 0 && <> · <strong>{fmt(simTJM * result.availableWorkDaysInWindow)}</strong> facturables</>}.
               </div>
             )}
@@ -380,19 +423,16 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
 
           {/* ─── BLOC 2 : Situation actuelle ─── */}
           <div>
-            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white text-[10px] font-bold shrink-0">2</span>
-              Situation actuelle
-            </h4>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-              <Row label="Mode de facturation" value={billingLabel(project.billingType ?? "")} />
+            <SectionTitle index={2} label="Situation actuelle" />
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs mt-3">
+              <Row label="Facturation actuelle" value={project.billingType === "fixed_price" ? "Forfait" : project.billingType === "time_based" ? "Régie" : "—"} />
               <Row label="Budget / total facturé" value={currentState.totalBilled > 0 ? fmt(currentState.totalBilled) : "—"} />
               <Row label="Encaissé" value={currentState.totalPaid > 0 ? fmt(currentState.totalPaid) : "—"} />
               <Row label="Restant à encaisser" value={currentState.totalBilled > 0 ? fmt(Math.max(0, currentState.totalBilled - currentState.totalPaid)) : "—"} />
               <Row label="Temps consommé" value={currentState.actualDaysWorked > 0 ? `${currentState.actualDaysWorked.toFixed(1)}j` : "—"} />
               <Row label="Temps restant CDC" value={currentState.remainingDays > 0 ? `${currentState.remainingDays.toFixed(1)}j` : "—"} />
-              <Row label="Date de fin" value={currentEndDateFormatted} />
-              <Row label="Coût journalier" value={currentState.internalDailyCost > 0 ? fmt(currentState.internalDailyCost) + "/j" : "—"} missing={currentState.internalDailyCost <= 0} />
+              <Row label="Date de fin actuelle" value={currentEndDateFormatted} />
+              <Row label="Coût journalier interne" value={currentState.internalDailyCost > 0 ? fmt(currentState.internalDailyCost) + "/j" : "—"} missing={currentState.internalDailyCost <= 0} />
               {currentState.billingRate && currentState.billingRate > 0 && (
                 <Row label="TJM actuel" value={fmt(currentState.billingRate) + "/j"} />
               )}
@@ -406,13 +446,12 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
 
           {/* ─── BLOC 3 : Résultats ─── */}
           <div>
-            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white text-[10px] font-bold shrink-0">3</span>
-              Résultat de la simulation
-              <Badge className={`text-[10px] px-1.5 py-0 ml-auto ${riskBadgeClass}`}>
+            <div className="flex items-center gap-2 mb-3">
+              <SectionTitle index={3} label="Résultat de la simulation" />
+              <Badge className={`text-[10px] px-1.5 py-0 ml-auto shrink-0 ${riskBadgeClass}`}>
                 <span className="flex items-center gap-1">{riskIcon}{result.riskLabel}</span>
               </Badge>
-            </h4>
+            </div>
 
             <div className="space-y-2">
               <ResultCard
@@ -425,74 +464,67 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
               />
 
               {targetMode === "date" && result.availableWorkDaysInWindow !== null && (
-                <ResultCard
-                  label="Jours disponibles dans la fenêtre"
-                  value={`${result.availableWorkDaysInWindow}j`}
-                  sub={`à ${daysPerWeek}j/semaine`}
-                />
+                <ResultCard label="Jours disponibles dans la fenêtre" value={`${result.availableWorkDaysInWindow}j`} sub={`à ${daysPerWeek}j/semaine`} />
               )}
 
               {result.simTotalBilled > 0 && (
                 <div className="grid grid-cols-2 gap-2">
-                  <ResultCard
-                    label="Total facturé simulé"
-                    value={fmt(result.simTotalBilled)}
-                    sub={`${simBilledDays.toFixed(1)}j × ${fmt(simTJM)}/j`}
-                    highlight
-                  />
+                  <ResultCard label="Total facturé simulé" value={fmt(result.simTotalBilled)} sub={`${simBilledDays.toFixed(1)}j × ${fmt(simTJM)}/j`} highlight />
                   {result.simMonthlyAmount !== null && result.durationInMonths !== null && (
-                    <ResultCard
-                      label="Revenu mensuel moyen"
-                      value={fmt(result.simMonthlyAmount) + "/mois"}
-                      sub={`sur ${fmtMonths(result.durationInMonths)}`}
-                      highlight
-                    />
+                    <ResultCard label="Revenu mensuel moyen" value={fmt(result.simMonthlyAmount) + "/mois"} sub={`sur ${fmtMonths(result.durationInMonths)}`} highlight />
                   )}
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-2">
-                <ResultCard
-                  label="Restant à facturer"
-                  value={result.remainingToInvoice > 0 ? fmt(result.remainingToInvoice) : "—"}
-                  sub="hors acomptes versés"
-                />
+                <ResultCard label="Restant à facturer" value={result.remainingToInvoice > 0 ? fmt(result.remainingToInvoice) : "—"} sub="hors acomptes versés" />
                 {currentState.internalDailyCost > 0 && (
-                  <ResultCard
-                    label="Coût restant projeté"
-                    value={fmt(result.projectedRemainingCost)}
-                    sub={`${result.remainingWorkDays.toFixed(1)}j × ${fmt(currentState.internalDailyCost)}`}
-                  />
+                  <ResultCard label="Coût restant projeté" value={fmt(result.projectedRemainingCost)} sub={`${result.remainingWorkDays.toFixed(1)}j × ${fmt(currentState.internalDailyCost)}`} />
                 )}
               </div>
 
               {currentState.internalDailyCost > 0 && result.simTotalBilled > 0 && (
                 <div className="grid grid-cols-2 gap-2">
-                  <ResultCard
-                    label="Marge projetée"
-                    value={fmt(result.projectedMargin)}
-                    deltaPositive={result.projectedMargin >= 0}
-                    delta={result.projectedMargin < 0 ? "Déficit !" : undefined}
-                  />
-                  <ResultCard
-                    label="Marge %"
-                    value={fmtPct(result.projectedMarginPercent)}
-                    deltaPositive={result.projectedMarginPercent >= 25}
-                    delta={
-                      result.projectedMarginPercent < 0 ? "Négatif"
-                      : result.projectedMarginPercent < 10 ? "Critique"
-                      : result.projectedMarginPercent < 25 ? "Réduite"
-                      : undefined
-                    }
-                  />
+                  <ResultCard label="Marge projetée" value={fmt(result.projectedMargin)} deltaPositive={result.projectedMargin >= 0} delta={result.projectedMargin < 0 ? "Déficit !" : undefined} />
+                  <ResultCard label="Marge %" value={fmtPct(result.projectedMarginPercent)} deltaPositive={result.projectedMarginPercent >= 25}
+                    delta={result.projectedMarginPercent < 0 ? "Négatif" : result.projectedMarginPercent < 10 ? "Critique" : result.projectedMarginPercent < 25 ? "Réduite" : undefined} />
+                </div>
+              )}
+
+              {/* ─── Échéancier simulé ─── */}
+              {paymentSchedule.length > 0 && (
+                <div className="rounded-md border border-border bg-muted/20 overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Échéancier simulé</span>
+                    <span className="text-[10px] text-muted-foreground">{PAYMENT_RHYTHM_LABELS[paymentRhythm]}</span>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {paymentSchedule.map((inst, i) => (
+                      <div key={i} className="flex items-center justify-between px-3 py-2 gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${inst.type === "deposit" ? "bg-amber-400" : inst.type === "balance" ? "bg-green-500" : "bg-primary"}`} />
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-foreground truncate">{inst.label}</p>
+                            <p className="text-[10px] text-muted-foreground">{fmtShortDate(inst.date)}</p>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs font-semibold text-foreground">{fmt(inst.amount)}</p>
+                          <p className="text-[10px] text-muted-foreground">{inst.pct.toFixed(0)}%</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2 border-t border-border bg-muted/30">
+                    <span className="text-[10px] font-medium text-muted-foreground">Total</span>
+                    <span className="text-xs font-semibold text-foreground">{fmt(paymentSchedule.reduce((s, i) => s + i.amount, 0))}</span>
+                  </div>
                 </div>
               )}
             </div>
 
             {result.missingFields.length > 0 && (
-              <p className="text-[10px] text-muted-foreground mt-2">
-                Données manquantes : {result.missingFields.join(", ")}.
-              </p>
+              <p className="text-[10px] text-muted-foreground mt-2">Données manquantes : {result.missingFields.join(", ")}.</p>
             )}
           </div>
         </div>
@@ -504,19 +536,23 @@ export function SimulationDrawer({ open, onClose, project, currentState }: Simul
           </Button>
           <div className="flex-1" />
           <Button variant="outline" size="sm" className="text-xs" onClick={onClose} data-testid="button-cancel-simulation">Annuler</Button>
-          <Button
-            size="sm"
-            className="text-xs"
-            onClick={() => validateMutation.mutate()}
-            disabled={validateMutation.isPending || result.remainingWorkDays <= 0}
-            data-testid="button-validate-simulation"
-          >
+          <Button size="sm" className="text-xs" onClick={() => validateMutation.mutate()}
+            disabled={validateMutation.isPending || result.remainingWorkDays <= 0} data-testid="button-validate-simulation">
             <FlaskConical className="h-3.5 w-3.5 mr-1.5" />
             {validateMutation.isPending ? "Application…" : "Valider"}
           </Button>
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function SectionTitle({ index, label }: { index: number; label: string }) {
+  return (
+    <h4 className="text-sm font-semibold flex items-center gap-2">
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white text-[10px] font-bold shrink-0">{index}</span>
+      {label}
+    </h4>
   );
 }
 
@@ -529,9 +565,7 @@ function Row({ label, value, missing }: { label: string; value: string; missing?
   );
 }
 
-function ResultCard({
-  label, value, sub, delta, deltaPositive, highlight,
-}: {
+function ResultCard({ label, value, sub, delta, deltaPositive, highlight }: {
   label: string; value: string; sub?: string; delta?: string | null; deltaPositive?: boolean; highlight?: boolean;
 }) {
   return (

@@ -41,6 +41,141 @@ export interface SimulationResult {
   missingFields: string[];
 }
 
+export type PaymentRhythm =
+  | "at_order"
+  | "monthly"
+  | "at_milestone"
+  | "quarterly"
+  | "at_delivery"
+  | "deposit_monthly"
+  | "deposit_delivery"
+  | "30d_after_delivery";
+
+export const PAYMENT_RHYTHM_LABELS: Record<PaymentRhythm, string> = {
+  at_order: "À la commande",
+  monthly: "Mensuellement",
+  at_milestone: "Au milestone",
+  quarterly: "Trimestriellement",
+  at_delivery: "À la livraison",
+  deposit_monthly: "Acompte + mensuel",
+  deposit_delivery: "Acompte + solde livraison",
+  "30d_after_delivery": "30j après livraison",
+};
+
+export interface PaymentInstallment {
+  date: Date;
+  amount: number;
+  label: string;
+  pct: number;
+  type: "deposit" | "regular" | "balance";
+}
+
+function addMonths(date: Date, n: number): Date {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + n);
+  return d;
+}
+
+function addDaysToDate(date: Date, n: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+export function computePaymentSchedule(
+  rhythm: PaymentRhythm,
+  totalAmount: number,
+  startDate: Date,
+  endDate: Date,
+  depositPct: number = 30,
+  milestoneCount: number = 3
+): PaymentInstallment[] {
+  if (totalAmount <= 0) return [];
+
+  const durationMs = Math.max(0, endDate.getTime() - startDate.getTime());
+  const durationMonths = Math.max(1, Math.round(durationMs / (1000 * 60 * 60 * 24 * 30.4)));
+  const durationDays = Math.max(1, Math.round(durationMs / (1000 * 60 * 60 * 24)));
+
+  switch (rhythm) {
+    case "at_order":
+      return [{ date: new Date(startDate), amount: totalAmount, label: "À la commande", pct: 100, type: "regular" }];
+
+    case "at_delivery":
+      return [{ date: new Date(endDate), amount: totalAmount, label: "À la livraison", pct: 100, type: "regular" }];
+
+    case "30d_after_delivery":
+      return [{ date: addDaysToDate(endDate, 30), amount: totalAmount, label: "30j après livraison", pct: 100, type: "regular" }];
+
+    case "monthly": {
+      const perMonth = totalAmount / durationMonths;
+      return Array.from({ length: durationMonths }, (_, i) => ({
+        date: addMonths(startDate, i + 1),
+        amount: perMonth,
+        label: `Mensualité ${i + 1}/${durationMonths}`,
+        pct: 100 / durationMonths,
+        type: "regular" as const,
+      }));
+    }
+
+    case "quarterly": {
+      const quarters = Math.max(1, Math.ceil(durationMonths / 3));
+      const perQuarter = totalAmount / quarters;
+      return Array.from({ length: quarters }, (_, i) => ({
+        date: addMonths(startDate, (i + 1) * 3),
+        amount: perQuarter,
+        label: `Trimestre ${i + 1}/${quarters}`,
+        pct: 100 / quarters,
+        type: "regular" as const,
+      }));
+    }
+
+    case "at_milestone": {
+      const count = Math.max(1, milestoneCount);
+      const perMilestone = totalAmount / count;
+      const intervalDays = durationDays / count;
+      return Array.from({ length: count }, (_, i) => ({
+        date: addDaysToDate(startDate, Math.round(intervalDays * (i + 1))),
+        amount: perMilestone,
+        label: `Milestone ${i + 1}/${count}`,
+        pct: 100 / count,
+        type: "regular" as const,
+      }));
+    }
+
+    case "deposit_delivery": {
+      const deposit = Math.round(totalAmount * (depositPct / 100));
+      const balance = totalAmount - deposit;
+      return [
+        { date: new Date(startDate), amount: deposit, label: `Acompte (${depositPct}%)`, pct: depositPct, type: "deposit" },
+        { date: new Date(endDate), amount: balance, label: `Solde à la livraison (${100 - depositPct}%)`, pct: 100 - depositPct, type: "balance" },
+      ];
+    }
+
+    case "deposit_monthly": {
+      const deposit = Math.round(totalAmount * (depositPct / 100));
+      const remaining = totalAmount - deposit;
+      const months = durationMonths;
+      const perMonth = remaining / months;
+      const schedule: PaymentInstallment[] = [
+        { date: new Date(startDate), amount: deposit, label: `Acompte (${depositPct}%)`, pct: depositPct, type: "deposit" },
+      ];
+      for (let i = 0; i < months; i++) {
+        schedule.push({
+          date: addMonths(startDate, i + 1),
+          amount: perMonth,
+          label: `Mensuel ${i + 1}/${months}`,
+          pct: (100 - depositPct) / months,
+          type: "regular",
+        });
+      }
+      return schedule;
+    }
+
+    default:
+      return [];
+  }
+}
+
 export function addCalendarDays(date: Date, days: number): Date {
   const result = new Date(date);
   result.setDate(result.getDate() + Math.ceil(days));
@@ -87,10 +222,8 @@ export function computeSimulation(
   }
 
   const remainingCalendarLabel = formatCalendarDuration(calendarDaysNeeded);
-
   const durationInMonths = calendarDaysNeeded > 0 ? calendarDaysNeeded / 30.4 : null;
 
-  const effectiveBillingType = inputs.simBillingType ?? state.billingType ?? "fixed_price";
   const effectiveTJM = (inputs.simTJM !== undefined && inputs.simTJM > 0) ? inputs.simTJM : (state.billingRate ?? 0);
   const effectiveBilledDays = inputs.simBilledDays !== undefined ? inputs.simBilledDays : remainingWorkDays;
 
@@ -122,37 +255,21 @@ export function computeSimulation(
 
   if (effectiveTotalBilled > 0) {
     if (state.internalDailyCost > 0) {
-      if (projectedMarginPercent >= 25) {
-        riskLevel = "ok"; riskLabel = "Trajectoire saine";
-      } else if (projectedMarginPercent >= 10) {
-        riskLevel = "warning"; riskLabel = "Marge réduite";
-      } else if (projectedMarginPercent >= 0) {
-        riskLevel = "danger"; riskLabel = "Marge critique";
-      } else {
-        riskLevel = "danger"; riskLabel = "Dépassement de budget";
-      }
+      if (projectedMarginPercent >= 25) { riskLevel = "ok"; riskLabel = "Trajectoire saine"; }
+      else if (projectedMarginPercent >= 10) { riskLevel = "warning"; riskLabel = "Marge réduite"; }
+      else if (projectedMarginPercent >= 0) { riskLevel = "danger"; riskLabel = "Marge critique"; }
+      else { riskLevel = "danger"; riskLabel = "Dépassement de budget"; }
     } else {
       riskLevel = "unknown"; riskLabel = "Coût journalier non renseigné";
     }
   }
 
   return {
-    remainingWorkDays,
-    calendarDaysNeeded,
-    newEndDate,
-    remainingCalendarLabel,
-    availableWorkDaysInWindow,
-    simTotalBilled,
-    simMonthlyAmount,
-    durationInMonths,
-    remainingToInvoice,
-    projectedRemainingCost,
-    projectedTotalCost,
-    projectedMargin,
-    projectedMarginPercent,
-    deltaEndDays,
-    riskLevel,
-    riskLabel,
+    remainingWorkDays, calendarDaysNeeded, newEndDate, remainingCalendarLabel,
+    availableWorkDaysInWindow, simTotalBilled, simMonthlyAmount, durationInMonths,
+    remainingToInvoice, projectedRemainingCost, projectedTotalCost,
+    projectedMargin, projectedMarginPercent, deltaEndDays,
+    riskLevel, riskLabel,
     canCompute: missingFields.length === 0,
     missingFields,
   };
