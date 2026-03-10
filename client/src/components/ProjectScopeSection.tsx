@@ -252,7 +252,7 @@ function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Description (optionnel)"
-                className="h-7 text-xs"
+                className="h-7 text-xs placeholder:text-[10px]"
                 data-testid={`input-scope-description-${item.id}`}
               />
             </div>

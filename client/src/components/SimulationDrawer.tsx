@@ -235,7 +235,7 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
         <SheetHeader className="px-6 pt-6 pb-4 border-b">
           <div className="flex items-center gap-2">
             <FlaskConical className="h-5 w-5 text-primary" />
-            <SheetTitle className="text-base">Simuler la trajectoire</SheetTitle>
+            <SheetTitle className="text-base">Simuler la facturation</SheetTitle>
           </div>
           <SheetDescription className="text-xs text-muted-foreground">
             Ajustez les hypothèses pour projeter votre facturation, votre marge et votre échéancier.
@@ -249,7 +249,7 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
             <SectionTitle index={1} label="Hypothèses de simulation" />
 
             {/* Date de début + Jours / semaine — même taille */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 items-start">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Date de début</Label>
                 <Popover open={isStartOpen} onOpenChange={setIsStartOpen}>
@@ -334,29 +334,31 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
             <div className="rounded-md border border-border bg-muted/20 p-3 space-y-3">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Paramètres de facturation</p>
 
-              {/* Type + TJM */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                    Type
-                    <Tooltip>
-                      <TooltipTrigger asChild><Info className="h-3 w-3 cursor-help" /></TooltipTrigger>
-                      <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">
-                        <strong>Forfait</strong> : prix fixe, jours calculés sur la durée de la mission.<br />
-                        <strong>Régie</strong> : facturation au temps passé, jours pré-remplis depuis le CDC.
-                      </TooltipContent>
-                    </Tooltip>
-                  </Label>
-                  <div className="flex gap-1">
-                    {(["fixed_price", "time_based"] as BillingType[]).map((t) => (
-                      <button key={t} onClick={() => setSimBillingType(t)}
-                        className={`flex-1 text-[10px] px-2 py-1.5 rounded border transition-colors cursor-pointer ${simBillingType === t ? "bg-primary text-white border-primary" : "border-border text-muted-foreground hover:border-primary hover:text-primary"}`}
-                        data-testid={`btn-billing-type-${t}`}>
-                        {t === "fixed_price" ? "Forfait" : "Régie"}
-                      </button>
-                    ))}
-                  </div>
+              {/* Type (forfait / régie) — pleine largeur */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  Type
+                  <Tooltip>
+                    <TooltipTrigger asChild><Info className="h-3 w-3 cursor-help" /></TooltipTrigger>
+                    <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">
+                      <strong>Forfait</strong> : prix fixe, jours calculés sur la durée de la mission.<br />
+                      <strong>Régie</strong> : facturation au temps passé, jours pré-remplis depuis le CDC.
+                    </TooltipContent>
+                  </Tooltip>
+                </Label>
+                <div className="flex gap-1">
+                  {(["fixed_price", "time_based"] as BillingType[]).map((t) => (
+                    <button key={t} onClick={() => setSimBillingType(t)}
+                      className={`flex-1 text-xs px-3 py-2 rounded border transition-colors cursor-pointer font-medium ${simBillingType === t ? "bg-primary text-white border-primary" : "border-border text-muted-foreground hover:border-primary hover:text-primary"}`}
+                      data-testid={`btn-billing-type-${t}`}>
+                      {t === "fixed_price" ? "Forfait" : "Régie"}
+                    </button>
+                  ))}
                 </div>
+              </div>
+
+              {/* TJM + Jours facturés — même ligne */}
+              <div className="grid grid-cols-2 gap-3 items-start">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">TJM (€/j)</Label>
                   <Input type="number" min={0} step={50} value={simTJMStr}
@@ -364,34 +366,40 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
                     placeholder="Ex. 800" className="h-8 text-xs"
                     data-testid="input-simulation-tjm" />
                 </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    Jours facturés
+                    <Tooltip>
+                      <TooltipTrigger asChild><Info className="h-3 w-3 cursor-help" /></TooltipTrigger>
+                      <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">
+                        {simBillingType === "time_based"
+                          ? "Régie : pré-rempli avec les jours restants du CDC."
+                          : "Forfait : pré-rempli avec j/semaine × semaines totales sur la période."}
+                      </TooltipContent>
+                    </Tooltip>
+                    {billedDaysLocked
+                      ? <button onClick={() => setBilledDaysLocked(false)} className="ml-auto flex items-center gap-0.5 text-[10px] text-primary hover:underline cursor-pointer" data-testid="button-reset-billed-days"><RefreshCw className="h-2.5 w-2.5" /> Auto</button>
+                      : <span className="ml-auto text-[10px] text-muted-foreground italic">auto</span>
+                    }
+                  </Label>
+                  <Input type="number" min={0} step={0.5} value={simBilledDaysStr}
+                    onChange={(e) => { setSimBilledDaysStr(e.target.value); setBilledDaysLocked(true); }}
+                    placeholder="Nb de jours" className="h-8 text-xs"
+                    data-testid="input-simulation-billed-days" />
+                </div>
               </div>
 
-              {/* Jours facturés */}
+              {/* Rythme de règlement + sync toggle — même ligne */}
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                  Jours facturés
-                  <Tooltip>
-                    <TooltipTrigger asChild><Info className="h-3 w-3 cursor-help" /></TooltipTrigger>
-                    <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">
-                      {simBillingType === "time_based"
-                        ? "Régie : pré-rempli avec les jours restants du CDC."
-                        : "Forfait : pré-rempli avec j/semaine × semaines totales sur la période."}
-                    </TooltipContent>
-                  </Tooltip>
-                  {billedDaysLocked
-                    ? <button onClick={() => setBilledDaysLocked(false)} className="ml-auto flex items-center gap-0.5 text-[10px] text-primary hover:underline cursor-pointer" data-testid="button-reset-billed-days"><RefreshCw className="h-2.5 w-2.5" /> Auto</button>
-                    : <span className="ml-auto text-[10px] text-muted-foreground italic">auto</span>
-                  }
-                </Label>
-                <Input type="number" min={0} step={0.5} value={simBilledDaysStr}
-                  onChange={(e) => { setSimBilledDaysStr(e.target.value); setBilledDaysLocked(true); }}
-                  placeholder="Nb de jours" className="h-8 text-xs"
-                  data-testid="input-simulation-billed-days" />
-              </div>
-
-              {/* Rythme de règlement */}
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Rythme de règlement</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs text-muted-foreground">Rythme de règlement</Label>
+                  {paymentSchedule.length > 0 && (
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none shrink-0">
+                      <Switch checked={syncPayments} onCheckedChange={setSyncPayments} className="scale-75" data-testid="toggle-sync-payments" />
+                      <span className="text-[10px] text-muted-foreground">Sync paiements</span>
+                    </label>
+                  )}
+                </div>
                 <Select value={paymentRhythm} onValueChange={(v) => setPaymentRhythm(v as PaymentRhythm)}>
                   <SelectTrigger className="h-8 text-xs" data-testid="select-payment-rhythm">
                     <SelectValue />
@@ -475,33 +483,10 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
 
           <Separator />
 
-          {/* ─── BLOC 2 : Situation actuelle ─── */}
-          <div>
-            <SectionTitle index={2} label="Situation actuelle" />
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs mt-3">
-              <Row label="Facturation actuelle" value={project.billingType === "fixed_price" ? "Forfait" : project.billingType === "time_based" ? "Régie" : "—"} />
-              <Row label="Budget / total facturé" value={currentState.totalBilled > 0 ? fmt(currentState.totalBilled) : "—"} />
-              <Row label="Encaissé" value={currentState.totalPaid > 0 ? fmt(currentState.totalPaid) : "—"} />
-              <Row label="Restant à encaisser" value={currentState.totalBilled > 0 ? fmt(Math.max(0, currentState.totalBilled - currentState.totalPaid)) : "—"} />
-              <Row label="Temps consommé" value={currentState.actualDaysWorked > 0 ? `${currentState.actualDaysWorked.toFixed(1)}j` : "—"} />
-              <Row label="Temps restant CDC" value={currentState.remainingDays > 0 ? `${currentState.remainingDays.toFixed(1)}j` : "—"} />
-              <Row label="Date de fin actuelle" value={currentEndDateFormatted} />
-              <Row label="Coût journalier interne" value={currentState.internalDailyCost > 0 ? fmt(currentState.internalDailyCost) + "/j" : "—"} missing={currentState.internalDailyCost <= 0} />
-              {currentState.billingRate && currentState.billingRate > 0 && (
-                <Row label="TJM actuel" value={fmt(currentState.billingRate) + "/j"} />
-              )}
-            </div>
-            {currentState.internalDailyCost <= 0 && (
-              <p className="text-[10px] text-amber-600 mt-2">Coût journalier non renseigné — les projections de marge ne seront pas disponibles.</p>
-            )}
-          </div>
-
-          <Separator />
-
-          {/* ─── BLOC 3 : Résultats ─── */}
+          {/* ─── BLOC 2 : Résultats (en premier) ─── */}
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <SectionTitle index={3} label="Résultat de la simulation" />
+              <SectionTitle index={2} label="Résultat de la simulation" />
               <Badge className={`text-[10px] px-1.5 py-0 ml-auto shrink-0 ${riskBadgeClass}`}>
                 <span className="flex items-center gap-1">{riskIcon}{result.riskLabel}</span>
               </Badge>
@@ -581,23 +566,64 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
               <p className="text-[10px] text-muted-foreground mt-2">Données manquantes : {result.missingFields.join(", ")}.</p>
             )}
           </div>
+
+          <Separator />
+
+          {/* ─── BLOC 3 : Situation actuelle (avec deltas vs simu) ─── */}
+          <div>
+            <SectionTitle index={3} label="Situation actuelle" />
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs mt-3">
+              <Row label="Facturation actuelle" value={project.billingType === "fixed_price" ? "Forfait" : project.billingType === "time_based" ? "Régie" : "—"} />
+              <Row
+                label="Budget / total facturé"
+                value={currentState.totalBilled > 0 ? fmt(currentState.totalBilled) : "—"}
+                delta={currentState.totalBilled > 0 && result.simTotalBilled > 0
+                  ? (() => { const p = (result.simTotalBilled - currentState.totalBilled) / currentState.totalBilled * 100; return (p >= 0 ? "+" : "") + p.toFixed(0) + "%" })()
+                  : undefined}
+                deltaPositive={result.simTotalBilled >= currentState.totalBilled}
+              />
+              <Row label="Encaissé" value={currentState.totalPaid > 0 ? fmt(currentState.totalPaid) : "—"} />
+              <Row label="Restant à encaisser" value={currentState.totalBilled > 0 ? fmt(Math.max(0, currentState.totalBilled - currentState.totalPaid)) : "—"} />
+              <Row label="Temps consommé" value={currentState.actualDaysWorked > 0 ? `${currentState.actualDaysWorked.toFixed(1)}j` : "—"} />
+              <Row
+                label="Temps restant CDC"
+                value={currentState.remainingDays > 0 ? `${currentState.remainingDays.toFixed(1)}j` : "—"}
+                delta={currentState.remainingDays > 0 && result.remainingWorkDays >= 0
+                  ? (() => { const d = result.remainingWorkDays - currentState.remainingDays; return (d >= 0 ? "+" : "") + d.toFixed(1) + "j simu" })()
+                  : undefined}
+                deltaPositive={result.remainingWorkDays <= currentState.remainingDays}
+              />
+              <Row
+                label="Date de fin actuelle"
+                value={currentEndDateFormatted}
+                delta={currentState.currentEndDate && result.newEndDate
+                  ? (() => { const d = Math.round((result.newEndDate.getTime() - currentState.currentEndDate!.getTime()) / 86400000); return (d >= 0 ? "+" : "") + d + "j simu" })()
+                  : undefined}
+                deltaPositive={currentState.currentEndDate ? result.newEndDate <= currentState.currentEndDate : false}
+              />
+              <Row label="Coût journalier interne" value={currentState.internalDailyCost > 0 ? fmt(currentState.internalDailyCost) + "/j" : "—"} missing={currentState.internalDailyCost <= 0} />
+              {currentState.billingRate && currentState.billingRate > 0 && (
+                <Row
+                  label="TJM actuel"
+                  value={fmt(currentState.billingRate) + "/j"}
+                  delta={simTJM > 0
+                    ? (() => { const p = (simTJM - currentState.billingRate!) / currentState.billingRate! * 100; return (p >= 0 ? "+" : "") + p.toFixed(0) + "%" })()
+                    : undefined}
+                  deltaPositive={simTJM >= (currentState.billingRate || 0)}
+                />
+              )}
+            </div>
+            {currentState.internalDailyCost <= 0 && (
+              <p className="text-[10px] text-amber-600 mt-2">Coût journalier non renseigné — les projections de marge ne seront pas disponibles.</p>
+            )}
+          </div>
         </div>
 
         {/* ─── Actions ─── */}
-        <div className="border-t px-6 py-4 flex flex-wrap items-center gap-3">
+        <div className="border-t px-6 py-4 flex items-center gap-2">
           <Button variant="ghost" size="sm" className="text-xs" onClick={handleReset} data-testid="button-reset-simulation">
             <RotateCcw className="h-3.5 w-3.5 mr-1.5" />Réinitialiser
           </Button>
-          {paymentSchedule.length > 0 && (
-            <label className="flex items-center gap-1.5 cursor-pointer select-none" data-testid="toggle-sync-payments">
-              <Switch
-                checked={syncPayments}
-                onCheckedChange={setSyncPayments}
-                className="scale-75"
-              />
-              <span className="text-[11px] text-muted-foreground">Sync suivi paiements</span>
-            </label>
-          )}
           <div className="flex-1" />
           <Button variant="outline" size="sm" className="text-xs" onClick={onClose} data-testid="button-cancel-simulation">Annuler</Button>
           <Button size="sm" className="text-xs" onClick={() => validateMutation.mutate()}
@@ -620,11 +646,18 @@ function SectionTitle({ index, label }: { index: number; label: string }) {
   );
 }
 
-function Row({ label, value, missing }: { label: string; value: string; missing?: boolean }) {
+function Row({ label, value, missing, delta, deltaPositive }: { label: string; value: string; missing?: boolean; delta?: string; deltaPositive?: boolean }) {
   return (
     <>
       <span className="text-muted-foreground">{label}</span>
-      <span className={`font-medium text-right ${missing ? "text-amber-500" : "text-foreground"}`}>{value}</span>
+      <span className={`font-medium text-right flex items-center justify-end gap-1.5 flex-wrap ${missing ? "text-amber-500" : "text-foreground"}`}>
+        {value}
+        {delta && (
+          <span className={`text-[9px] font-medium px-1 py-0.5 rounded shrink-0 ${deltaPositive ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
+            {delta}
+          </span>
+        )}
+      </span>
     </>
   );
 }
