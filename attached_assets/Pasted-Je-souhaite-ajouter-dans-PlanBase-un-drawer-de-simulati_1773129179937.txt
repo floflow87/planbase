@@ -1,0 +1,259 @@
+Je souhaite ajouter dans PlanBase un drawer de simulation sur la partie facturation / pilotage projet.
+
+IMPORTANT :
+- il faut concevoir cela comme une vraie fonctionnalité produit, pas comme un simple calculateur visuel
+- la simulation doit permettre de projeter un nouveau scénario de charge et de facturation à partir d’une date donnée
+- il faut prévoir un mode “simulation” puis un bouton “Valider la simulation” qui transforme les nouvelles hypothèses en nouvelles conditions réelles du projet
+- après validation, toutes les données impactées du projet doivent être mises à jour dans l’application
+- il ne faut pas casser l’existant
+- il faut réutiliser autant que possible la logique métier déjà présente (budget, temps, facturation, marge, TJM, projection, etc.)
+
+## Objectif produit
+
+Je veux permettre à l’utilisateur de simuler un changement de rythme de travail sur un projet, par exemple :
+- passer à 5 jours / semaine full time
+- passer à 3 jours / semaine
+- changer le rythme à partir d’une date précise
+- tenir compte du fait qu’un acompte a déjà été facturé ou encaissé
+- recalculer la date de fin projetée, le reste à facturer, la marge projetée et les indicateurs de pilotage
+
+Puis, si la simulation est satisfaisante, l’utilisateur doit pouvoir cliquer sur un bouton :
+- “Valider la simulation”
+
+Ce bouton doit appliquer les nouvelles hypothèses au projet réel.
+
+## UX attendue
+
+Ajouter un bouton dans la zone concernée de la page projet / facturation, par exemple :
+- “Simuler un scénario”
+ou
+- “Simuler la trajectoire”
+
+Au clic :
+- ouverture d’un drawer latéral
+- design cohérent avec PlanBase
+- interface simple, lisible, orientée pilotage
+- séparation claire entre :
+  1. hypothèses de simulation
+  2. situation actuelle
+  3. résultats projetés
+  4. actions
+
+## Structure du drawer
+
+### 1. Bloc “Hypothèses de simulation”
+Champs à renseigner :
+- date de début du nouveau scénario
+- nombre de jours travaillés par semaine
+- éventuellement charge journalière / full time / custom si pertinent
+- possibilité de reprendre les données actuelles par défaut
+
+Champs minimum pour la V1 :
+- simulation_start_date
+- simulation_days_per_week
+
+Optionnel si simple à intégrer :
+- simulation_hours_per_day
+- simulation_daily_rate
+- simulation_daily_cost
+
+### 2. Bloc “Situation actuelle”
+Afficher les données actuelles du projet, en lecture seule :
+- budget total du projet
+- montant déjà facturé
+- montant déjà encaissé
+- acompte déjà facturé
+- acompte déjà encaissé
+- temps déjà consommé
+- temps restant estimé
+- date de fin actuellement projetée
+- marge actuelle / prévisionnelle
+- TJM actuel si disponible
+- mode de facturation si disponible
+
+### 3. Bloc “Résultat de la simulation”
+Recalculer et afficher :
+- nouvelle date de fin projetée
+- durée calendaire restante
+- temps restant estimé
+- montant restant à facturer
+- montant restant à encaisser
+- coût restant projeté
+- marge projetée en €
+- marge projetée en %
+- risque éventuel
+- comparaison avec la situation actuelle
+
+Je veux une lecture simple du type :
+- “En passant à 5 jours / semaine à partir du 15 avril, le projet se terminerait le 10 mai”
+- “Il resterait 15 000 € à facturer en tenant compte de l’acompte déjà facturé”
+- “La marge projetée serait de 31%”
+
+### 4. Bloc “Actions”
+Ajouter en bas du drawer :
+- bouton secondaire : “Annuler”
+- bouton secondaire éventuel : “Réinitialiser la simulation”
+- bouton principal : “Valider la simulation”
+
+## Règles métier
+
+La simulation doit tenir compte des données existantes du projet.
+
+### Données de base à récupérer
+- budget_total
+- amount_invoiced
+- amount_paid
+- deposit_amount si disponible
+- deposit_paid si disponible
+- time_spent_days
+- remaining_estimated_days
+- current_tjm
+- current_daily_cost
+- billing_mode
+- current_projected_end_date
+- project_start_date
+- project_end_date si disponible
+
+### Inputs de simulation
+- simulation_start_date
+- simulation_days_per_week
+- simulation_hours_per_day si disponible
+- simulation_mode par défaut = continue
+
+### Outputs à calculer
+- new_projected_end_date
+- remaining_calendar_duration
+- remaining_revenue_to_invoice
+- remaining_revenue_to_collect
+- projected_remaining_cost
+- projected_margin_amount
+- projected_margin_percent
+- risk_level
+- delta_vs_current_end_date
+- delta_vs_current_margin
+
+## Hypothèses de calcul V1
+
+Faire une première version simple et robuste.
+
+### Logique de calcul temps / planning
+- partir du temps restant estimé
+- convertir ce temps restant en durée calendaire selon le nombre de jours travaillés par semaine
+- si la simulation commence à une date future, la projection démarre à cette date
+- recalculer une nouvelle date de fin projetée
+
+Exemple :
+- temps restant = 20 jours
+- rythme = 5 jours / semaine
+- date de départ = 15 avril
+=> calculer la nouvelle date de fin estimée
+
+### Logique de calcul facturation
+- distinguer clairement :
+  - déjà facturé
+  - déjà encaissé
+  - restant à facturer
+  - restant à encaisser
+- tenir compte de l’acompte déjà facturé
+- si budget total fixe (forfait), la simulation ne change pas le budget total mais change la projection de coût, de marge et de fin
+- si la logique existante gère la régie ou le mixte, la simulation doit s’aligner dessus sans casser les cas existants
+- en V1, si besoin, se concentrer d’abord sur le cas forfait avec acompte déjà facturé
+
+### Logique de rentabilité
+- recalculer le coût restant selon le rythme / charge / coût journalier
+- recalculer la marge projetée
+- signaler si certaines variables empêchent un calcul fiable
+
+## Validation de la simulation
+
+Point très important :
+quand l’utilisateur clique sur “Valider la simulation”, la simulation ne doit plus être seulement visuelle.
+
+Elle doit devenir la nouvelle base réelle du projet.
+
+### Donc après validation :
+mettre à jour les anciennes conditions avec les nouvelles, par exemple :
+- nouvelle date de projection / date de fin estimée
+- nouveau rythme / nouvelle hypothèse de charge
+- nouvelles hypothèses de temps restant si pertinent
+- nouveaux indicateurs de marge projetée
+- nouvelles projections de facturation / encaissement si elles sont stockées
+- tout autre champ métier déjà utilisé dans les dashboards et widgets concernés
+
+### Après validation, tout doit se mettre à jour :
+- page projet
+- cartes KPI
+- onglet Facturation
+- onglet Temps
+- onglet Rentabilité si concerné
+- projections
+- zone Actions / alertes / recommandations si impactées
+- tout composant qui dépend de ces données
+
+Je veux donc une vraie persistance des nouvelles hypothèses validées.
+
+## Comportement attendu
+
+### Avant validation
+- la simulation reste temporaire
+- aucun changement réel dans les données projet
+- affichage d’un mode preview / comparaison
+
+### Après validation
+- les nouvelles valeurs remplacent les anciennes conditions
+- rafraîchir les données affichées
+- propager les changements à l’ensemble des composants concernés
+- afficher un feedback de succès clair
+
+Exemple :
+- toast “Simulation appliquée avec succès”
+- mise à jour immédiate des cartes et indicateurs
+
+## Cas limites à gérer
+- absence de TJM
+- absence de coût journalier
+- absence de mode de facturation
+- absence d’acompte
+- temps restant nul
+- date de simulation antérieure à aujourd’hui ou incohérente
+- projet déjà terminé
+- projet sans estimation restante
+- valeurs manquantes empêchant certains calculs
+
+Dans ces cas :
+- afficher un état explicite
+- permettre une simulation partielle si possible
+- ne pas casser l’interface
+
+## Technique / architecture
+Je veux une implémentation propre et modulaire.
+
+À prévoir :
+- composant drawer dédié
+- logique de calcul séparée dans un service / helper métier
+- mode preview distinct du mode persisté
+- mutation de validation dédiée
+- rafraîchissement propre des données après validation
+- réutilisation des types / schémas existants
+- éviter la duplication de logique
+
+## Livrable attendu
+
+Commence par :
+1. analyser les données existantes disponibles dans le projet
+2. proposer la structure du drawer
+3. proposer les champs persistés vs calculés
+4. proposer la logique de calcul V1
+5. identifier les composants impactés après validation
+
+Puis implémente :
+- le bouton d’ouverture
+- le drawer de simulation
+- les calculs de preview
+- le bouton “Valider la simulation”
+- la persistance des nouvelles conditions
+- la mise à jour automatique de toute l’interface concernée
+
+## Règle clé
+La validation de la simulation doit transformer les anciennes conditions en nouvelles conditions réelles du projet.
+Tout doit alors se mettre à jour dans l’application.
