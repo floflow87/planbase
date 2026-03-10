@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation, useSearch } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell, Settings, FolderOpen, Upload, X, Download, Pencil, Image, Target, Lightbulb } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell, Settings, FolderOpen, Upload, X, Download, Pencil, Image, Target, Lightbulb, FlaskConical } from "lucide-react";
 import { FileExplorer } from "@/components/file-explorer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +37,7 @@ import { ResourcesTab } from "@/components/resources-tab";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { PostCreationSuggestions } from "@/components/PostCreationSuggestions";
 import { CdcWizard } from "@/components/cdc/CdcWizard";
+import { SimulationDrawer } from "@/components/SimulationDrawer";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 
@@ -2794,6 +2795,7 @@ export default function ProjectDetail() {
     return false;
   });
   const [isBillingSettingsOpen, setIsBillingSettingsOpen] = useState(false);
+  const [isSimulationOpen, setIsSimulationOpen] = useState(false);
   
   // Expansion panel states (collapsed by default)
   const [isCdcSectionExpanded, setIsCdcSectionExpanded] = useState(false);
@@ -5315,18 +5317,30 @@ export default function ProjectDetail() {
             )}
 
             {/* Section Title: Budget et facturation */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between gap-2 mb-4">
               <h3 className="text-lg font-semibold">Budget et facturation</h3>
-              <Button 
-                variant="default" 
-                size="sm"
-                className="bg-primary text-xs"
-                onClick={() => setIsBillingSettingsOpen(true)}
-                data-testid="button-open-billing-settings"
-              >
-                <Settings className="h-3.5 w-3.5 mr-1.5" />
-                Facturation
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => setIsSimulationOpen(true)}
+                  data-testid="button-open-simulation"
+                >
+                  <FlaskConical className="h-3.5 w-3.5 mr-1.5" />
+                  Simuler
+                </Button>
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  className="bg-primary text-xs"
+                  onClick={() => setIsBillingSettingsOpen(true)}
+                  data-testid="button-open-billing-settings"
+                >
+                  <Settings className="h-3.5 w-3.5 mr-1.5" />
+                  Facturation
+                </Button>
+              </div>
             </div>
 
             {/* KPIs Facturation - 2 lignes de 3 cartes */}
@@ -7314,6 +7328,26 @@ export default function ProjectDetail() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Simulation Drawer */}
+      {isSimulationOpen && (
+        <SimulationDrawer
+          open={isSimulationOpen}
+          onClose={() => setIsSimulationOpen(false)}
+          project={project}
+          currentState={{
+            totalEstimatedDays,
+            actualDaysWorked: profitabilityMetrics?.actualDaysWorked ?? (totalTimeDays / 8),
+            remainingDays,
+            totalBilled: parseFloat(totalBilledValue || "0") || 0,
+            totalPaid,
+            internalDailyCost: project.internalDailyCost ? parseFloat(project.internalDailyCost.toString()) : 0,
+            currentEndDate: project.endDate ? new Date(project.endDate + "T00:00:00") : null,
+            billingType: project.billingType,
+            billingRate: project.billingRate ? parseFloat(project.billingRate.toString()) : undefined,
+          }}
+        />
+      )}
 
       {/* CDC Wizard */}
       <CdcWizard

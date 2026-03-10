@@ -477,6 +477,9 @@ export const projects = pgTable("projects", {
   expectedScopeTypes: jsonb("expected_scope_types").$type<string[]>(), // Expected CDC line types
   onboardingSuggestionsShown: integer("onboarding_suggestions_shown").default(0), // 0 = not shown, 1 = shown
   onboardingSuggestionsDismissed: integer("onboarding_suggestions_dismissed").default(0), // 0 = not dismissed, 1 = dismissed
+  // Simulation fields (last validated simulation scenario)
+  simulationDaysPerWeek: numeric("simulation_days_per_week", { precision: 5, scale: 1 }), // Working days/week used in last simulation
+  simulationStartDate: date("simulation_start_date"), // Start date of last validated simulation
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

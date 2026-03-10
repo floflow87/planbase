@@ -2221,6 +2221,14 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Documents document_date column added");
 
+    // Add simulation fields to projects
+    await db.execute(sql`
+      ALTER TABLE projects
+      ADD COLUMN IF NOT EXISTS simulation_days_per_week NUMERIC(5,1),
+      ADD COLUMN IF NOT EXISTS simulation_start_date DATE;
+    `);
+    console.log("✅ Projects simulation fields added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
