@@ -1105,7 +1105,7 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
 export default function TreasuryPage() {
   const { toast } = useToast();
 
-  const [mainTab, setMainTab] = useState<"flux" | "plan">("flux");
+  const [mainTab, setMainTab] = useState<"flux" | "plan">("plan");
   const [periodTab, setPeriodTab] = useState<"3m" | "6m" | "12m" | "all">("6m");
   const [chartMode, setChartMode] = useState<"real" | "projected">("projected");
   const [viewMode, setViewMode] = useState<"chart" | "synthesis">("chart");
@@ -1315,7 +1315,7 @@ export default function TreasuryPage() {
 
       {/* ── Tab bar ── */}
       <div className="flex items-center px-5 border-b shrink-0 bg-background">
-        {(["flux", "plan"] as const).map((tab) => (
+        {(["plan", "flux"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setMainTab(tab)}

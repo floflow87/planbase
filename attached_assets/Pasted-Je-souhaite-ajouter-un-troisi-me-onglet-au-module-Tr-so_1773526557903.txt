@@ -1,0 +1,175 @@
+Je souhaite ajouter un troisième onglet au module Trésorerie.
+
+Les trois onglets doivent être :
+
+1. Flux
+2. Plan de trésorerie
+3. Engagements
+
+L’onglet Engagements doit permettre de gérer tout ce qui génère des flux futurs de manière récurrente ou étalée, notamment :
+- prêts / financements
+- charges fixes récurrentes
+- amortissements / immobilisations
+
+OBJECTIF :
+permettre à l’utilisateur de créer des engagements financiers qui génèrent automatiquement des flux futurs dans la trésorerie et dans le plan de trésorerie.
+
+## Types d’engagements à gérer
+
+### 1. Prêts / financements
+Exemples :
+- prêt bancaire
+- leasing
+- crédit matériel
+- prêt d’honneur
+
+L’utilisateur doit pouvoir :
+- créer un prêt manuellement
+- soit en renseignant une mensualité connue
+- soit en renseignant montant, taux, durée, date de début pour générer un échéancier
+
+Champs minimum :
+- nom
+- organisme / prêteur
+- montant emprunté
+- taux
+- durée
+- date de début
+- mensualité si connue
+- fréquence
+- statut
+- catégorie
+- tags
+
+Le système doit pouvoir générer automatiquement les échéances futures.
+
+### 2. Charges fixes récurrentes
+Exemples :
+- loyer
+- comptable
+- assurances
+- logiciels
+- abonnements
+- téléphonie
+- marketing récurrent
+
+L’utilisateur doit pouvoir créer une charge récurrente avec :
+- nom
+- montant
+- date de début
+- date de fin optionnelle
+- fréquence (mensuelle, hebdo, trimestrielle, annuelle)
+- jour de prélèvement
+- catégorie
+- tags
+- projet lié optionnel
+- statut actif / inactif
+
+Le système doit générer automatiquement les flux futurs correspondants.
+
+### 3. Amortissements / immobilisations
+Exemples :
+- ordinateur
+- matériel
+- achat structurant
+
+Je veux gérer au minimum une logique simple :
+- montant de l’actif
+- date d’achat
+- durée d’amortissement
+- calcul d’un montant mensuel analytique
+
+IMPORTANT :
+bien distinguer :
+- la sortie de cash réelle éventuelle
+- l’amortissement analytique étalé
+
+Pour la V1, l’amortissement peut être géré comme une donnée analytique, sans complexité comptable.
+
+## Structure attendue
+
+Créer un onglet “Engagements” avec :
+
+### Bloc synthèse
+Afficher :
+- total des charges fixes mensuelles
+- total des échéances de prêts mensuelles
+- prochains décaissements
+- montant total engagé
+
+### Liste des engagements
+Afficher une liste / table des engagements avec :
+- nom
+- type
+- montant périodique
+- date début
+- date fin
+- fréquence
+- prochaine échéance
+- statut
+- catégorie
+- tags
+
+### Détail engagement
+Chaque engagement doit pouvoir être ouvert pour voir :
+- ses paramètres
+- son échéancier généré
+- les flux générés
+- possibilité de modifier / suspendre / supprimer
+
+## Règle métier importante
+
+Les engagements doivent alimenter automatiquement :
+- l’onglet Flux
+- l’onglet Plan de trésorerie
+- les KPIs de trésorerie
+- les projections de cash
+
+Autrement dit :
+un engagement n’est pas juste une fiche, c’est une source de flux futurs.
+
+## Architecture recommandée
+
+Créer une entité du type :
+
+### TreasuryCommitment
+- id
+- name
+- type: loan | recurring_expense | amortization
+- category_id
+- amount
+- start_date
+- end_date nullable
+- frequency
+- day_of_period nullable
+- status: active | paused | completed
+- project_id nullable
+- tags
+- description
+- settings_json
+- created_at
+- updated_at
+
+Prévoir ensuite les champs spécifiques selon le type.
+
+## Contraintes
+- ne pas casser les onglets Flux et Plan
+- intégrer proprement ce 3e onglet
+- utiliser une logique modulaire
+- garder une UX claire et SaaS
+- faire une V1 simple mais robuste
+
+## V1 prioritaire
+Je veux prioriser :
+1. charges fixes récurrentes
+2. prêts simples avec échéancier généré
+3. intégration dans les flux et le plan
+
+Les amortissements peuvent être simples dans un premier temps.
+
+Avant de coder :
+1. analyse l’architecture actuelle du module Trésorerie
+2. propose comment ajouter l’onglet Engagements
+3. propose les types / tables / logique de génération de flux
+4. propose le plan d’implémentation
+Puis implémente.
