@@ -13713,6 +13713,45 @@ app.get("/config/feature-flags", async (_req, res) => {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  app.patch("/api/treasury/plan/lines/:id", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { label } = req.body;
+      await db.execute(sql`
+        UPDATE treasury_plan_lines SET label = ${label}
+        WHERE id = ${req.params.id} AND account_id = ${accountId}
+      `);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/treasury/plan/lines/:id/duplicate", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const srcId = req.params.id;
+      const newLineResult = await db.execute(sql`
+        INSERT INTO treasury_plan_lines (account_id, rubrique, label, position, source_type)
+        SELECT account_id, rubrique, label || ' (copie)', position + 1, 'manual'
+        FROM treasury_plan_lines
+        WHERE id = ${srcId} AND account_id = ${accountId}
+        RETURNING *
+      `);
+      const newLine = Array.isArray(newLineResult) ? newLineResult[0] : (newLineResult as any).rows?.[0];
+      if (!newLine) return res.status(404).json({ error: "Source line not found" });
+      await db.execute(sql`
+        INSERT INTO treasury_plan_cells (line_id, period_key, amount)
+        SELECT ${newLine.id}, period_key, amount
+        FROM treasury_plan_cells
+        WHERE line_id = ${srcId}
+        ON CONFLICT ON CONSTRAINT treasury_plan_cells_unique DO NOTHING
+      `);
+      res.json(newLine);
+    } catch (e: any) {
+      console.error("❌ POST /api/treasury/plan/lines/:id/duplicate error:", e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.put("/api/treasury/plan/cells", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const { cells } = req.body as { cells: Array<{ lineId: string; periodKey: string; amount: number }> };

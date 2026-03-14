@@ -43,6 +43,7 @@ import {
   Check,
   Table2,
   Info,
+  Copy,
 } from "lucide-react";
 import {
   Tooltip,
@@ -654,9 +655,13 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
   const [localSettings, setLocalSettings] = useState<PlanSettings>({ initialBalance: 0, granularity: "month" });
   const [editingInitBalance, setEditingInitBalance] = useState(false);
   const [initBalanceValue, setInitBalanceValue] = useState("");
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
+  const [editingLineLabel, setEditingLineLabel] = useState("");
 
   const { data: planData, isLoading } = useQuery<PlanData>({
     queryKey: ["/api/treasury/plan"],
+    refetchOnMount: true,
+    staleTime: 0,
   });
 
   useEffect(() => {
@@ -675,7 +680,7 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
       apiRequest("/api/treasury/plan/lines", "POST", body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] });
-      toast({ title: "Ligne ajoutée" });
+      toast({ title: "Ligne ajoutée", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600" });
       setAddingToRubrique(null);
       setNewLineLabel("");
     },
@@ -694,6 +699,21 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
 
   const saveSettingsMutation = useMutation({
     mutationFn: (s: PlanSettings) => apiRequest("/api/treasury/plan/settings", "PUT", s),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] }),
+  });
+
+  const updateLineLabelMutation = useMutation({
+    mutationFn: ({ id, label }: { id: string; label: string }) =>
+      apiRequest(`/api/treasury/plan/lines/${id}`, "PATCH", { label }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] }),
+  });
+
+  const duplicateLineMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/treasury/plan/lines/${id}/duplicate`, "POST", {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] });
+      toast({ title: "Ligne dupliquée", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600" });
+    },
   });
 
   const periods = useMemo(() => {
@@ -785,9 +805,56 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
             <button
               key={g}
               onClick={() => {
+                const prev = localSettings.granularity;
                 const s = { ...localSettings, granularity: g };
                 setLocalSettings(s);
                 saveSettingsMutation.mutate(s);
+                if (prev === "month" && g === "week") {
+                  const getWeekKey = (d: Date) => {
+                    const year = d.getFullYear();
+                    const startOfYear = new Date(year, 0, 1);
+                    const weekNum = Math.ceil(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
+                    return `${year}-W${String(weekNum).padStart(2, "0")}`;
+                  };
+                  const newCells: Array<{ lineId: string; periodKey: string; amount: number }> = [];
+                  for (const [lineId, lineCells] of Object.entries(localCells)) {
+                    for (const [pk, amount] of Object.entries(lineCells)) {
+                      if (amount === 0) continue;
+                      if (/^\d{4}-\d{2}$/.test(pk)) {
+                        const [yr, mo] = pk.split("-").map(Number);
+                        const lastDay = new Date(yr, mo, 0);
+                        const weekKey = getWeekKey(lastDay);
+                        newCells.push({ lineId, periodKey: weekKey, amount });
+                      }
+                    }
+                  }
+                  if (newCells.length > 0) saveCellMutation.mutate(newCells);
+                } else if (prev === "week" && g === "month") {
+                  const newCells: Array<{ lineId: string; periodKey: string; amount: number }> = [];
+                  const monthTotals: Record<string, Record<string, number>> = {};
+                  for (const [lineId, lineCells] of Object.entries(localCells)) {
+                    for (const [pk, amount] of Object.entries(lineCells)) {
+                      if (amount === 0) continue;
+                      if (/^\d{4}-W\d{2}$/.test(pk)) {
+                        const [yr, wStr] = pk.split("-W");
+                        const year = parseInt(yr); const weekNum = parseInt(wStr);
+                        const jan1 = new Date(year, 0, 1);
+                        const daysOff = (1 - jan1.getDay() + 7) % 7;
+                        const firstMon = new Date(jan1.getTime() + daysOff * 86400000);
+                        const mon = new Date(firstMon.getTime() + (weekNum - 1) * 7 * 86400000);
+                        const mKey = `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, "0")}`;
+                        if (!monthTotals[lineId]) monthTotals[lineId] = {};
+                        monthTotals[lineId][mKey] = (monthTotals[lineId][mKey] ?? 0) + amount;
+                      }
+                    }
+                  }
+                  for (const [lineId, months] of Object.entries(monthTotals)) {
+                    for (const [mKey, amount] of Object.entries(months)) {
+                      newCells.push({ lineId, periodKey: mKey, amount });
+                    }
+                  }
+                  if (newCells.length > 0) saveCellMutation.mutate(newCells);
+                }
               }}
               className={cn(
                 "px-3 py-1.5 text-[11px] font-medium transition-colors",
@@ -919,7 +986,39 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                           <tr key={line.id} className="border-t border-border/20 group hover:bg-muted/5 transition-colors">
                             <td className="py-1 px-3 sticky left-0 bg-card z-10 group-hover:bg-muted/5">
                               <div className="flex items-center gap-1 pl-5">
-                                <span className="text-[11px] text-foreground flex-1 truncate">{line.label}</span>
+                                {editingLineId === line.id ? (
+                                  <input
+                                    value={editingLineLabel}
+                                    onChange={(e) => setEditingLineLabel(e.target.value)}
+                                    onBlur={() => {
+                                      if (editingLineLabel.trim() && editingLineLabel !== line.label) {
+                                        updateLineLabelMutation.mutate({ id: line.id, label: editingLineLabel.trim() });
+                                      }
+                                      setEditingLineId(null);
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") e.currentTarget.blur();
+                                      if (e.key === "Escape") setEditingLineId(null);
+                                    }}
+                                    className="text-[11px] text-foreground flex-1 bg-primary/10 rounded px-1 py-0.5 outline-none border border-primary/30 min-w-0"
+                                    autoFocus
+                                    data-testid={`input-edit-plan-line-${line.id}`}
+                                  />
+                                ) : (
+                                  <span
+                                    className="text-[11px] text-foreground flex-1 truncate cursor-text hover:text-primary transition-colors"
+                                    onDoubleClick={() => { setEditingLineId(line.id); setEditingLineLabel(line.label); }}
+                                    title="Double-clic pour renommer"
+                                  >{line.label}</span>
+                                )}
+                                <button
+                                  onClick={() => duplicateLineMutation.mutate(line.id)}
+                                  className="invisible group-hover:visible text-muted-foreground hover:text-primary transition-colors"
+                                  title="Dupliquer la ligne"
+                                  data-testid={`btn-duplicate-plan-line-${line.id}`}
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </button>
                                 <button
                                   onClick={() => deleteLineMutation.mutate(line.id)}
                                   className="invisible group-hover:visible text-muted-foreground hover:text-destructive transition-colors"
@@ -1109,7 +1208,8 @@ export default function TreasuryPage() {
   const [viewMode, setViewMode] = useState<"chart" | "synthesis">("chart");
   const [filterType, setFilterType] = useState<"all" | "income" | "expense">("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterProject, setFilterProject] = useState<string>("all");
+  const [filterProjects, setFilterProjects] = useState<string[]>([]);
+  const [projectComboOpen, setProjectComboOpen] = useState(false);
   const [filterSource, setFilterSource] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterSearch, setFilterSearch] = useState<string>("");
@@ -1182,7 +1282,7 @@ export default function TreasuryPage() {
       if (periodWindow && (f.date < periodWindow.from || f.date > periodWindow.to)) return false;
       if (filterType !== "all" && f.type !== filterType) return false;
       if (filterStatus !== "all" && f.status !== filterStatus) return false;
-      if (filterProject !== "all" && f.projectId !== filterProject) return false;
+      if (filterProjects.length > 0 && !filterProjects.includes(f.projectId)) return false;
       if (filterSource !== "all" && f.sourceType !== filterSource) return false;
       if (filterCategory !== "all" && f.categoryId !== filterCategory) return false;
       if (
@@ -1197,7 +1297,7 @@ export default function TreasuryPage() {
       }
       return true;
     });
-  }, [data, periodWindow, filterType, filterStatus, filterProject, filterSource, filterCategory, filterSearch, selectedScenarioId]);
+  }, [data, periodWindow, filterType, filterStatus, filterProjects, filterSource, filterCategory, filterSearch, selectedScenarioId]);
 
   // Chart data by mode — period fills empty months so all months always appear
   const chartData = useMemo(() => {
@@ -1207,11 +1307,11 @@ export default function TreasuryPage() {
     const projectedStatuses = ["confirmed", "received", "paid"];
     const statuses = chartMode === "real" ? realStatuses : projectedStatuses;
     // Apply project filter to chart flows too
-    const chartFlows = filterProject === "all"
+    const chartFlows = filterProjects.length === 0
       ? data.flows
-      : data.flows.filter((f) => f.projectId === filterProject);
+      : data.flows.filter((f) => filterProjects.includes(f.projectId));
     return buildChartData(chartFlows, statuses, startingCash, periodWindow ?? undefined);
-  }, [data, chartMode, periodWindow, filterProject]);
+  }, [data, chartMode, periodWindow, filterProjects]);
 
   // Synthesis data — month-by-month table
   const synthesisData = useMemo(() => {
@@ -1220,11 +1320,11 @@ export default function TreasuryPage() {
     const realStatuses = ["received", "paid"];
     const projectedStatuses = ["confirmed", "received", "paid"];
     const statuses = chartMode === "real" ? realStatuses : projectedStatuses;
-    const synthFlows = filterProject === "all"
+    const synthFlows = filterProjects.length === 0
       ? data.flows
-      : data.flows.filter((f) => f.projectId === filterProject);
+      : data.flows.filter((f) => filterProjects.includes(f.projectId));
     return buildSynthesisData(synthFlows, statuses, startingCash, periodWindow ?? undefined);
-  }, [data, chartMode, periodWindow, filterProject]);
+  }, [data, chartMode, periodWindow, filterProjects]);
 
   const periodKpis = useMemo(() => {
     const realStatuses = ["received", "paid"];
@@ -1256,7 +1356,7 @@ export default function TreasuryPage() {
   const hasActiveFilters =
     filterType !== "all" ||
     filterStatus !== "all" ||
-    filterProject !== "all" ||
+    filterProjects.length > 0 ||
     filterSource !== "all" ||
     filterCategory !== "all" ||
     filterSearch !== "";
@@ -1301,15 +1401,54 @@ export default function TreasuryPage() {
         </div>
         {mainTab === "flux" && (
           <div className="flex items-center gap-2">
-            <Select value={filterProject} onValueChange={setFilterProject}>
-              <SelectTrigger className="h-7 w-40 text-[10px]" data-testid="select-header-project">
-                <SelectValue placeholder="Tous les projets" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les projets</SelectItem>
-                {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <div className="relative" data-testid="project-multiselect-container">
+              <button
+                onClick={() => setProjectComboOpen((o) => !o)}
+                className="flex items-center gap-1.5 h-7 px-2 rounded-md border bg-background text-[10px] text-foreground min-w-[140px] max-w-[200px] truncate"
+                data-testid="btn-project-multiselect"
+              >
+                <Filter className="h-3 w-3 text-muted-foreground shrink-0" />
+                <span className="flex-1 text-left truncate">
+                  {filterProjects.length === 0
+                    ? "Tous les projets"
+                    : filterProjects.length === 1
+                      ? (projects.find((p) => p.id === filterProjects[0])?.name ?? "1 projet")
+                      : `${filterProjects.length} projets`}
+                </span>
+                <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
+              </button>
+              {projectComboOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setProjectComboOpen(false)} />
+                  <div className="absolute right-0 top-8 z-50 min-w-[200px] rounded-md border bg-popover shadow-md">
+                  <div className="p-1">
+                    <button
+                      onClick={() => { setFilterProjects([]); setProjectComboOpen(false); }}
+                      className={cn("flex items-center gap-2 w-full px-2 py-1.5 rounded text-[11px] hover-elevate", filterProjects.length === 0 ? "text-primary font-medium" : "text-foreground")}
+                      data-testid="btn-project-all"
+                    >
+                      {filterProjects.length === 0 && <Check className="h-3 w-3" />}
+                      <span className={filterProjects.length !== 0 ? "pl-5" : ""}>Tous les projets</span>
+                    </button>
+                    {projects.map((p) => {
+                      const selected = filterProjects.includes(p.id);
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => setFilterProjects((prev) => selected ? prev.filter((x) => x !== p.id) : [...prev, p.id])}
+                          className={cn("flex items-center gap-2 w-full px-2 py-1.5 rounded text-[11px] hover-elevate", selected ? "text-primary font-medium" : "text-foreground")}
+                          data-testid={`btn-project-option-${p.id}`}
+                        >
+                          {selected ? <Check className="h-3 w-3 shrink-0" /> : <span className="w-3 shrink-0" />}
+                          <span className="truncate">{p.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                </>
+              )}
+            </div>
             <Button
               size="sm"
               onClick={() => { setEditFlow(null); setPanelOpen(true); }}
