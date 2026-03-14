@@ -177,7 +177,7 @@ function Router() {
       <Route path="/finance">
         <ProtectedRoute><Finance /></ProtectedRoute>
       </Route>
-      <Route path="/treasury">
+      <Route path="/cashflow">
         <ProtectedRoute><TreasuryPage /></ProtectedRoute>
       </Route>
       <Route path="/commercial">

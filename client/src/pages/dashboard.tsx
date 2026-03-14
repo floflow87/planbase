@@ -2234,23 +2234,25 @@ export default function Dashboard() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-6 mt-2">
-                <label className="flex items-center gap-2 cursor-pointer select-none" data-testid="toggle-forecast" title="Afficher les échéances de paiements non encaissés des projets signés.">
+              <div className="flex items-center gap-5 my-1.5">
+                <label className="flex items-center gap-1.5 cursor-pointer select-none" data-testid="toggle-forecast" title="Afficher les échéances de paiements non encaissés des projets signés.">
                   <Switch
                     checked={showForecast}
                     onCheckedChange={setShowForecast}
                     id="toggle-forecast"
+                    className="h-4 w-8 [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-4"
                   />
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">Prévisionnels</span>
+                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">Prévisionnels</span>
                 </label>
-                <label className={`flex items-center gap-2 select-none ${showForecast ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`} data-testid="toggle-opportunites" title="Inclure les projets en prospection qualifiés comme opportunités de CA">
+                <label className={`flex items-center gap-1.5 select-none ${showForecast ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`} data-testid="toggle-opportunites" title="Inclure les projets en prospection qualifiés comme opportunités de CA">
                   <Switch
                     checked={showHypotheses}
                     onCheckedChange={showForecast ? setShowHypotheses : undefined}
                     id="toggle-opportunites"
                     disabled={!showForecast}
+                    className="h-4 w-8 [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-4"
                   />
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">Opportunités</span>
+                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">Opportunités</span>
                 </label>
               </div>
             </CardHeader>
