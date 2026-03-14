@@ -2236,6 +2236,14 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Projects payment_rhythm field added");
 
+    // Add deposit_percentage and payment_end_of_month fields
+    await db.execute(sql`
+      ALTER TABLE projects
+      ADD COLUMN IF NOT EXISTS deposit_percentage NUMERIC(5,2) DEFAULT 30,
+      ADD COLUMN IF NOT EXISTS payment_end_of_month INTEGER DEFAULT 0;
+    `);
+    console.log("✅ Projects deposit and end-of-month payment fields added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

@@ -1,0 +1,245 @@
+Je souhaite ajouter dans PlanBase un nouveau module “Trésorerie”.
+
+Objectif produit :
+permettre à l’utilisateur de visualiser sa trésorerie actuelle et prévisionnelle à une date donnée, en consolidant automatiquement :
+- les entrées basées sur les montants facturés, paiements prévus et échéanciers projet
+- les sorties basées sur les ressources prévues des projets / coûts projetés
+- ainsi que des flux manuels saisis librement par l’utilisateur
+
+Le but est d’avoir une vue de cash simple, lisible et pilotable :
+- ce qui entre
+- ce qui sort
+- quand
+- d’où ça vient
+- et quelle sera la trésorerie projetée
+
+IMPORTANT :
+- ne pas casser l’existant
+- réutiliser autant que possible les données déjà présentes dans PlanBase
+- faire une V1 solide orientée pilotage, pas comptabilité complexe
+- prévoir une architecture modulaire
+
+## Fonctionnalités attendues
+
+### 1. Nouvelle page / module Trésorerie
+Créer un module Trésorerie avec :
+- un bandeau KPI
+- un graphique principal
+- une table des flux
+- une zone de filtres
+
+### 2. KPIs à afficher
+Afficher au minimum :
+- Solde actuel
+- Entrées sur la période
+- Sorties sur la période
+- Solde projeté fin de période
+- Variation nette
+
+Optionnel si simple :
+- point bas de trésorerie
+- alerte de tension de cash
+
+### 3. Graphique principal
+Créer un graphique avec :
+- barres pour les entrées
+- barres pour les sorties
+- courbe pour la trésorerie cumulée
+
+Le graphique doit pouvoir être filtré par :
+- semaine
+- mois
+- trimestre
+- période personnalisée
+
+### 4. Génération automatique des entrées
+Créer des flux de trésorerie automatiques à partir des données existantes :
+- montants facturés
+- paiements prévus
+- acomptes
+- échéanciers
+- paiements projet
+
+Chaque entrée auto doit contenir au minimum :
+- date
+- montant
+- projet lié si applicable
+- client lié si applicable
+- statut
+- type
+- catégorie auto
+
+### 5. Génération automatique des sorties
+Créer des flux de trésorerie automatiques à partir :
+- des ressources prévues sur les projets
+- des coûts journaliers / coûts ressources si disponibles
+- des charges projetées liées au staffing
+
+Chaque sortie auto doit contenir au minimum :
+- date
+- montant
+- projet lié si applicable
+- ressource liée si applicable
+- statut
+- type
+- catégorie auto
+
+### 6. Flux manuels
+Permettre à l’utilisateur d’ajouter manuellement :
+- une entrée
+- ou une sortie
+
+Champs minimum :
+- type (entrée / sortie)
+- date
+- montant
+- libellé
+- description optionnelle
+- catégorie
+- tags
+- projet lié optionnel
+- statut
+
+### 7. Catégories
+Créer un système de catégories pour les flux.
+
+Catégories suggérées pour les entrées :
+- acompte
+- paiement client
+- régie
+- autre revenu
+- apport
+- remboursement
+- exceptionnel
+
+Catégories suggérées pour les sorties :
+- ressource interne
+- freelance
+- sous-traitance
+- logiciel
+- abonnement
+- administratif
+- marketing
+- matériel
+- fiscal / social
+- exceptionnel
+
+Les catégories doivent être éditables / extensibles si simple à faire.
+
+### 8. Tags
+Permettre d’ajouter un ou plusieurs tags aux flux.
+Les tags doivent être :
+- filtrables
+- visibles dans la table
+- utilisables pour affiner les analyses
+
+### 9. Filtres
+Ajouter des filtres sur :
+- période
+- type de flux
+- statut
+- projet
+- client
+- catégorie
+- tags
+- source (auto / manuel)
+
+### 10. Table des flux
+Créer une table listant tous les flux avec au minimum :
+- date
+- type
+- statut
+- libellé
+- projet
+- catégorie
+- tags
+- montant
+- source
+
+### 11. Statuts à gérer
+Prévoir les statuts suivants :
+- planned
+- confirmed
+- received pour les entrées
+- paid pour les sorties
+- cancelled si utile
+
+### 12. Logique de calcul
+Le module doit calculer :
+- solde actuel
+- solde projeté
+- variation nette sur période
+- cash cumulé au fil du temps
+
+Prévoir un paramètre de base de trésorerie initiale si nécessaire :
+- starting_cash
+
+## Architecture recommandée
+
+Créer des entités / structures du type :
+
+### TreasuryTransaction
+- id
+- type: income | expense
+- source_type: project_auto | manual
+- status
+- date
+- amount
+- label
+- description
+- category_id
+- project_id nullable
+- client_id nullable
+- resource_id nullable
+- tags
+- origin_reference nullable
+- created_at
+- updated_at
+
+### TreasuryCategory
+- id
+- name
+- type
+- color
+- icon
+
+### TreasurySettings
+- starting_cash
+- alert_threshold si utile
+- default_view_range
+
+## UX attendue
+Je veux une interface inspirée d’un outil de pilotage de trésorerie moderne :
+- propre
+- lisible
+- premium
+- orientée décision
+- claire visuellement
+- pensée pour voir rapidement les creux et pics de cash
+
+## Contraintes
+- ne pas faire un module comptable complexe
+- rester simple, lisible et actionnable
+- prioriser la V1
+- réutiliser les données projet existantes
+- éviter toute duplication inutile de logique métier
+
+## V1 attendue
+Je veux d’abord une V1 avec :
+- flux automatiques entrées
+- flux automatiques sorties
+- flux manuels
+- catégories
+- tags
+- filtres
+- graph
+- table
+- KPIs de cash
+
+Avant de coder, commence par :
+1. auditer les données existantes réutilisables dans PlanBase
+2. proposer la structure du module
+3. identifier les tables / types à créer
+4. proposer la logique de calcul du cash
+5. proposer le plan d’implémentation
+Puis implémente.

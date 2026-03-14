@@ -38,7 +38,7 @@ import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { PostCreationSuggestions } from "@/components/PostCreationSuggestions";
 import { CdcWizard } from "@/components/cdc/CdcWizard";
 import { SimulationDrawer } from "@/components/SimulationDrawer";
-import { PAYMENT_RHYTHM_LABELS, type PaymentRhythm } from "@/lib/simulationUtils";
+import { PAYMENT_RHYTHM_LABELS, RHYTHMS_WITH_DEPOSIT, type PaymentRhythm } from "@/lib/simulationUtils";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 
@@ -2822,6 +2822,10 @@ export default function ProjectDetail() {
   // Track if numberOfDays is manually overridden (not auto-synced from CDC)
   // Default to true (locked/manual mode) - user must explicitly unlock to auto-sync
   const [isNumberOfDaysOverridden, setIsNumberOfDaysOverridden] = useState<boolean>(true);
+  // Deposit & end-of-month payment settings
+  const [depositPctValue, setDepositPctValue] = useState<string>("30");
+  const [depositAmtValue, setDepositAmtValue] = useState<string>("");
+  const [paymentEndOfMonth, setPaymentEndOfMonth] = useState<boolean>(false);
 
   // Payment tracking state
   const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -3295,6 +3299,10 @@ export default function ProjectDetail() {
       } else {
         setIsNumberOfDaysOverridden(false);
       }
+      // Deposit & end-of-month settings
+      setDepositPctValue(project.depositPercentage ? project.depositPercentage.toString() : "30");
+      setDepositAmtValue("");
+      setPaymentEndOfMonth(!!(project.paymentEndOfMonth));
     }
   }, [project]);
 
@@ -7165,6 +7173,121 @@ export default function ProjectDetail() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Acompte (conditionnel : rythmes avec dépôt) */}
+            {RHYTHMS_WITH_DEPOSIT.includes((project?.paymentRhythm || "at_delivery") as PaymentRhythm) && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Acompte</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <Input
+                      id="sheet-deposit-pct"
+                      type="number"
+                      min={1}
+                      max={99}
+                      step={5}
+                      value={depositPctValue}
+                      onChange={(e) => {
+                        setDepositPctValue(e.target.value);
+                        const pct = parseFloat(e.target.value);
+                        const total = parseFloat(project?.totalBilled || project?.budget || "0");
+                        if (!isNaN(pct) && total > 0) setDepositAmtValue(Math.round((pct / 100) * total).toString());
+                      }}
+                      onBlur={async () => {
+                        const pct = parseFloat(depositPctValue);
+                        if (isNaN(pct) || pct <= 0 || pct >= 100) return;
+                        try {
+                          await apiRequest(`/api/projects/${id}`, "PATCH", { depositPercentage: pct.toFixed(2) });
+                          queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                        } catch {}
+                      }}
+                      className="pr-6"
+                      data-testid="input-sheet-deposit-pct"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">%</span>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id="sheet-deposit-amt"
+                      type="number"
+                      min={0}
+                      step={100}
+                      value={depositAmtValue}
+                      placeholder={
+                        (() => {
+                          const total = parseFloat(project?.totalBilled || project?.budget || "0");
+                          const pct = parseFloat(depositPctValue) || 30;
+                          return total > 0 ? Math.round((pct / 100) * total).toString() : "Montant";
+                        })()
+                      }
+                      onChange={(e) => {
+                        setDepositAmtValue(e.target.value);
+                        const amt = parseFloat(e.target.value);
+                        const total = parseFloat(project?.totalBilled || project?.budget || "0");
+                        if (!isNaN(amt) && total > 0) setDepositPctValue(((amt / total) * 100).toFixed(1));
+                      }}
+                      onBlur={async () => {
+                        const amt = parseFloat(depositAmtValue);
+                        const total = parseFloat(project?.totalBilled || project?.budget || "0");
+                        if (isNaN(amt) || amt <= 0 || total <= 0) return;
+                        const pct = (amt / total) * 100;
+                        try {
+                          await apiRequest(`/api/projects/${id}`, "PATCH", { depositPercentage: pct.toFixed(2) });
+                          queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                        } catch {}
+                      }}
+                      className="pr-6"
+                      data-testid="input-sheet-deposit-amt"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">€</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-0.5">
+                  <input
+                    type="checkbox"
+                    id="sheet-end-of-month"
+                    checked={paymentEndOfMonth}
+                    onChange={async (e) => {
+                      const val = e.target.checked;
+                      setPaymentEndOfMonth(val);
+                      try {
+                        await apiRequest(`/api/projects/${id}`, "PATCH", { paymentEndOfMonth: val ? 1 : 0 });
+                        queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                      } catch {}
+                    }}
+                    className="h-4 w-4 rounded border-input accent-primary cursor-pointer"
+                    data-testid="checkbox-sheet-end-of-month"
+                  />
+                  <Label htmlFor="sheet-end-of-month" className="text-xs text-muted-foreground cursor-pointer">
+                    Paiements en fin de mois
+                  </Label>
+                </div>
+              </div>
+            )}
+
+            {/* Fin de mois (hors acompte) */}
+            {!RHYTHMS_WITH_DEPOSIT.includes((project?.paymentRhythm || "at_delivery") as PaymentRhythm) && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="sheet-end-of-month-standalone"
+                  checked={paymentEndOfMonth}
+                  onChange={async (e) => {
+                    const val = e.target.checked;
+                    setPaymentEndOfMonth(val);
+                    try {
+                      await apiRequest(`/api/projects/${id}`, "PATCH", { paymentEndOfMonth: val ? 1 : 0 });
+                      queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                    } catch {}
+                  }}
+                  className="h-4 w-4 rounded border-input accent-primary cursor-pointer"
+                  data-testid="checkbox-sheet-end-of-month-standalone"
+                />
+                <Label htmlFor="sheet-end-of-month-standalone" className="text-xs text-muted-foreground cursor-pointer">
+                  Paiements en fin de mois
+                </Label>
+              </div>
+            )}
 
             {/* TJM projet */}
             <div>

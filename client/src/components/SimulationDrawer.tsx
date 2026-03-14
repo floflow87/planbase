@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   computeSimulation, computePaymentSchedule, daysBetween,
   type SimulationCurrentState, type PaymentRhythm, PAYMENT_RHYTHM_LABELS,
+  RHYTHMS_WITH_DEPOSIT, RHYTHMS_WITH_MILESTONE,
   type PaymentInstallment,
 } from "@/lib/simulationUtils";
 import type { Project } from "@shared/schema";
@@ -51,8 +52,6 @@ function fmtMonths(n: number) {
 
 type BillingType = "fixed_price" | "time_based";
 
-const RHYTHMS_WITH_DEPOSIT: PaymentRhythm[] = ["deposit_monthly", "deposit_delivery"];
-const RHYTHMS_WITH_MILESTONE: PaymentRhythm[] = ["at_milestone"];
 
 export function SimulationDrawer({ open, onClose, project, currentState, payments = [] }: SimulationDrawerProps) {
   const { toast } = useToast();
@@ -84,11 +83,13 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
   const [billedDaysLocked, setBilledDaysLocked] = useState(false);
 
   // ── rythme de règlement
+  const defaultDepositPct = project.depositPercentage ? parseFloat(project.depositPercentage.toString()) : 30;
   const [paymentRhythm, setPaymentRhythm] = useState<PaymentRhythm>(
     (project.paymentRhythm as PaymentRhythm) || "at_delivery"
   );
-  const [endOfMonth, setEndOfMonth] = useState(false);
-  const [depositPctStr, setDepositPctStr] = useState<string>("30");
+  const [endOfMonth, setEndOfMonth] = useState(!!(project.paymentEndOfMonth));
+  const [depositPriority, setDepositPriority] = useState<"pct" | "amt">("pct");
+  const [depositPctStr, setDepositPctStr] = useState<string>(defaultDepositPct.toString());
   const [depositAmtStr, setDepositAmtStr] = useState<string>("");
   const [milestoneCountStr, setMilestoneCountStr] = useState<string>("3");
 
@@ -98,6 +99,7 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
   const milestoneCount = Math.max(2, Math.min(10, parseInt(milestoneCountStr) || 3));
 
   const handleDepositPctChange = (val: string) => {
+    setDepositPriority("pct");
     setDepositPctStr(val);
     const pct = parseFloat(val);
     if (!isNaN(pct) && result.simTotalBilled > 0) {
@@ -105,6 +107,7 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
     }
   };
   const handleDepositAmtChange = (val: string) => {
+    setDepositPriority("amt");
     setDepositAmtStr(val);
     const amt = parseFloat(val);
     if (!isNaN(amt) && result.simTotalBilled > 0) {
@@ -156,9 +159,10 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
       result.newEndDate,
       depositPct,
       milestoneCount,
-      endOfMonth
+      endOfMonth,
+      depositPriority === "amt" && depositAmt > 0 ? depositAmt : undefined
     );
-  }, [paymentRhythm, result.simTotalBilled, startDate, result.newEndDate, depositPct, milestoneCount, endOfMonth]);
+  }, [paymentRhythm, result.simTotalBilled, startDate, result.newEndDate, depositPct, milestoneCount, endOfMonth, depositPriority, depositAmt]);
 
   const validateMutation = useMutation({
     mutationFn: async () => {
@@ -212,8 +216,9 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
     setSimTJMStr(currentState.billingRate && currentState.billingRate > 0 ? currentState.billingRate.toString() : "");
     setBilledDaysLocked(false);
     setPaymentRhythm((project.paymentRhythm as PaymentRhythm) || "at_delivery");
-    setEndOfMonth(false);
-    setDepositPctStr("30");
+    setEndOfMonth(!!(project.paymentEndOfMonth));
+    setDepositPriority("pct");
+    setDepositPctStr(defaultDepositPct.toString());
     setDepositAmtStr("");
     setMilestoneCountStr("3");
   };
@@ -452,7 +457,12 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
                   </div>
                   {result.simTotalBilled > 0 && (
                     <p className="text-[10px] text-muted-foreground">
-                      Acompte : <strong>{fmt(Math.round((depositPct / 100) * result.simTotalBilled))}</strong> · Solde : <strong>{fmt(Math.round(result.simTotalBilled - (depositPct / 100) * result.simTotalBilled))}</strong>
+                      {(() => {
+                        const dAmt = depositPriority === "amt" && depositAmt > 0
+                          ? depositAmt
+                          : Math.round((depositPct / 100) * result.simTotalBilled);
+                        return <>Acompte : <strong>{fmt(dAmt)}</strong> · Solde : <strong>{fmt(Math.round(result.simTotalBilled - dAmt))}</strong></>;
+                      })()}
                     </p>
                   )}
                 </div>

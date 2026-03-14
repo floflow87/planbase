@@ -62,6 +62,9 @@ export const PAYMENT_RHYTHM_LABELS: Record<PaymentRhythm, string> = {
   "30d_after_delivery": "30j après livraison",
 };
 
+export const RHYTHMS_WITH_DEPOSIT: PaymentRhythm[] = ["deposit_monthly", "deposit_delivery"];
+export const RHYTHMS_WITH_MILESTONE: PaymentRhythm[] = ["at_milestone"];
+
 export interface PaymentInstallment {
   date: Date;
   amount: number;
@@ -95,10 +98,15 @@ export function computePaymentSchedule(
   endDate: Date,
   depositPct: number = 30,
   milestoneCount: number = 3,
-  endOfMonth: boolean = false
+  endOfMonth: boolean = false,
+  depositAmtOverride?: number
 ): PaymentInstallment[] {
   const snap = (d: Date) => endOfMonth ? snapToEndOfMonth(d) : d;
   if (totalAmount <= 0) return [];
+  const resolveDeposit = () =>
+    depositAmtOverride != null && depositAmtOverride > 0
+      ? depositAmtOverride
+      : Math.round(totalAmount * (depositPct / 100));
 
   const durationMs = Math.max(0, endDate.getTime() - startDate.getTime());
   const durationMonths = Math.max(1, Math.round(durationMs / (1000 * 60 * 60 * 24 * 30.4)));
@@ -151,28 +159,30 @@ export function computePaymentSchedule(
     }
 
     case "deposit_delivery": {
-      const deposit = Math.round(totalAmount * (depositPct / 100));
+      const deposit = resolveDeposit();
       const balance = totalAmount - deposit;
+      const actualPct = Math.round((deposit / totalAmount) * 100);
       return [
-        { date: new Date(startDate), amount: deposit, label: `Acompte (${depositPct}%)`, pct: depositPct, type: "deposit" },
-        { date: snap(new Date(endDate)), amount: balance, label: `Solde à la livraison (${100 - depositPct}%)`, pct: 100 - depositPct, type: "balance" },
+        { date: new Date(startDate), amount: deposit, label: `Acompte (${actualPct}%)`, pct: actualPct, type: "deposit" },
+        { date: snap(new Date(endDate)), amount: balance, label: `Solde à la livraison (${100 - actualPct}%)`, pct: 100 - actualPct, type: "balance" },
       ];
     }
 
     case "deposit_monthly": {
-      const deposit = Math.round(totalAmount * (depositPct / 100));
+      const deposit = resolveDeposit();
       const remaining = totalAmount - deposit;
       const months = durationMonths;
       const perMonth = remaining / months;
+      const actualDepositPct = Math.round((deposit / totalAmount) * 100);
       const schedule: PaymentInstallment[] = [
-        { date: new Date(startDate), amount: deposit, label: `Acompte (${depositPct}%)`, pct: depositPct, type: "deposit" },
+        { date: new Date(startDate), amount: deposit, label: `Acompte (${actualDepositPct}%)`, pct: actualDepositPct, type: "deposit" },
       ];
       for (let i = 0; i < months; i++) {
         schedule.push({
           date: snap(addMonths(startDate, i + 1)),
           amount: perMonth,
           label: `Mensuel ${i + 1}/${months}`,
-          pct: (100 - depositPct) / months,
+          pct: (100 - actualDepositPct) / months,
           type: "regular",
         });
       }
