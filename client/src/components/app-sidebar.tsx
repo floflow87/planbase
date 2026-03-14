@@ -108,8 +108,8 @@ export function AppSidebar() {
     { title: "Tâches", url: "/tasks", icon: CheckSquare },
     { title: "Whiteboards", url: "/mindmaps", icon: Network, badge: "Beta" },
     { title: "Fichiers", url: "/files", icon: FolderOpen },
-    { title: "Rentabilité", url: "/finance", icon: DollarSign },
     { title: "Trésorerie", url: "/cashflow", icon: Wallet },
+    { title: "Rentabilité", url: "/finance", icon: DollarSign },
   ];
 
   const navItems = allNavItems.filter(item => canAccessModule(item.url));
