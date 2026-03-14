@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Fragment } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -694,7 +694,6 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
 
   const saveSettingsMutation = useMutation({
     mutationFn: (s: PlanSettings) => apiRequest("/api/treasury/plan/settings", "PUT", s),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] }),
   });
 
   const periods = useMemo(() => {
@@ -869,10 +868,9 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                 const lines = (planData?.lines ?? []).filter((l) => l.rubrique === rubrique.key);
                 const isExpanded = expandedRubriques.has(rubrique.key);
                 return (
-                  <>
+                  <Fragment key={rubrique.key}>
                     {/* Rubrique header row */}
                     <tr
-                      key={`rub-${rubrique.key}`}
                       className="border-t border-border/50 bg-muted/10 cursor-pointer hover:bg-muted/20 transition-colors"
                       onClick={() =>
                         setExpandedRubriques((prev) => {
@@ -982,7 +980,7 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                                   value={newLineLabel}
                                   onChange={(e) => setNewLineLabel(e.target.value)}
                                   placeholder="Libellé de la ligne..."
-                                  className="h-6 text-[11px] w-36"
+                                  className="h-6 text-[10px] placeholder:text-[9px] w-36"
                                   autoFocus
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter" && newLineLabel.trim()) {
@@ -1024,7 +1022,7 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                         )}
                       </>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
 
@@ -1105,7 +1103,7 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
 export default function TreasuryPage() {
   const { toast } = useToast();
 
-  const [mainTab, setMainTab] = useState<"flux" | "plan">("plan");
+  const [mainTab, setMainTab] = useState<"flux" | "plan">("flux");
   const [periodTab, setPeriodTab] = useState<"3m" | "6m" | "12m" | "all">("6m");
   const [chartMode, setChartMode] = useState<"real" | "projected">("projected");
   const [viewMode, setViewMode] = useState<"chart" | "synthesis">("chart");
@@ -1314,22 +1312,19 @@ export default function TreasuryPage() {
       </div>
 
       {/* ── Tab bar ── */}
-      <div className="flex items-center px-5 border-b shrink-0 bg-background">
-        {(["plan", "flux"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setMainTab(tab)}
-            className={cn(
-              "px-3 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors",
-              mainTab === tab
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-            data-testid={`tab-treasury-${tab}`}
-          >
-            {tab === "flux" ? "Flux" : "Plan de trésorerie"}
-          </button>
-        ))}
+      <div className="px-5 py-2 border-b shrink-0 bg-background overflow-x-auto">
+        <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as "flux" | "plan")}>
+          <TabsList className="w-max justify-start flex-nowrap h-[42px]">
+            <TabsTrigger value="flux" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-treasury-flux">
+              <BarChart2 className="h-3.5 w-3.5" />
+              Flux
+            </TabsTrigger>
+            <TabsTrigger value="plan" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-treasury-plan">
+              <Table2 className="h-3.5 w-3.5" />
+              Plan de trésorerie
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* ── Body: conditional on tab ── */}
