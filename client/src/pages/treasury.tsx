@@ -657,6 +657,32 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
   const [initBalanceValue, setInitBalanceValue] = useState("");
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [editingLineLabel, setEditingLineLabel] = useState("");
+  const [fillDrag, setFillDrag] = useState<{ lineId: string; startIdx: number; value: number } | null>(null);
+  const [fillEndIdx, setFillEndIdx] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!fillDrag) return;
+    const onMouseUp = () => {
+      if (fillDrag && fillEndIdx !== null && fillEndIdx > fillDrag.startIdx) {
+        const cells: Array<{ lineId: string; periodKey: string; amount: number }> = [];
+        const ps = periods;
+        for (let i = fillDrag.startIdx + 1; i <= fillEndIdx; i++) {
+          if (ps[i]) {
+            cells.push({ lineId: fillDrag.lineId, periodKey: ps[i].key, amount: fillDrag.value });
+            setLocalCells((lc) => ({
+              ...lc,
+              [fillDrag.lineId]: { ...(lc[fillDrag.lineId] ?? {}), [ps[i].key]: fillDrag.value },
+            }));
+          }
+        }
+        if (cells.length > 0) saveCellMutation.mutate(cells);
+      }
+      setFillDrag(null);
+      setFillEndIdx(null);
+    };
+    window.addEventListener("mouseup", onMouseUp);
+    return () => window.removeEventListener("mouseup", onMouseUp);
+  }, [fillDrag, fillEndIdx, periods]);
 
   const { data: planData, isLoading } = useQuery<PlanData>({
     queryKey: ["/api/treasury/plan"],
@@ -710,6 +736,24 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
 
   const duplicateLineMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/treasury/plan/lines/${id}/duplicate`, "POST", {}),
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/treasury/plan"] });
+      const prev = queryClient.getQueryData<PlanData>(["/api/treasury/plan"]);
+      const srcLine = prev?.lines?.find((l) => l.id === id);
+      if (srcLine && prev) {
+        const tempId = `temp-dup-${Date.now()}`;
+        const srcCells = localCells[id] ?? {};
+        setLocalCells((lc) => ({ ...lc, [tempId]: { ...srcCells } }));
+        queryClient.setQueryData<PlanData>(["/api/treasury/plan"], {
+          ...prev,
+          lines: [...(prev.lines ?? []), { ...srcLine, id: tempId, label: `${srcLine.label} (copie)` }],
+        });
+      }
+      return { prev };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["/api/treasury/plan"], ctx.prev);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] });
       toast({ title: "Ligne dupliquée", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600" });
@@ -1028,11 +1072,17 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                                 </button>
                               </div>
                             </td>
-                            {periods.map((p) => {
+                            {periods.map((p, pIdx) => {
                               const isEditing = editingCell?.lineId === line.id && editingCell?.periodKey === p.key;
-                              const value = getCellValue(line.id, p.key);
+                              const isFillRange = fillDrag?.lineId === line.id && fillEndIdx !== null && pIdx > fillDrag.startIdx && pIdx <= fillEndIdx;
+                              const value = isFillRange ? fillDrag!.value : getCellValue(line.id, p.key);
+                              const hasValue = getCellValue(line.id, p.key) !== 0;
                               return (
-                                <td key={p.key} className={cn("py-0.5 px-1", p.isCurrent ? "bg-primary/5" : "")}>
+                                <td
+                                  key={p.key}
+                                  className={cn("py-0.5 px-1 relative", p.isCurrent ? "bg-primary/5" : "", isFillRange ? "bg-blue-50 dark:bg-blue-900/20" : "")}
+                                  onMouseEnter={() => { if (fillDrag?.lineId === line.id) setFillEndIdx(pIdx); }}
+                                >
                                   {isEditing ? (
                                     <input
                                       type="number"
@@ -1048,21 +1098,35 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                                       autoFocus
                                     />
                                   ) : (
-                                    <button
-                                      onClick={() => {
-                                        setEditingCell({ lineId: line.id, periodKey: p.key });
-                                        setEditValue(value !== 0 ? String(value) : "");
-                                      }}
-                                      className="w-full text-right text-[11px] tabular-nums px-1 py-1 rounded hover:bg-muted/60 transition-colors block"
-                                      style={{ minWidth: COL_W - 8 }}
-                                      data-testid={`cell-plan-${line.id}-${p.key}`}
-                                    >
-                                      {value !== 0 ? (
-                                        <span>{fmt(value)}</span>
-                                      ) : (
-                                        <span className="text-border/50">—</span>
+                                    <div className="relative group/cell">
+                                      <button
+                                        onClick={() => {
+                                          setEditingCell({ lineId: line.id, periodKey: p.key });
+                                          setEditValue(value !== 0 ? String(value) : "");
+                                        }}
+                                        className={cn("w-full text-right text-[11px] tabular-nums px-1 py-1 rounded transition-colors block", isFillRange ? "text-blue-700 dark:text-blue-300 font-medium" : "hover:bg-muted/60")}
+                                        style={{ minWidth: COL_W - 8 }}
+                                        data-testid={`cell-plan-${line.id}-${p.key}`}
+                                      >
+                                        {value !== 0 ? (
+                                          <span>{fmt(value)}</span>
+                                        ) : (
+                                          <span className="text-border/50">—</span>
+                                        )}
+                                      </button>
+                                      {hasValue && !isEditing && (
+                                        <div
+                                          onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            setFillDrag({ lineId: line.id, startIdx: pIdx, value: getCellValue(line.id, p.key) });
+                                            setFillEndIdx(pIdx);
+                                          }}
+                                          className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 bg-primary rounded-sm cursor-crosshair opacity-0 group-hover/cell:opacity-100 transition-opacity z-10 flex items-center justify-center"
+                                          title="Glisser pour étirer la valeur"
+                                          data-testid={`fill-handle-${line.id}-${p.key}`}
+                                        />
                                       )}
-                                    </button>
+                                    </div>
                                   )}
                                 </td>
                               );
@@ -1205,11 +1269,12 @@ export default function TreasuryPage() {
   const [mainTab, setMainTab] = useState<"flux" | "plan">("flux");
   const [periodTab, setPeriodTab] = useState<"3m" | "6m" | "12m" | "all">("6m");
   const [chartMode, setChartMode] = useState<"real" | "projected">("projected");
-  const [viewMode, setViewMode] = useState<"chart" | "synthesis">("chart");
+  const [viewMode, setViewMode] = useState<"chart" | "synthesis">("synthesis");
   const [filterType, setFilterType] = useState<"all" | "income" | "expense">("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterProjects, setFilterProjects] = useState<string[]>([]);
   const [projectComboOpen, setProjectComboOpen] = useState(false);
+  const [projectSearch, setProjectSearch] = useState("");
   const [filterSource, setFilterSource] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterSearch, setFilterSearch] = useState<string>("");
@@ -1403,8 +1468,8 @@ export default function TreasuryPage() {
           <div className="flex items-center gap-2">
             <div className="relative" data-testid="project-multiselect-container">
               <button
-                onClick={() => setProjectComboOpen((o) => !o)}
-                className="flex items-center gap-1.5 h-7 px-2 rounded-md border bg-background text-[10px] text-foreground min-w-[140px] max-w-[200px] truncate"
+                onClick={() => { setProjectComboOpen((o) => !o); setProjectSearch(""); }}
+                className="flex items-center gap-1.5 h-7 px-2 rounded-md border bg-white dark:bg-background text-[10px] text-foreground min-w-[140px] max-w-[200px]"
                 data-testid="btn-project-multiselect"
               >
                 <Filter className="h-3 w-3 text-muted-foreground shrink-0" />
@@ -1420,32 +1485,49 @@ export default function TreasuryPage() {
               {projectComboOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setProjectComboOpen(false)} />
-                  <div className="absolute right-0 top-8 z-50 min-w-[200px] rounded-md border bg-popover shadow-md">
-                  <div className="p-1">
-                    <button
-                      onClick={() => { setFilterProjects([]); setProjectComboOpen(false); }}
-                      className={cn("flex items-center gap-2 w-full px-2 py-1.5 rounded text-[11px] hover-elevate", filterProjects.length === 0 ? "text-primary font-medium" : "text-foreground")}
-                      data-testid="btn-project-all"
-                    >
-                      {filterProjects.length === 0 && <Check className="h-3 w-3" />}
-                      <span className={filterProjects.length !== 0 ? "pl-5" : ""}>Tous les projets</span>
-                    </button>
-                    {projects.map((p) => {
-                      const selected = filterProjects.includes(p.id);
-                      return (
+                  <div className="absolute right-0 top-8 z-50 min-w-[220px] rounded-md border bg-white dark:bg-popover shadow-md">
+                    <div className="p-1.5 border-b">
+                      <input
+                        autoFocus
+                        value={projectSearch}
+                        onChange={(e) => setProjectSearch(e.target.value)}
+                        placeholder="Rechercher un projet…"
+                        className="w-full text-[11px] px-2 py-1 rounded border bg-muted/30 outline-none focus:border-primary/50"
+                        data-testid="input-project-search"
+                      />
+                    </div>
+                    <div className="p-1 max-h-52 overflow-y-auto">
+                      {!projectSearch && (
                         <button
-                          key={p.id}
-                          onClick={() => setFilterProjects((prev) => selected ? prev.filter((x) => x !== p.id) : [...prev, p.id])}
-                          className={cn("flex items-center gap-2 w-full px-2 py-1.5 rounded text-[11px] hover-elevate", selected ? "text-primary font-medium" : "text-foreground")}
-                          data-testid={`btn-project-option-${p.id}`}
+                          onClick={() => { setFilterProjects([]); setProjectComboOpen(false); }}
+                          className={cn("flex items-center gap-2 w-full px-2 py-1.5 rounded text-[11px] hover-elevate", filterProjects.length === 0 ? "text-primary font-medium" : "text-foreground")}
+                          data-testid="btn-project-all"
                         >
-                          {selected ? <Check className="h-3 w-3 shrink-0" /> : <span className="w-3 shrink-0" />}
-                          <span className="truncate">{p.name}</span>
+                          {filterProjects.length === 0 ? <Check className="h-3 w-3 shrink-0" /> : <span className="w-3 shrink-0" />}
+                          <span>Tous les projets</span>
                         </button>
-                      );
-                    })}
+                      )}
+                      {projects
+                        .filter((p) => !projectSearch || p.name.toLowerCase().includes(projectSearch.toLowerCase()))
+                        .map((p) => {
+                          const selected = filterProjects.includes(p.id);
+                          return (
+                            <button
+                              key={p.id}
+                              onClick={() => setFilterProjects((prev) => selected ? prev.filter((x) => x !== p.id) : [...prev, p.id])}
+                              className={cn("flex items-center gap-2 w-full px-2 py-1.5 rounded text-[11px] hover-elevate", selected ? "text-primary font-medium" : "text-foreground")}
+                              data-testid={`btn-project-option-${p.id}`}
+                            >
+                              {selected ? <Check className="h-3 w-3 shrink-0" /> : <span className="w-3 shrink-0" />}
+                              <span className="truncate">{p.name}</span>
+                            </button>
+                          );
+                        })}
+                      {projectSearch && projects.filter((p) => p.name.toLowerCase().includes(projectSearch.toLowerCase())).length === 0 && (
+                        <div className="px-2 py-2 text-[11px] text-muted-foreground text-center">Aucun résultat</div>
+                      )}
+                    </div>
                   </div>
-                </div>
                 </>
               )}
             </div>
@@ -1702,28 +1784,28 @@ export default function TreasuryPage() {
           <div className="flex flex-wrap gap-1.5 items-center">
             <div className="flex items-center rounded-md border overflow-hidden mr-1">
               <button
-                onClick={() => setViewMode("chart")}
-                data-testid="toggle-view-detail"
-                className={cn(
-                  "flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium transition-colors",
-                  viewMode === "chart"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted"
-                )}
-              >
-                <Table2 className="h-2.5 w-2.5" /> Détail
-              </button>
-              <button
                 onClick={() => setViewMode("synthesis")}
                 data-testid="toggle-view-synthesis"
                 className={cn(
-                  "flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium transition-colors border-l",
+                  "flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium transition-colors",
                   viewMode === "synthesis"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted"
                 )}
               >
                 <BarChart2 className="h-2.5 w-2.5" /> Synthèse
+              </button>
+              <button
+                onClick={() => setViewMode("chart")}
+                data-testid="toggle-view-detail"
+                className={cn(
+                  "flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium transition-colors border-l",
+                  viewMode === "chart"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <Table2 className="h-2.5 w-2.5" /> Détail
               </button>
             </div>
 
