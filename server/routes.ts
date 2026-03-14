@@ -13180,7 +13180,7 @@ app.get("/config/feature-flags", async (_req, res) => {
       const accountId = req.accountId!;
 
       // Fetch all data in parallel
-      const [allProjects, allProjectPayments, allResources, manualTransactions, categories, tsSettings, allClients] = await Promise.all([
+      let [allProjects, allProjectPayments, allResources, manualTransactions, categories, tsSettings, allClients] = await Promise.all([
         storage.getProjectsByAccountId(accountId),
         storage.getPaymentsByAccountId(accountId),
         db.select().from(projectResources).where(eq(projectResources.accountId, accountId)),
@@ -13189,6 +13189,30 @@ app.get("/config/feature-flags", async (_req, res) => {
         storage.getTreasurySettings(accountId),
         db.select({ id: clients.id, name: clients.name }).from(clients).where(eq(clients.accountId, accountId)),
       ]);
+
+      // Auto-seed categories if none exist
+      if (categories.length === 0) {
+        const INCOME_CATS = [
+          { name: "Acompte", color: "#6366f1" }, { name: "Paiement client", color: "#10b981" },
+          { name: "Régie", color: "#06b6d4" }, { name: "Autre revenu", color: "#64748b" },
+          { name: "Apport", color: "#8b5cf6" }, { name: "Remboursement", color: "#f59e0b" },
+          { name: "Exceptionnel", color: "#f97316" },
+        ];
+        const EXPENSE_CATS = [
+          { name: "Ressource interne", color: "#ef4444" }, { name: "Freelance", color: "#f97316" },
+          { name: "Sous-traitance", color: "#eab308" }, { name: "Logiciel", color: "#06b6d4" },
+          { name: "Abonnement", color: "#3b82f6" }, { name: "Administratif", color: "#8b5cf6" },
+          { name: "Marketing", color: "#ec4899" }, { name: "Matériel", color: "#14b8a6" },
+          { name: "Fiscal / Social", color: "#84cc16" }, { name: "Exceptionnel", color: "#64748b" },
+        ];
+        for (const c of INCOME_CATS) {
+          await storage.createTreasuryCategory({ accountId, name: c.name, type: "income", color: c.color, isSystem: 1 });
+        }
+        for (const c of EXPENSE_CATS) {
+          await storage.createTreasuryCategory({ accountId, name: c.name, type: "expense", color: c.color, isSystem: 1 });
+        }
+        categories = await storage.getTreasuryCategoriesByAccountId(accountId);
+      }
 
       const projectMap: Record<string, { name: string; clientId: string | null }> = {};
       for (const p of allProjects) {
@@ -13478,15 +13502,16 @@ app.get("/config/feature-flags", async (_req, res) => {
       if (categories.length === 0) {
         const INCOME_CATS = [
           { name: "Acompte", color: "#6366f1" }, { name: "Paiement client", color: "#10b981" },
-          { name: "Régie", color: "#06b6d4" }, { name: "Apport", color: "#8b5cf6" },
-          { name: "Remboursement", color: "#f59e0b" }, { name: "Autre revenu", color: "#64748b" },
+          { name: "Régie", color: "#06b6d4" }, { name: "Autre revenu", color: "#64748b" },
+          { name: "Apport", color: "#8b5cf6" }, { name: "Remboursement", color: "#f59e0b" },
+          { name: "Exceptionnel", color: "#f97316" },
         ];
         const EXPENSE_CATS = [
           { name: "Ressource interne", color: "#ef4444" }, { name: "Freelance", color: "#f97316" },
-          { name: "Sous-traitance", color: "#eab308" }, { name: "Logiciel / Abonnement", color: "#06b6d4" },
-          { name: "Infrastructure", color: "#3b82f6" }, { name: "Administratif", color: "#8b5cf6" },
+          { name: "Sous-traitance", color: "#eab308" }, { name: "Logiciel", color: "#06b6d4" },
+          { name: "Abonnement", color: "#3b82f6" }, { name: "Administratif", color: "#8b5cf6" },
           { name: "Marketing", color: "#ec4899" }, { name: "Matériel", color: "#14b8a6" },
-          { name: "Fiscal / Social", color: "#84cc16" }, { name: "Autre charge", color: "#64748b" },
+          { name: "Fiscal / Social", color: "#84cc16" }, { name: "Exceptionnel", color: "#64748b" },
         ];
         for (const c of INCOME_CATS) {
           await storage.createTreasuryCategory({ accountId: req.accountId!, name: c.name, type: "income", color: c.color, isSystem: 1 });

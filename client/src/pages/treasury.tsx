@@ -324,10 +324,10 @@ function TxPanel({
   if (!open) return null;
 
   return (
-    <aside className="w-72 border-l bg-background overflow-y-auto shrink-0 flex flex-col">
+    <aside className="w-80 border-l bg-card shadow-sm overflow-y-auto shrink-0 flex flex-col">
       {/* Panel header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b">
-        <span className="text-xs font-semibold text-foreground">
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-card">
+        <span className="text-sm font-semibold text-foreground">
           {isEdit ? "Modifier le flux" : "Nouveau flux"}
         </span>
         <Button size="icon" variant="ghost" onClick={onClose} className="h-6 w-6" data-testid="button-panel-close">
@@ -366,7 +366,7 @@ function TxPanel({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Date</Label>
-            <Input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} className="h-7 text-xs mt-0.5" data-testid="input-tx-date" />
+            <Input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} className="text-xs mt-0.5" data-testid="input-tx-date" />
           </div>
           <div>
             <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Montant (€)</Label>
@@ -456,13 +456,13 @@ export default function TreasuryPage() {
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
 
-  // Period window for table filtering
+  // Period window — forward-looking: 3m/6m/12m = les N prochains mois à partir de maintenant
   const periodWindow = useMemo(() => {
     const now = new Date();
     if (periodTab === "all") return null;
     const months = periodTab === "3m" ? 3 : periodTab === "6m" ? 6 : 12;
-    const from = new Date(now.getFullYear(), now.getMonth() - Math.floor(months / 2), 1);
-    const to = new Date(now.getFullYear(), now.getMonth() + Math.ceil(months / 2), 0);
+    const from = new Date(now.getFullYear(), now.getMonth(), 1);
+    const to = new Date(now.getFullYear(), now.getMonth() + months, 0);
     return { from: from.toISOString().split("T")[0], to: to.toISOString().split("T")[0] };
   }, [periodTab]);
 
@@ -723,7 +723,7 @@ export default function TreasuryPage() {
               placeholder="Rechercher…"
               value={filterSearch}
               onChange={(e) => setFilterSearch(e.target.value)}
-              className="h-7 w-36 text-xs"
+              className="h-7 w-36 text-[10px] placeholder:text-[10px]"
               data-testid="input-filter-search"
             />
 

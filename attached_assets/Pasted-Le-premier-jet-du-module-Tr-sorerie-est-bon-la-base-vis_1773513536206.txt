@@ -1,0 +1,251 @@
+Le premier jet du module Trésorerie est bon : la base visuelle est propre, avec KPIs, graphique, filtres et table des flux.
+
+Je veux maintenant faire évoluer cette V1 vers une V2 plus puissante, sans casser l’existant.
+
+IMPORTANT :
+- conserver tout ce qui existe déjà
+- ne pas repartir de zéro
+- faire évoluer le module actuel
+- garder le design actuel comme base
+- améliorer la logique métier et les possibilités de pilotage
+
+## Objectif de cette V2
+
+Ajouter deux fonctionnalités structurantes au module Trésorerie :
+
+1. la gestion de plusieurs scénarios de trésorerie
+2. la possibilité d’afficher les données avec différentes granularités temporelles :
+   - semaine
+   - mois
+   - trimestre
+
+Le but est de transformer le module actuel en véritable outil de projection et de comparaison de cash.
+
+---
+
+## 1. Gestion des scénarios
+
+Je veux permettre à l’utilisateur de créer plusieurs scénarios de trésorerie.
+
+### Exemples de scénarios
+- Référence
+- Optimiste
+- Prudent
+- Retard de paiement client
+- Recrutement d’une ressource supplémentaire
+- Décalage d’une grosse sortie
+- Nouveau projet signé
+- Projet décalé
+
+### Fonctionnement attendu
+- un scénario par défaut : “Référence”
+- possibilité de créer un nouveau scénario à partir du scénario actuel
+- possibilité de dupliquer un scénario existant
+- possibilité de renommer un scénario
+- possibilité de supprimer un scénario non principal
+- possibilité de sélectionner un scénario actif
+
+### Dans chaque scénario, l’utilisateur doit pouvoir :
+- inclure ou exclure certains flux
+- décaler la date d’un flux
+- modifier le statut d’un flux projeté
+- ajuster un montant
+- ajouter des flux manuels spécifiques au scénario
+- simuler des hypothèses sans modifier la réalité
+
+### Règle importante
+Les scénarios ne doivent pas modifier les données réelles de base tant qu’ils ne sont pas explicitement appliqués ou validés.
+
+Donc :
+- les données réelles restent intactes
+- chaque scénario peut avoir ses propres overrides / ajustements
+- le scénario “Référence” peut représenter la réalité ou le prévisionnel standard
+
+### Structure logique recommandée
+Prévoir un système du type :
+- TreasuryScenario
+- TreasuryScenarioOverride
+
+Par exemple :
+
+#### TreasuryScenario
+- id
+- name
+- description
+- is_default
+- created_at
+- updated_at
+
+#### TreasuryScenarioOverride
+- id
+- scenario_id
+- treasury_transaction_id nullable
+- override_type
+- overridden_date nullable
+- overridden_amount nullable
+- overridden_status nullable
+- is_excluded boolean
+- manual_transaction_data nullable
+
+L’objectif est de ne pas dupliquer inutilement tous les flux, mais d’avoir une base + des overrides par scénario.
+
+### UX attendue
+Ajouter dans le module Trésorerie :
+- un sélecteur de scénario
+- un bouton “Nouveau scénario”
+- un bouton ou menu pour :
+  - dupliquer
+  - renommer
+  - supprimer
+
+Et dans le scénario sélectionné :
+- refléter les données du scénario dans les KPIs
+- refléter les données du scénario dans le graphique
+- refléter les données du scénario dans la table
+
+---
+
+## 2. Granularité temporelle : semaine / mois / trimestre
+
+Le graphique actuel doit pouvoir être affiché selon plusieurs regroupements temporels.
+
+Je veux au minimum les vues :
+- Semaine
+- Mois
+- Trimestre
+
+### Fonctionnement attendu
+Ajouter un sélecteur de granularité dans la zone du graphique, par exemple :
+- Semaine
+- Mois
+- Trimestre
+
+### Effet attendu
+La granularité choisie doit impacter :
+- le regroupement des entrées dans le graphique
+- le regroupement des sorties dans le graphique
+- la courbe de trésorerie cumulée
+- les labels de l’axe X
+- éventuellement la table si c’est pertinent
+
+### Règles de regroupement
+#### Vue semaine
+- regrouper les flux par semaine calendaire
+- afficher un label clair du type :
+  - S06 2026
+  - ou 03–09 fév.
+- très utile pour détecter les tensions de cash court terme
+
+#### Vue mois
+- regrouper les flux par mois
+- affichage type :
+  - fév. 2026
+  - mars 2026
+
+#### Vue trimestre
+- regrouper les flux par trimestre
+- affichage type :
+  - T1 2026
+  - T2 2026
+
+### Important
+La granularité doit fonctionner avec :
+- le scénario actif
+- les filtres actifs
+- le mode Réelle / Prévisionnelle
+- les bornes de période (3m / 6m / 12m / tout)
+
+---
+
+## 3. Calculs à adapter
+
+Les KPIs doivent toujours refléter le scénario et la période sélectionnés.
+
+À recalculer selon scénario + filtres + granularité + plage :
+- solde actuel
+- entrées
+- sorties
+- solde projeté
+- variation nette
+
+Le graphique doit aussi recalculer :
+- somme des entrées par bucket temporel
+- somme des sorties par bucket temporel
+- cash cumulé à chaque bucket
+
+---
+
+## 4. UX / design attendu
+
+Je veux garder le design déjà en place, mais l’enrichir avec :
+- un sélecteur de scénario clair
+- un bouton de création de scénario
+- un sélecteur de granularité clair
+- une UI propre et compacte
+- une logique lisible et cohérente avec le style actuel
+
+Suggestion de disposition :
+- ligne supérieure : KPIs
+- ligne graph :
+  - toggle Réelle / Prévisionnelle
+  - sélecteur scénario
+  - sélecteur granularité (Semaine / Mois / Trimestre)
+  - plage 3m / 6m / 12m / tout
+
+---
+
+## 5. Cas d’usage à couvrir
+
+### Cas 1
+Comparer le scénario Référence vs scénario Retard client
+
+### Cas 2
+Voir la trésorerie prévisionnelle à la semaine sur les 3 prochains mois
+
+### Cas 3
+Voir la trésorerie au trimestre sur 12 mois
+
+### Cas 4
+Créer un scénario “Nouveau freelance”
+- ajouter une sortie récurrente ou ponctuelle
+- observer l’impact sur le cash projeté
+
+### Cas 5
+Créer un scénario “Décalage paiement”
+- repousser une entrée prévue
+- observer le creux de trésorerie
+
+---
+
+## 6. Contraintes techniques
+
+- ne pas casser le module actuel
+- refactorer proprement si nécessaire
+- séparer clairement :
+  - données de base
+  - logique de scénario
+  - logique d’agrégation temporelle
+- faire une architecture modulaire et évolutive
+- éviter la duplication massive de données
+- garder de bonnes performances sur le graph et la table
+
+---
+
+## 7. Livrable attendu
+
+Avant de coder, commence par :
+1. analyser la structure actuelle du module Trésorerie
+2. proposer comment intégrer les scénarios dans l’architecture existante
+3. proposer comment gérer les overrides de scénario
+4. proposer la logique d’agrégation semaine / mois / trimestre
+5. proposer le plan d’implémentation
+
+Puis implémente :
+- le système de scénarios
+- le sélecteur / création / duplication / suppression de scénarios
+- la granularité semaine / mois / trimestre
+- l’adaptation du graphique, des KPIs et de la table
+- une mise à jour propre et cohérente de toute l’interface
+
+Objectif :
+faire du module Trésorerie un vrai outil de projection et de comparaison de cash.
