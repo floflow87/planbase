@@ -1300,14 +1300,25 @@ export default function TreasuryPage() {
           )}
         </div>
         {mainTab === "flux" && (
-          <Button
-            size="sm"
-            onClick={() => { setEditFlow(null); setPanelOpen(true); }}
-            data-testid="button-add-flow"
-            className="h-7 text-xs gap-1 px-3"
-          >
-            <Plus className="h-3 w-3" /> Ajouter un flux
-          </Button>
+          <div className="flex items-center gap-2">
+            <Select value={filterProject} onValueChange={setFilterProject}>
+              <SelectTrigger className="h-7 w-40 text-[10px]" data-testid="select-header-project">
+                <SelectValue placeholder="Tous les projets" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les projets</SelectItem>
+                {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              onClick={() => { setEditFlow(null); setPanelOpen(true); }}
+              data-testid="button-add-flow"
+              className="h-7 text-xs gap-1 px-3"
+            >
+              <Plus className="h-3 w-3" /> Ajouter un flux
+            </Button>
+          </div>
         )}
       </div>
 
@@ -1611,16 +1622,6 @@ export default function TreasuryPage() {
                 {Object.entries(STATUS_LABELS).map(([k, v]) => (
                   <SelectItem key={k} value={k}>{v}</SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={filterProject} onValueChange={setFilterProject}>
-              <SelectTrigger className="h-7 w-36 text-[10px]" data-testid="select-filter-project">
-                <SelectValue placeholder="Projet" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous projets</SelectItem>
-                {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
               </SelectContent>
             </Select>
 

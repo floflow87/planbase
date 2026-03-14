@@ -13641,6 +13641,14 @@ app.get("/config/feature-flags", async (_req, res) => {
   app.get("/api/treasury/plan", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const accountId = req.accountId!;
+
+      const toRows = (r: any): any[] => {
+        if (!r) return [];
+        if (Array.isArray(r)) return r;
+        if (Array.isArray(r.rows)) return r.rows;
+        return [];
+      };
+
       const linesResult = await db.execute(sql`
         SELECT id, rubrique, label, position, source_type, source_id
         FROM treasury_plan_lines
@@ -13659,16 +13667,24 @@ app.get("/config/feature-flags", async (_req, res) => {
         WHERE account_id = ${accountId}
         LIMIT 1
       `);
-      const s = settingsResult.rows[0] as any;
+
+      const lines = toRows(linesResult);
+      const cells = toRows(cellsResult);
+      const settingRows = toRows(settingsResult);
+      const s = settingRows[0] as any;
+
       res.json({
-        lines: linesResult.rows,
-        cells: cellsResult.rows,
+        lines,
+        cells,
         settings: {
           initialBalance: s ? Number(s.plan_initial_balance ?? 0) : 0,
           granularity: s?.plan_granularity ?? "month",
         },
       });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) {
+      console.error("❌ GET /api/treasury/plan error:", e.message, e.stack?.split?.("\n")?.[1]);
+      res.status(500).json({ error: e.message });
+    }
   });
 
   app.post("/api/treasury/plan/lines", requireAuth, requireOrgMember, async (req, res) => {
@@ -13680,8 +13696,12 @@ app.get("/config/feature-flags", async (_req, res) => {
         VALUES (${accountId}, ${rubrique}, ${label}, ${position}, ${source_type}, ${source_id})
         RETURNING *
       `);
-      res.json(result.rows[0]);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+      const row = Array.isArray(result) ? result[0] : (result as any).rows?.[0];
+      res.json(row);
+    } catch (e: any) {
+      console.error("❌ POST /api/treasury/plan/lines error:", e.message);
+      res.status(500).json({ error: e.message });
+    }
   });
 
   app.delete("/api/treasury/plan/lines/:id", requireAuth, requireOrgMember, async (req, res) => {
