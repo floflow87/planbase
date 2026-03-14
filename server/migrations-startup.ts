@@ -2296,6 +2296,30 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Treasury settings table created");
 
+    // ── TREASURY SCENARIOS + NEW COLUMNS ──
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS treasury_scenarios (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        color TEXT DEFAULT '#6366f1',
+        description TEXT,
+        is_base INTEGER DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS treasury_scenarios_account_idx ON treasury_scenarios(account_id);
+    `);
+    await db.execute(sql`
+      ALTER TABLE treasury_transactions
+        ADD COLUMN IF NOT EXISTS scenario_id UUID REFERENCES treasury_scenarios(id) ON DELETE SET NULL,
+        ADD COLUMN IF NOT EXISTS recurrence TEXT DEFAULT 'none';
+    `);
+    await db.execute(sql`
+      ALTER TABLE project_resources
+        ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'planned';
+    `);
+    console.log("✅ Treasury scenarios + new columns added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

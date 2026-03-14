@@ -13309,7 +13309,7 @@ app.get("/config/feature-flags", async (_req, res) => {
               id: `res_${res.id}_${cur.getFullYear()}_${cur.getMonth()}`,
               type: "expense",
               sourceType: "project_resource",
-              status: "planned",
+              status: res.paymentStatus ?? "planned",
               date: cur.toISOString().split("T")[0],
               amount: Math.round(monthlyAmount * 100) / 100,
               label: `${res.name} – ${monthLabel}`,
@@ -13413,6 +13413,8 @@ app.get("/config/feature-flags", async (_req, res) => {
           clientName: clientId ? clientMap[clientId] : undefined,
           tags: (tx.tags ?? []) as string[],
           manualId: tx.id,
+          scenarioId: tx.scenarioId ?? null,
+          recurrence: tx.recurrence ?? "none",
         });
       }
 
@@ -13461,11 +13463,16 @@ app.get("/config/feature-flags", async (_req, res) => {
         return { key, label, income: Math.round(income), expense: Math.round(expense), cumulativeCash: Math.round(cumulative) };
       });
 
+      // Load scenarios (auto-create base if needed)
+      await storage.ensureBaseScenario(accountId);
+      const scenarios = await storage.getTreasuryScenariosByAccountId(accountId);
+
       res.json({
         flows,
         kpis: { currentBalance: Math.round(currentBalance), projectedBalance: Math.round(projectedBalance), incomeTotal: Math.round(incomeTotal), expenseTotal: Math.round(expenseTotal), netVariation: Math.round(netVariation), lowestPoint: Math.round(lowestPoint), alertLevel },
         chartData,
         categories,
+        scenarios,
         projects: allProjects.map(p => ({ id: p.id, name: p.name, clientId: p.clientId })),
         clients: allClients,
         settings: tsSettings ?? { startingCash: "0", alertThreshold: null, defaultViewRange: "month" },
@@ -13576,6 +13583,48 @@ app.get("/config/feature-flags", async (_req, res) => {
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
+  });
+
+  // ── Treasury Scenarios ──────────────────────────────────────────────────────
+  app.get("/api/treasury/scenarios", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      await storage.ensureBaseScenario(accountId);
+      const scenarios = await storage.getTreasuryScenariosByAccountId(accountId);
+      res.json(scenarios);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/treasury/scenarios", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { name, color, description } = req.body;
+      if (!name) return res.status(400).json({ error: "name required" });
+      const scenario = await storage.createTreasuryScenario({ accountId, name, color: color ?? "#6366f1", description: description ?? null, isBase: 0 });
+      res.json(scenario);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.delete("/api/treasury/scenarios/:id", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const ok = await storage.deleteTreasuryScenario(accountId, req.params.id);
+      res.json({ ok });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── Treasury Resource Payment Status ────────────────────────────────────────
+  app.patch("/api/treasury/resources/:id/payment-status", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { paymentStatus } = req.body;
+      if (!["planned", "confirmed", "paid"].includes(paymentStatus)) return res.status(400).json({ error: "invalid status" });
+      const [updated] = await db.update(projectResources)
+        .set({ paymentStatus, updatedAt: new Date() })
+        .where(and(eq(projectResources.id, req.params.id), eq(projectResources.accountId, req.accountId!)))
+        .returning();
+      if (!updated) return res.status(404).json({ error: "Resource not found" });
+      res.json(updated);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   app.delete("/api/treasury/transactions/:id", requireAuth, requireOrgMember, async (req, res) => {

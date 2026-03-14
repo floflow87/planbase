@@ -38,7 +38,19 @@ import {
   User,
   BarChart2,
   Eye,
+  Repeat,
+  GitBranch,
+  ChevronDown,
+  Check,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -64,6 +76,16 @@ type TreasuryFlow = {
   resourceName?: string;
   tags: string[];
   manualId?: string;
+  scenarioId?: string | null;
+  recurrence?: string;
+};
+
+type TreasuryScenario = {
+  id: string;
+  name: string;
+  color: string | null;
+  description?: string | null;
+  isBase: number;
 };
 
 type TreasuryKpis = {
@@ -96,6 +118,7 @@ type TreasuryData = {
   kpis: TreasuryKpis;
   chartData: ChartPoint[];
   categories: TreasuryCategory[];
+  scenarios: TreasuryScenario[];
   projects: { id: string; name: string }[];
   clients: { id: string; name: string }[];
   settings: { startingCash: string; alertThreshold: string | null; defaultViewRange: string };
@@ -149,6 +172,8 @@ function buildChartData(
   }
 
   for (const f of filtered) {
+    // If a period range is set, only include flows within it
+    if (periodRange && (f.date < periodRange.from || f.date > periodRange.to)) continue;
     const key = f.date.substring(0, 7);
     if (!chartMap[key]) chartMap[key] = { income: 0, expense: 0 };
     if (f.type === "income") chartMap[key].income += f.amount;
@@ -225,6 +250,8 @@ type TxFormData = {
   projectId: string;
   status: string;
   tags: string;
+  recurrence: string;
+  recurrenceEnd: string;
 };
 
 const mkEmptyForm = (): TxFormData => ({
@@ -237,7 +264,26 @@ const mkEmptyForm = (): TxFormData => ({
   projectId: "",
   status: "planned",
   tags: "",
+  recurrence: "none",
+  recurrenceEnd: "",
 });
+
+function expandRecurrenceDates(startDate: string, recurrence: string, endDate: string): string[] {
+  if (recurrence === "none" || !endDate) return [startDate];
+  const dates: string[] = [];
+  let cur = new Date(startDate);
+  const end = new Date(endDate);
+  const MAX = 60;
+  while (cur <= end && dates.length < MAX) {
+    dates.push(cur.toISOString().split("T")[0]);
+    if (recurrence === "weekly") cur = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 7);
+    else if (recurrence === "monthly") cur = new Date(cur.getFullYear(), cur.getMonth() + 1, cur.getDate());
+    else if (recurrence === "quarterly") cur = new Date(cur.getFullYear(), cur.getMonth() + 3, cur.getDate());
+    else if (recurrence === "yearly") cur = new Date(cur.getFullYear() + 1, cur.getMonth(), cur.getDate());
+    else break;
+  }
+  return dates;
+}
 
 function TxPanel({
   open,
@@ -245,12 +291,14 @@ function TxPanel({
   editFlow,
   categories,
   projects,
+  activeScenarioId,
 }: {
   open: boolean;
   onClose: () => void;
   editFlow: TreasuryFlow | null;
   categories: TreasuryCategory[];
   projects: { id: string; name: string }[];
+  activeScenarioId: string | null;
 }) {
   const { toast } = useToast();
   const [form, setForm] = useState<TxFormData>(mkEmptyForm);
@@ -268,6 +316,8 @@ function TxPanel({
           projectId: editFlow.projectId ?? "",
           status: editFlow.status,
           tags: (editFlow.tags ?? []).join(", "),
+          recurrence: editFlow.recurrence ?? "none",
+          recurrenceEnd: "",
         });
       } else {
         setForm(mkEmptyForm());
@@ -281,8 +331,6 @@ function TxPanel({
     mutationFn: (d: Record<string, unknown>) => apiRequest("/api/treasury/transactions", "POST", d),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/treasury/flows"] });
-      toast({ title: "Flux ajouté", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600" });
-      onClose();
     },
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
@@ -298,14 +346,14 @@ function TxPanel({
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.amount || !form.label || !form.date) {
       toast({ title: "Champs requis", description: "Date, libellé et montant sont obligatoires.", variant: "destructive" });
       return;
     }
-    const payload: Record<string, unknown> = {
+
+    const basePayload: Record<string, unknown> = {
       type: form.type,
-      date: form.date,
       amount: parseFloat(form.amount).toFixed(2),
       label: form.label,
       description: form.description || null,
@@ -313,13 +361,30 @@ function TxPanel({
       projectId: form.projectId || null,
       status: form.status,
       tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+      recurrence: form.recurrence,
+      scenarioId: activeScenarioId || null,
     };
-    if (isEdit) updateMutation.mutate(payload);
-    else createMutation.mutate(payload);
+
+    if (isEdit) {
+      updateMutation.mutate({ ...basePayload, date: form.date });
+    } else {
+      const dates = expandRecurrenceDates(form.date, form.recurrence, form.recurrenceEnd);
+      for (const d of dates) {
+        await apiRequest("/api/treasury/transactions", "POST", { ...basePayload, date: d });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/treasury/flows"] });
+      const count = dates.length;
+      toast({
+        title: count > 1 ? `${count} flux ajoutés` : "Flux ajouté",
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+      });
+      onClose();
+    }
   };
 
   const filteredCats = categories.filter((c) => c.type === form.type);
   const isPending = createMutation.isPending || updateMutation.isPending;
+  const isRecurring = form.recurrence !== "none";
 
   if (!open) return null;
 
@@ -327,88 +392,126 @@ function TxPanel({
     <aside className="w-80 border-l bg-card shadow-sm overflow-y-auto shrink-0 flex flex-col">
       {/* Panel header */}
       <div className="flex items-center justify-between px-4 py-3 border-b bg-card">
-        <span className="text-sm font-semibold text-foreground">
+        <span className="text-base font-semibold text-foreground">
           {isEdit ? "Modifier le flux" : "Nouveau flux"}
         </span>
-        <Button size="icon" variant="ghost" onClick={onClose} className="h-6 w-6" data-testid="button-panel-close">
-          <X className="h-3.5 w-3.5" />
+        <Button size="icon" variant="ghost" onClick={onClose} data-testid="button-panel-close">
+          <X className="h-4 w-4" />
         </Button>
       </div>
 
       {/* Form */}
       <div className="flex flex-col gap-3 p-4 flex-1">
+
+        {/* Type + Statut */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Type</Label>
             <Select value={form.type} onValueChange={(v) => setForm((f) => ({ ...f, type: v as "income" | "expense", categoryId: "" }))}>
-              <SelectTrigger className="h-7 text-xs mt-0.5" data-testid="select-tx-type"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="income">Entrée</SelectItem>
-                <SelectItem value="expense">Sortie</SelectItem>
+              <SelectTrigger className="h-8 text-xs mt-0.5" data-testid="select-tx-type"><SelectValue /></SelectTrigger>
+              <SelectContent className="text-xs">
+                <SelectItem value="income" className="text-xs">Entrée</SelectItem>
+                <SelectItem value="expense" className="text-xs">Sortie</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
             <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Statut</Label>
             <Select value={form.status} onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}>
-              <SelectTrigger className="h-7 text-xs mt-0.5" data-testid="select-tx-status"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="planned">Prévu</SelectItem>
-                <SelectItem value="confirmed">Confirmé</SelectItem>
-                {form.type === "income" && <SelectItem value="received">Reçu</SelectItem>}
-                {form.type === "expense" && <SelectItem value="paid">Payé</SelectItem>}
-                <SelectItem value="cancelled">Annulé</SelectItem>
+              <SelectTrigger className="h-8 text-xs mt-0.5" data-testid="select-tx-status"><SelectValue /></SelectTrigger>
+              <SelectContent className="text-xs">
+                <SelectItem value="planned" className="text-xs">Prévu</SelectItem>
+                <SelectItem value="confirmed" className="text-xs">Confirmé</SelectItem>
+                {form.type === "income" && <SelectItem value="received" className="text-xs">Reçu</SelectItem>}
+                {form.type === "expense" && <SelectItem value="paid" className="text-xs">Payé</SelectItem>}
+                <SelectItem value="cancelled" className="text-xs">Annulé</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
 
+        {/* Date + Montant */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Date</Label>
-            <Input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} className="text-xs mt-0.5" data-testid="input-tx-date" />
+            <Input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} className="h-8 text-xs mt-0.5" data-testid="input-tx-date" />
           </div>
           <div>
             <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Montant (€)</Label>
-            <Input type="number" step="0.01" min="0" placeholder="0.00" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} className="h-7 text-xs mt-0.5" data-testid="input-tx-amount" />
+            <Input type="number" step="0.01" min="0" placeholder="0.00" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} className="h-8 text-xs mt-0.5" data-testid="input-tx-amount" />
           </div>
         </div>
 
+        {/* Libellé */}
         <div>
           <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Libellé</Label>
-          <Input placeholder="Description courte" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} className="h-7 text-xs mt-0.5" data-testid="input-tx-label" />
+          <Input placeholder="Description courte" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} className="h-8 text-xs mt-0.5" data-testid="input-tx-label" />
         </div>
 
+        {/* Catégorie */}
         <div>
           <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Catégorie</Label>
           <Select value={form.categoryId} onValueChange={(v) => setForm((f) => ({ ...f, categoryId: v }))}>
-            <SelectTrigger className="h-7 text-xs mt-0.5" data-testid="select-tx-category"><SelectValue placeholder="— Catégorie —" /></SelectTrigger>
-            <SelectContent>
+            <SelectTrigger className="h-8 text-xs mt-0.5" data-testid="select-tx-category"><SelectValue placeholder="— Catégorie —" /></SelectTrigger>
+            <SelectContent className="text-xs">
               {filteredCats.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
+        {/* Projet */}
         <div>
           <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Projet (optionnel)</Label>
           <Select value={form.projectId} onValueChange={(v) => setForm((f) => ({ ...f, projectId: v === "_none" ? "" : v }))}>
-            <SelectTrigger className="h-7 text-xs mt-0.5" data-testid="select-tx-project"><SelectValue placeholder="— Projet —" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="_none">Aucun</SelectItem>
+            <SelectTrigger className="h-8 text-xs mt-0.5" data-testid="select-tx-project"><SelectValue placeholder="— Projet —" /></SelectTrigger>
+            <SelectContent className="text-xs">
+              <SelectItem value="_none" className="text-xs">Aucun</SelectItem>
               {projects.map((p) => (
-                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                <SelectItem key={p.id} value={p.id} className="text-xs">{p.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
+        {/* Récurrence */}
+        {!isEdit && (
+          <div>
+            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+              <Repeat className="h-3 w-3" /> Récurrence
+            </Label>
+            <Select value={form.recurrence} onValueChange={(v) => setForm((f) => ({ ...f, recurrence: v }))}>
+              <SelectTrigger className="h-8 text-xs mt-0.5" data-testid="select-tx-recurrence"><SelectValue /></SelectTrigger>
+              <SelectContent className="text-xs">
+                <SelectItem value="none" className="text-xs">Ponctuelle</SelectItem>
+                <SelectItem value="weekly" className="text-xs">Hebdomadaire</SelectItem>
+                <SelectItem value="monthly" className="text-xs">Mensuelle</SelectItem>
+                <SelectItem value="quarterly" className="text-xs">Trimestrielle</SelectItem>
+                <SelectItem value="yearly" className="text-xs">Annuelle</SelectItem>
+              </SelectContent>
+            </Select>
+            {isRecurring && (
+              <div className="mt-2">
+                <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Date de fin</Label>
+                <Input type="date" value={form.recurrenceEnd} onChange={(e) => setForm((f) => ({ ...f, recurrenceEnd: e.target.value }))} className="h-8 text-xs mt-0.5" data-testid="input-tx-recurrence-end" />
+                {form.recurrenceEnd && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {expandRecurrenceDates(form.date, form.recurrence, form.recurrenceEnd).length} occurrence(s)
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tags */}
         <div>
           <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Tags (virgule)</Label>
-          <Input placeholder="récurrent, Q1…" value={form.tags} onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))} className="h-7 text-xs mt-0.5" data-testid="input-tx-tags" />
+          <Input placeholder="récurrent, Q1…" value={form.tags} onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))} className="h-8 text-xs mt-0.5" data-testid="input-tx-tags" />
         </div>
 
+        {/* Note */}
         <div>
           <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Note</Label>
           <Textarea placeholder="Détails…" rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} className="text-xs mt-0.5" data-testid="input-tx-desc" />
@@ -439,6 +542,9 @@ export default function TreasuryPage() {
   const [filterSource, setFilterSource] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterSearch, setFilterSearch] = useState<string>("");
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
+  const [showScenarioCreate, setShowScenarioCreate] = useState(false);
+  const [newScenarioName, setNewScenarioName] = useState("");
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [editFlow, setEditFlow] = useState<TreasuryFlow | null>(null);
@@ -456,6 +562,37 @@ export default function TreasuryPage() {
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
 
+  const createScenarioMutation = useMutation({
+    mutationFn: (name: string) => apiRequest("/api/treasury/scenarios", "POST", { name }),
+    onSuccess: (s: TreasuryScenario) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/treasury/flows"] });
+      setSelectedScenarioId(s.id);
+      setNewScenarioName("");
+      setShowScenarioCreate(false);
+      toast({ title: `Scénario "${s.name}" créé`, className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100" });
+    },
+    onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteScenarioMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/treasury/scenarios/${id}`, "DELETE"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/treasury/flows"] });
+      setSelectedScenarioId(null);
+    },
+    onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+  });
+
+  const resourceStatusMutation = useMutation({
+    mutationFn: ({ id, paymentStatus }: { id: string; paymentStatus: string }) =>
+      apiRequest(`/api/treasury/resources/${id}/payment-status`, "PATCH", { paymentStatus }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/treasury/flows"] });
+      toast({ title: "Statut mis à jour", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100" });
+    },
+    onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+  });
+
   // Period window — forward-looking: 3m/6m/12m = les N prochains mois à partir de maintenant
   const periodWindow = useMemo(() => {
     const now = new Date();
@@ -468,6 +605,7 @@ export default function TreasuryPage() {
 
   const filteredFlows = useMemo(() => {
     if (!data) return [];
+    const baseScenarioId = data.scenarios?.find((s) => s.isBase)?.id ?? null;
     return data.flows.filter((f) => {
       if (periodWindow && (f.date < periodWindow.from || f.date > periodWindow.to)) return false;
       if (filterType !== "all" && f.type !== filterType) return false;
@@ -481,9 +619,13 @@ export default function TreasuryPage() {
         !(f.projectName?.toLowerCase().includes(filterSearch.toLowerCase()))
       )
         return false;
+      // Scenario filter: base scenario shows all flows; custom scenario shows base flows + its own
+      if (selectedScenarioId && selectedScenarioId !== baseScenarioId) {
+        if (f.scenarioId !== null && f.scenarioId !== undefined && f.scenarioId !== selectedScenarioId) return false;
+      }
       return true;
     });
-  }, [data, periodWindow, filterType, filterStatus, filterProject, filterSource, filterCategory, filterSearch]);
+  }, [data, periodWindow, filterType, filterStatus, filterProject, filterSource, filterCategory, filterSearch, selectedScenarioId]);
 
   // Chart data by mode — period fills empty months so all months always appear
   const chartData = useMemo(() => {
@@ -492,8 +634,12 @@ export default function TreasuryPage() {
     const realStatuses = ["received", "paid"];
     const projectedStatuses = ["confirmed", "received", "paid"];
     const statuses = chartMode === "real" ? realStatuses : projectedStatuses;
-    return buildChartData(data.flows, statuses, startingCash, periodWindow ?? undefined);
-  }, [data, chartMode, periodWindow]);
+    // Apply project filter to chart flows too
+    const chartFlows = filterProject === "all"
+      ? data.flows
+      : data.flows.filter((f) => f.projectId === filterProject);
+    return buildChartData(chartFlows, statuses, startingCash, periodWindow ?? undefined);
+  }, [data, chartMode, periodWindow, filterProject]);
 
   const periodKpis = useMemo(() => {
     const active = filteredFlows.filter((f) => f.status !== "cancelled");
@@ -658,6 +804,69 @@ export default function TreasuryPage() {
                     <BarChart2 className="h-2.5 w-2.5" /> Prévisionnelle
                   </button>
                 </div>
+
+                {/* Scenario selector */}
+                {(data?.scenarios?.length ?? 0) > 0 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 px-2" data-testid="button-scenario-select">
+                        <GitBranch className="h-2.5 w-2.5" />
+                        {selectedScenarioId
+                          ? data?.scenarios?.find((s) => s.id === selectedScenarioId)?.name ?? "Scénario"
+                          : "Base"}
+                        <ChevronDown className="h-2.5 w-2.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="text-xs">
+                      <DropdownMenuLabel className="text-[10px]">Scénarios</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {data?.scenarios?.map((s) => (
+                        <DropdownMenuItem
+                          key={s.id}
+                          className="text-xs gap-2"
+                          onClick={() => setSelectedScenarioId(s.id)}
+                        >
+                          {s.color && (
+                            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                          )}
+                          {s.name}
+                          {selectedScenarioId === s.id && <Check className="h-3 w-3 ml-auto" />}
+                          {!s.isBase && selectedScenarioId === s.id && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); deleteScenarioMutation.mutate(s.id); }}
+                              className="ml-1 text-muted-foreground hover:text-destructive"
+                            >
+                              <X className="h-2.5 w-2.5" />
+                            </button>
+                          )}
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuSeparator />
+                      {showScenarioCreate ? (
+                        <div className="flex items-center gap-1 p-1">
+                          <Input
+                            autoFocus
+                            value={newScenarioName}
+                            onChange={(e) => setNewScenarioName(e.target.value)}
+                            placeholder="Nom du scénario"
+                            className="h-6 text-[10px]"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && newScenarioName.trim()) createScenarioMutation.mutate(newScenarioName.trim());
+                              if (e.key === "Escape") setShowScenarioCreate(false);
+                            }}
+                          />
+                          <Button size="icon" variant="ghost" className="shrink-0" onClick={() => { if (newScenarioName.trim()) createScenarioMutation.mutate(newScenarioName.trim()); }}>
+                            <Check className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <DropdownMenuItem className="text-xs" onClick={() => setShowScenarioCreate(true)}>
+                          <Plus className="h-3 w-3 mr-1" /> Nouveau scénario
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
 
                 {/* Period tabs */}
                 <Tabs value={periodTab} onValueChange={(v) => setPeriodTab(v as typeof periodTab)}>
@@ -933,30 +1142,61 @@ export default function TreasuryPage() {
                           </span>
                         </td>
                         <td className="py-1.5 px-3">
-                          {flow.sourceType === "manual" && flow.manualId && (
-                            <div className="flex items-center gap-0.5 invisible group-hover:visible">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-5 w-5"
-                                onClick={() => { setEditFlow(flow); setPanelOpen(true); }}
-                                data-testid={`button-edit-flow-${flow.id}`}
-                              >
-                                <Pencil className="h-2.5 w-2.5" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-5 w-5 text-destructive"
-                                onClick={() => {
-                                  if (confirm("Supprimer ce flux ?")) deleteMutation.mutate(flow.manualId!);
-                                }}
-                                data-testid={`button-delete-flow-${flow.id}`}
-                              >
-                                <Trash2 className="h-2.5 w-2.5" />
-                              </Button>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-0.5 invisible group-hover:visible">
+                            {flow.sourceType === "project_resource" && flow.resourceId && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-5 w-5"
+                                    data-testid={`button-resource-status-${flow.id}`}
+                                    title="Changer le statut de paiement"
+                                  >
+                                    <RefreshCw className="h-2.5 w-2.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="text-xs">
+                                  <DropdownMenuLabel className="text-[10px]">Statut paiement</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  {(["planned", "confirmed", "paid"] as const).map((s) => (
+                                    <DropdownMenuItem
+                                      key={s}
+                                      className="text-xs"
+                                      onClick={() => resourceStatusMutation.mutate({ id: flow.resourceId!, paymentStatus: s })}
+                                    >
+                                      {s === "planned" ? "Prévu" : s === "confirmed" ? "Confirmé" : "Payé"}
+                                      {flow.status === s && <Check className="h-3 w-3 ml-auto" />}
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                            {flow.sourceType === "manual" && flow.manualId && (
+                              <>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-5 w-5"
+                                  onClick={() => { setEditFlow(flow); setPanelOpen(true); }}
+                                  data-testid={`button-edit-flow-${flow.id}`}
+                                >
+                                  <Pencil className="h-2.5 w-2.5" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-5 w-5 text-destructive"
+                                  onClick={() => {
+                                    if (confirm("Supprimer ce flux ?")) deleteMutation.mutate(flow.manualId!);
+                                  }}
+                                  data-testid={`button-delete-flow-${flow.id}`}
+                                >
+                                  <Trash2 className="h-2.5 w-2.5" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -991,6 +1231,7 @@ export default function TreasuryPage() {
           editFlow={editFlow}
           categories={categories}
           projects={projects}
+          activeScenarioId={selectedScenarioId}
         />
       </div>
     </div>

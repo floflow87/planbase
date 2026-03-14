@@ -44,12 +44,13 @@ import {
   type TreasuryCategory, type InsertTreasuryCategory,
   type TreasuryTransaction, type InsertTreasuryTransaction,
   type TreasurySettings, type InsertTreasurySettings,
+  type TreasuryScenario, type InsertTreasuryScenario,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
   projects, projectCategories, projectPayments, cdcSessions, projectBaselines, projectScopeItems, recommendationActions, taskColumns, tasks, notes, noteCategories, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems, roadmapItemLinks, roadmapDependencies,
   appointments, googleCalendarTokens, timeEntries,
   mindmaps, mindmapNodes, mindmapEdges, entityLinks, settings,
-  treasuryCategories, treasuryTransactions, treasurySettings,
+  treasuryCategories, treasuryTransactions, treasurySettings, treasuryScenarios,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, like, desc, sql, isNull, inArray, gte, lte, asc } from "drizzle-orm";
@@ -384,6 +385,12 @@ export interface IStorage {
   // Treasury Settings
   getTreasurySettings(accountId: string): Promise<TreasurySettings | undefined>;
   upsertTreasurySettings(settings: InsertTreasurySettings): Promise<TreasurySettings>;
+
+  // Treasury Scenarios
+  getTreasuryScenariosByAccountId(accountId: string): Promise<TreasuryScenario[]>;
+  createTreasuryScenario(scenario: InsertTreasuryScenario): Promise<TreasuryScenario>;
+  deleteTreasuryScenario(accountId: string, id: string): Promise<boolean>;
+  ensureBaseScenario(accountId: string): Promise<TreasuryScenario>;
 }
 
 // Supabase PostgreSQL implementation using Drizzle ORM
@@ -2264,6 +2271,32 @@ export class DatabaseStorage implements IStorage {
       .onConflictDoUpdate({ target: treasurySettings.accountId, set: { ...settingsData, updatedAt: new Date() } })
       .returning();
     return upserted;
+  }
+
+  // ── Treasury Scenarios ──
+  async getTreasuryScenariosByAccountId(accountId: string): Promise<TreasuryScenario[]> {
+    return db.select().from(treasuryScenarios)
+      .where(eq(treasuryScenarios.accountId, accountId))
+      .orderBy(desc(treasuryScenarios.isBase), asc(treasuryScenarios.createdAt));
+  }
+  async createTreasuryScenario(scenario: InsertTreasuryScenario): Promise<TreasuryScenario> {
+    const [created] = await db.insert(treasuryScenarios).values(scenario).returning();
+    return created;
+  }
+  async deleteTreasuryScenario(accountId: string, id: string): Promise<boolean> {
+    const result = await db.delete(treasuryScenarios)
+      .where(and(eq(treasuryScenarios.id, id), eq(treasuryScenarios.accountId, accountId)))
+      .returning();
+    return result.length > 0;
+  }
+  async ensureBaseScenario(accountId: string): Promise<TreasuryScenario> {
+    const existing = await db.select().from(treasuryScenarios)
+      .where(and(eq(treasuryScenarios.accountId, accountId), eq(treasuryScenarios.isBase, 1)));
+    if (existing.length > 0) return existing[0];
+    const [created] = await db.insert(treasuryScenarios)
+      .values({ accountId, name: "Base", color: "#6366f1", isBase: 1 })
+      .returning();
+    return created;
   }
 }
 

@@ -2158,6 +2158,7 @@ export const projectResources = pgTable("project_resources", {
   // Common fields
   isBillable: integer("is_billable").notNull().default(1), // 0 = false, 1 = true
   status: text("status").notNull().default("active"), // 'active' | 'disabled'
+  paymentStatus: text("payment_status").default("planned"), // 'planned' | 'confirmed' | 'paid'
   isSimulation: integer("is_simulation").notNull().default(0), // 0 = real, 1 = simulation only
   notes: text("notes"),
   metadata: jsonb("metadata").default({}),
@@ -2332,6 +2333,23 @@ export type OkrMetricType = typeof okrMetricTypeOptions[number]["value"];
 // ============================================================
 
 // Treasury Categories (income / expense)
+// Treasury Scenarios
+export const treasuryScenarios = pgTable("treasury_scenarios", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  color: text("color").default("#6366f1"),
+  description: text("description"),
+  isBase: integer("is_base").default(0), // 1 = base scenario (non-deletable)
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index("treasury_scenarios_account_idx").on(table.accountId),
+}));
+
+export const insertTreasuryScenarioSchema = createInsertSchema(treasuryScenarios).omit({ id: true, createdAt: true });
+export type InsertTreasuryScenario = z.infer<typeof insertTreasuryScenarioSchema>;
+export type TreasuryScenario = typeof treasuryScenarios.$inferSelect;
+
 export const treasuryCategories = pgTable("treasury_categories", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
@@ -2350,6 +2368,7 @@ export const treasuryCategories = pgTable("treasury_categories", {
 export const treasuryTransactions = pgTable("treasury_transactions", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  scenarioId: uuid("scenario_id").references(() => treasuryScenarios.id, { onDelete: "set null" }),
   type: text("type").notNull(), // 'income' | 'expense'
   date: date("date").notNull(),
   amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
@@ -2359,6 +2378,7 @@ export const treasuryTransactions = pgTable("treasury_transactions", {
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
   clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
   status: text("status").notNull().default("planned"), // 'planned' | 'confirmed' | 'received' | 'paid' | 'cancelled'
+  recurrence: text("recurrence").default("none"), // 'none' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
   tags: text("tags").array().default([]),
   createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
