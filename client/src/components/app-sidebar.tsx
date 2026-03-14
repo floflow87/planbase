@@ -109,7 +109,7 @@ export function AppSidebar() {
     { title: "Whiteboards", url: "/mindmaps", icon: Network, badge: "Beta" },
     { title: "Fichiers", url: "/files", icon: FolderOpen },
     { title: "Trésorerie", url: "/cashflow", icon: Wallet },
-    { title: "Rentabilité", url: "/finance", icon: DollarSign },
+    { title: "Rentabilité", url: "/finance", icon: DollarSign, badge: "Beta" },
   ];
 
   const navItems = allNavItems.filter(item => canAccessModule(item.url));
