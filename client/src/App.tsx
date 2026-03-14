@@ -1180,6 +1180,7 @@ function AppLayout() {
     if (path === "/roadmap") return "Roadmap";
     if (path === "/marketing") return "Marketing";
     if (path === "/finance") return "Finance";
+    if (path === "/cashflow") return "Trésorerie";
     if (path === "/commercial") return "Commercial";
     if (path === "/legal") return "Légal";
     if (path === "/calendar") return "Calendrier";
@@ -1253,6 +1254,7 @@ function AppLayout() {
     if (path === "/roadmap") return "Roadmap";
     if (path === "/marketing") return "Marketing";
     if (path === "/finance") return "Finance";
+    if (path === "/cashflow") return "Trésorerie";
     if (path === "/commercial") return "Commercial";
     if (path === "/legal") return "Légal";
     if (path === "/calendar") return "Calendrier";

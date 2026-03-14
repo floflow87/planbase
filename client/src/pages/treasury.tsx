@@ -34,8 +34,6 @@ import {
   X,
   Pencil,
   Trash2,
-  Bot,
-  User,
   BarChart2,
   Eye,
   Repeat,
@@ -43,7 +41,14 @@ import {
   ChevronDown,
   Check,
   Table2,
+  Info,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -661,13 +666,14 @@ export default function TreasuryPage() {
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
 
-  // Period window — forward-looking: 3m/6m/12m = les N prochains mois à partir de maintenant
+  // Period window — centré sur maintenant : pastMonths en arrière + reste en avant
   const periodWindow = useMemo(() => {
     const now = new Date();
     if (periodTab === "all") return null;
     const months = periodTab === "3m" ? 3 : periodTab === "6m" ? 6 : 12;
-    const from = new Date(now.getFullYear(), now.getMonth(), 1);
-    const to = new Date(now.getFullYear(), now.getMonth() + months, 0);
+    const pastMonths = Math.floor(months / 3); // 1 pour 3m, 2 pour 6m, 4 pour 12m
+    const from = new Date(now.getFullYear(), now.getMonth() - pastMonths, 1);
+    const to = new Date(now.getFullYear(), now.getMonth() + (months - pastMonths), 0);
     return { from: from.toISOString().split("T")[0], to: to.toISOString().split("T")[0] };
   }, [periodTab]);
 
@@ -723,11 +729,14 @@ export default function TreasuryPage() {
   }, [data, chartMode, periodWindow, filterProject]);
 
   const periodKpis = useMemo(() => {
-    const active = filteredFlows.filter((f) => f.status !== "cancelled");
+    const realStatuses = ["received", "paid"];
+    const projectedStatuses = ["confirmed", "received", "paid"];
+    const statuses = chartMode === "real" ? realStatuses : projectedStatuses;
+    const active = filteredFlows.filter((f) => f.status !== "cancelled" && statuses.includes(f.status));
     const income = active.filter((f) => f.type === "income").reduce((s, f) => s + f.amount, 0);
     const expense = active.filter((f) => f.type === "expense").reduce((s, f) => s + f.amount, 0);
     return { income, expense, net: income - expense };
-  }, [filteredFlows]);
+  }, [filteredFlows, chartMode]);
 
   // Running balance per row (sorted by date asc, starting from startingCash)
   const flowsWithBalance = useMemo(() => {
@@ -807,36 +816,49 @@ export default function TreasuryPage() {
         {/* ── Main content ── */}
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
           {/* KPIs */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <TooltipProvider>
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-lg" />)
+              Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-lg" />)
             ) : (
               <>
+                {/* Solde actuel — carte blanche avec tooltip */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Card className="cursor-default">
+                      <CardContent className="pt-3 pb-3">
+                        <div className="flex items-start justify-between gap-1 mb-1">
+                          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide leading-tight">Solde actuel</span>
+                          <div className="flex items-center gap-1">
+                            <Info className="h-3 w-3 text-muted-foreground/60 shrink-0" />
+                            <Wallet className="h-3 w-3 text-muted-foreground shrink-0" />
+                          </div>
+                        </div>
+                        <div className={cn("text-base font-bold leading-tight", (kpis?.currentBalance ?? 0) < 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400")}>
+                          {fmt(kpis?.currentBalance ?? 0)}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
+                          Projeté : <span className={(kpis?.projectedBalance ?? 0) < 0 ? "text-red-500" : "text-green-600 dark:text-green-400"}>{fmt(kpis?.projectedBalance ?? 0)}</span>
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-white text-foreground border shadow-md max-w-56 text-[11px] leading-snug">
+                    Tout ce qui n'est pas facturé n'est pas considéré comme confirmé mais comme prévu. Seuls les flux reçus / payés constituent le solde réel.
+                  </TooltipContent>
+                </Tooltip>
+
                 <KpiCard
-                  label="Solde actuel"
-                  value={fmt(kpis?.currentBalance ?? 0)}
-                  icon={<Wallet className="h-3 w-3" />}
-                  highlight={kpis && kpis.currentBalance < 0 ? "red" : kpis && kpis.currentBalance > 0 ? "green" : undefined}
-                  sub="Encaissé / décaissé"
-                />
-                <KpiCard
-                  label="Entrées (période)"
+                  label={chartMode === "real" ? "Entrées réelles" : "Entrées prévisionnelles"}
                   value={fmt(periodKpis.income)}
                   icon={<ArrowDownLeft className="h-3 w-3 text-green-500" />}
                   highlight="green"
                 />
                 <KpiCard
-                  label="Sorties (période)"
+                  label={chartMode === "real" ? "Sorties réelles" : "Sorties prévisionnelles"}
                   value={fmt(periodKpis.expense)}
                   icon={<ArrowUpRight className="h-3 w-3 text-red-500" />}
                   highlight="red"
-                />
-                <KpiCard
-                  label="Solde projeté"
-                  value={fmt(kpis?.projectedBalance ?? 0)}
-                  icon={<TrendingUp className="h-3 w-3" />}
-                  sub="Tous flux actifs"
-                  highlight={kpis && kpis.projectedBalance < 0 ? "red" : undefined}
                 />
                 <KpiCard
                   label="Variation nette"
@@ -851,6 +873,7 @@ export default function TreasuryPage() {
               </>
             )}
           </div>
+          </TooltipProvider>
 
           {/* Chart */}
           <Card>
@@ -858,36 +881,7 @@ export default function TreasuryPage() {
               <CardTitle className="text-xs font-semibold">Trésorerie</CardTitle>
 
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Graphique / Synthèse toggle */}
-                <div className="flex items-center rounded-md border overflow-hidden">
-                  <button
-                    onClick={() => setViewMode("chart")}
-                    data-testid="toggle-view-chart"
-                    className={cn(
-                      "flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium transition-colors",
-                      viewMode === "chart"
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    <BarChart2 className="h-2.5 w-2.5" /> Graphique
-                  </button>
-                  <button
-                    onClick={() => setViewMode("synthesis")}
-                    data-testid="toggle-view-synthesis"
-                    className={cn(
-                      "flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium transition-colors border-l",
-                      viewMode === "synthesis"
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    <Table2 className="h-2.5 w-2.5" /> Synthèse
-                  </button>
-                </div>
-
-                {/* Réelle / Prévisionnelle toggle — only in chart mode */}
-                {viewMode === "chart" && (
+                {/* Réelle / Prévisionnelle toggle */}
                 <div className="flex items-center rounded-md border overflow-hidden">
                   <button
                     onClick={() => setChartMode("real")}
@@ -914,7 +908,6 @@ export default function TreasuryPage() {
                     <BarChart2 className="h-2.5 w-2.5" /> Prévisionnelle
                   </button>
                 </div>
-                )}
 
                 {/* Scenario selector */}
                 {(data?.scenarios?.length ?? 0) > 0 && (
@@ -994,128 +987,6 @@ export default function TreasuryPage() {
             <CardContent className="px-4 pb-4">
               {isLoading ? (
                 <Skeleton className="h-56 w-full" />
-              ) : viewMode === "synthesis" ? (
-                /* ── Synthesis Table ── */
-                synthesisData.length === 0 ? (
-                  <div className="h-40 flex items-center justify-center text-muted-foreground text-xs">
-                    Aucune donnée pour cette période
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-[11px] border-collapse">
-                      <thead>
-                        <tr>
-                          <th className="text-left py-2 pr-4 font-medium text-muted-foreground w-36 whitespace-nowrap sticky left-0 bg-card z-10">
-                            Mois
-                          </th>
-                          {synthesisData.map((m) => (
-                            <th
-                              key={m.key}
-                              className={cn(
-                                "text-right py-2 px-3 font-medium whitespace-nowrap min-w-[90px]",
-                                m.isCurrent
-                                  ? "text-primary bg-primary/5 rounded-t-md"
-                                  : "text-muted-foreground"
-                              )}
-                            >
-                              {m.isCurrent ? (
-                                <span className="flex flex-col items-end gap-0">
-                                  <span>{m.label.split(" ")[0]}</span>
-                                  <span className="text-[9px] font-normal text-primary/70">mois en cours</span>
-                                </span>
-                              ) : (
-                                m.label
-                              )}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {/* Row 1: Trésorerie début de mois */}
-                        <tr className="border-t border-border/40">
-                          <td className="py-2 pr-4 font-semibold text-foreground whitespace-nowrap sticky left-0 bg-card z-10">
-                            Trésorerie début de mois
-                          </td>
-                          {synthesisData.map((m) => (
-                            <td
-                              key={m.key}
-                              className={cn(
-                                "py-2 px-3 text-right font-bold tabular-nums whitespace-nowrap",
-                                m.isCurrent ? "bg-primary/5" : "",
-                                m.startBalance >= 0
-                                  ? "text-green-600 dark:text-green-400"
-                                  : "text-red-600 dark:text-red-400"
-                              )}
-                            >
-                              {fmt(m.startBalance)}
-                            </td>
-                          ))}
-                        </tr>
-
-                        {/* Row 2: Entrées */}
-                        <tr className="border-t border-border/20">
-                          <td className="py-2 pr-4 text-muted-foreground whitespace-nowrap sticky left-0 bg-card z-10">
-                            <span className="flex items-center gap-1">
-                              <TrendingUp className="h-3 w-3 text-green-500" /> Entrées
-                            </span>
-                          </td>
-                          {synthesisData.map((m) => (
-                            <td
-                              key={m.key}
-                              className={cn(
-                                "py-2 px-3 text-right tabular-nums whitespace-nowrap text-foreground",
-                                m.isCurrent ? "bg-primary/5" : ""
-                              )}
-                            >
-                              {fmt(m.income)}
-                            </td>
-                          ))}
-                        </tr>
-
-                        {/* Row 3: Sorties */}
-                        <tr className="border-t border-border/20">
-                          <td className="py-2 pr-4 text-muted-foreground whitespace-nowrap sticky left-0 bg-card z-10">
-                            <span className="flex items-center gap-1">
-                              <TrendingDown className="h-3 w-3 text-red-500" /> Sorties
-                            </span>
-                          </td>
-                          {synthesisData.map((m) => (
-                            <td
-                              key={m.key}
-                              className={cn(
-                                "py-2 px-3 text-right tabular-nums whitespace-nowrap text-foreground",
-                                m.isCurrent ? "bg-primary/5" : ""
-                              )}
-                            >
-                              {fmt(m.expense)}
-                            </td>
-                          ))}
-                        </tr>
-
-                        {/* Row 4: Trésorerie fin de mois */}
-                        <tr className="border-t border-border/40">
-                          <td className="py-2 pr-4 font-semibold text-foreground whitespace-nowrap sticky left-0 bg-card z-10">
-                            Trésorerie fin de mois
-                          </td>
-                          {synthesisData.map((m) => (
-                            <td
-                              key={m.key}
-                              className={cn(
-                                "py-2 px-3 text-right font-bold tabular-nums whitespace-nowrap",
-                                m.isCurrent ? "bg-primary/5 rounded-b-md" : "",
-                                m.endBalance >= 0
-                                  ? "text-green-600 dark:text-green-400"
-                                  : "text-red-600 dark:text-red-400"
-                              )}
-                            >
-                              {fmt(m.endBalance)}
-                            </td>
-                          ))}
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                )
               ) : chartData.length === 0 ? (
                 <div className="h-56 flex items-center justify-center text-muted-foreground text-xs">
                   Aucune donnée pour cette période
@@ -1156,6 +1027,38 @@ export default function TreasuryPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* ── Tableau / Synthèse ── */}
+          {/* Filters + view toggle */}
+          <div className="flex flex-wrap gap-1.5 items-center">
+            <div className="flex items-center rounded-md border overflow-hidden mr-1">
+              <button
+                onClick={() => setViewMode("chart")}
+                data-testid="toggle-view-detail"
+                className={cn(
+                  "flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium transition-colors",
+                  viewMode === "chart"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <Table2 className="h-2.5 w-2.5" /> Détail
+              </button>
+              <button
+                onClick={() => setViewMode("synthesis")}
+                data-testid="toggle-view-synthesis"
+                className={cn(
+                  "flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium transition-colors border-l",
+                  viewMode === "synthesis"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <BarChart2 className="h-2.5 w-2.5" /> Synthèse
+              </button>
+            </div>
+
+          </div>
 
           {/* Filters */}
           <div className="flex flex-wrap gap-1.5 items-center">
@@ -1235,7 +1138,90 @@ export default function TreasuryPage() {
             </span>
           </div>
 
-          {/* Table */}
+          {/* Table / Synthèse conditionnelle */}
+          {viewMode === "synthesis" ? (
+            /* ── Vue Synthèse ── */
+            <Card>
+              <CardContent className="px-4 pb-4 pt-4">
+                {synthesisData.length === 0 ? (
+                  <div className="h-32 flex items-center justify-center text-muted-foreground text-xs">
+                    Aucune donnée pour cette période
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[11px] border-collapse">
+                      <thead>
+                        <tr>
+                          <th className="text-left py-2 pr-4 font-medium text-muted-foreground w-40 whitespace-nowrap sticky left-0 bg-card z-10">
+                            Mois
+                          </th>
+                          {synthesisData.map((m) => (
+                            <th
+                              key={m.key}
+                              className={cn(
+                                "text-right py-2 px-3 font-medium whitespace-nowrap min-w-[90px]",
+                                m.isCurrent
+                                  ? "text-primary bg-primary/5 rounded-t-md"
+                                  : "text-muted-foreground"
+                              )}
+                            >
+                              {m.isCurrent ? (
+                                <span className="flex flex-col items-end gap-0">
+                                  <span>{m.label}</span>
+                                  <span className="text-[9px] font-normal text-primary/70">en cours</span>
+                                </span>
+                              ) : (
+                                m.label
+                              )}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-t border-border/40">
+                          <td className="py-2 pr-4 font-semibold text-foreground whitespace-nowrap sticky left-0 bg-card z-10">Trésorerie début de mois</td>
+                          {synthesisData.map((m) => (
+                            <td key={m.key} className={cn("py-2 px-3 text-right font-bold tabular-nums whitespace-nowrap", m.isCurrent ? "bg-primary/5" : "", m.startBalance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")}>
+                              {fmt(m.startBalance)}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr className="border-t border-border/20">
+                          <td className="py-2 pr-4 text-muted-foreground whitespace-nowrap sticky left-0 bg-card z-10">
+                            <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3 text-green-500" /> Entrées</span>
+                          </td>
+                          {synthesisData.map((m) => (
+                            <td key={m.key} className={cn("py-2 px-3 text-right tabular-nums whitespace-nowrap text-foreground", m.isCurrent ? "bg-primary/5" : "")}>
+                              {fmt(m.income)}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr className="border-t border-border/20">
+                          <td className="py-2 pr-4 text-muted-foreground whitespace-nowrap sticky left-0 bg-card z-10">
+                            <span className="flex items-center gap-1"><TrendingDown className="h-3 w-3 text-red-500" /> Sorties</span>
+                          </td>
+                          {synthesisData.map((m) => (
+                            <td key={m.key} className={cn("py-2 px-3 text-right tabular-nums whitespace-nowrap text-foreground", m.isCurrent ? "bg-primary/5" : "")}>
+                              {fmt(m.expense)}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr className="border-t border-border/40">
+                          <td className="py-2 pr-4 font-semibold text-foreground whitespace-nowrap sticky left-0 bg-card z-10">Trésorerie fin de mois</td>
+                          {synthesisData.map((m) => (
+                            <td key={m.key} className={cn("py-2 px-3 text-right font-bold tabular-nums whitespace-nowrap", m.isCurrent ? "bg-primary/5 rounded-b-md" : "", m.endBalance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")}>
+                              {fmt(m.endBalance)}
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+          /* ── Vue Détail ── */
           <Card>
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -1248,7 +1234,6 @@ export default function TreasuryPage() {
                     <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Catégorie</th>
                     <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Tags</th>
                     <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Statut</th>
-                    <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Source</th>
                     <th className="text-right py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Montant</th>
                     <th className="text-right py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Balance</th>
                     <th className="py-1.5 px-3 w-14"></th>
@@ -1258,14 +1243,14 @@ export default function TreasuryPage() {
                   {isLoading ? (
                     Array.from({ length: 6 }).map((_, i) => (
                       <tr key={i} className="border-b">
-                        {Array.from({ length: 11 }).map((_, j) => (
+                        {Array.from({ length: 10 }).map((_, j) => (
                           <td key={j} className="py-1.5 px-3"><Skeleton className="h-3 w-full" /></td>
                         ))}
                       </tr>
                     ))
                   ) : flowsWithBalance.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className="py-8 text-center text-muted-foreground text-xs">
+                      <td colSpan={10} className="py-8 text-center text-muted-foreground text-xs">
                         Aucun flux pour les filtres sélectionnés
                       </td>
                     </tr>
@@ -1337,15 +1322,6 @@ export default function TreasuryPage() {
                             )}
                           >
                             {STATUS_LABELS[flow.status] ?? flow.status}
-                          </span>
-                        </td>
-                        <td className="py-1.5 px-3">
-                          <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                            {flow.sourceType === "manual" ? (
-                              <><User className="h-2.5 w-2.5" /> Manuel</>
-                            ) : (
-                              <><Bot className="h-2.5 w-2.5" /> Auto</>
-                            )}
                           </span>
                         </td>
                         <td className="py-1.5 px-3 text-right whitespace-nowrap">
@@ -1438,6 +1414,7 @@ export default function TreasuryPage() {
               </table>
             </div>
           </Card>
+          )}
 
           {/* Low cash alert */}
           {kpis && kpis.lowestPoint < 0 && (
