@@ -2327,6 +2327,69 @@ export const okrMetricTypeOptions = [
 
 export type OkrMetricType = typeof okrMetricTypeOptions[number]["value"];
 
+// ============================================================
+// TREASURY MODULE
+// ============================================================
+
+// Treasury Categories (income / expense)
+export const treasuryCategories = pgTable("treasury_categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // 'income' | 'expense'
+  color: text("color").default("#6366f1"),
+  icon: text("icon"),
+  isSystem: integer("is_system").default(0), // 1 = built-in, non-deletable
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index("treasury_categories_account_idx").on(table.accountId),
+  accountTypeIdx: index("treasury_categories_account_type_idx").on(table.accountId, table.type),
+}));
+
+// Treasury Transactions (manual cash flows)
+export const treasuryTransactions = pgTable("treasury_transactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // 'income' | 'expense'
+  date: date("date").notNull(),
+  amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+  label: text("label").notNull(),
+  description: text("description"),
+  categoryId: uuid("category_id").references(() => treasuryCategories.id, { onDelete: "set null" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+  clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
+  status: text("status").notNull().default("planned"), // 'planned' | 'confirmed' | 'received' | 'paid' | 'cancelled'
+  tags: text("tags").array().default([]),
+  createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index("treasury_transactions_account_idx").on(table.accountId),
+  accountDateIdx: index("treasury_transactions_account_date_idx").on(table.accountId, table.date),
+}));
+
+// Treasury Settings (per-account configuration)
+export const treasurySettings = pgTable("treasury_settings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().unique().references(() => accounts.id, { onDelete: "cascade" }),
+  startingCash: numeric("starting_cash", { precision: 14, scale: 2 }).default("0"),
+  alertThreshold: numeric("alert_threshold", { precision: 14, scale: 2 }),
+  defaultViewRange: text("default_view_range").default("month"), // 'week' | 'month' | 'quarter' | 'year'
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const insertTreasuryCategorySchema = createInsertSchema(treasuryCategories).omit({ id: true, createdAt: true });
+export type InsertTreasuryCategory = z.infer<typeof insertTreasuryCategorySchema>;
+export type TreasuryCategory = typeof treasuryCategories.$inferSelect;
+
+export const insertTreasuryTransactionSchema = createInsertSchema(treasuryTransactions).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertTreasuryTransaction = z.infer<typeof insertTreasuryTransactionSchema>;
+export type TreasuryTransaction = typeof treasuryTransactions.$inferSelect;
+
+export const insertTreasurySettingsSchema = createInsertSchema(treasurySettings).omit({ id: true, updatedAt: true });
+export type InsertTreasurySettings = z.infer<typeof insertTreasurySettingsSchema>;
+export type TreasurySettings = typeof treasurySettings.$inferSelect;
+
 // Billing Status Options - Re-exported from centralized config for backwards compatibility
 export { 
   billingStatusOptions,

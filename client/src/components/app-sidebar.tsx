@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Settings, Network, HelpCircle, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Settings, Network, HelpCircle, ChevronsLeft, ChevronsRight, Wallet } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -109,6 +109,7 @@ export function AppSidebar() {
     { title: "Whiteboards", url: "/mindmaps", icon: Network, badge: "Beta" },
     { title: "Fichiers", url: "/files", icon: FolderOpen },
     { title: "Rentabilité", url: "/finance", icon: DollarSign },
+    { title: "Trésorerie", url: "/treasury", icon: Wallet },
   ];
 
   const navItems = allNavItems.filter(item => canAccessModule(item.url));

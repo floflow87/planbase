@@ -109,6 +109,14 @@ import {
   patchNotes,
   insertPatchNoteSchema,
   updatePatchNoteSchema,
+  treasuryCategories,
+  treasuryTransactions,
+  treasurySettings,
+  insertTreasuryCategorySchema,
+  insertTreasuryTransactionSchema,
+  insertTreasurySettingsSchema,
+  type TreasuryCategory,
+  clients,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth, requireOrgMember, requireOrgAdmin, requirePermission } from "./middleware/auth";
@@ -13157,6 +13165,398 @@ app.get("/config/feature-flags", async (_req, res) => {
         recentDecisions: recentDecisions.rows,
         blockingIssues: blockingIssues.rows,
       });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // TREASURY MODULE
+  // ============================================
+
+  // GET /api/treasury/flows — consolidated flows (auto + manual) + KPIs + chart
+  app.get("/api/treasury/flows", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+
+      // Fetch all data in parallel
+      const [allProjects, allProjectPayments, allResources, manualTransactions, categories, tsSettings, allClients] = await Promise.all([
+        storage.getProjectsByAccountId(accountId),
+        storage.getPaymentsByAccountId(accountId),
+        db.select().from(projectResources).where(eq(projectResources.accountId, accountId)),
+        storage.getTreasuryTransactionsByAccountId(accountId),
+        storage.getTreasuryCategoriesByAccountId(accountId),
+        storage.getTreasurySettings(accountId),
+        db.select({ id: clients.id, name: clients.name }).from(clients).where(eq(clients.accountId, accountId)),
+      ]);
+
+      const projectMap: Record<string, { name: string; clientId: string | null }> = {};
+      for (const p of allProjects) {
+        projectMap[p.id] = { name: p.name, clientId: p.clientId ?? null };
+      }
+      const clientMap: Record<string, string> = {};
+      for (const c of allClients) {
+        clientMap[c.id] = c.name;
+      }
+      const categoryMap: Record<string, TreasuryCategory> = {};
+      for (const cat of categories) {
+        categoryMap[cat.id] = cat;
+      }
+
+      // System category IDs by slug
+      const getCatId = (name: string, type: string) => categories.find(c => c.name === name && c.type === type)?.id ?? null;
+
+      type TreasuryFlow = {
+        id: string;
+        type: "income" | "expense";
+        sourceType: "project_payment" | "project_resource" | "manual";
+        status: string;
+        date: string;
+        amount: number;
+        label: string;
+        description?: string;
+        categoryId?: string | null;
+        categoryName?: string;
+        categoryColor?: string;
+        projectId?: string | null;
+        projectName?: string;
+        clientId?: string | null;
+        clientName?: string;
+        resourceId?: string | null;
+        resourceName?: string;
+        tags: string[];
+        originReference?: string;
+        manualId?: string;
+      };
+
+      const flows: TreasuryFlow[] = [];
+
+      // ── Auto flows: project payments (income)
+      for (const payment of allProjectPayments) {
+        const proj = projectMap[payment.projectId];
+        const clientId = proj?.clientId ?? null;
+        flows.push({
+          id: `pp_${payment.id}`,
+          type: "income",
+          sourceType: "project_payment",
+          status: payment.isPaid ? "received" : "confirmed",
+          date: payment.paymentDate,
+          amount: parseFloat(payment.amount),
+          label: payment.description || (proj ? `Paiement – ${proj.name}` : "Paiement projet"),
+          categoryId: getCatId("Paiement client", "income"),
+          categoryName: "Paiement client",
+          categoryColor: "#10b981",
+          projectId: payment.projectId,
+          projectName: proj?.name,
+          clientId,
+          clientName: clientId ? clientMap[clientId] : undefined,
+          tags: [],
+          originReference: payment.id,
+        });
+      }
+
+      // ── Auto flows: project resources (expense)
+      const WORKING_DAYS_PER_MONTH = 22;
+      const WEEKS_PER_MONTH = 52 / 12;
+
+      for (const res of allResources) {
+        if (res.status === "disabled") continue;
+        const proj = projectMap[res.projectId];
+        const clientId = proj?.clientId ?? null;
+
+        const resStart = res.startDate ? new Date(res.startDate) : null;
+        const resEnd = res.endDate ? new Date(res.endDate) : null;
+
+        if (res.type === "human" && res.dailyCostInternal && res.capacity) {
+          // Generate monthly expense for each month in range
+          const dailyCost = parseFloat(res.dailyCostInternal);
+          const cap = parseFloat(res.capacity.toString()); // days/week
+          const monthlyAmount = cap * WEEKS_PER_MONTH * dailyCost;
+
+          const start = resStart ?? new Date();
+          const end = resEnd ?? new Date(start.getFullYear(), start.getMonth() + 3, 1);
+
+          // Iterate months
+          let cur = new Date(start.getFullYear(), start.getMonth(), 1);
+          while (cur <= end) {
+            const monthLabel = cur.toLocaleString("fr-FR", { month: "long", year: "numeric" });
+            const catName = res.mode === "freelance" ? "Freelance" : res.mode === "contractor" ? "Sous-traitance" : "Ressource interne";
+            flows.push({
+              id: `res_${res.id}_${cur.getFullYear()}_${cur.getMonth()}`,
+              type: "expense",
+              sourceType: "project_resource",
+              status: "planned",
+              date: cur.toISOString().split("T")[0],
+              amount: Math.round(monthlyAmount * 100) / 100,
+              label: `${res.name} – ${monthLabel}`,
+              categoryId: getCatId(catName, "expense"),
+              categoryName: catName,
+              categoryColor: "#f59e0b",
+              projectId: res.projectId,
+              projectName: proj?.name,
+              clientId,
+              clientName: clientId ? clientMap[clientId] : undefined,
+              resourceId: res.id,
+              resourceName: res.name,
+              tags: [],
+              originReference: res.id,
+            });
+            cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+          }
+        } else if (res.type === "non_human" && res.amount) {
+          const amount = parseFloat(res.amount);
+          const catName = res.category === "saas" ? "Logiciel / Abonnement"
+            : res.category === "hosting" ? "Infrastructure"
+            : res.category === "outsourcing" ? "Sous-traitance"
+            : "Autre charge";
+
+          if (res.costType === "one_time") {
+            const date = resStart ?? new Date();
+            flows.push({
+              id: `res_${res.id}_once`,
+              type: "expense",
+              sourceType: "project_resource",
+              status: "planned",
+              date: date.toISOString().split("T")[0],
+              amount,
+              label: `${res.name} (unique)`,
+              categoryId: getCatId(catName, "expense"),
+              categoryName: catName,
+              categoryColor: "#f59e0b",
+              projectId: res.projectId,
+              projectName: proj?.name,
+              clientId,
+              clientName: clientId ? clientMap[clientId] : undefined,
+              resourceId: res.id,
+              resourceName: res.name,
+              tags: [],
+              originReference: res.id,
+            });
+          } else if (res.costType === "monthly" || res.costType === "annual") {
+            const start = resStart ?? new Date();
+            const end = resEnd ?? new Date(start.getFullYear() + 1, start.getMonth(), 1);
+            const step = res.costType === "monthly" ? 1 : 12;
+            const monthlyAmt = res.costType === "annual" ? amount / 12 : amount;
+
+            let cur = new Date(start.getFullYear(), start.getMonth(), 1);
+            while (cur <= end) {
+              flows.push({
+                id: `res_${res.id}_${cur.getFullYear()}_${cur.getMonth()}`,
+                type: "expense",
+                sourceType: "project_resource",
+                status: "planned",
+                date: cur.toISOString().split("T")[0],
+                amount: Math.round(monthlyAmt * 100) / 100,
+                label: `${res.name} – ${cur.toLocaleString("fr-FR", { month: "short", year: "numeric" })}`,
+                categoryId: getCatId(catName, "expense"),
+                categoryName: catName,
+                categoryColor: "#f59e0b",
+                projectId: res.projectId,
+                projectName: proj?.name,
+                clientId,
+                clientName: clientId ? clientMap[clientId] : undefined,
+                resourceId: res.id,
+                resourceName: res.name,
+                tags: [],
+                originReference: res.id,
+              });
+              cur = new Date(cur.getFullYear(), cur.getMonth() + step, 1);
+            }
+          }
+        }
+      }
+
+      // ── Manual transactions
+      for (const tx of manualTransactions) {
+        const cat = tx.categoryId ? categoryMap[tx.categoryId] : null;
+        const proj = tx.projectId ? projectMap[tx.projectId] : null;
+        const clientId = tx.clientId ?? (proj?.clientId ?? null);
+        flows.push({
+          id: `manual_${tx.id}`,
+          type: tx.type as "income" | "expense",
+          sourceType: "manual",
+          status: tx.status,
+          date: tx.date,
+          amount: parseFloat(tx.amount),
+          label: tx.label,
+          description: tx.description ?? undefined,
+          categoryId: tx.categoryId,
+          categoryName: cat?.name,
+          categoryColor: cat?.color ?? undefined,
+          projectId: tx.projectId,
+          projectName: proj?.name,
+          clientId,
+          clientName: clientId ? clientMap[clientId] : undefined,
+          tags: (tx.tags ?? []) as string[],
+          manualId: tx.id,
+        });
+      }
+
+      // Sort by date
+      flows.sort((a, b) => a.date.localeCompare(b.date));
+
+      // ── KPIs
+      const startingCash = parseFloat(tsSettings?.startingCash?.toString() ?? "0");
+      const today = new Date().toISOString().split("T")[0];
+
+      const receivedFlows = flows.filter(f => f.status === "received" || f.status === "paid");
+      const currentBalance = startingCash + receivedFlows.reduce((sum, f) => sum + (f.type === "income" ? f.amount : -f.amount), 0);
+
+      const activeFlows = flows.filter(f => f.status !== "cancelled");
+      const projectedBalance = startingCash + activeFlows.reduce((sum, f) => sum + (f.type === "income" ? f.amount : -f.amount), 0);
+
+      const periodFlows = activeFlows; // full period, frontend will filter
+      const incomeTotal = periodFlows.filter(f => f.type === "income").reduce((sum, f) => sum + f.amount, 0);
+      const expenseTotal = periodFlows.filter(f => f.type === "expense").reduce((sum, f) => sum + f.amount, 0);
+      const netVariation = incomeTotal - expenseTotal;
+
+      // Lowest projected cash point
+      let running = startingCash;
+      let lowestPoint = startingCash;
+      for (const f of flows.filter(f => f.status !== "cancelled")) {
+        running += f.type === "income" ? f.amount : -f.amount;
+        if (running < lowestPoint) lowestPoint = running;
+      }
+
+      const alertThreshold = parseFloat(tsSettings?.alertThreshold?.toString() ?? "0");
+      const alertLevel = lowestPoint < 0 ? "critical" : (alertThreshold > 0 && lowestPoint < alertThreshold) ? "warning" : "ok";
+
+      // ── Chart data (by month)
+      const chartMap: Record<string, { income: number; expense: number }> = {};
+      for (const f of flows.filter(f => f.status !== "cancelled")) {
+        const key = f.date.substring(0, 7); // YYYY-MM
+        if (!chartMap[key]) chartMap[key] = { income: 0, expense: 0 };
+        if (f.type === "income") chartMap[key].income += f.amount;
+        else chartMap[key].expense += f.amount;
+      }
+      let cumulative = startingCash;
+      const chartData = Object.entries(chartMap).sort(([a], [b]) => a.localeCompare(b)).map(([key, { income, expense }]) => {
+        cumulative += income - expense;
+        const [year, month] = key.split("-");
+        const label = new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleString("fr-FR", { month: "short", year: "2-digit" });
+        return { key, label, income: Math.round(income), expense: Math.round(expense), cumulativeCash: Math.round(cumulative) };
+      });
+
+      res.json({
+        flows,
+        kpis: { currentBalance: Math.round(currentBalance), projectedBalance: Math.round(projectedBalance), incomeTotal: Math.round(incomeTotal), expenseTotal: Math.round(expenseTotal), netVariation: Math.round(netVariation), lowestPoint: Math.round(lowestPoint), alertLevel },
+        chartData,
+        categories,
+        projects: allProjects.map(p => ({ id: p.id, name: p.name, clientId: p.clientId })),
+        clients: allClients,
+        settings: tsSettings ?? { startingCash: "0", alertThreshold: null, defaultViewRange: "month" },
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Treasury Settings
+  app.get("/api/treasury/settings", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const s = await storage.getTreasurySettings(req.accountId!);
+      res.json(s ?? { startingCash: "0", alertThreshold: null, defaultViewRange: "month" });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/treasury/settings", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const result = await storage.upsertTreasurySettings({ ...req.body, accountId: req.accountId! });
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Treasury Categories
+  app.get("/api/treasury/categories", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      let categories = await storage.getTreasuryCategoriesByAccountId(req.accountId!);
+      // Seed system categories if empty
+      if (categories.length === 0) {
+        const INCOME_CATS = [
+          { name: "Acompte", color: "#6366f1" }, { name: "Paiement client", color: "#10b981" },
+          { name: "Régie", color: "#06b6d4" }, { name: "Apport", color: "#8b5cf6" },
+          { name: "Remboursement", color: "#f59e0b" }, { name: "Autre revenu", color: "#64748b" },
+        ];
+        const EXPENSE_CATS = [
+          { name: "Ressource interne", color: "#ef4444" }, { name: "Freelance", color: "#f97316" },
+          { name: "Sous-traitance", color: "#eab308" }, { name: "Logiciel / Abonnement", color: "#06b6d4" },
+          { name: "Infrastructure", color: "#3b82f6" }, { name: "Administratif", color: "#8b5cf6" },
+          { name: "Marketing", color: "#ec4899" }, { name: "Matériel", color: "#14b8a6" },
+          { name: "Fiscal / Social", color: "#84cc16" }, { name: "Autre charge", color: "#64748b" },
+        ];
+        for (const c of INCOME_CATS) {
+          await storage.createTreasuryCategory({ accountId: req.accountId!, name: c.name, type: "income", color: c.color, isSystem: 1 });
+        }
+        for (const c of EXPENSE_CATS) {
+          await storage.createTreasuryCategory({ accountId: req.accountId!, name: c.name, type: "expense", color: c.color, isSystem: 1 });
+        }
+        categories = await storage.getTreasuryCategoriesByAccountId(req.accountId!);
+      }
+      res.json(categories);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/treasury/categories", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const parsed = insertTreasuryCategorySchema.parse({ ...req.body, accountId: req.accountId! });
+      const created = await storage.createTreasuryCategory(parsed);
+      res.json(created);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/treasury/categories/:id", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const updated = await storage.updateTreasuryCategory(req.accountId!, req.params.id, req.body);
+      if (!updated) return res.status(404).json({ error: "Category not found" });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/treasury/categories/:id", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const deleted = await storage.deleteTreasuryCategory(req.accountId!, req.params.id);
+      res.json({ success: deleted });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Treasury Transactions (manual)
+  app.post("/api/treasury/transactions", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const userId = req.userId!;
+      const parsed = insertTreasuryTransactionSchema.parse({ ...req.body, accountId: req.accountId!, createdBy: userId });
+      const created = await storage.createTreasuryTransaction(parsed);
+      res.json(created);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/treasury/transactions/:id", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const updated = await storage.updateTreasuryTransaction(req.accountId!, req.params.id, req.body);
+      if (!updated) return res.status(404).json({ error: "Transaction not found" });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/treasury/transactions/:id", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const deleted = await storage.deleteTreasuryTransaction(req.accountId!, req.params.id);
+      res.json({ success: deleted });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

@@ -37,6 +37,7 @@ import BacklogNew from "@/pages/backlog-new";
 import BacklogDetail from "@/pages/backlog-detail";
 import Marketing from "@/pages/marketing";
 import Finance from "@/pages/finance";
+import TreasuryPage from "@/pages/treasury";
 import Commercial from "@/pages/commercial";
 import Legal from "@/pages/legal";
 import CalendarPage from "@/pages/calendar";
@@ -175,6 +176,9 @@ function Router() {
       </Route>
       <Route path="/finance">
         <ProtectedRoute><Finance /></ProtectedRoute>
+      </Route>
+      <Route path="/treasury">
+        <ProtectedRoute><TreasuryPage /></ProtectedRoute>
       </Route>
       <Route path="/commercial">
         <ProtectedRoute><Commercial /></ProtectedRoute>

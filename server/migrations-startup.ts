@@ -2244,6 +2244,58 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Projects deposit and end-of-month payment fields added");
 
+    // ── TREASURY MODULE ──
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS treasury_categories (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        color TEXT DEFAULT '#6366f1',
+        icon TEXT,
+        is_system INTEGER DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS treasury_categories_account_idx ON treasury_categories(account_id);
+      CREATE INDEX IF NOT EXISTS treasury_categories_account_type_idx ON treasury_categories(account_id, type);
+    `);
+    console.log("✅ Treasury categories table created");
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS treasury_transactions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        type TEXT NOT NULL,
+        date DATE NOT NULL,
+        amount NUMERIC(14,2) NOT NULL,
+        label TEXT NOT NULL,
+        description TEXT,
+        category_id UUID REFERENCES treasury_categories(id) ON DELETE SET NULL,
+        project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+        client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
+        status TEXT NOT NULL DEFAULT 'planned',
+        tags TEXT[] DEFAULT '{}',
+        created_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS treasury_transactions_account_idx ON treasury_transactions(account_id);
+      CREATE INDEX IF NOT EXISTS treasury_transactions_account_date_idx ON treasury_transactions(account_id, date);
+    `);
+    console.log("✅ Treasury transactions table created");
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS treasury_settings (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id UUID NOT NULL UNIQUE REFERENCES accounts(id) ON DELETE CASCADE,
+        starting_cash NUMERIC(14,2) DEFAULT 0,
+        alert_threshold NUMERIC(14,2),
+        default_view_range TEXT DEFAULT 'month',
+        updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      );
+    `);
+    console.log("✅ Treasury settings table created");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

@@ -41,11 +41,15 @@ import {
   type MindmapEdge, type InsertMindmapEdge,
   type EntityLink, type InsertEntityLink,
   type Settings, type InsertSettings,
+  type TreasuryCategory, type InsertTreasuryCategory,
+  type TreasuryTransaction, type InsertTreasuryTransaction,
+  type TreasurySettings, type InsertTreasurySettings,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
   projects, projectCategories, projectPayments, cdcSessions, projectBaselines, projectScopeItems, recommendationActions, taskColumns, tasks, notes, noteCategories, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems, roadmapItemLinks, roadmapDependencies,
   appointments, googleCalendarTokens, timeEntries,
   mindmaps, mindmapNodes, mindmapEdges, entityLinks, settings,
+  treasuryCategories, treasuryTransactions, treasurySettings,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, like, desc, sql, isNull, inArray, gte, lte, asc } from "drizzle-orm";
@@ -363,6 +367,23 @@ export interface IStorage {
   getSettingsByScope(scope: string, scopeId: string | null): Promise<Settings[]>;
   upsertSetting(setting: InsertSettings): Promise<Settings>;
   deleteSetting(scope: string, scopeId: string | null, key: string): Promise<boolean>;
+
+  // Treasury Categories
+  getTreasuryCategoriesByAccountId(accountId: string): Promise<TreasuryCategory[]>;
+  createTreasuryCategory(category: InsertTreasuryCategory): Promise<TreasuryCategory>;
+  updateTreasuryCategory(accountId: string, id: string, updates: Partial<InsertTreasuryCategory>): Promise<TreasuryCategory | undefined>;
+  deleteTreasuryCategory(accountId: string, id: string): Promise<boolean>;
+
+  // Treasury Transactions
+  getTreasuryTransactionsByAccountId(accountId: string): Promise<TreasuryTransaction[]>;
+  getTreasuryTransaction(accountId: string, id: string): Promise<TreasuryTransaction | undefined>;
+  createTreasuryTransaction(tx: InsertTreasuryTransaction): Promise<TreasuryTransaction>;
+  updateTreasuryTransaction(accountId: string, id: string, updates: Partial<InsertTreasuryTransaction>): Promise<TreasuryTransaction | undefined>;
+  deleteTreasuryTransaction(accountId: string, id: string): Promise<boolean>;
+
+  // Treasury Settings
+  getTreasurySettings(accountId: string): Promise<TreasurySettings | undefined>;
+  upsertTreasurySettings(settings: InsertTreasurySettings): Promise<TreasurySettings>;
 }
 
 // Supabase PostgreSQL implementation using Drizzle ORM
@@ -2192,6 +2213,57 @@ export class DatabaseStorage implements IStorage {
     
     const result = await db.delete(settings).where(conditions).returning();
     return result.length > 0;
+  }
+
+  // ── Treasury Categories ──
+  async getTreasuryCategoriesByAccountId(accountId: string): Promise<TreasuryCategory[]> {
+    return db.select().from(treasuryCategories).where(eq(treasuryCategories.accountId, accountId)).orderBy(asc(treasuryCategories.type), asc(treasuryCategories.name));
+  }
+  async createTreasuryCategory(category: InsertTreasuryCategory): Promise<TreasuryCategory> {
+    const [created] = await db.insert(treasuryCategories).values(category).returning();
+    return created;
+  }
+  async updateTreasuryCategory(accountId: string, id: string, updates: Partial<InsertTreasuryCategory>): Promise<TreasuryCategory | undefined> {
+    const [updated] = await db.update(treasuryCategories).set(updates).where(and(eq(treasuryCategories.id, id), eq(treasuryCategories.accountId, accountId))).returning();
+    return updated;
+  }
+  async deleteTreasuryCategory(accountId: string, id: string): Promise<boolean> {
+    const result = await db.delete(treasuryCategories).where(and(eq(treasuryCategories.id, id), eq(treasuryCategories.accountId, accountId))).returning();
+    return result.length > 0;
+  }
+
+  // ── Treasury Transactions ──
+  async getTreasuryTransactionsByAccountId(accountId: string): Promise<TreasuryTransaction[]> {
+    return db.select().from(treasuryTransactions).where(eq(treasuryTransactions.accountId, accountId)).orderBy(desc(treasuryTransactions.date));
+  }
+  async getTreasuryTransaction(accountId: string, id: string): Promise<TreasuryTransaction | undefined> {
+    const [row] = await db.select().from(treasuryTransactions).where(and(eq(treasuryTransactions.id, id), eq(treasuryTransactions.accountId, accountId)));
+    return row;
+  }
+  async createTreasuryTransaction(tx: InsertTreasuryTransaction): Promise<TreasuryTransaction> {
+    const [created] = await db.insert(treasuryTransactions).values(tx).returning();
+    return created;
+  }
+  async updateTreasuryTransaction(accountId: string, id: string, updates: Partial<InsertTreasuryTransaction>): Promise<TreasuryTransaction | undefined> {
+    const [updated] = await db.update(treasuryTransactions).set({ ...updates, updatedAt: new Date() }).where(and(eq(treasuryTransactions.id, id), eq(treasuryTransactions.accountId, accountId))).returning();
+    return updated;
+  }
+  async deleteTreasuryTransaction(accountId: string, id: string): Promise<boolean> {
+    const result = await db.delete(treasuryTransactions).where(and(eq(treasuryTransactions.id, id), eq(treasuryTransactions.accountId, accountId))).returning();
+    return result.length > 0;
+  }
+
+  // ── Treasury Settings ──
+  async getTreasurySettings(accountId: string): Promise<TreasurySettings | undefined> {
+    const [row] = await db.select().from(treasurySettings).where(eq(treasurySettings.accountId, accountId));
+    return row;
+  }
+  async upsertTreasurySettings(settingsData: InsertTreasurySettings): Promise<TreasurySettings> {
+    const [upserted] = await db.insert(treasurySettings)
+      .values({ ...settingsData, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: treasurySettings.accountId, set: { ...settingsData, updatedAt: new Date() } })
+      .returning();
+    return upserted;
   }
 }
 
