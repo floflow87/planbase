@@ -1,0 +1,171 @@
+Je souhaite intégrer Gmail dans PlanBase, dans la continuité de l’intégration Google Calendar déjà en place.
+
+OBJECTIF V1 :
+si une adresse email renseignée dans le CRM est présente dans un email de ma boîte Gmail (expéditeur, destinataire principal ou cc), alors cet email doit être rattaché au bon contact / client CRM et apparaître à la bonne date dans le flux historique de la fiche correspondante.
+
+IMPORTANT :
+- ne pas commencer par recréer une boîte mail complète dans l’app
+- la priorité est la synchronisation Gmail -> CRM timeline
+- l’objectif est d’enrichir l’historique relationnel des fiches CRM
+- ne pas casser l’existant
+- concevoir une architecture évolutive pour permettre plus tard :
+  - une interface de boîte mail dans l’app
+  - l’envoi d’emails via Gmail depuis l’app
+
+## Fonctionnalité attendue
+
+### 1. Connexion Gmail
+Ajouter une intégration Gmail via OAuth Google.
+
+Je veux pouvoir connecter mon compte Gmail à PlanBase.
+
+### 2. Synchronisation des emails
+Récupérer les emails Gmail et identifier ceux qui correspondent à des adresses email présentes dans le CRM.
+
+Règle de matching V1 :
+si l’adresse email d’un contact CRM correspond exactement à une adresse présente dans :
+- from
+- to
+- cc
+
+alors l’email doit être rattaché :
+- à la fiche contact
+- et à la fiche client / entreprise liée si applicable
+
+### 3. Affichage dans le flux historique CRM
+Créer un nouveau type d’événement dans le flux historique des fiches CRM :
+- email reçu
+- email envoyé
+
+Chaque email affiché dans la timeline doit contenir au minimum :
+- type (reçu / envoyé)
+- sujet
+- expéditeur
+- destinataires principaux
+- snippet / aperçu
+- date et heure
+- badge Gmail ou icône email
+- possibilité d’ouvrir le détail plus tard
+
+Les emails doivent apparaître mélangés chronologiquement avec les autres événements déjà présents :
+- notes
+- activités
+- changements de statut
+- etc.
+
+### 4. Périmètre V1
+Inclure :
+- emails reçus
+- emails envoyés
+- matching par email exact
+- rattachement contact + client
+- affichage dans la timeline
+
+Exclure ou limiter au départ :
+- boîte mail complète dans l’app
+- composition / envoi d’emails
+- matching approximatif
+- détection avancée de projet / opportunité
+- sync de toute l’historique Gmail sans limite
+
+### 5. Synchronisation initiale et incrémentale
+Je veux une logique simple et robuste :
+- sync initiale limitée (par exemple 3 ou 6 derniers mois)
+- puis sync incrémentale des nouveaux emails
+- éviter de charger tout l’historique Gmail inutilement
+
+Prévoir si possible :
+- un bouton “Synchroniser Gmail”
+- et une architecture compatible avec une sync automatique plus tard
+
+### 6. Filtres / exclusions recommandés
+Éviter de polluer la timeline CRM avec :
+- spam
+- promotions
+- newsletters
+- emails no-reply
+- emails purement automatiques
+
+Mettre en place une logique simple de filtrage pour garder un historique CRM utile.
+
+## Structure de données recommandée
+
+Prévoir une structure propre du type :
+
+### crm_email_messages
+- id
+- gmail_message_id
+- gmail_thread_id
+- subject
+- snippet
+- body_text optionnel
+- body_html optionnel
+- from_email
+- from_name
+- sent_at
+- received_at
+- direction (inbound / outbound)
+- has_attachments
+- labels
+- synced_at
+
+### crm_email_participants
+- id
+- email_message_id
+- email_address
+- display_name
+- role (from / to / cc / bcc)
+
+### crm_email_links
+- id
+- email_message_id
+- contact_id nullable
+- client_id nullable
+- link_type (contact / client)
+
+L’objectif est de stocker proprement un email une seule fois, puis de le relier aux objets CRM concernés.
+
+## UX attendue dans le CRM
+Dans le flux historique d’une fiche client ou contact, afficher les emails comme des événements timeline natifs.
+
+Exemple :
+- Email reçu
+- Email envoyé
+
+Design :
+- compact
+- lisible
+- cohérent avec le reste de l’app
+- sujet bien visible
+- participants visibles
+- snippet lisible
+- date bien positionnée
+
+## Vision long terme
+Cette architecture doit préparer la suite :
+- interface boîte mail dans l’app
+- lecture de threads
+- envoi d’emails depuis l’app via Gmail
+
+Mais ne pas implémenter cela tout de suite.
+La priorité est uniquement :
+Gmail sync + matching CRM + affichage dans la timeline.
+
+## Contraintes
+- ne pas casser le CRM existant
+- ne pas casser l’intégration Google existante
+- faire une architecture modulaire
+- prévoir une sync fiable et évolutive
+- éviter les doublons d’emails
+- éviter les faux positifs de matching
+
+## Livrable attendu
+Avant de coder :
+1. analyser l’intégration Google existante
+2. proposer la stratégie OAuth Gmail
+3. proposer les tables / types à créer
+4. proposer la logique de matching email -> contact/client
+5. proposer la logique de sync initiale et incrémentale
+6. proposer comment injecter les emails dans le flux historique CRM
+
+Puis implémente la V1.

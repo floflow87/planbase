@@ -13729,14 +13729,21 @@ app.get("/config/feature-flags", async (_req, res) => {
 
   app.put("/api/treasury/plan/settings", requireAuth, requireOrgMember, async (req, res) => {
     try {
+      const accountId = req.accountId!;
       const { initialBalance, granularity } = req.body;
       await db.execute(sql`
-        UPDATE treasury_settings
-        SET plan_initial_balance = ${initialBalance}, plan_granularity = ${granularity}
-        WHERE account_id = ${req.accountId!}
+        INSERT INTO treasury_settings (account_id, plan_initial_balance, plan_granularity)
+        VALUES (${accountId}, ${initialBalance ?? 0}, ${granularity ?? "month"})
+        ON CONFLICT (account_id) DO UPDATE
+        SET plan_initial_balance = EXCLUDED.plan_initial_balance,
+            plan_granularity = EXCLUDED.plan_granularity,
+            updated_at = NOW()
       `);
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) {
+      console.error("❌ PUT /api/treasury/plan/settings error:", e.message);
+      res.status(500).json({ error: e.message });
+    }
   });
 
   // ============================================
