@@ -278,9 +278,10 @@ interface TicketRowProps {
   onCheckChange?: (ticketId: string, ticketType: TicketType, checked: boolean) => void;
   showCheckbox?: boolean;
   backlogPrefix?: string;
+  ticketGlobalIndex?: number;
 }
 
-export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSelect, onUpdateState, onUpdateField, onConvertType, onTicketAction, isSelected, isDraggable = true, isChecked = false, onCheckChange, showCheckbox = false, backlogPrefix }: TicketRowProps) {
+export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSelect, onUpdateState, onUpdateField, onConvertType, onTicketAction, isSelected, isDraggable = true, isChecked = false, onCheckChange, showCheckbox = false, backlogPrefix, ticketGlobalIndex }: TicketRowProps) {
   const typeColor = ticketTypeColor(ticket.type, ticket.color);
   const pastelColors = ticketTypePastelColors(ticket.type, ticket.color);
   const assignee = users?.find(u => u.id === ticket.assigneeId);
@@ -425,7 +426,12 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
         </TooltipTrigger>
         <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md max-w-sm">
           <p className="text-xs break-words">
-            {backlogPrefix && <span className="font-mono text-muted-foreground mr-1.5">{backlogPrefix}-{String(ticket.order + 1).padStart(3, "0")}</span>}
+            {backlogPrefix && ticketGlobalIndex !== undefined && ticketGlobalIndex >= 0 && (() => {
+              const ticketSprint = ticket.sprintId ? sprints?.find(s => s.id === ticket.sprintId) : null;
+              const sprintPfx = ticketSprint ? ticketSprint.name.substring(0, 3).toUpperCase() : "BCK";
+              const idxStr = String(ticketGlobalIndex + 1).padStart(2, "0");
+              return <span className="font-mono text-muted-foreground mr-1.5">{backlogPrefix}-{sprintPfx}-{idxStr}</span>;
+            })()}
             {ticket.title}
           </p>
         </TooltipContent>
@@ -434,7 +440,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
       {/* Right columns container with larger spacing */}
       <div className="flex items-center gap-4">
       {/* Inline Points Editor with Tooltip */}
-      {onUpdateField && !isCompleted ? (
+      {onUpdateField ? (
         <Popover open={pointsPopoverOpen} onOpenChange={setPointsPopoverOpen}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -482,7 +488,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
       )}
       
       {/* Inline Priority Editor with Tooltip */}
-      {onUpdateField && !isCompleted ? (
+      {onUpdateField ? (
         <Popover open={priorityPopoverOpen} onOpenChange={setPriorityPopoverOpen}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -613,7 +619,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
       )}
       
       {/* Inline Epic Editor */}
-      {showEpicColumn && ticket.type !== "epic" && onUpdateField && !isCompleted ? (
+      {showEpicColumn && ticket.type !== "epic" && onUpdateField ? (
         <Popover open={epicPopoverOpen} onOpenChange={setEpicPopoverOpen}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -1311,6 +1317,7 @@ interface SprintSectionProps {
   onBulkAction?: (action: BulkAction) => void;
   onClearSelection?: () => void;
   backlogPrefix?: string;
+  ticketIndexMap?: Record<string, number>;
 }
 
 export function SprintSection({ 
@@ -1342,7 +1349,8 @@ export function SprintSection({
   onCheckChange,
   onBulkAction,
   onClearSelection,
-  backlogPrefix
+  backlogPrefix,
+  ticketIndexMap
 }: SprintSectionProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [newTicketTitle, setNewTicketTitle] = useState("");
@@ -1597,6 +1605,7 @@ export function SprintSection({
                 isChecked={checkedTickets?.has(ticket.id) || false}
                 onCheckChange={onCheckChange}
                 backlogPrefix={backlogPrefix}
+                ticketGlobalIndex={ticketIndexMap?.[ticket.id]}
               />
             ))}
             
@@ -1718,6 +1727,7 @@ interface BacklogPoolProps {
   onBulkAction?: (action: BulkAction) => void;
   onClearSelection?: () => void;
   backlogPrefix?: string;
+  ticketIndexMap?: Record<string, number>;
 }
 
 export function BacklogPool({ 
@@ -1739,7 +1749,8 @@ export function BacklogPool({
   onCheckChange,
   onBulkAction,
   onClearSelection,
-  backlogPrefix
+  backlogPrefix,
+  ticketIndexMap
 }: BacklogPoolProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [newTicketTitle, setNewTicketTitle] = useState("");
@@ -1840,6 +1851,7 @@ export function BacklogPool({
                 isChecked={checkedTickets?.has(ticket.id) || false}
                 onCheckChange={onCheckChange}
                 backlogPrefix={backlogPrefix}
+                ticketGlobalIndex={ticketIndexMap?.[ticket.id]}
               />
             ))}
             

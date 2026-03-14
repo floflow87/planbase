@@ -642,20 +642,21 @@ export function TicketDetailPanel({
     setCreateTaskTitle("");
   };
   
-  // Generate ticket ID with nomenclature [BacklogFirst3-OrderPadded]
   const generateTicketId = () => {
     if (!ticket) return null;
-    if (ticket.order === undefined || ticket.order === null) return null;
+    if (ticketIndex === undefined || ticketIndex === null || ticketIndex < 0) return null;
     
-    // Get first 3 letters of backlog name (uppercase)
-    const backlogPrefix = backlogName 
+    const backlogPfx = backlogName 
       ? backlogName.substring(0, 3).toUpperCase() 
-      : "BKL";
+      : "BCK";
     
-    // Use persisted order + 1 with zero-padding (same format as row tooltip)
-    const orderStr = String(ticket.order + 1).padStart(3, "0");
+    const sprintPrefix = currentSprint
+      ? currentSprint.name.substring(0, 3).toUpperCase()
+      : "BCK";
     
-    return `${backlogPrefix}-${orderStr}`;
+    const indexStr = String(ticketIndex + 1).padStart(2, "0");
+    
+    return `${backlogPfx}-${sprintPrefix}-${indexStr}`;
   };
   
   const ticketIdLabel = generateTicketId();

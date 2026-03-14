@@ -1070,6 +1070,12 @@ export default function BacklogDetail() {
     );
   }, [backlog?.epics, backlog?.userStories, backlog?.backlogTasks]);
 
+  const ticketIndexMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    flatTickets.forEach((t, i) => { map[t.id] = i; });
+    return map;
+  }, [flatTickets]);
+
   // Collect unique versions from all tickets for filtering
   const uniqueVersions = useMemo(() => {
     const versions = new Set<string>();
@@ -2509,6 +2515,7 @@ export default function BacklogDetail() {
                       onSelectTicket={handleSelectTicket}
                       onCreateTicket={handleCreateSprintTicket}
                       backlogPrefix={backlogPrefix}
+                      ticketIndexMap={ticketIndexMap}
                       onStartSprint={(sprintId) => startSprintMutation.mutate(sprintId)}
                       onCompleteSprint={handleSprintCloseAttempt}
                       onEditSprint={(sprint) => { setEditingSprint(sprint); setShowSprintDialog(true); }}
@@ -2553,6 +2560,7 @@ export default function BacklogDetail() {
                   onSelectTicket={handleSelectTicket}
                   onCreateTicket={handleCreateBacklogTicket}
                   backlogPrefix={backlog.name ? backlog.name.slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, "") : "BCK"}
+                  ticketIndexMap={ticketIndexMap}
                   onUpdateState={handleInlineStateUpdate}
                   onUpdateField={handleInlineFieldUpdate}
                   onConvertType={handleConvertType}
