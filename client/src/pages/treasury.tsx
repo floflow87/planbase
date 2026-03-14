@@ -127,20 +127,34 @@ const PASTEL_GREEN = "#86efac";
 const PASTEL_RED = "#fca5a5";
 const PASTEL_VIOLET = "#c4b5fd";
 
-// Build chart series from raw flows
+// Build chart series from raw flows — fills every month in the period with 0 if no data
 function buildChartData(
   flows: TreasuryFlow[],
   statuses: string[],
-  startingCash: number
+  startingCash: number,
+  periodRange?: { from: string; to: string }
 ): ChartPoint[] {
   const filtered = flows.filter((f) => statuses.includes(f.status));
   const chartMap: Record<string, { income: number; expense: number }> = {};
+
+  // Pre-fill all months in the period so empty months still appear
+  if (periodRange) {
+    let cur = new Date(periodRange.from.substring(0, 7) + "-01");
+    const end = new Date(periodRange.to.substring(0, 7) + "-01");
+    while (cur <= end) {
+      const key = cur.toISOString().substring(0, 7);
+      chartMap[key] = { income: 0, expense: 0 };
+      cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+    }
+  }
+
   for (const f of filtered) {
     const key = f.date.substring(0, 7);
     if (!chartMap[key]) chartMap[key] = { income: 0, expense: 0 };
     if (f.type === "income") chartMap[key].income += f.amount;
     else chartMap[key].expense += f.amount;
   }
+
   let cumulative = startingCash;
   return Object.entries(chartMap)
     .sort(([a], [b]) => a.localeCompare(b))
@@ -471,20 +485,14 @@ export default function TreasuryPage() {
     });
   }, [data, periodWindow, filterType, filterStatus, filterProject, filterSource, filterCategory, filterSearch]);
 
-  // Chart data by mode
+  // Chart data by mode — period fills empty months so all months always appear
   const chartData = useMemo(() => {
     if (!data) return [];
     const startingCash = parseFloat(data.settings?.startingCash ?? "0");
     const realStatuses = ["received", "paid"];
     const projectedStatuses = ["confirmed", "received", "paid"];
     const statuses = chartMode === "real" ? realStatuses : projectedStatuses;
-    const all = buildChartData(data.flows, statuses, startingCash);
-    if (!periodWindow) return all;
-    return all.filter(
-      (d) =>
-        d.key >= periodWindow.from.substring(0, 7) &&
-        d.key <= periodWindow.to.substring(0, 7)
-    );
+    return buildChartData(data.flows, statuses, startingCash, periodWindow ?? undefined);
   }, [data, chartMode, periodWindow]);
 
   const periodKpis = useMemo(() => {
@@ -493,6 +501,19 @@ export default function TreasuryPage() {
     const expense = active.filter((f) => f.type === "expense").reduce((s, f) => s + f.amount, 0);
     return { income, expense, net: income - expense };
   }, [filteredFlows]);
+
+  // Running balance per row (sorted by date asc, starting from startingCash)
+  const flowsWithBalance = useMemo(() => {
+    const startingCash = parseFloat(data?.settings?.startingCash ?? "0");
+    const sorted = [...filteredFlows].sort((a, b) => a.date.localeCompare(b.date));
+    let running = startingCash;
+    return sorted.map((f) => {
+      if (f.status !== "cancelled") {
+        running += f.type === "income" ? f.amount : -f.amount;
+      }
+      return { ...f, runningBalance: running };
+    });
+  }, [filteredFlows, data]);
 
   const kpis = data?.kpis;
   const categories = data?.categories ?? [];
@@ -780,13 +801,14 @@ export default function TreasuryPage() {
                   <tr className="border-b bg-muted/40">
                     <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Date</th>
                     <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Type</th>
-                    <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Libellé</th>
+                    <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[9px]">Libellé</th>
                     <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Projet</th>
                     <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Catégorie</th>
                     <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Tags</th>
                     <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Statut</th>
                     <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Source</th>
                     <th className="text-right py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Montant</th>
+                    <th className="text-right py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Balance</th>
                     <th className="py-1.5 px-3 w-14"></th>
                   </tr>
                 </thead>
@@ -794,19 +816,19 @@ export default function TreasuryPage() {
                   {isLoading ? (
                     Array.from({ length: 6 }).map((_, i) => (
                       <tr key={i} className="border-b">
-                        {Array.from({ length: 10 }).map((_, j) => (
+                        {Array.from({ length: 11 }).map((_, j) => (
                           <td key={j} className="py-1.5 px-3"><Skeleton className="h-3 w-full" /></td>
                         ))}
                       </tr>
                     ))
-                  ) : filteredFlows.length === 0 ? (
+                  ) : flowsWithBalance.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="py-8 text-center text-muted-foreground text-xs">
+                      <td colSpan={11} className="py-8 text-center text-muted-foreground text-xs">
                         Aucun flux pour les filtres sélectionnés
                       </td>
                     </tr>
                   ) : (
-                    filteredFlows.map((flow) => (
+                    flowsWithBalance.map((flow) => (
                       <tr
                         key={flow.id}
                         className="border-b hover:bg-muted/30 transition-colors group"
@@ -894,6 +916,20 @@ export default function TreasuryPage() {
                             )}
                           >
                             {flow.type === "income" ? "+" : "−"}{fmt(flow.amount)}
+                          </span>
+                        </td>
+                        <td className="py-1.5 px-3 text-right whitespace-nowrap">
+                          <span
+                            className={cn(
+                              "text-[10px] font-medium tabular-nums",
+                              flow.status === "cancelled"
+                                ? "text-muted-foreground"
+                                : flow.runningBalance >= 0
+                                ? "text-foreground"
+                                : "text-red-600 dark:text-red-400"
+                            )}
+                          >
+                            {fmt(flow.runningBalance)}
                           </span>
                         </td>
                         <td className="py-1.5 px-3">
