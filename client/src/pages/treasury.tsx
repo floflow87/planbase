@@ -39,6 +39,7 @@ import {
   Repeat,
   GitBranch,
   ChevronDown,
+  ChevronRight,
   Check,
   Table2,
   Info,
@@ -129,6 +130,43 @@ type TreasuryData = {
   clients: { id: string; name: string }[];
   settings: { startingCash: string; alertThreshold: string | null; defaultViewRange: string };
 };
+
+// ── Plan de trésorerie types ──────────────────────────────────────────────────
+
+type PlanLine = {
+  id: string;
+  rubrique: string;
+  label: string;
+  position: number;
+  source_type: string;
+  source_id?: string | null;
+};
+
+type PlanCell = {
+  id: string;
+  line_id: string;
+  period_key: string;
+  amount: number;
+};
+
+type PlanSettings = {
+  initialBalance: number;
+  granularity: "week" | "month";
+};
+
+type PlanData = {
+  lines: PlanLine[];
+  cells: PlanCell[];
+  settings: PlanSettings;
+};
+
+const RUBRIQUES: Array<{ key: string; label: string; type: "income" | "expense" }> = [
+  { key: "entrees_clients", label: "Entrées clients", type: "income" },
+  { key: "entrees_exceptionnelles", label: "Entrées exceptionnelles", type: "income" },
+  { key: "sorties_ressources", label: "Sorties ressources", type: "expense" },
+  { key: "sorties_outils", label: "Sorties outils", type: "expense" },
+  { key: "sorties_charges", label: "Sorties charges", type: "expense" },
+];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -601,11 +639,473 @@ function TxPanel({
   );
 }
 
+// ── Plan de trésorerie View ────────────────────────────────────────────────────
+
+function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: string }> }) {
+  const { toast } = useToast();
+  const [expandedRubriques, setExpandedRubriques] = useState<Set<string>>(
+    new Set(RUBRIQUES.map((r) => r.key))
+  );
+  const [editingCell, setEditingCell] = useState<{ lineId: string; periodKey: string } | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [addingToRubrique, setAddingToRubrique] = useState<string | null>(null);
+  const [newLineLabel, setNewLineLabel] = useState("");
+  const [localCells, setLocalCells] = useState<Record<string, Record<string, number>>>({});
+  const [localSettings, setLocalSettings] = useState<PlanSettings>({ initialBalance: 0, granularity: "month" });
+  const [editingInitBalance, setEditingInitBalance] = useState(false);
+  const [initBalanceValue, setInitBalanceValue] = useState("");
+
+  const { data: planData, isLoading } = useQuery<PlanData>({
+    queryKey: ["/api/treasury/plan"],
+  });
+
+  useEffect(() => {
+    if (!planData) return;
+    const cm: Record<string, Record<string, number>> = {};
+    for (const c of planData.cells) {
+      if (!cm[c.line_id]) cm[c.line_id] = {};
+      cm[c.line_id][c.period_key] = Number(c.amount);
+    }
+    setLocalCells(cm);
+    setLocalSettings(planData.settings);
+  }, [planData]);
+
+  const createLineMutation = useMutation({
+    mutationFn: (body: { rubrique: string; label: string }) =>
+      apiRequest("/api/treasury/plan/lines", "POST", body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] });
+      toast({ title: "Ligne ajoutée" });
+      setAddingToRubrique(null);
+      setNewLineLabel("");
+    },
+  });
+
+  const deleteLineMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/treasury/plan/lines/${id}`, "DELETE"),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] }),
+  });
+
+  const saveCellMutation = useMutation({
+    mutationFn: (cells: Array<{ lineId: string; periodKey: string; amount: number }>) =>
+      apiRequest("/api/treasury/plan/cells", "PUT", { cells }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] }),
+  });
+
+  const saveSettingsMutation = useMutation({
+    mutationFn: (s: PlanSettings) => apiRequest("/api/treasury/plan/settings", "PUT", s),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] }),
+  });
+
+  const periods = useMemo(() => {
+    const result: Array<{ key: string; label: string; isCurrent: boolean }> = [];
+    const now = new Date();
+    if (localSettings.granularity === "month") {
+      for (let i = -2; i <= 9; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        result.push({
+          key,
+          label: d.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
+          isCurrent: i === 0,
+        });
+      }
+    } else {
+      const getMonday = (d: Date) => {
+        const copy = new Date(d);
+        const day = copy.getDay();
+        copy.setDate(copy.getDate() - day + (day === 0 ? -6 : 1));
+        return copy;
+      };
+      const monday = getMonday(new Date());
+      for (let i = -2; i <= 17; i++) {
+        const d = new Date(monday);
+        d.setDate(d.getDate() + i * 7);
+        const year = d.getFullYear();
+        const startOfYear = new Date(year, 0, 1);
+        const weekNum = Math.ceil(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
+        result.push({
+          key: `${year}-W${String(weekNum).padStart(2, "0")}`,
+          label: `S${weekNum} '${String(year).slice(2)}`,
+          isCurrent: i === 0,
+        });
+      }
+    }
+    return result;
+  }, [localSettings.granularity]);
+
+  const getCellValue = (lineId: string, periodKey: string): number =>
+    localCells[lineId]?.[periodKey] ?? 0;
+
+  const getRubriqueTotal = (rubriqKey: string, periodKey: string): number =>
+    (planData?.lines ?? [])
+      .filter((l) => l.rubrique === rubriqKey)
+      .reduce((sum, l) => sum + getCellValue(l.id, periodKey), 0);
+
+  const getTotalEntrees = (periodKey: string): number =>
+    ["entrees_clients", "entrees_exceptionnelles"].reduce((s, k) => s + getRubriqueTotal(k, periodKey), 0);
+
+  const getTotalSorties = (periodKey: string): number =>
+    ["sorties_ressources", "sorties_outils", "sorties_charges"].reduce((s, k) => s + getRubriqueTotal(k, periodKey), 0);
+
+  const balances = useMemo(() => {
+    let balance = localSettings.initialBalance;
+    const result: Record<string, { variation: number; balance: number }> = {};
+    for (const p of periods) {
+      const variation = getTotalEntrees(p.key) - getTotalSorties(p.key);
+      balance += variation;
+      result[p.key] = { variation, balance };
+    }
+    return result;
+  }, [periods, localCells, localSettings.initialBalance, planData?.lines]);
+
+  const handleCellSave = (lineId: string, periodKey: string) => {
+    const amount = parseFloat(editValue) || 0;
+    setLocalCells((prev) => ({ ...prev, [lineId]: { ...(prev[lineId] ?? {}), [periodKey]: amount } }));
+    saveCellMutation.mutate([{ lineId, periodKey, amount }]);
+    setEditingCell(null);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 overflow-y-auto p-5">
+        <Skeleton className="h-96 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  const COL_W = 92;
+
+  return (
+    <div className="flex-1 overflow-y-auto p-5 space-y-4">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Granularity selector */}
+        <div className="flex items-center rounded-md border overflow-hidden shrink-0">
+          {(["month", "week"] as const).map((g) => (
+            <button
+              key={g}
+              onClick={() => {
+                const s = { ...localSettings, granularity: g };
+                setLocalSettings(s);
+                saveSettingsMutation.mutate(s);
+              }}
+              className={cn(
+                "px-3 py-1.5 text-[11px] font-medium transition-colors",
+                localSettings.granularity === g
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted"
+              )}
+              data-testid={`btn-granularity-${g}`}
+            >
+              {g === "month" ? "Mois" : "Semaine"}
+            </button>
+          ))}
+        </div>
+        {/* Initial balance */}
+        <div className="flex items-center gap-2 ml-auto">
+          <span className="text-[11px] text-muted-foreground shrink-0">Solde initial :</span>
+          {editingInitBalance ? (
+            <Input
+              type="number"
+              value={initBalanceValue}
+              onChange={(e) => setInitBalanceValue(e.target.value)}
+              onBlur={() => {
+                const v = parseFloat(initBalanceValue) || 0;
+                const s = { ...localSettings, initialBalance: v };
+                setLocalSettings(s);
+                saveSettingsMutation.mutate(s);
+                setEditingInitBalance(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+                if (e.key === "Escape") setEditingInitBalance(false);
+              }}
+              className="h-7 w-32 text-[11px]"
+              autoFocus
+              data-testid="input-init-balance"
+            />
+          ) : (
+            <button
+              onClick={() => { setEditingInitBalance(true); setInitBalanceValue(String(localSettings.initialBalance)); }}
+              className="text-[11px] font-semibold text-foreground hover:text-primary transition-colors px-2 py-1 rounded border border-dashed border-border hover:border-primary"
+              data-testid="btn-edit-init-balance"
+            >
+              {fmt(localSettings.initialBalance)}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Plan table */}
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse" style={{ minWidth: 200 + COL_W * periods.length }}>
+            <thead>
+              <tr className="border-b bg-muted/30">
+                <th
+                  className="text-left py-2 px-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sticky left-0 bg-muted/30 z-10"
+                  style={{ minWidth: 200 }}
+                >
+                  Postes
+                </th>
+                {periods.map((p) => (
+                  <th
+                    key={p.key}
+                    className={cn(
+                      "text-right py-2 px-2 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap",
+                      p.isCurrent ? "text-primary bg-primary/5" : "text-muted-foreground"
+                    )}
+                    style={{ minWidth: COL_W }}
+                  >
+                    {p.label}
+                    {p.isCurrent && <span className="block text-[8px] font-normal text-primary/60 normal-case">en cours</span>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {RUBRIQUES.map((rubrique) => {
+                const lines = (planData?.lines ?? []).filter((l) => l.rubrique === rubrique.key);
+                const isExpanded = expandedRubriques.has(rubrique.key);
+                return (
+                  <>
+                    {/* Rubrique header row */}
+                    <tr
+                      key={`rub-${rubrique.key}`}
+                      className="border-t border-border/50 bg-muted/10 cursor-pointer hover:bg-muted/20 transition-colors"
+                      onClick={() =>
+                        setExpandedRubriques((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(rubrique.key)) next.delete(rubrique.key);
+                          else next.add(rubrique.key);
+                          return next;
+                        })
+                      }
+                    >
+                      <td className="py-2 px-3 sticky left-0 bg-inherit z-10">
+                        <div className="flex items-center gap-1.5">
+                          {isExpanded ? (
+                            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          ) : (
+                            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          )}
+                          <span className="text-[11px] font-semibold text-foreground">{rubrique.label}</span>
+                          <Badge variant="secondary" className="text-[9px] ml-1 px-1.5 h-4">{lines.length}</Badge>
+                        </div>
+                      </td>
+                      {periods.map((p) => {
+                        const total = getRubriqueTotal(rubrique.key, p.key);
+                        return (
+                          <td
+                            key={p.key}
+                            className={cn(
+                              "py-2 px-2 text-right tabular-nums text-[11px] font-semibold",
+                              p.isCurrent ? "bg-primary/5" : ""
+                            )}
+                          >
+                            {total !== 0 && (
+                              <span className={rubrique.type === "income" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                                {fmt(total)}
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+
+                    {/* Child lines */}
+                    {isExpanded && (
+                      <>
+                        {lines.map((line) => (
+                          <tr key={line.id} className="border-t border-border/20 group hover:bg-muted/5 transition-colors">
+                            <td className="py-1 px-3 sticky left-0 bg-card z-10 group-hover:bg-muted/5">
+                              <div className="flex items-center gap-1 pl-5">
+                                <span className="text-[11px] text-foreground flex-1 truncate">{line.label}</span>
+                                <button
+                                  onClick={() => deleteLineMutation.mutate(line.id)}
+                                  className="invisible group-hover:visible text-muted-foreground hover:text-destructive transition-colors"
+                                  data-testid={`btn-delete-plan-line-${line.id}`}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </td>
+                            {periods.map((p) => {
+                              const isEditing = editingCell?.lineId === line.id && editingCell?.periodKey === p.key;
+                              const value = getCellValue(line.id, p.key);
+                              return (
+                                <td key={p.key} className={cn("py-0.5 px-1", p.isCurrent ? "bg-primary/5" : "")}>
+                                  {isEditing ? (
+                                    <input
+                                      type="number"
+                                      value={editValue}
+                                      onChange={(e) => setEditValue(e.target.value)}
+                                      onBlur={() => handleCellSave(line.id, p.key)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") handleCellSave(line.id, p.key);
+                                        if (e.key === "Escape") setEditingCell(null);
+                                      }}
+                                      className="w-full text-right text-[11px] tabular-nums bg-primary/10 rounded px-1 py-1 outline-none border border-primary/30"
+                                      style={{ minWidth: 60 }}
+                                      autoFocus
+                                    />
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        setEditingCell({ lineId: line.id, periodKey: p.key });
+                                        setEditValue(value !== 0 ? String(value) : "");
+                                      }}
+                                      className="w-full text-right text-[11px] tabular-nums px-1 py-1 rounded hover:bg-muted/60 transition-colors block"
+                                      style={{ minWidth: COL_W - 8 }}
+                                      data-testid={`cell-plan-${line.id}-${p.key}`}
+                                    >
+                                      {value !== 0 ? (
+                                        <span>{fmt(value)}</span>
+                                      ) : (
+                                        <span className="text-border/50">—</span>
+                                      )}
+                                    </button>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+
+                        {/* Add line */}
+                        {addingToRubrique === rubrique.key ? (
+                          <tr className="border-t border-border/20 bg-muted/5">
+                            <td className="py-1.5 px-3 sticky left-0 bg-muted/5 z-10">
+                              <div className="flex items-center gap-1.5 pl-5">
+                                <Input
+                                  value={newLineLabel}
+                                  onChange={(e) => setNewLineLabel(e.target.value)}
+                                  placeholder="Libellé de la ligne..."
+                                  className="h-6 text-[11px] w-36"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && newLineLabel.trim()) {
+                                      createLineMutation.mutate({ rubrique: rubrique.key, label: newLineLabel.trim() });
+                                    }
+                                    if (e.key === "Escape") { setAddingToRubrique(null); setNewLineLabel(""); }
+                                  }}
+                                  data-testid="input-new-plan-line"
+                                />
+                                <Button
+                                  size="sm"
+                                  className="h-6 px-2 text-[10px]"
+                                  onClick={() => { if (newLineLabel.trim()) createLineMutation.mutate({ rubrique: rubrique.key, label: newLineLabel.trim() }); }}
+                                  disabled={!newLineLabel.trim()}
+                                >OK</Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-2 text-[10px]"
+                                  onClick={() => { setAddingToRubrique(null); setNewLineLabel(""); }}
+                                >Annuler</Button>
+                              </div>
+                            </td>
+                            {periods.map((p) => <td key={p.key} className={p.isCurrent ? "bg-primary/5" : ""} />)}
+                          </tr>
+                        ) : (
+                          <tr className="border-t border-border/10">
+                            <td className="py-1 px-3 sticky left-0 bg-card z-10">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setAddingToRubrique(rubrique.key); setNewLineLabel(""); }}
+                                className="flex items-center gap-1 pl-5 text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                                data-testid={`btn-add-plan-line-${rubrique.key}`}
+                              >
+                                <Plus className="h-3 w-3" /> Ajouter une ligne
+                              </button>
+                            </td>
+                            {periods.map((p) => <td key={p.key} className={p.isCurrent ? "bg-primary/5" : ""} />)}
+                          </tr>
+                        )}
+                      </>
+                    )}
+                  </>
+                );
+              })}
+
+              {/* ── Summary rows ── */}
+              <tr className="border-t-2 border-border">
+                <td className="py-2 px-3 sticky left-0 bg-card z-10">
+                  <div className="flex items-center gap-1.5">
+                    <TrendingUp className="h-3 w-3 text-green-500 shrink-0" />
+                    <span className="text-[11px] font-semibold text-foreground">Total Entrées</span>
+                  </div>
+                </td>
+                {periods.map((p) => {
+                  const t = getTotalEntrees(p.key);
+                  return (
+                    <td key={p.key} className={cn("py-2 px-2 text-right tabular-nums text-[11px] font-semibold", p.isCurrent ? "bg-primary/5" : "")}>
+                      <span className={t > 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}>{t !== 0 ? fmt(t) : "—"}</span>
+                    </td>
+                  );
+                })}
+              </tr>
+              <tr className="border-t border-border/50">
+                <td className="py-2 px-3 sticky left-0 bg-card z-10">
+                  <div className="flex items-center gap-1.5">
+                    <TrendingDown className="h-3 w-3 text-red-500 shrink-0" />
+                    <span className="text-[11px] font-semibold text-foreground">Total Sorties</span>
+                  </div>
+                </td>
+                {periods.map((p) => {
+                  const t = getTotalSorties(p.key);
+                  return (
+                    <td key={p.key} className={cn("py-2 px-2 text-right tabular-nums text-[11px] font-semibold", p.isCurrent ? "bg-primary/5" : "")}>
+                      <span className={t > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}>{t !== 0 ? fmt(t) : "—"}</span>
+                    </td>
+                  );
+                })}
+              </tr>
+              <tr className="border-t border-border/50 bg-muted/5">
+                <td className="py-2 px-3 sticky left-0 bg-muted/5 z-10">
+                  <span className="text-[11px] font-semibold text-foreground">Variation nette</span>
+                </td>
+                {periods.map((p) => {
+                  const v = balances[p.key]?.variation ?? 0;
+                  return (
+                    <td key={p.key} className={cn("py-2 px-2 text-right tabular-nums text-[11px] font-bold", p.isCurrent ? "bg-primary/5" : "")}>
+                      <span className={v > 0 ? "text-green-600 dark:text-green-400" : v < 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}>
+                        {v !== 0 ? `${v > 0 ? "+" : ""}${fmt(v)}` : "—"}
+                      </span>
+                    </td>
+                  );
+                })}
+              </tr>
+              <tr className="border-t-2 border-border bg-muted/10">
+                <td className="py-2.5 px-3 sticky left-0 bg-muted/10 z-10">
+                  <div className="flex items-center gap-1.5">
+                    <Wallet className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="text-[11px] font-bold text-foreground">Balance cumulée</span>
+                  </div>
+                </td>
+                {periods.map((p) => {
+                  const bal = balances[p.key]?.balance ?? localSettings.initialBalance;
+                  return (
+                    <td key={p.key} className={cn("py-2.5 px-2 text-right tabular-nums text-[11px] font-bold", p.isCurrent ? "bg-primary/5" : "")}>
+                      <span className={bal >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>{fmt(bal)}</span>
+                    </td>
+                  );
+                })}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function TreasuryPage() {
   const { toast } = useToast();
 
+  const [mainTab, setMainTab] = useState<"flux" | "plan">("flux");
   const [periodTab, setPeriodTab] = useState<"3m" | "6m" | "12m" | "all">("6m");
   const [chartMode, setChartMode] = useState<"real" | "projected">("projected");
   const [viewMode, setViewMode] = useState<"chart" | "synthesis">("chart");
@@ -790,28 +1290,52 @@ export default function TreasuryPage() {
         <div className="flex items-center gap-2">
           <Wallet className="h-4 w-4 text-primary" />
           <h1 className="text-sm font-semibold">Trésorerie</h1>
-          {kpis?.alertLevel === "critical" && (
+          {mainTab === "flux" && kpis?.alertLevel === "critical" && (
             <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 gap-1 text-[10px]">
               <AlertTriangle className="h-2.5 w-2.5" /> Trésorerie négative
             </Badge>
           )}
-          {kpis?.alertLevel === "warning" && (
+          {mainTab === "flux" && kpis?.alertLevel === "warning" && (
             <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 gap-1 text-[10px]">
               <AlertTriangle className="h-2.5 w-2.5" /> Seuil d'alerte
             </Badge>
           )}
         </div>
-        <Button
-          size="sm"
-          onClick={() => { setEditFlow(null); setPanelOpen(true); }}
-          data-testid="button-add-flow"
-          className="h-7 text-xs gap-1 px-3"
-        >
-          <Plus className="h-3 w-3" /> Ajouter un flux
-        </Button>
+        {mainTab === "flux" && (
+          <Button
+            size="sm"
+            onClick={() => { setEditFlow(null); setPanelOpen(true); }}
+            data-testid="button-add-flow"
+            className="h-7 text-xs gap-1 px-3"
+          >
+            <Plus className="h-3 w-3" /> Ajouter un flux
+          </Button>
+        )}
       </div>
 
-      {/* ── Body: main + side panel ── */}
+      {/* ── Tab bar ── */}
+      <div className="flex items-center px-5 border-b shrink-0 bg-background">
+        {(["flux", "plan"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setMainTab(tab)}
+            className={cn(
+              "px-3 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors",
+              mainTab === tab
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+            data-testid={`tab-treasury-${tab}`}
+          >
+            {tab === "flux" ? "Flux" : "Plan de trésorerie"}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Body: conditional on tab ── */}
+      {mainTab === "plan" ? (
+        <TreasuryPlanView projects={projects ?? []} />
+      ) : (
       <div className="flex flex-1 overflow-hidden">
         {/* ── Main content ── */}
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
@@ -1444,6 +1968,7 @@ export default function TreasuryPage() {
           activeScenarioId={selectedScenarioId}
         />
       </div>
+      )}
     </div>
   );
 }

@@ -2320,6 +2320,36 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Treasury scenarios + new columns added");
 
+    // ── TREASURY PLAN ──
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS treasury_plan_lines (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        rubrique TEXT NOT NULL,
+        label TEXT NOT NULL,
+        position INTEGER DEFAULT 0,
+        source_type TEXT DEFAULT 'manual',
+        source_id UUID,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS treasury_plan_lines_account_idx ON treasury_plan_lines(account_id);
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS treasury_plan_cells (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        line_id UUID NOT NULL REFERENCES treasury_plan_lines(id) ON DELETE CASCADE,
+        period_key TEXT NOT NULL,
+        amount NUMERIC DEFAULT 0,
+        CONSTRAINT treasury_plan_cells_unique UNIQUE(line_id, period_key)
+      );
+    `);
+    await db.execute(sql`
+      ALTER TABLE treasury_settings
+        ADD COLUMN IF NOT EXISTS plan_initial_balance NUMERIC DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS plan_granularity TEXT DEFAULT 'month';
+    `);
+    console.log("✅ Treasury plan tables created");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

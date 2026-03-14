@@ -13636,6 +13636,89 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  // ── TREASURY PLAN ──────────────────────────────────────────────────────────
+
+  app.get("/api/treasury/plan", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const linesResult = await db.execute(sql`
+        SELECT id, rubrique, label, position, source_type, source_id
+        FROM treasury_plan_lines
+        WHERE account_id = ${accountId}
+        ORDER BY rubrique, position, created_at
+      `);
+      const cellsResult = await db.execute(sql`
+        SELECT c.id, c.line_id, c.period_key, c.amount
+        FROM treasury_plan_cells c
+        JOIN treasury_plan_lines l ON l.id = c.line_id
+        WHERE l.account_id = ${accountId}
+      `);
+      const settingsResult = await db.execute(sql`
+        SELECT plan_initial_balance, plan_granularity
+        FROM treasury_settings
+        WHERE account_id = ${accountId}
+        LIMIT 1
+      `);
+      const s = settingsResult.rows[0] as any;
+      res.json({
+        lines: linesResult.rows,
+        cells: cellsResult.rows,
+        settings: {
+          initialBalance: s ? Number(s.plan_initial_balance ?? 0) : 0,
+          granularity: s?.plan_granularity ?? "month",
+        },
+      });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/treasury/plan/lines", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { rubrique, label, position = 0, source_type = "manual", source_id = null } = req.body;
+      const result = await db.execute(sql`
+        INSERT INTO treasury_plan_lines (account_id, rubrique, label, position, source_type, source_id)
+        VALUES (${accountId}, ${rubrique}, ${label}, ${position}, ${source_type}, ${source_id})
+        RETURNING *
+      `);
+      res.json(result.rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.delete("/api/treasury/plan/lines/:id", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      await db.execute(sql`
+        DELETE FROM treasury_plan_lines WHERE id = ${req.params.id} AND account_id = ${req.accountId!}
+      `);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.put("/api/treasury/plan/cells", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { cells } = req.body as { cells: Array<{ lineId: string; periodKey: string; amount: number }> };
+      for (const cell of cells) {
+        await db.execute(sql`
+          INSERT INTO treasury_plan_cells (line_id, period_key, amount)
+          VALUES (${cell.lineId}, ${cell.periodKey}, ${cell.amount})
+          ON CONFLICT ON CONSTRAINT treasury_plan_cells_unique DO UPDATE SET amount = ${cell.amount}
+        `);
+      }
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.put("/api/treasury/plan/settings", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { initialBalance, granularity } = req.body;
+      await db.execute(sql`
+        UPDATE treasury_settings
+        SET plan_initial_balance = ${initialBalance}, plan_granularity = ${granularity}
+        WHERE account_id = ${req.accountId!}
+      `);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // ============================================
   // SEED DATA (Development only)
   // ============================================

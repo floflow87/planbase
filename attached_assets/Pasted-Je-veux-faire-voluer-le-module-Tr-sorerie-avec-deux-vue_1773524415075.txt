@@ -1,0 +1,157 @@
+Je veux faire évoluer le module Trésorerie avec deux vues distinctes.
+
+Onglet 1 : Flux
+Onglet 2 : Plan de trésorerie
+
+La vue Flux reste celle existante.
+
+La vue Plan est une nouvelle vue permettant de construire un plan de trésorerie structuré.
+
+OBJECTIF :
+permettre de construire un prévisionnel de trésorerie avec des colonnes temporelles et des lignes représentant les postes de trésorerie.
+
+STRUCTURE DU PLAN
+
+Les colonnes représentent la temporalité :
+
+- semaine
+- mois
+
+L'utilisateur peut choisir la granularité.
+
+Les lignes représentent les postes.
+
+Le tableau doit contenir :
+
+Entrées
+Sorties
+Totaux
+Variation
+Balance
+
+GRANDES RUBRIQUES
+
+Les lignes doivent être organisées par grandes rubriques avec expansion panel :
+
+Entrées clients
+Entrées exceptionnelles
+Sorties ressources
+Sorties outils
+Sorties charges
+
+Chaque rubrique doit :
+
+- afficher un total
+- être expandable
+- contenir des lignes enfants
+- afficher les lignes avec indentation
+
+Exemple :
+
+Entrées clients (8000€)
+    Hermès (5000€)
+    Cassius (3000€)
+
+Les totaux doivent être recalculés automatiquement.
+
+AJOUT DE LIGNES
+
+L'utilisateur peut ajouter une ligne de deux façons :
+
+1) Ligne from scratch
+
+L'utilisateur crée une ligne vide :
+
+- type (entrée / sortie)
+- libellé
+- catégorie
+- projet optionnel
+
+Les montants sont ensuite saisis directement dans les cellules du tableau.
+
+Edition inline.
+
+2) Ligne liée à une donnée existante
+
+L'utilisateur peut créer une ligne basée sur :
+
+- un paiement client existant
+- un projet
+- une ressource
+- un échéancier
+
+Cela pré-remplit la ligne.
+
+Les montants peuvent ensuite être ajustés.
+
+EDITION INLINE
+
+Toutes les cellules doivent être éditables directement :
+
+- clic dans la cellule
+- modification du montant
+- recalcul automatique des totaux
+
+CALCULS AUTOMATIQUES
+
+Le système doit calculer automatiquement :
+
+Total entrées
+Total sorties
+Variation nette
+
+Variation = Entrées - Sorties
+
+La balance cumulée doit être calculée :
+
+balance N = balance N-1 + variation N
+
+La première balance dépend d'un solde initial.
+
+SOLDE INITIAL
+
+Un champ doit permettre de définir :
+
+Solde initial de trésorerie.
+
+Exemple :
+
+Solde initial : 12 000€
+
+UX
+
+En haut du module Trésorerie :
+
+onglets :
+
+Flux
+Plan de trésorerie
+
+Dans la vue Plan :
+
+sélecteur granularité :
+
+Semaine
+Mois
+
+Boutons :
+
++ Ajouter ligne
++ Ajouter ligne depuis projet
+
+CONTRAINTES
+
+Ne pas casser le module existant.
+Créer une nouvelle vue indépendante.
+Le tableau doit rester lisible et orienté SaaS.
+Les rubriques doivent être clairement indentées.
+Les totaux doivent être recalculés automatiquement.
+
+OBJECTIF FINAL
+
+Permettre de construire facilement un plan de trésorerie prévisionnel avec :
+
+- structure claire
+- édition rapide inline
+- balance automatique
+- possibilité d'utiliser des données existantes des projets
