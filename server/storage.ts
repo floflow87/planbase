@@ -336,6 +336,8 @@ export interface IStorage {
   getEmailsByClientId(accountId: string, clientId: string): Promise<CrmEmailMessage[]>;
   getEmailMessageCount(accountId: string, userId: string): Promise<number>;
   getEmailMessages(accountId: string, userId: string, limit?: number, offset?: number, direction?: string, search?: string): Promise<typeof crmEmailMessages.$inferSelect[]>;
+  markEmailsRead(accountId: string, ids: string[], isRead: boolean): Promise<void>;
+  deleteEmailMessages(accountId: string, ids: string[]): Promise<void>;
   setGmailEnabled(accountId: string, userId: string, enabled: boolean, explicitDisconnect?: boolean): Promise<void>;
   setGmailSyncTimestamp(accountId: string, userId: string): Promise<void>;
   getGmailLastHistoryId(accountId: string, userId: string): Promise<string | null>;
@@ -2033,6 +2035,19 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(crmEmailMessages.sentAt))
       .limit(limit)
       .offset(offset);
+  }
+
+  async markEmailsRead(accountId: string, ids: string[], isRead: boolean): Promise<void> {
+    if (ids.length === 0) return;
+    await db.update(crmEmailMessages)
+      .set({ isRead: isRead ? 1 : 0 })
+      .where(and(eq(crmEmailMessages.accountId, accountId), inArray(crmEmailMessages.id, ids)));
+  }
+
+  async deleteEmailMessages(accountId: string, ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    await db.delete(crmEmailMessages)
+      .where(and(eq(crmEmailMessages.accountId, accountId), inArray(crmEmailMessages.id, ids)));
   }
 
   async setGmailEnabled(accountId: string, userId: string, enabled: boolean, explicitDisconnect?: boolean): Promise<void> {

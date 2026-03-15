@@ -7853,6 +7853,32 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  app.patch("/api/gmail/messages/read", requireAuth, async (req, res) => {
+    try {
+      const { ids, isRead } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "ids must be a non-empty array" });
+      }
+      await storage.markEmailsRead(req.accountId!, ids, !!isRead);
+      res.json({ updated: ids.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/gmail/messages", requireAuth, async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "ids must be a non-empty array" });
+      }
+      await storage.deleteEmailMessages(req.accountId!, ids);
+      res.json({ deleted: ids.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.patch("/api/gmail/sync-period", requireAuth, async (req, res) => {
     try {
       const { months } = req.body;
