@@ -695,30 +695,6 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
   const [fillDrag, setFillDrag] = useState<{ lineId: string; startIdx: number; value: number } | null>(null);
   const [fillEndIdx, setFillEndIdx] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (!fillDrag) return;
-    const onMouseUp = () => {
-      if (fillDrag && fillEndIdx !== null && fillEndIdx > fillDrag.startIdx) {
-        const cells: Array<{ lineId: string; periodKey: string; amount: number }> = [];
-        const ps = periods;
-        for (let i = fillDrag.startIdx + 1; i <= fillEndIdx; i++) {
-          if (ps[i]) {
-            cells.push({ lineId: fillDrag.lineId, periodKey: ps[i].key, amount: fillDrag.value });
-            setLocalCells((lc) => ({
-              ...lc,
-              [fillDrag.lineId]: { ...(lc[fillDrag.lineId] ?? {}), [ps[i].key]: fillDrag.value },
-            }));
-          }
-        }
-        if (cells.length > 0) saveCellMutation.mutate(cells);
-      }
-      setFillDrag(null);
-      setFillEndIdx(null);
-    };
-    window.addEventListener("mouseup", onMouseUp);
-    return () => window.removeEventListener("mouseup", onMouseUp);
-  }, [fillDrag, fillEndIdx, periods]);
-
   const { data: planData, isLoading } = useQuery<PlanData>({
     queryKey: ["/api/treasury/plan"],
     refetchOnMount: true,
@@ -831,6 +807,30 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
     }
     return result;
   }, [localSettings.granularity]);
+
+  useEffect(() => {
+    if (!fillDrag) return;
+    const onMouseUp = () => {
+      if (fillDrag && fillEndIdx !== null && fillEndIdx > fillDrag.startIdx) {
+        const cells: Array<{ lineId: string; periodKey: string; amount: number }> = [];
+        const ps = periods;
+        for (let i = fillDrag.startIdx + 1; i <= fillEndIdx; i++) {
+          if (ps[i]) {
+            cells.push({ lineId: fillDrag.lineId, periodKey: ps[i].key, amount: fillDrag.value });
+            setLocalCells((lc) => ({
+              ...lc,
+              [fillDrag.lineId]: { ...(lc[fillDrag.lineId] ?? {}), [ps[i].key]: fillDrag.value },
+            }));
+          }
+        }
+        if (cells.length > 0) saveCellMutation.mutate(cells);
+      }
+      setFillDrag(null);
+      setFillEndIdx(null);
+    };
+    window.addEventListener("mouseup", onMouseUp);
+    return () => window.removeEventListener("mouseup", onMouseUp);
+  }, [fillDrag, fillEndIdx, periods]);
 
   const getCellValue = (lineId: string, periodKey: string): number =>
     localCells[lineId]?.[periodKey] ?? 0;
