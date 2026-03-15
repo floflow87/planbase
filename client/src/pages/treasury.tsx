@@ -61,6 +61,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format, parse } from "date-fns";
+import { fr } from "date-fns/locale";
+import { Calendar as CalendarIcon } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -545,7 +550,22 @@ function TxPanel({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Date</Label>
-            <Input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} className="h-8 text-xs mt-0.5" data-testid="input-tx-date" />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="h-8 text-xs mt-0.5 w-full justify-start font-normal" data-testid="input-tx-date" type="button">
+                  <CalendarIcon className="mr-1.5 h-3 w-3" />
+                  {form.date ? format(parse(form.date, "yyyy-MM-dd", new Date()), "d MMM yyyy", { locale: fr }) : <span className="text-muted-foreground">Date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={form.date ? parse(form.date, "yyyy-MM-dd", new Date()) : undefined}
+                  onSelect={(date) => setForm((f) => ({ ...f, date: date ? format(date, "yyyy-MM-dd") : "" }))}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <div>
             <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Montant (€)</Label>
@@ -605,7 +625,22 @@ function TxPanel({
             {isRecurring && (
               <div className="mt-2">
                 <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Date de fin</Label>
-                <Input type="date" value={form.recurrenceEnd} onChange={(e) => setForm((f) => ({ ...f, recurrenceEnd: e.target.value }))} className="h-8 text-xs mt-0.5" data-testid="input-tx-recurrence-end" />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="h-8 text-xs mt-0.5 w-full justify-start font-normal" data-testid="input-tx-recurrence-end" type="button">
+                      <CalendarIcon className="mr-1.5 h-3 w-3" />
+                      {form.recurrenceEnd ? format(parse(form.recurrenceEnd, "yyyy-MM-dd", new Date()), "d MMM yyyy", { locale: fr }) : <span className="text-muted-foreground">Date de fin</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={form.recurrenceEnd ? parse(form.recurrenceEnd, "yyyy-MM-dd", new Date()) : undefined}
+                      onSelect={(date) => setForm((f) => ({ ...f, recurrenceEnd: date ? format(date, "yyyy-MM-dd") : "" }))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
                 {form.recurrenceEnd && (
                   <p className="text-[10px] text-muted-foreground mt-1">
                     {expandRecurrenceDates(form.date, form.recurrence, form.recurrenceEnd).length} occurrence(s)

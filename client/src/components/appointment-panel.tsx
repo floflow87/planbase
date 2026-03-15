@@ -11,8 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Loader2, ChevronsUpDown, Check, X, Trash2, Edit, Eye, RefreshCw } from "lucide-react";
+import { Loader2, ChevronsUpDown, Check, X, Trash2, Edit, Eye, RefreshCw, Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
+import { format, parse } from "date-fns";
+import { fr } from "date-fns/locale";
 import type { Client, AppointmentType } from "@shared/schema";
 import { appointmentTypes } from "@shared/schema";
 
@@ -565,14 +568,22 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
                 <Label htmlFor="recurrenceEndDate" className="text-xs text-muted-foreground">
                   Date de fin de récurrence (optionnel)
                 </Label>
-                <Input
-                  id="recurrenceEndDate"
-                  type="date"
-                  value={recurrenceEndDate}
-                  onChange={(e) => setRecurrenceEndDate(e.target.value)}
-                  disabled={isViewMode}
-                  data-testid="input-recurrence-end"
-                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start font-normal" data-testid="input-recurrence-end" type="button" disabled={isViewMode}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {recurrenceEndDate ? format(parse(recurrenceEndDate, "yyyy-MM-dd", new Date()), "d MMM yyyy", { locale: fr }) : <span className="text-muted-foreground">Choisir une date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={recurrenceEndDate ? parse(recurrenceEndDate, "yyyy-MM-dd", new Date()) : undefined}
+                      onSelect={(date) => setRecurrenceEndDate(date ? format(date, "yyyy-MM-dd") : "")}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             )}
           </div>

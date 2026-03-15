@@ -1,6 +1,10 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { Plus, Map, LayoutGrid, Calendar, Search, Filter, X, AlertTriangle, CheckCircle2, Flag } from "lucide-react";
+import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Search, Filter, X, AlertTriangle, CheckCircle2, Flag } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format, parse } from "date-fns";
+import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -583,7 +587,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
                   className="h-7 px-3"
                   data-testid="button-view-gantt"
                 >
-                  <Calendar className="h-4 w-4 mr-1" />
+                  <CalendarIcon className="h-4 w-4 mr-1" />
                   Gantt
                 </Button>
                 <Button
@@ -697,7 +701,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
           </div>
         ) : roadmapItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg">
-            <Calendar className="h-10 w-10 text-muted-foreground mb-3" />
+            <CalendarIcon className="h-10 w-10 text-muted-foreground mb-3" />
             <p className="text-sm text-muted-foreground mb-4">
               Cette roadmap est vide. Ajoutez des éléments pour commencer.
             </p>
@@ -1012,37 +1016,67 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
 
             {itemForm.type === "milestone" ? (
               <div className="space-y-2">
-                <Label htmlFor="item-target-date">Date cible</Label>
-                <Input
-                  id="item-target-date"
-                  type="date"
-                  value={itemForm.endDate}
-                  onChange={(e) => setItemForm(prev => ({ ...prev, endDate: e.target.value, startDate: e.target.value }))}
-                  data-testid="input-item-target-date"
-                />
+                <Label>Date cible</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start font-normal" data-testid="input-item-target-date" type="button">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {itemForm.endDate ? format(parse(itemForm.endDate, "yyyy-MM-dd", new Date()), "d MMM yyyy", { locale: fr }) : <span className="text-muted-foreground">Choisir une date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={itemForm.endDate ? parse(itemForm.endDate, "yyyy-MM-dd", new Date()) : undefined}
+                      onSelect={(date) => {
+                        const val = date ? format(date, "yyyy-MM-dd") : "";
+                        setItemForm(prev => ({ ...prev, endDate: val, startDate: val }));
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="item-start-date">Date de début</Label>
-                  <Input
-                    id="item-start-date"
-                    type="date"
-                    value={itemForm.startDate}
-                    onChange={(e) => setItemForm(prev => ({ ...prev, startDate: e.target.value }))}
-                    data-testid="input-item-start-date"
-                  />
+                  <Label>Date de début</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start font-normal" data-testid="input-item-start-date" type="button">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {itemForm.startDate ? format(parse(itemForm.startDate, "yyyy-MM-dd", new Date()), "d MMM yyyy", { locale: fr }) : <span className="text-muted-foreground">Début</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={itemForm.startDate ? parse(itemForm.startDate, "yyyy-MM-dd", new Date()) : undefined}
+                        onSelect={(date) => setItemForm(prev => ({ ...prev, startDate: date ? format(date, "yyyy-MM-dd") : "" }))}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="item-end-date">Date de fin</Label>
-                  <Input
-                    id="item-end-date"
-                    type="date"
-                    value={itemForm.endDate}
-                    onChange={(e) => setItemForm(prev => ({ ...prev, endDate: e.target.value }))}
-                    data-testid="input-item-end-date"
-                  />
+                  <Label>Date de fin</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start font-normal" data-testid="input-item-end-date" type="button">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {itemForm.endDate ? format(parse(itemForm.endDate, "yyyy-MM-dd", new Date()), "d MMM yyyy", { locale: fr }) : <span className="text-muted-foreground">Fin</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={itemForm.endDate ? parse(itemForm.endDate, "yyyy-MM-dd", new Date()) : undefined}
+                        onSelect={(date) => setItemForm(prev => ({ ...prev, endDate: date ? format(date, "yyyy-MM-dd") : "" }))}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             )}

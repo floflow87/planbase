@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Client, Contact, Project, AppUser, ClientComment, Activity, Task, InsertClient, ClientCustomTab, InsertClientCustomTab, ClientCustomField, InsertClientCustomField, ClientCustomFieldValue, InsertClientCustomFieldValue, Document, DocumentLink } from "@shared/schema";
 import { insertClientSchema } from "@shared/schema";
@@ -2219,12 +2219,22 @@ export default function ClientDetail() {
                   );
                 case 'date':
                   return (
-                    <Input
-                      type="date"
-                      value={(value as string) || ""}
-                      onChange={(e) => handleFieldChange(e.target.value)}
-                      data-testid={`input-field-${field.id}`}
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start font-normal" data-testid={`input-field-${field.id}`} type="button">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {value ? format(parse(value as string, "yyyy-MM-dd", new Date()), "d MMM yyyy", { locale: fr }) : <span className="text-muted-foreground">Choisir une date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={value ? parse(value as string, "yyyy-MM-dd", new Date()) : undefined}
+                          onSelect={(date) => handleFieldChange(date ? format(date, "yyyy-MM-dd") : "")}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   );
                 case 'number':
                   return (
