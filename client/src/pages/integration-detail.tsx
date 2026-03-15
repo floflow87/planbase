@@ -3,6 +3,7 @@ import { Link, useRoute } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -34,6 +35,7 @@ interface GmailStatus {
   messageCount?: number;
   canSend?: boolean;
   hasFullRead?: boolean;
+  syncPeriodMonths?: number;
 }
 
 interface IntegrationInfo {
@@ -253,6 +255,20 @@ export default function IntegrationDetailPage() {
     },
   });
 
+  const syncPeriodMutation = useMutation({
+    mutationFn: async (months: number) => {
+      const response = await apiRequest("/api/gmail/sync-period", "PATCH", { months });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/gmail/status"] });
+      toast({ title: "Période de synchronisation mise à jour", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur", description: "Impossible de mettre à jour la période.", variant: "destructive" });
+    },
+  });
+
   const handleConnectGoogle = async () => {
     try {
       const endpoint = isGmail ? "/api/gmail/auth/start" : "/api/google/auth/start";
@@ -376,6 +392,25 @@ export default function IntegrationDetailPage() {
                         <div className="flex items-center justify-between">
                           <span className="text-muted-foreground">Emails synchronisés</span>
                           <span className="font-medium">{gmailStatus.messageCount}</span>
+                        </div>
+                      )}
+                      {isGmail && gmailStatus?.connected && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Période de synchronisation</span>
+                          <Select
+                            value={String(gmailStatus?.syncPeriodMonths ?? 3)}
+                            onValueChange={(val) => syncPeriodMutation.mutate(Number(val))}
+                            disabled={syncPeriodMutation.isPending}
+                          >
+                            <SelectTrigger className="h-7 text-xs w-32" data-testid="select-gmail-sync-period">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="3" className="text-xs">3 mois</SelectItem>
+                              <SelectItem value="6" className="text-xs">6 mois</SelectItem>
+                              <SelectItem value="12" className="text-xs">1 an</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       )}
                     </div>

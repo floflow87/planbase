@@ -1,0 +1,222 @@
+La V1 Gmail -> CRM fonctionne désormais : les emails sont bien synchronisés et affichés dans le feed historique des fiches CRM.
+
+Je veux maintenant construire la V2 :
+une vraie interface de boîte mail intégrée dans PlanBase, inspirée de Gmail, tout en restant reliée au CRM.
+
+IMPORTANT :
+- ne pas casser la synchronisation existante Gmail -> CRM
+- réutiliser les données et structures déjà mises en place
+- ne pas repartir de zéro
+- faire une V2 modulaire, évolutive et cohérente avec l’app
+- garder une UX propre, moderne, proche de Gmail mais adaptée à PlanBase
+
+## Objectif produit
+
+Créer un module “Boîte mail” dans PlanBase permettant :
+- de consulter les emails Gmail synchronisés
+- de naviguer dans les conversations / threads
+- de lire un email
+- de répondre à un thread
+- de composer un nouveau message
+- d’envoyer des emails via Gmail
+- de voir le contexte CRM lié au thread
+- de continuer à alimenter automatiquement le feed historique des fiches CRM
+
+## Direction UX
+
+Je veux une interface inspirée de Gmail avec une logique en plusieurs zones :
+
+### 1. Colonne gauche : navigation
+Ajouter une navigation de boîte mail avec au minimum :
+- Boîte de réception
+- Envoyés
+- Brouillons
+- Archives
+- Corbeille
+- Tous les messages
+
+Optionnel si simple :
+- Non lus
+- Liés au CRM
+- Non rattachés
+
+### 2. Colonne centrale : liste des conversations
+Afficher la liste des threads / conversations Gmail.
+
+Chaque ligne doit afficher au minimum :
+- expéditeur principal
+- sujet
+- snippet
+- date / heure
+- lu / non lu
+- présence de pièce jointe si disponible
+- badge reçu / envoyé si utile
+- badge CRM si le thread est lié à un contact ou client
+
+IMPORTANT :
+on doit afficher en priorité une logique de thread / conversation, pas seulement une liste brute de messages.
+
+### 3. Zone principale : lecture du thread
+Quand un thread est sélectionné, afficher :
+- le sujet
+- tous les messages du thread
+- l’ordre chronologique
+- l’expéditeur / destinataires
+- la date / heure
+- le corps du mail
+- les pièces jointes si disponibles
+- actions :
+  - répondre
+  - transférer plus tard si simple
+  - ouvrir dans Gmail
+
+### 4. Panneau contextuel CRM
+Quand un thread est ouvert, afficher un panneau latéral ou un bloc contextuel avec :
+- contact CRM lié
+- client / société liée
+- email principal
+- accès à la fiche CRM
+- éventuellement dernières notes ou résumé
+- actions rapides :
+  - ouvrir la fiche contact
+  - ouvrir la fiche client
+  - créer une note
+  - créer une tâche
+  - rattacher / détacher le thread au CRM
+
+## Fonctionnalités attendues
+
+### A. Nouvelle page Boîte mail
+Créer un nouveau module dans la navigation principale de PlanBase :
+- Boîte mail
+
+### B. Gestion des threads
+La mailbox doit s’appuyer sur les threads Gmail existants.
+Je veux pouvoir :
+- voir la liste des threads
+- ouvrir un thread
+- voir tous les messages du thread
+- distinguer les messages reçus et envoyés
+
+### C. Lecture d’email
+Afficher proprement :
+- from
+- to
+- cc si disponible
+- sujet
+- date
+- body text / html
+- snippet
+- pièces jointes plus tard si nécessaire
+
+### D. Réponse
+Permettre de répondre à un email / thread directement depuis PlanBase.
+La réponse doit être envoyée via Gmail et rester dans le bon thread Gmail.
+
+### E. Nouveau message
+Créer une interface de composition de mail plus aboutie que la V1 actuelle.
+
+Champs minimum :
+- destinataire
+- objet
+- contenu
+- envoi
+
+Optionnel si simple :
+- cc
+- bcc
+
+### F. Envoi via Gmail
+Tous les envois doivent se faire via Gmail connecté.
+
+Après envoi :
+- le message doit apparaître dans la mailbox
+- le thread doit être mis à jour
+- le feed CRM du bon contact / client doit être mis à jour
+
+### G. Recherche et filtres
+Ajouter au minimum :
+- recherche par sujet / expéditeur / email
+- filtre reçus / envoyés
+- filtre non lus
+- filtre liés au CRM / non liés
+- filtre par client si simple
+
+## Intégration CRM
+
+Le lien avec le CRM doit être central.
+
+Si un thread ou un email correspond à un contact CRM :
+- afficher le badge CRM dans la mailbox
+- afficher le contact / client lié dans le panneau contextuel
+- permettre d’ouvrir la fiche CRM
+- continuer à injecter les emails dans le flux historique
+
+Si un email n’est pas rattaché :
+- afficher “Non rattaché”
+- proposer une action :
+  - associer à un contact existant
+  - créer un contact plus tard si simple
+
+## Architecture recommandée
+
+Réutiliser les tables / types déjà créés pour la synchronisation Gmail -> CRM.
+
+Ajouter si besoin une couche thread / mailbox avec :
+- liste des threads
+- métadonnées de thread
+- statut lu / non lu
+- dossier / catégorie Gmail si utile
+- données de pagination et recherche
+
+Important :
+- éviter de dupliquer inutilement les emails déjà stockés
+- faire reposer la mailbox sur le socle de sync existant
+- séparer clairement :
+  - modèle de données email
+  - logique de sync
+  - logique de thread
+  - UI mailbox
+  - logique CRM
+
+## V2 scope prioritaire
+
+Je veux prioriser :
+1. page boîte mail
+2. liste des threads
+3. lecture d’un thread
+4. composition / réponse
+5. envoi via Gmail
+6. affichage du contexte CRM lié
+7. mise à jour automatique du feed CRM
+
+## Hors scope pour cette étape
+Ne pas prioriser tout de suite :
+- multi-comptes Gmail
+- règles automatiques complexes
+- labels Gmail avancés
+- templates d’email avancés
+- signatures complexes
+- offline
+- IA mail
+- gestion complète des brouillons Gmail si trop lourd
+
+## UX / style attendu
+Je veux une interface :
+- inspirée de Gmail
+- propre
+- moderne
+- dense mais lisible
+- cohérente avec PlanBase
+- pensée desktop en priorité
+- avec une vraie sensation de produit premium SaaS
+
+## Livrable attendu
+Avant de coder :
+1. analyser l’architecture actuelle Gmail / CRM
+2. proposer la structure de la mailbox V2
+3. proposer le modèle thread / conversation
+4. identifier ce qui peut être réutilisé de la V1
+5. proposer le plan d’implémentation
+
+Puis implémente la V2.

@@ -2412,6 +2412,12 @@ export async function runStartupMigrations() {
 
     console.log("✅ Gmail history IDs preserved");
 
+    await db.execute(sql`
+      ALTER TABLE google_calendar_tokens
+      ADD COLUMN IF NOT EXISTS gmail_sync_period_months INTEGER NOT NULL DEFAULT 3;
+    `);
+    console.log("✅ Gmail sync period column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

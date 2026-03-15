@@ -1248,6 +1248,7 @@ export const googleCalendarTokens = pgTable("google_calendar_tokens", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   scope: text("scope").notNull(),
   gmailEnabled: integer("gmail_enabled").notNull().default(0),
+  gmailSyncPeriodMonths: integer("gmail_sync_period_months").notNull().default(3),
   gmailLastHistoryId: text("gmail_last_history_id"),
   gmailLastSyncAt: timestamp("gmail_last_sync_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

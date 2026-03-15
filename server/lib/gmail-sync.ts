@@ -301,8 +301,16 @@ export function parseMessage(msg: Record<string, unknown>, userEmail: string): G
   };
 }
 
-async function fetchMessageIds(gmail: gmail_v1.Gmail, limit = 200): Promise<string[]> {
+async function fetchMessageIds(gmail: gmail_v1.Gmail, limit = 200, afterDate?: Date): Promise<string[]> {
   const allMessageIds = new Set<string>();
+
+  let afterQuery: string | undefined;
+  if (afterDate) {
+    const y = afterDate.getFullYear();
+    const m = String(afterDate.getMonth() + 1).padStart(2, "0");
+    const d = String(afterDate.getDate()).padStart(2, "0");
+    afterQuery = `after:${y}/${m}/${d}`;
+  }
 
   for (const label of ["INBOX", "SENT"]) {
     let pageToken: string | undefined;
@@ -313,6 +321,7 @@ async function fetchMessageIds(gmail: gmail_v1.Gmail, limit = 200): Promise<stri
         maxResults: 100,
         labelIds: [label],
         pageToken,
+        ...(afterQuery ? { q: afterQuery } : {}),
       });
 
       const messages = listRes.data.messages || [];
@@ -403,6 +412,10 @@ export async function syncGmail(accountId: string, userId: string, forceFullSync
   const token = await storage.getGoogleTokenByUserId(accountId, userId);
   if (!token) throw new Error("No Google token found");
 
+  const syncPeriodMonths = token.gmailSyncPeriodMonths ?? 3;
+  const afterDate = new Date();
+  afterDate.setMonth(afterDate.getMonth() - syncPeriodMonths);
+
   let allMessageIds: string[];
   let useIncremental = false;
   const lastHistoryId = forceFullSync ? null : await storage.getGmailLastHistoryId(accountId, userId);
@@ -417,11 +430,11 @@ export async function syncGmail(accountId: string, userId: string, forceFullSync
       console.log(`📧 Gmail sync: incremental found ${allMessageIds.length} new messages`);
     } else {
       console.log(`📧 Gmail sync: incremental failed (history expired), falling back to full sync`);
-      allMessageIds = await fetchMessageIds(gmail);
+      allMessageIds = await fetchMessageIds(gmail, 200, afterDate);
     }
   } else {
-    console.log(`📧 Gmail sync: no history ID or forced, performing full sync`);
-    allMessageIds = await fetchMessageIds(gmail);
+    console.log(`📧 Gmail sync: no history ID or forced, performing full sync (last ${syncPeriodMonths} months)`);
+    allMessageIds = await fetchMessageIds(gmail, 200, afterDate);
   }
 
   console.log(`📧 Gmail sync: ${allMessageIds.length} messages to process`);

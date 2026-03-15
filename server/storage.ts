@@ -339,6 +339,8 @@ export interface IStorage {
   setGmailSyncTimestamp(accountId: string, userId: string): Promise<void>;
   getGmailLastHistoryId(accountId: string, userId: string): Promise<string | null>;
   setGmailLastHistoryId(accountId: string, userId: string, historyId: string): Promise<void>;
+  getGmailSyncPeriodMonths(accountId: string, userId: string): Promise<number>;
+  setGmailSyncPeriodMonths(accountId: string, userId: string, months: number): Promise<void>;
 
   // Time Entries
   getTimeEntry(accountId: string, id: string): Promise<TimeEntry | undefined>;
@@ -2026,6 +2028,17 @@ export class DatabaseStorage implements IStorage {
   async setGmailLastHistoryId(accountId: string, userId: string, historyId: string): Promise<void> {
     await db.update(googleCalendarTokens)
       .set({ gmailLastHistoryId: historyId, updatedAt: new Date() })
+      .where(and(eq(googleCalendarTokens.accountId, accountId), eq(googleCalendarTokens.userId, userId)));
+  }
+
+  async getGmailSyncPeriodMonths(accountId: string, userId: string): Promise<number> {
+    const token = await this.getGoogleTokenByUserId(accountId, userId);
+    return token?.gmailSyncPeriodMonths ?? 3;
+  }
+
+  async setGmailSyncPeriodMonths(accountId: string, userId: string, months: number): Promise<void> {
+    await db.update(googleCalendarTokens)
+      .set({ gmailSyncPeriodMonths: months, updatedAt: new Date() })
       .where(and(eq(googleCalendarTokens.accountId, accountId), eq(googleCalendarTokens.userId, userId)));
   }
 

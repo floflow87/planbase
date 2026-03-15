@@ -7824,6 +7824,8 @@ app.get("/config/feature-flags", async (_req, res) => {
       const canSend = gmailEnabled && (!token?.scope || token.scope.includes("gmail.send") || token.scope.includes("https://mail.google.com"));
       const hasFullRead = !!(token?.scope && (token.scope.includes("gmail.readonly") || token.scope.includes("https://mail.google.com")));
 
+      const syncPeriodMonths = token?.gmailSyncPeriodMonths ?? 3;
+
       res.json({
         connected: gmailEnabled,
         email: gmailEnabled ? token?.email : null,
@@ -7831,7 +7833,21 @@ app.get("/config/feature-flags", async (_req, res) => {
         messageCount,
         canSend,
         hasFullRead,
+        syncPeriodMonths,
       });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/gmail/sync-period", requireAuth, async (req, res) => {
+    try {
+      const { months } = req.body;
+      if (![3, 6, 12].includes(months)) {
+        return res.status(400).json({ error: "Invalid sync period. Allowed: 3, 6, 12 months." });
+      }
+      await storage.setGmailSyncPeriodMonths(req.accountId!, req.userId!, months);
+      res.json({ syncPeriodMonths: months });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
