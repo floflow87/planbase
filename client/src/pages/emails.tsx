@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -22,10 +22,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Search, RefreshCw, Mail, Paperclip, ArrowLeft, ArrowRight,
   Reply, Forward, ExternalLink, Plus, Trash2, RotateCcw,
   MailOpen, MailCheck, X, PanelRightClose, Settings, Send,
-  ChevronLeft,
+  ChevronLeft, MoreHorizontal, UserPlus,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -58,9 +65,9 @@ interface GmailStatus {
   canSend?: boolean;
 }
 
-interface Client {
+interface CrmContact {
   id: string;
-  name: string;
+  fullName: string;
   email: string | null;
 }
 
@@ -148,11 +155,16 @@ export default function Emails() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [permanentDeleteConfirmOpen, setPermanentDeleteConfirmOpen] = useState(false);
+  const [singleDeleteOpen, setSingleDeleteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pendingSelectFirst, setPendingSelectFirst] = useState(false);
   const [localReadIds, setLocalReadIds] = useState<Set<string>>(new Set());
   const [signature, setSignature] = useState<SignatureConfig>(loadSignature);
   const [sigDraft, setSigDraft] = useState<SignatureConfig>(loadSignature);
+  const [addContactOpen, setAddContactOpen] = useState(false);
+  const [addContactName, setAddContactName] = useState("");
+  const [addContactEmail, setAddContactEmail] = useState("");
+  const [addContactCompany, setAddContactCompany] = useState("");
   const limit = 50;
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
 
@@ -186,13 +198,13 @@ export default function Emails() {
     }
   }, [messages, pendingSelectFirst]);
 
-  const { data: clients = [] } = useQuery<Client[]>({
-    queryKey: ["/api/clients"],
+  const { data: crmContacts = [] } = useQuery<CrmContact[]>({
+    queryKey: ["/api/contacts"],
   });
 
-  const composeContacts = clients
+  const composeContacts = crmContacts
     .filter(c => c.email)
-    .map(c => ({ id: c.id, fullName: c.name, email: c.email }));
+    .map(c => ({ id: c.id, fullName: c.fullName, email: c.email }));
 
   const syncMutation = useMutation({
     mutationFn: async () => {
@@ -291,6 +303,39 @@ export default function Emails() {
     },
   });
 
+  const addContactMutation = useMutation({
+    mutationFn: async ({ name, email, company }: { name: string; email: string; company?: string }) => {
+      const clientRes = await apiRequest("/api/clients", "POST", {
+        name: name || email,
+        type: "person",
+        ...(company ? { company } : {}),
+      });
+      const client = await clientRes.json();
+      const contactRes = await apiRequest("/api/contacts", "POST", {
+        clientId: client.id,
+        fullName: name || email,
+        email,
+        isPrimary: 1,
+      });
+      return contactRes.json();
+    },
+    onSuccess: () => {
+      setAddContactOpen(false);
+      setAddContactName("");
+      setAddContactEmail("");
+      setAddContactCompany("");
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      toast({
+        title: "Contact ajouté au CRM",
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+      });
+    },
+    onError: () => {
+      toast({ title: "Erreur", description: "Impossible d'ajouter le contact.", variant: "destructive" });
+    },
+  });
+
   function handleSearchChange(val: string) {
     setSearchInput(val);
     clearTimeout(searchTimeout.current);
@@ -372,6 +417,13 @@ export default function Emails() {
     });
   }
 
+  function openAddContact(msg: EmailMessage) {
+    setAddContactName(msg.fromName || "");
+    setAddContactEmail(msg.fromEmail);
+    setAddContactCompany("");
+    setAddContactOpen(true);
+  }
+
   const TABS: { key: FilterType; label: string }[] = [
     { key: "received", label: "Reçus" },
     { key: "sent", label: "Envoyés" },
@@ -406,7 +458,7 @@ export default function Emails() {
       {/* ==================== LEFT PANEL (fixed width always) ==================== */}
       <div className={cn(
         "flex flex-col bg-background shrink-0 border-r border-border transition-all duration-150",
-        "w-full md:w-72 lg:w-80",
+        "w-full md:w-80 lg:w-[400px]",
         selected ? "hidden md:flex" : "flex"
       )}>
         {/* Header */}
@@ -740,6 +792,36 @@ export default function Emails() {
                   </TooltipTrigger>
                   <TooltipContent className={WT}>Ouvrir dans Gmail</TooltipContent>
                 </Tooltip>
+
+                {/* "..." dropdown menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="icon" variant="ghost" data-testid="button-email-more">
+                      <MoreHorizontal className="w-3.5 h-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {selected.direction === "received" && (
+                      <DropdownMenuItem
+                        onClick={() => openAddContact(selected)}
+                        data-testid="button-add-contact"
+                      >
+                        <UserPlus className="w-3.5 h-3.5 mr-2" />
+                        Ajouter ce contact
+                      </DropdownMenuItem>
+                    )}
+                    {selected.direction === "received" && <DropdownMenuSeparator />}
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => setSingleDeleteOpen(true)}
+                      data-testid="button-delete-single"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 mr-2" />
+                      {isTrash ? "Supprimer définitivement" : "Supprimer"}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button size="icon" variant="ghost" className="hidden md:flex"
@@ -885,6 +967,78 @@ export default function Emails() {
         </SheetContent>
       </Sheet>
 
+      {/* ==================== ADD CONTACT SHEET ==================== */}
+      <Sheet open={addContactOpen} onOpenChange={(open) => {
+        if (!open) {
+          setAddContactOpen(false);
+          setAddContactName("");
+          setAddContactEmail("");
+          setAddContactCompany("");
+        }
+      }}>
+        <SheetContent side="right" className="w-[380px] flex flex-col">
+          <SheetHeader>
+            <SheetTitle className="text-sm font-semibold">Ajouter au CRM</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto space-y-4 py-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Nom complet *</Label>
+              <Input
+                value={addContactName}
+                onChange={(e) => setAddContactName(e.target.value)}
+                placeholder="Jean Dupont"
+                className="text-xs h-8"
+                data-testid="input-add-contact-name"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Email</Label>
+              <Input
+                value={addContactEmail}
+                onChange={(e) => setAddContactEmail(e.target.value)}
+                placeholder="jean@exemple.com"
+                className="text-xs h-8"
+                data-testid="input-add-contact-email"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Entreprise</Label>
+              <Input
+                value={addContactCompany}
+                onChange={(e) => setAddContactCompany(e.target.value)}
+                placeholder="Nom de l'entreprise (optionnel)"
+                className="text-xs h-8"
+                data-testid="input-add-contact-company"
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Un nouveau client et un contact seront créés dans votre CRM.
+            </p>
+          </div>
+          <div className="border-t pt-4 flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setAddContactOpen(false)}
+            >
+              Annuler
+            </Button>
+            <Button
+              className="flex-1"
+              disabled={!addContactName.trim() || addContactMutation.isPending}
+              onClick={() => addContactMutation.mutate({
+                name: addContactName.trim(),
+                email: addContactEmail.trim(),
+                company: addContactCompany.trim() || undefined,
+              })}
+              data-testid="button-save-contact"
+            >
+              {addContactMutation.isPending ? "Ajout..." : "Ajouter"}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
       {/* ==================== DIALOGS ==================== */}
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
@@ -922,6 +1076,41 @@ export default function Emails() {
               data-testid="button-confirm-permanent-delete"
             >
               Supprimer définitivement
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Single email delete from "..." button */}
+      <AlertDialog open={singleDeleteOpen} onOpenChange={setSingleDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {isTrash ? "Supprimer définitivement cet email ?" : "Déplacer cet email vers la corbeille ?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isTrash
+                ? "Cette action est irréversible."
+                : "Vous pourrez le restaurer depuis le filtre Corbeille."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className={isTrash ? "bg-destructive text-destructive-foreground" : ""}
+              onClick={() => {
+                if (selected) {
+                  if (isTrash) {
+                    permanentDeleteMutation.mutate([selected.id]);
+                  } else {
+                    deleteMutation.mutate([selected.id]);
+                  }
+                }
+                setSingleDeleteOpen(false);
+              }}
+              data-testid="button-confirm-single-delete"
+            >
+              {isTrash ? "Supprimer définitivement" : "Déplacer en corbeille"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

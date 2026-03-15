@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Minus, Maximize2, Send, ChevronDown, Paperclip, FileText, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { X, Minus, Maximize2, Send, ChevronDown, Paperclip, FileText, Trash2, FolderOpen, Search, File } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Contact {
@@ -37,6 +40,19 @@ interface EmailComposeModalProps {
   initialData?: Partial<ComposeData>;
   onSend: (data: ComposeData) => void;
   isSending?: boolean;
+}
+
+interface PlanbaseFile {
+  id: string;
+  name: string;
+  kind: string;
+  mime?: string | null;
+  mimeType?: string | null;
+  size?: number | null;
+  fileSize?: number | null;
+  storagePath?: string | null;
+  storageUrl?: string | null;
+  createdAt?: string;
 }
 
 function EmailAutocomplete({
@@ -107,7 +123,7 @@ function EmailAutocomplete({
         autoComplete="off"
       />
       {open && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 z-[200] w-64 bg-white dark:bg-popover border rounded-md shadow-lg py-1 mt-0.5">
+        <div className="absolute top-full left-0 z-[9999] w-72 bg-white dark:bg-popover border rounded-md shadow-xl py-1 mt-0.5">
           {suggestions.map(c => (
             <button
               key={c.id}
@@ -143,6 +159,9 @@ export function EmailComposeModal({
   const [minimized, setMinimized] = useState(false);
   const [showCcBcc, setShowCcBcc] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const [planbaseOpen, setPlanbaseOpen] = useState(false);
+  const [planbaseSearch, setPlanbaseSearch] = useState("");
+  const [attachingFileId, setAttachingFileId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [data, setData] = useState<Omit<ComposeData, "attachments">>({
     to: initialData?.to || "",
@@ -153,6 +172,19 @@ export function EmailComposeModal({
     replyToMessageId: initialData?.replyToMessageId,
     threadId: initialData?.threadId,
   });
+
+  const { data: planbaseFiles = [] } = useQuery<PlanbaseFile[]>({
+    queryKey: ["/api/files"],
+    enabled: planbaseOpen,
+  });
+
+  const uploadedFiles = planbaseFiles.filter(f =>
+    f.kind === "upload" && (f.storagePath || f.storageUrl)
+  );
+
+  const filteredPlanbaseFiles = planbaseSearch.trim()
+    ? uploadedFiles.filter(f => f.name.toLowerCase().includes(planbaseSearch.toLowerCase()))
+    : uploadedFiles;
 
   useEffect(() => {
     if (open && initialData) {
@@ -186,6 +218,9 @@ export function EmailComposeModal({
           size: file.size,
         }]);
       };
+      reader.onerror = () => {
+        console.error("Failed to read file:", file.name);
+      };
       reader.readAsDataURL(file);
     });
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -193,6 +228,40 @@ export function EmailComposeModal({
 
   function removeAttachment(idx: number) {
     setAttachments(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  async function attachPlanbaseFile(file: PlanbaseFile) {
+    try {
+      setAttachingFileId(file.id);
+      const urlRes = await apiRequest(`/api/files/${file.id}/download-url`, "GET");
+      const { url } = await urlRes.json();
+      const fileRes = await fetch(url);
+      if (!fileRes.ok) throw new Error("Download failed");
+      const blob = await fileRes.blob();
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const result = ev.target?.result as string;
+        const base64 = result.split(",")[1];
+        const mimeType = file.mimeType || file.mime || blob.type || "application/octet-stream";
+        const size = file.fileSize || file.size || blob.size;
+        setAttachments(prev => [...prev, {
+          filename: file.name,
+          content: base64,
+          mimeType,
+          size,
+        }]);
+        setAttachingFileId(null);
+        setPlanbaseOpen(false);
+        setPlanbaseSearch("");
+      };
+      reader.onerror = () => {
+        setAttachingFileId(null);
+      };
+      reader.readAsDataURL(blob);
+    } catch (e) {
+      console.error("Failed to attach Planbase file:", e);
+      setAttachingFileId(null);
+    }
   }
 
   const handleSend = () => {
@@ -232,154 +301,216 @@ export function EmailComposeModal({
   }
 
   return (
-    <div
-      className="fixed bottom-0 right-6 z-50 w-[520px] max-w-[calc(100vw-2rem)] bg-background border rounded-t-lg shadow-2xl flex flex-col"
-      style={{ height: "600px", maxHeight: "calc(100vh - 4rem)" }}
-      data-testid="compose-email-modal"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 bg-primary text-primary-foreground rounded-t-lg shrink-0">
-        <span className="text-sm font-medium">
-          {data.replyToMessageId ? "Répondre" : "Nouveau message"}
-        </span>
-        <div className="flex items-center gap-1">
-          <Button size="icon" variant="ghost"
-            className="h-5 w-5 text-primary-foreground no-default-hover-elevate no-default-active-elevate"
-            onClick={() => setMinimized(true)}
-            data-testid="button-minimize-compose">
-            <Minus className="w-3 h-3" />
-          </Button>
-          <Button size="icon" variant="ghost"
-            className="h-5 w-5 text-primary-foreground no-default-hover-elevate no-default-active-elevate"
-            onClick={onClose}
-            data-testid="button-close-compose">
-            <X className="w-3 h-3" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* To */}
-        <div className="px-3 py-1.5 border-b">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground shrink-0 w-6">À</span>
-            <EmailAutocomplete
-              value={data.to}
-              onChange={(v) => setData(d => ({ ...d, to: v }))}
-              placeholder="Destinataire"
-              contacts={contacts}
-              data-testid="input-compose-to"
-            />
-            <button
-              type="button"
-              onClick={() => setShowCcBcc(s => !s)}
-              className="text-[10px] text-muted-foreground shrink-0 hover:text-foreground transition-colors flex items-center gap-0.5"
-              data-testid="button-toggle-cc-bcc"
-            >
-              Cc/Cci <ChevronDown className={cn("w-3 h-3 transition-transform", showCcBcc && "rotate-180")} />
-            </button>
-          </div>
-        </div>
-
-        {showCcBcc && (
-          <>
-            <div className="px-3 py-1.5 border-b">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground shrink-0 w-6">Cc</span>
-                <EmailAutocomplete value={data.cc || ""} onChange={(v) => setData(d => ({ ...d, cc: v }))}
-                  placeholder="Copie" contacts={contacts} data-testid="input-compose-cc" />
-              </div>
-            </div>
-            <div className="px-3 py-1.5 border-b">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground shrink-0 w-6">Cci</span>
-                <EmailAutocomplete value={data.bcc || ""} onChange={(v) => setData(d => ({ ...d, bcc: v }))}
-                  placeholder="Copie cachée" contacts={contacts} data-testid="input-compose-bcc" />
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Subject */}
-        <div className="px-3 py-1.5 border-b">
-          <Input
-            value={data.subject}
-            onChange={(e) => setData(d => ({ ...d, subject: e.target.value }))}
-            placeholder="Objet"
-            className="border-0 shadow-none h-7 text-xs p-0 focus-visible:ring-0"
-            data-testid="input-compose-subject"
-          />
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 px-3 py-2 overflow-hidden min-h-0">
-          <Textarea
-            value={data.body}
-            onChange={(e) => setData(d => ({ ...d, body: e.target.value }))}
-            placeholder="Contenu de l'email..."
-            className="border-0 shadow-none text-xs resize-none h-full focus-visible:ring-0"
-            data-testid="input-compose-body"
-          />
-        </div>
-
-        {/* Attachments list */}
-        {attachments.length > 0 && (
-          <div className="px-3 py-2 border-t space-y-1 max-h-28 overflow-y-auto bg-muted/30">
-            {attachments.map((att, idx) => (
-              <div key={idx} className="flex items-center gap-2 bg-background rounded-md px-2 py-1">
-                <FileText className="w-3 h-3 text-muted-foreground shrink-0" />
-                <span className="text-[10px] text-foreground truncate flex-1">{att.filename}</span>
-                <span className="text-[10px] text-muted-foreground shrink-0">{formatFileSize(att.size)}</span>
-                <button
-                  type="button"
-                  onClick={() => removeAttachment(idx)}
-                  className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                  data-testid={`button-remove-attachment-${idx}`}
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="flex items-center justify-between px-3 py-2 border-t gap-2 shrink-0">
+    <>
+      <div
+        className="fixed bottom-0 right-6 z-50 w-[520px] max-w-[calc(100vw-2rem)] bg-background border rounded-t-lg shadow-2xl flex flex-col"
+        style={{ height: "600px", maxHeight: "calc(100vh - 4rem)" }}
+        data-testid="compose-email-modal"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-3 py-2 bg-primary text-primary-foreground rounded-t-lg shrink-0">
+          <span className="text-sm font-medium">
+            {data.replyToMessageId ? "Répondre" : "Nouveau message"}
+          </span>
           <div className="flex items-center gap-1">
-            <Button
-              size="sm"
-              onClick={handleSend}
-              disabled={!data.to || !data.subject || !data.body || isSending}
-              data-testid="button-send-compose"
-            >
-              <Send className="w-3.5 h-3.5 mr-1.5" />
-              {isSending ? "Envoi..." : "Envoyer"}
+            <Button size="icon" variant="ghost"
+              className="h-5 w-5 text-primary-foreground no-default-hover-elevate no-default-active-elevate"
+              onClick={() => setMinimized(true)}
+              data-testid="button-minimize-compose">
+              <Minus className="w-3 h-3" />
             </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={handleFilePick}
-              data-testid="input-compose-file"
-            />
-            <Button
-              size="icon"
-              variant="ghost"
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              data-testid="button-attach-file"
-            >
-              <Paperclip className="w-4 h-4" />
+            <Button size="icon" variant="ghost"
+              className="h-5 w-5 text-primary-foreground no-default-hover-elevate no-default-active-elevate"
+              onClick={onClose}
+              data-testid="button-close-compose">
+              <X className="w-3 h-3" />
             </Button>
           </div>
-          {senderEmail && (
-            <span className="text-[10px] text-muted-foreground truncate">
-              depuis {senderEmail}
-            </span>
+        </div>
+
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* To */}
+          <div className="px-3 py-1.5 border-b">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground shrink-0 w-6">À</span>
+              <EmailAutocomplete
+                value={data.to}
+                onChange={(v) => setData(d => ({ ...d, to: v }))}
+                placeholder="Destinataire"
+                contacts={contacts}
+                data-testid="input-compose-to"
+              />
+              <button
+                type="button"
+                onClick={() => setShowCcBcc(s => !s)}
+                className="text-[10px] text-muted-foreground shrink-0 hover:text-foreground transition-colors flex items-center gap-0.5"
+                data-testid="button-toggle-cc-bcc"
+              >
+                Cc/Cci <ChevronDown className={cn("w-3 h-3 transition-transform", showCcBcc && "rotate-180")} />
+              </button>
+            </div>
+          </div>
+
+          {showCcBcc && (
+            <>
+              <div className="px-3 py-1.5 border-b">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground shrink-0 w-6">Cc</span>
+                  <EmailAutocomplete value={data.cc || ""} onChange={(v) => setData(d => ({ ...d, cc: v }))}
+                    placeholder="Copie" contacts={contacts} data-testid="input-compose-cc" />
+                </div>
+              </div>
+              <div className="px-3 py-1.5 border-b">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground shrink-0 w-6">Cci</span>
+                  <EmailAutocomplete value={data.bcc || ""} onChange={(v) => setData(d => ({ ...d, bcc: v }))}
+                    placeholder="Copie cachée" contacts={contacts} data-testid="input-compose-bcc" />
+                </div>
+              </div>
+            </>
           )}
+
+          {/* Subject */}
+          <div className="px-3 py-1.5 border-b">
+            <Input
+              value={data.subject}
+              onChange={(e) => setData(d => ({ ...d, subject: e.target.value }))}
+              placeholder="Objet"
+              className="border-0 shadow-none h-7 text-xs p-0 focus-visible:ring-0"
+              data-testid="input-compose-subject"
+            />
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 px-3 py-2 overflow-hidden min-h-0">
+            <Textarea
+              value={data.body}
+              onChange={(e) => setData(d => ({ ...d, body: e.target.value }))}
+              placeholder="Contenu de l'email..."
+              className="border-0 shadow-none text-xs resize-none h-full focus-visible:ring-0"
+              data-testid="input-compose-body"
+            />
+          </div>
+
+          {/* Attachments list */}
+          {attachments.length > 0 && (
+            <div className="px-3 py-2 border-t space-y-1 max-h-28 overflow-y-auto bg-muted/30">
+              {attachments.map((att, idx) => (
+                <div key={idx} className="flex items-center gap-2 bg-background rounded-md px-2 py-1">
+                  <FileText className="w-3 h-3 text-muted-foreground shrink-0" />
+                  <span className="text-[10px] text-foreground truncate flex-1">{att.filename}</span>
+                  <span className="text-[10px] text-muted-foreground shrink-0">{formatFileSize(att.size)}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeAttachment(idx)}
+                    className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                    data-testid={`button-remove-attachment-${idx}`}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="flex items-center justify-between px-3 py-2 border-t gap-2 shrink-0">
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                onClick={handleSend}
+                disabled={!data.to || !data.subject || !data.body || isSending}
+                data-testid="button-send-compose"
+              >
+                <Send className="w-3.5 h-3.5 mr-1.5" />
+                {isSending ? "Envoi..." : "Envoyer"}
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleFilePick}
+                data-testid="input-compose-file"
+              />
+              <Button
+                size="icon"
+                variant="ghost"
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                title="Joindre un fichier local"
+                data-testid="button-attach-file"
+              >
+                <Paperclip className="w-4 h-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                type="button"
+                onClick={() => { setPlanbaseSearch(""); setPlanbaseOpen(true); }}
+                title="Joindre un fichier Planbase"
+                data-testid="button-attach-planbase"
+              >
+                <FolderOpen className="w-4 h-4" />
+              </Button>
+            </div>
+            {senderEmail && (
+              <span className="text-[10px] text-muted-foreground truncate">
+                depuis {senderEmail}
+              </span>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Planbase File Picker Dialog */}
+      <Dialog open={planbaseOpen} onOpenChange={setPlanbaseOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Joindre un fichier Planbase</DialogTitle>
+          </DialogHeader>
+          <div className="relative mb-3">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              className="pl-8 h-8 text-xs"
+              placeholder="Rechercher un fichier..."
+              value={planbaseSearch}
+              onChange={(e) => setPlanbaseSearch(e.target.value)}
+              data-testid="input-planbase-search"
+            />
+          </div>
+          <div className="max-h-64 overflow-y-auto space-y-1">
+            {filteredPlanbaseFiles.length === 0 ? (
+              <div className="text-center py-8 text-xs text-muted-foreground">
+                <File className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                {uploadedFiles.length === 0 ? "Aucun fichier uploadé dans Planbase" : "Aucun résultat"}
+              </div>
+            ) : (
+              filteredPlanbaseFiles.map(f => (
+                <button
+                  key={f.id}
+                  type="button"
+                  disabled={attachingFileId === f.id}
+                  onClick={() => attachPlanbaseFile(f)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-muted/60 transition-colors text-left disabled:opacity-50"
+                  data-testid={`button-planbase-file-${f.id}`}
+                >
+                  <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium truncate">{f.name}</p>
+                    {(f.fileSize || f.size) ? (
+                      <p className="text-[10px] text-muted-foreground">{formatFileSize((f.fileSize || f.size)!)}</p>
+                    ) : null}
+                  </div>
+                  {attachingFileId === f.id && (
+                    <span className="text-[10px] text-muted-foreground shrink-0">Chargement...</span>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
