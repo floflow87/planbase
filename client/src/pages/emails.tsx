@@ -455,11 +455,12 @@ export default function Emails() {
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* ==================== LEFT PANEL (fixed width always) ==================== */}
+      {/* ==================== LEFT PANEL ==================== */}
       <div className={cn(
         "flex flex-col bg-background shrink-0 border-r border-border transition-all duration-150",
-        "w-full md:w-80 lg:w-[400px]",
-        selected ? "hidden md:flex" : "flex"
+        selected
+          ? "hidden md:flex md:w-80 lg:w-[400px]"
+          : "flex w-full"
       )}>
         {/* Header */}
         <div className="flex items-center gap-1.5 px-3 py-2.5 border-b shrink-0">
@@ -540,9 +541,9 @@ export default function Emails() {
             <div className="relative shrink-0 py-1.5">
               <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-muted-foreground pointer-events-none" />
               <Input
-                className="pl-5 h-6 text-[10px] w-24"
+                className="pl-5 h-6 text-[8px] w-24"
                 placeholder="Chercher..."
-                style={{ fontSize: "10px" }}
+                style={{ fontSize: "8px" }}
                 value={searchInput}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 data-testid="input-email-search"
@@ -619,11 +620,11 @@ export default function Emails() {
             </div>
           ) : (
             messages.length > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1 border-b shrink-0 bg-white dark:bg-background">
+              <div className="flex items-center gap-2 px-3 py-2 border-b shrink-0 bg-white dark:bg-background">
                 <Checkbox checked={false} onCheckedChange={toggleSelectAll} className="shrink-0" data-testid="checkbox-select-all-idle" />
                 <span className="text-[10px] text-muted-foreground flex-1">Tout sélectionner</span>
                 {gmailStatus?.messageCount !== undefined && !isTrash && (
-                  <span className="text-[10px] text-muted-foreground">{gmailStatus.messageCount}</span>
+                  <span className="text-[10px] text-muted-foreground px-1">{gmailStatus.messageCount}</span>
                 )}
               </div>
             )
@@ -678,7 +679,7 @@ export default function Emails() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1 mb-0.5">
-                          <span className={cn("text-[11px] truncate leading-none", isUnread ? "font-semibold" : "font-medium text-foreground/80")}>
+                          <span className="text-[11px] truncate leading-none font-semibold text-foreground">
                             {msg.direction === "sent" ? "Moi" : (decodeHTMLEntities(msg.fromName) || msg.fromEmail)}
                           </span>
                           <div className="flex items-center gap-1 shrink-0">
@@ -690,7 +691,7 @@ export default function Emails() {
                             </span>
                           </div>
                         </div>
-                        <p className={cn("text-[11px] truncate leading-tight", isUnread ? "font-medium" : "text-foreground/70")}>
+                        <p className="text-[11px] truncate leading-tight font-semibold text-foreground/90">
                           {decodeHTMLEntities(msg.subject) || "(Sans objet)"}
                         </p>
                         <p className="text-[10px] text-muted-foreground truncate mt-0.5 leading-relaxed">
@@ -738,7 +739,7 @@ export default function Emails() {
       {/* ==================== RIGHT PANEL (flex-1) ==================== */}
       <div className={cn(
         "flex-1 flex flex-col overflow-hidden bg-white dark:bg-background min-w-0",
-        selected ? "flex" : "hidden md:flex"
+        selected ? "flex" : "hidden"
       )}>
         {selected ? (
           <>
