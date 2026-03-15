@@ -7821,8 +7821,8 @@ app.get("/config/feature-flags", async (_req, res) => {
 
       const messageCount = gmailEnabled ? await storage.getEmailMessageCount(req.accountId!, req.userId!) : 0;
 
-      const canSend = !!(token?.scope && token.scope.includes("gmail.send"));
-      const hasFullRead = !!(token?.scope && token.scope.includes("gmail.readonly"));
+      const canSend = gmailEnabled && (!token?.scope || token.scope.includes("gmail.send") || token.scope.includes("https://mail.google.com"));
+      const hasFullRead = !!(token?.scope && (token.scope.includes("gmail.readonly") || token.scope.includes("https://mail.google.com")));
 
       res.json({
         connected: gmailEnabled,
