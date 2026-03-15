@@ -1320,19 +1320,12 @@ export default function TreasuryPage() {
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [editFlow, setEditFlow] = useState<TreasuryFlow | null>(null);
-  const [localPeriodTags, setLocalPeriodTags] = useState<Record<string, string[]>>({});
   const [tagPopoverOpen, setTagPopoverOpen] = useState<Record<string, boolean>>({});
   const [tagInput, setTagInput] = useState("");
 
   const { data, isLoading, error } = useQuery<TreasuryData>({
     queryKey: ["/api/treasury/flows"],
   });
-
-  useEffect(() => {
-    if (data?.settings?.periodTags) {
-      setLocalPeriodTags(data.settings.periodTags as Record<string, string[]>);
-    }
-  }, [data?.settings?.periodTags]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/treasury/transactions/${id}`, "DELETE"),
@@ -1374,9 +1367,10 @@ export default function TreasuryPage() {
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
 
-  const savePeriodTagsMutation = useMutation({
-    mutationFn: ({ periodKey, tags }: { periodKey: string; tags: string[] }) =>
-      apiRequest("/api/treasury/period-tags", "PATCH", { periodKey, tags }),
+  const updateFlowTagsMutation = useMutation({
+    mutationFn: ({ manualId, tags }: { manualId: string; tags: string[] }) =>
+      apiRequest(`/api/treasury/transactions/${manualId}`, "PATCH", { tags }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/treasury/flows"] }),
     onError: (e: any) => toast({ title: "Erreur tags", description: e.message, variant: "destructive" }),
   });
 
@@ -1385,21 +1379,21 @@ export default function TreasuryPage() {
     return [...new Set(data.flows.flatMap((f) => f.tags ?? []))].sort();
   }, [data]);
 
-  const handleTogglePeriodTag = (periodKey: string, tag: string) => {
-    const current = localPeriodTags[periodKey] ?? [];
+  const handleToggleFlowTag = (flow: TreasuryFlow, tag: string) => {
+    if (!flow.manualId) return;
+    const current = flow.tags ?? [];
     const next = current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag];
-    setLocalPeriodTags((prev) => ({ ...prev, [periodKey]: next }));
-    savePeriodTagsMutation.mutate({ periodKey, tags: next });
+    updateFlowTagsMutation.mutate({ manualId: flow.manualId, tags: next });
   };
 
-  const handleAddNewPeriodTag = (periodKey: string, rawTag: string) => {
+  const handleAddNewFlowTag = (flow: TreasuryFlow, rawTag: string) => {
+    if (!flow.manualId) return;
     const trimmed = rawTag.trim();
     if (!trimmed) return;
-    const current = localPeriodTags[periodKey] ?? [];
+    const current = flow.tags ?? [];
     if (current.includes(trimmed)) return;
     const next = [...current, trimmed];
-    setLocalPeriodTags((prev) => ({ ...prev, [periodKey]: next }));
-    savePeriodTagsMutation.mutate({ periodKey, tags: next });
+    updateFlowTagsMutation.mutate({ manualId: flow.manualId, tags: next });
   };
 
   // Period window — centré sur maintenant : pastMonths en arrière + reste en avant
@@ -2028,122 +2022,6 @@ export default function TreasuryPage() {
                             </td>
                           ))}
                         </tr>
-                        <tr className="border-t border-border/20">
-                          <td className="py-2 pr-4 text-muted-foreground whitespace-nowrap sticky left-0 bg-card z-10">
-                            <span className="flex items-center gap-1"><Tag className="h-3 w-3" /> Tags</span>
-                          </td>
-                          {synthesisData.map((m) => {
-                            const periodTags = localPeriodTags[m.key] ?? [];
-                            const isOpen = tagPopoverOpen[m.key] ?? false;
-                            const filteredSuggestions = allFlowTags.filter((t) =>
-                              t.toLowerCase().includes(tagInput.toLowerCase())
-                            );
-                            return (
-                              <td key={m.key} className={cn("py-1.5 px-3", m.isCurrent ? "bg-primary/5" : "")}>
-                                <div className="flex flex-wrap gap-0.5 items-center min-h-[22px]">
-                                  {periodTags.map((t) => (
-                                    <span
-                                      key={t}
-                                      className="text-[11px] px-1.5 py-0 rounded border border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300 whitespace-nowrap flex items-center gap-0.5 cursor-pointer"
-                                      onClick={() => handleTogglePeriodTag(m.key, t)}
-                                    >
-                                      {t} <X className="h-2.5 w-2.5 opacity-60" />
-                                    </span>
-                                  ))}
-                                  <Popover
-                                    open={isOpen}
-                                    onOpenChange={(v) => {
-                                      setTagPopoverOpen((prev) => ({ ...prev, [m.key]: v }));
-                                      if (!v) setTagInput("");
-                                    }}
-                                  >
-                                    <PopoverTrigger asChild>
-                                      <button
-                                        className="h-5 w-5 rounded-full border border-dashed border-border flex items-center justify-center hover:border-primary hover:text-primary transition-colors text-muted-foreground shrink-0"
-                                        data-testid={`button-add-period-tag-${m.key}`}
-                                      >
-                                        <Plus className="h-2.5 w-2.5" />
-                                      </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-52 p-2" align="start">
-                                      <Input
-                                        autoFocus
-                                        value={tagInput}
-                                        onChange={(e) => setTagInput(e.target.value)}
-                                        placeholder="Chercher ou créer…"
-                                        className="h-7 text-[11px] mb-2"
-                                        onKeyDown={(e) => {
-                                          if (e.key === "Enter") {
-                                            const exact = filteredSuggestions.find(
-                                              (t) => t.toLowerCase() === tagInput.toLowerCase()
-                                            );
-                                            if (exact) handleTogglePeriodTag(m.key, exact);
-                                            else if (tagInput.trim()) handleAddNewPeriodTag(m.key, tagInput);
-                                            setTagPopoverOpen((prev) => ({ ...prev, [m.key]: false }));
-                                            setTagInput("");
-                                          }
-                                          if (e.key === "Escape") {
-                                            setTagPopoverOpen((prev) => ({ ...prev, [m.key]: false }));
-                                            setTagInput("");
-                                          }
-                                        }}
-                                      />
-                                      <div className="max-h-36 overflow-y-auto flex flex-col gap-0.5">
-                                        {filteredSuggestions.length === 0 && tagInput.trim() && (
-                                          <button
-                                            className="text-left text-[11px] px-2 py-1 rounded hover:bg-muted flex items-center gap-1 text-muted-foreground"
-                                            onClick={() => {
-                                              handleAddNewPeriodTag(m.key, tagInput);
-                                              setTagPopoverOpen((prev) => ({ ...prev, [m.key]: false }));
-                                              setTagInput("");
-                                            }}
-                                          >
-                                            <Plus className="h-3 w-3" /> Créer &ldquo;{tagInput.trim()}&rdquo;
-                                          </button>
-                                        )}
-                                        {filteredSuggestions.map((t) => {
-                                          const selected = periodTags.includes(t);
-                                          return (
-                                            <button
-                                              key={t}
-                                              className={cn(
-                                                "text-left text-[11px] px-2 py-1 rounded flex items-center justify-between gap-1",
-                                                selected ? "bg-primary/10 text-primary" : "hover:bg-muted text-foreground"
-                                              )}
-                                              onClick={() => {
-                                                handleTogglePeriodTag(m.key, t);
-                                                if (!selected) {
-                                                  setTagPopoverOpen((prev) => ({ ...prev, [m.key]: false }));
-                                                  setTagInput("");
-                                                }
-                                              }}
-                                            >
-                                              <span>{t}</span>
-                                              {selected && <Check className="h-3 w-3 shrink-0" />}
-                                            </button>
-                                          );
-                                        })}
-                                        {filteredSuggestions.length > 0 && tagInput.trim() &&
-                                          !filteredSuggestions.some((t) => t.toLowerCase() === tagInput.toLowerCase()) && (
-                                          <button
-                                            className="text-left text-[11px] px-2 py-1 rounded hover:bg-muted flex items-center gap-1 text-muted-foreground border-t border-border/40 mt-1 pt-1"
-                                            onClick={() => {
-                                              handleAddNewPeriodTag(m.key, tagInput);
-                                              setTagPopoverOpen((prev) => ({ ...prev, [m.key]: false }));
-                                              setTagInput("");
-                                            }}
-                                          >
-                                            <Plus className="h-3 w-3" /> Créer &ldquo;{tagInput.trim()}&rdquo;
-                                          </button>
-                                        )}
-                                      </div>
-                                    </PopoverContent>
-                                  </Popover>
-                                </div>
-                              </td>
-                            );
-                          })}
-                        </tr>
                       </tbody>
                     </table>
                   </div>
@@ -2228,21 +2106,119 @@ export default function TreasuryPage() {
                           )}
                         </td>
                         <td className="py-1.5 px-3">
-                          <div className="flex flex-wrap gap-0.5">
-                            {(flow.tags ?? []).slice(0, 2).map((t) => (
-                              <span
-                                key={t}
-                                className="text-[9px] px-1 py-0 rounded border border-border bg-muted/50 text-muted-foreground whitespace-nowrap"
-                              >
-                                {t}
-                              </span>
-                            ))}
-                            {(flow.tags ?? []).length > 2 && (
-                              <span className="text-[9px] px-1 py-0 rounded border border-border bg-muted/50 text-muted-foreground">
-                                +{flow.tags.length - 2}
-                              </span>
-                            )}
-                          </div>
+                          {flow.manualId ? (
+                            <Popover
+                              open={tagPopoverOpen[flow.id] ?? false}
+                              onOpenChange={(v) => {
+                                setTagPopoverOpen((prev) => ({ ...prev, [flow.id]: v }));
+                                if (!v) setTagInput("");
+                              }}
+                            >
+                              <PopoverTrigger asChild>
+                                <div
+                                  className="flex flex-wrap gap-0.5 items-center min-h-[20px] cursor-pointer group"
+                                  data-testid={`cell-tags-${flow.id}`}
+                                >
+                                  {(flow.tags ?? []).map((t) => (
+                                    <span
+                                      key={t}
+                                      className="text-[9px] px-1.5 py-0 rounded border border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300 whitespace-nowrap"
+                                    >
+                                      {t}
+                                    </span>
+                                  ))}
+                                  {(flow.tags ?? []).length === 0 && (
+                                    <span className="text-[9px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                                      <Plus className="h-2.5 w-2.5" /> tag
+                                    </span>
+                                  )}
+                                </div>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-52 p-2" align="start">
+                                <div className="flex flex-wrap gap-0.5 mb-2">
+                                  {(flow.tags ?? []).map((t) => (
+                                    <button
+                                      key={t}
+                                      className="text-[10px] px-1.5 py-0 rounded border border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300 flex items-center gap-0.5 hover:bg-violet-100 dark:hover:bg-violet-800/30"
+                                      onClick={() => handleToggleFlowTag(flow, t)}
+                                    >
+                                      {t} <X className="h-2.5 w-2.5 opacity-60" />
+                                    </button>
+                                  ))}
+                                </div>
+                                <Input
+                                  autoFocus
+                                  value={tagInput}
+                                  onChange={(e) => setTagInput(e.target.value)}
+                                  placeholder="Chercher ou créer…"
+                                  className="h-7 text-[11px] mb-2"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      const exact = allFlowTags.find(
+                                        (t) => t.toLowerCase() === tagInput.toLowerCase()
+                                      );
+                                      if (exact) handleToggleFlowTag(flow, exact);
+                                      else if (tagInput.trim()) handleAddNewFlowTag(flow, tagInput);
+                                      setTagPopoverOpen((prev) => ({ ...prev, [flow.id]: false }));
+                                      setTagInput("");
+                                    }
+                                    if (e.key === "Escape") {
+                                      setTagPopoverOpen((prev) => ({ ...prev, [flow.id]: false }));
+                                      setTagInput("");
+                                    }
+                                  }}
+                                />
+                                <div className="max-h-36 overflow-y-auto flex flex-col gap-0.5">
+                                  {(() => {
+                                    const filtered = allFlowTags.filter((t) =>
+                                      t.toLowerCase().includes(tagInput.toLowerCase()) &&
+                                      !(flow.tags ?? []).includes(t)
+                                    );
+                                    return (
+                                      <>
+                                        {filtered.map((t) => (
+                                          <button
+                                            key={t}
+                                            className="text-left text-[11px] px-2 py-1 rounded hover:bg-muted text-foreground flex items-center gap-1"
+                                            onClick={() => {
+                                              handleToggleFlowTag(flow, t);
+                                              setTagPopoverOpen((prev) => ({ ...prev, [flow.id]: false }));
+                                              setTagInput("");
+                                            }}
+                                          >
+                                            {t}
+                                          </button>
+                                        ))}
+                                        {tagInput.trim() && !allFlowTags.some((t) => t.toLowerCase() === tagInput.toLowerCase()) && (
+                                          <button
+                                            className="text-left text-[11px] px-2 py-1 rounded hover:bg-muted flex items-center gap-1 text-muted-foreground border-t border-border/40 mt-1 pt-1"
+                                            onClick={() => {
+                                              handleAddNewFlowTag(flow, tagInput);
+                                              setTagPopoverOpen((prev) => ({ ...prev, [flow.id]: false }));
+                                              setTagInput("");
+                                            }}
+                                          >
+                                            <Plus className="h-3 w-3" /> Créer &ldquo;{tagInput.trim()}&rdquo;
+                                          </button>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          ) : (
+                            <div className="flex flex-wrap gap-0.5">
+                              {(flow.tags ?? []).map((t) => (
+                                <span
+                                  key={t}
+                                  className="text-[9px] px-1 py-0 rounded border border-border bg-muted/50 text-muted-foreground whitespace-nowrap"
+                                >
+                                  {t}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </td>
                         <td className="py-1.5 px-3">
                           <span
