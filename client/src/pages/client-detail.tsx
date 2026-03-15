@@ -38,6 +38,12 @@ function ClientLogoUpload({ client }: { client: Client }) {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(client.logoUrl || null);
 
+  useEffect(() => {
+    if (!uploading) {
+      setPreview(client.logoUrl || null);
+    }
+  }, [client.logoUrl, uploading]);
+
   const handleUpload = async (file: File) => {
     if (!file.type.startsWith("image/")) {
       toast({ variant: "destructive", title: "Erreur", description: "Veuillez choisir une image" });
@@ -64,7 +70,9 @@ function ClientLogoUpload({ client }: { client: Client }) {
       }
       const updated = await res.json();
       queryClient.setQueryData(["/api/clients", client.id], updated);
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", client.id] });
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/accounts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setPreview(updated.logoUrl || null);
       toast({ title: "Logo mis à jour", variant: "success" });
