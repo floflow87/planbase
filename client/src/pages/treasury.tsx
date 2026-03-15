@@ -1429,7 +1429,7 @@ export default function TreasuryPage() {
   const clearFilters = () => {
     setFilterType("all");
     setFilterStatus("all");
-    setFilterProject("all");
+    setFilterProjects([]);
     setFilterSource("all");
     setFilterCategory("all");
     setFilterSearch("");
