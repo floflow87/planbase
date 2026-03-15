@@ -2348,6 +2348,10 @@ export async function runStartupMigrations() {
         ADD COLUMN IF NOT EXISTS plan_initial_balance NUMERIC DEFAULT 0,
         ADD COLUMN IF NOT EXISTS plan_granularity TEXT DEFAULT 'month';
     `);
+    await db.execute(sql`
+      ALTER TABLE treasury_settings
+        ADD COLUMN IF NOT EXISTS period_tags JSONB DEFAULT '{}'::jsonb;
+    `);
     console.log("✅ Treasury plan tables created");
 
     console.log("✅ Startup migrations completed successfully");

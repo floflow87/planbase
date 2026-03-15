@@ -44,6 +44,7 @@ import {
   Table2,
   Info,
   Copy,
+  Tag,
 } from "lucide-react";
 import {
   Tooltip,
@@ -1319,10 +1320,19 @@ export default function TreasuryPage() {
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [editFlow, setEditFlow] = useState<TreasuryFlow | null>(null);
+  const [localPeriodTags, setLocalPeriodTags] = useState<Record<string, string[]>>({});
+  const [tagPopoverOpen, setTagPopoverOpen] = useState<Record<string, boolean>>({});
+  const [tagInput, setTagInput] = useState("");
 
   const { data, isLoading, error } = useQuery<TreasuryData>({
     queryKey: ["/api/treasury/flows"],
   });
+
+  useEffect(() => {
+    if (data?.settings?.periodTags) {
+      setLocalPeriodTags(data.settings.periodTags as Record<string, string[]>);
+    }
+  }, [data?.settings?.periodTags]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/treasury/transactions/${id}`, "DELETE"),
@@ -1363,6 +1373,34 @@ export default function TreasuryPage() {
     },
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
+
+  const savePeriodTagsMutation = useMutation({
+    mutationFn: ({ periodKey, tags }: { periodKey: string; tags: string[] }) =>
+      apiRequest("/api/treasury/period-tags", "PATCH", { periodKey, tags }),
+    onError: (e: any) => toast({ title: "Erreur tags", description: e.message, variant: "destructive" }),
+  });
+
+  const allFlowTags = useMemo(() => {
+    if (!data) return [];
+    return [...new Set(data.flows.flatMap((f) => f.tags ?? []))].sort();
+  }, [data]);
+
+  const handleTogglePeriodTag = (periodKey: string, tag: string) => {
+    const current = localPeriodTags[periodKey] ?? [];
+    const next = current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag];
+    setLocalPeriodTags((prev) => ({ ...prev, [periodKey]: next }));
+    savePeriodTagsMutation.mutate({ periodKey, tags: next });
+  };
+
+  const handleAddNewPeriodTag = (periodKey: string, rawTag: string) => {
+    const trimmed = rawTag.trim();
+    if (!trimmed) return;
+    const current = localPeriodTags[periodKey] ?? [];
+    if (current.includes(trimmed)) return;
+    const next = [...current, trimmed];
+    setLocalPeriodTags((prev) => ({ ...prev, [periodKey]: next }));
+    savePeriodTagsMutation.mutate({ periodKey, tags: next });
+  };
 
   // Period window — centré sur maintenant : pastMonths en arrière + reste en avant
   const periodWindow = useMemo(() => {
@@ -1673,7 +1711,7 @@ export default function TreasuryPage() {
                     onClick={() => setChartMode("real")}
                     data-testid="toggle-chart-real"
                     className={cn(
-                      "flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium transition-colors",
+                      "flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium transition-colors",
                       chartMode === "real"
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:bg-muted"
@@ -1685,7 +1723,7 @@ export default function TreasuryPage() {
                     onClick={() => setChartMode("projected")}
                     data-testid="toggle-chart-projected"
                     className={cn(
-                      "flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium transition-colors border-l",
+                      "flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium transition-colors border-l",
                       chartMode === "projected"
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:bg-muted"
@@ -1822,7 +1860,7 @@ export default function TreasuryPage() {
                 onClick={() => setViewMode("synthesis")}
                 data-testid="toggle-view-synthesis"
                 className={cn(
-                  "flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium transition-colors",
+                  "flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium transition-colors",
                   viewMode === "synthesis"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted"
@@ -1834,7 +1872,7 @@ export default function TreasuryPage() {
                 onClick={() => setViewMode("chart")}
                 data-testid="toggle-view-detail"
                 className={cn(
-                  "flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium transition-colors border-l",
+                  "flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium transition-colors border-l",
                   viewMode === "chart"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted"
@@ -1925,7 +1963,7 @@ export default function TreasuryPage() {
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-[11px] border-collapse">
+                    <table className="w-full text-[12px] border-collapse">
                       <thead>
                         <tr>
                           <th className="text-left py-2 pr-4 font-medium text-muted-foreground w-40 whitespace-nowrap sticky left-0 bg-card z-10">
@@ -1935,7 +1973,7 @@ export default function TreasuryPage() {
                             <th
                               key={m.key}
                               className={cn(
-                                "text-right py-2 px-3 font-medium whitespace-nowrap min-w-[90px]",
+                                "text-right py-2 px-3 font-medium whitespace-nowrap min-w-[100px]",
                                 m.isCurrent
                                   ? "text-primary bg-primary/5 rounded-t-md"
                                   : "text-muted-foreground"
@@ -1944,7 +1982,7 @@ export default function TreasuryPage() {
                               {m.isCurrent ? (
                                 <span className="flex flex-col items-end gap-0">
                                   <span>{m.label}</span>
-                                  <span className="text-[9px] font-normal text-primary/70">en cours</span>
+                                  <span className="text-[10px] font-normal text-primary/70">en cours</span>
                                 </span>
                               ) : (
                                 m.label
@@ -1985,10 +2023,126 @@ export default function TreasuryPage() {
                         <tr className="border-t border-border/40">
                           <td className="py-2 pr-4 font-semibold text-foreground whitespace-nowrap sticky left-0 bg-card z-10">Trésorerie fin de mois</td>
                           {synthesisData.map((m) => (
-                            <td key={m.key} className={cn("py-2 px-3 text-right font-bold tabular-nums whitespace-nowrap", m.isCurrent ? "bg-primary/5 rounded-b-md" : "", m.endBalance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")}>
+                            <td key={m.key} className={cn("py-2 px-3 text-right font-bold tabular-nums whitespace-nowrap", m.isCurrent ? "bg-primary/5" : "", m.endBalance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")}>
                               {fmt(m.endBalance)}
                             </td>
                           ))}
+                        </tr>
+                        <tr className="border-t border-border/20">
+                          <td className="py-2 pr-4 text-muted-foreground whitespace-nowrap sticky left-0 bg-card z-10">
+                            <span className="flex items-center gap-1"><Tag className="h-3 w-3" /> Tags</span>
+                          </td>
+                          {synthesisData.map((m) => {
+                            const periodTags = localPeriodTags[m.key] ?? [];
+                            const isOpen = tagPopoverOpen[m.key] ?? false;
+                            const filteredSuggestions = allFlowTags.filter((t) =>
+                              t.toLowerCase().includes(tagInput.toLowerCase())
+                            );
+                            return (
+                              <td key={m.key} className={cn("py-1.5 px-3", m.isCurrent ? "bg-primary/5" : "")}>
+                                <div className="flex flex-wrap gap-0.5 items-center min-h-[22px]">
+                                  {periodTags.map((t) => (
+                                    <span
+                                      key={t}
+                                      className="text-[11px] px-1.5 py-0 rounded border border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300 whitespace-nowrap flex items-center gap-0.5 cursor-pointer"
+                                      onClick={() => handleTogglePeriodTag(m.key, t)}
+                                    >
+                                      {t} <X className="h-2.5 w-2.5 opacity-60" />
+                                    </span>
+                                  ))}
+                                  <Popover
+                                    open={isOpen}
+                                    onOpenChange={(v) => {
+                                      setTagPopoverOpen((prev) => ({ ...prev, [m.key]: v }));
+                                      if (!v) setTagInput("");
+                                    }}
+                                  >
+                                    <PopoverTrigger asChild>
+                                      <button
+                                        className="h-5 w-5 rounded-full border border-dashed border-border flex items-center justify-center hover:border-primary hover:text-primary transition-colors text-muted-foreground shrink-0"
+                                        data-testid={`button-add-period-tag-${m.key}`}
+                                      >
+                                        <Plus className="h-2.5 w-2.5" />
+                                      </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-52 p-2" align="start">
+                                      <Input
+                                        autoFocus
+                                        value={tagInput}
+                                        onChange={(e) => setTagInput(e.target.value)}
+                                        placeholder="Chercher ou créer…"
+                                        className="h-7 text-[11px] mb-2"
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            const exact = filteredSuggestions.find(
+                                              (t) => t.toLowerCase() === tagInput.toLowerCase()
+                                            );
+                                            if (exact) handleTogglePeriodTag(m.key, exact);
+                                            else if (tagInput.trim()) handleAddNewPeriodTag(m.key, tagInput);
+                                            setTagPopoverOpen((prev) => ({ ...prev, [m.key]: false }));
+                                            setTagInput("");
+                                          }
+                                          if (e.key === "Escape") {
+                                            setTagPopoverOpen((prev) => ({ ...prev, [m.key]: false }));
+                                            setTagInput("");
+                                          }
+                                        }}
+                                      />
+                                      <div className="max-h-36 overflow-y-auto flex flex-col gap-0.5">
+                                        {filteredSuggestions.length === 0 && tagInput.trim() && (
+                                          <button
+                                            className="text-left text-[11px] px-2 py-1 rounded hover:bg-muted flex items-center gap-1 text-muted-foreground"
+                                            onClick={() => {
+                                              handleAddNewPeriodTag(m.key, tagInput);
+                                              setTagPopoverOpen((prev) => ({ ...prev, [m.key]: false }));
+                                              setTagInput("");
+                                            }}
+                                          >
+                                            <Plus className="h-3 w-3" /> Créer &ldquo;{tagInput.trim()}&rdquo;
+                                          </button>
+                                        )}
+                                        {filteredSuggestions.map((t) => {
+                                          const selected = periodTags.includes(t);
+                                          return (
+                                            <button
+                                              key={t}
+                                              className={cn(
+                                                "text-left text-[11px] px-2 py-1 rounded flex items-center justify-between gap-1",
+                                                selected ? "bg-primary/10 text-primary" : "hover:bg-muted text-foreground"
+                                              )}
+                                              onClick={() => {
+                                                handleTogglePeriodTag(m.key, t);
+                                                if (!selected) {
+                                                  setTagPopoverOpen((prev) => ({ ...prev, [m.key]: false }));
+                                                  setTagInput("");
+                                                }
+                                              }}
+                                            >
+                                              <span>{t}</span>
+                                              {selected && <Check className="h-3 w-3 shrink-0" />}
+                                            </button>
+                                          );
+                                        })}
+                                        {filteredSuggestions.length > 0 && tagInput.trim() &&
+                                          !filteredSuggestions.some((t) => t.toLowerCase() === tagInput.toLowerCase()) && (
+                                          <button
+                                            className="text-left text-[11px] px-2 py-1 rounded hover:bg-muted flex items-center gap-1 text-muted-foreground border-t border-border/40 mt-1 pt-1"
+                                            onClick={() => {
+                                              handleAddNewPeriodTag(m.key, tagInput);
+                                              setTagPopoverOpen((prev) => ({ ...prev, [m.key]: false }));
+                                              setTagInput("");
+                                            }}
+                                          >
+                                            <Plus className="h-3 w-3" /> Créer &ldquo;{tagInput.trim()}&rdquo;
+                                          </button>
+                                        )}
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                </div>
+                              </td>
+                            );
+                          })}
                         </tr>
                       </tbody>
                     </table>

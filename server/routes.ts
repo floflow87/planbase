@@ -13475,7 +13475,7 @@ app.get("/config/feature-flags", async (_req, res) => {
         scenarios,
         projects: allProjects.map(p => ({ id: p.id, name: p.name, clientId: p.clientId })),
         clients: allClients,
-        settings: tsSettings ?? { startingCash: "0", alertThreshold: null, defaultViewRange: "month" },
+        settings: { ...(tsSettings ?? { startingCash: "0", alertThreshold: null, defaultViewRange: "month" }), periodTags: tsSettings?.periodTags ?? {} },
       });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -13496,6 +13496,24 @@ app.get("/config/feature-flags", async (_req, res) => {
     try {
       const result = await storage.upsertTreasurySettings({ ...req.body, accountId: req.accountId! });
       res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/treasury/period-tags", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { periodKey, tags } = req.body as { periodKey: string; tags: string[] };
+      if (!periodKey || !Array.isArray(tags)) return res.status(400).json({ error: "periodKey and tags[] required" });
+      await db.execute(sql`
+        INSERT INTO treasury_settings (account_id, period_tags)
+        VALUES (${accountId}, ${JSON.stringify({ [periodKey]: tags })}::jsonb)
+        ON CONFLICT (account_id) DO UPDATE
+        SET period_tags = COALESCE(treasury_settings.period_tags, '{}'::jsonb) || ${JSON.stringify({ [periodKey]: tags })}::jsonb,
+            updated_at = NOW()
+      `);
+      res.json({ ok: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
