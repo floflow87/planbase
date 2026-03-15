@@ -476,6 +476,17 @@ export default function Emails() {
             </TooltipContent>
           </Tooltip>
           <div className="flex-1" />
+          <div className="relative shrink-0">
+            <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-muted-foreground pointer-events-none" />
+            <Input
+              className="pl-5 h-6 w-28"
+              placeholder="Chercher..."
+              style={{ fontSize: "6px" }}
+              value={searchInput}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              data-testid="input-email-search"
+            />
+          </div>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -518,37 +529,23 @@ export default function Emails() {
 
         {/* White area */}
         <div className="flex flex-col flex-1 overflow-hidden bg-white dark:bg-background">
-          {/* Tabs + search */}
-          <div className="flex items-center px-2 border-b shrink-0 gap-1">
-            <div className="flex items-center -mb-px overflow-x-auto">
-              {TABS.map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => handleFilterChange(key)}
-                  className={cn(
-                    "px-2 py-2.5 text-[11px] font-medium border-b-2 transition-colors whitespace-nowrap shrink-0",
-                    filter === key
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  )}
-                  data-testid={`button-filter-${key}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="flex-1" />
-            <div className="relative shrink-0 py-1.5">
-              <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-muted-foreground pointer-events-none" />
-              <Input
-                className="pl-5 h-6 text-[8px] w-24"
-                placeholder="Chercher..."
-                style={{ fontSize: "8px" }}
-                value={searchInput}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                data-testid="input-email-search"
-              />
-            </div>
+          {/* Tabs */}
+          <div className="flex items-center px-2 border-b shrink-0 overflow-x-auto">
+            {TABS.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => handleFilterChange(key)}
+                className={cn(
+                  "px-2 py-2.5 text-[11px] font-medium border-b-2 transition-colors whitespace-nowrap shrink-0",
+                  filter === key
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+                data-testid={`button-filter-${key}`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           {/* Multi-select action bar */}
