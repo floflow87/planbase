@@ -325,12 +325,14 @@ function KpiCard({
   sub,
   icon,
   highlight,
+  white,
 }: {
   label: string;
   value: string;
   sub?: string;
   icon: React.ReactNode;
   highlight?: "green" | "red" | "amber";
+  white?: boolean;
 }) {
   const highlightCls =
     highlight === "green"
@@ -342,7 +344,7 @@ function KpiCard({
       : "";
 
   return (
-    <Card className={cn(highlightCls)}>
+    <Card className={cn(highlightCls, white && "bg-white dark:bg-card")}>
       <CardContent className="pt-3 pb-3">
         <div className="flex items-start justify-between gap-1 mb-1">
           <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide leading-tight">{label}</span>
@@ -1386,9 +1388,17 @@ export default function TreasuryPage() {
     return [...new Set(data.flows.flatMap((f) => f.tags ?? []))].sort();
   }, [data]);
 
+  const applyFlowTagsOptimistic = (flowId: string, next: string[]) => {
+    queryClient.setQueryData(["/api/treasury/flows"], (old: TreasuryData | undefined) => {
+      if (!old) return old;
+      return { ...old, flows: old.flows.map((f) => f.id === flowId ? { ...f, tags: next } : f) };
+    });
+  };
+
   const handleToggleFlowTag = (flow: TreasuryFlow, tag: string) => {
     const current = flow.tags ?? [];
     const next = current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag];
+    applyFlowTagsOptimistic(flow.id, next);
     if (flow.manualId) {
       updateFlowTagsMutation.mutate({ manualId: flow.manualId, tags: next });
     } else {
@@ -1402,6 +1412,7 @@ export default function TreasuryPage() {
     const current = flow.tags ?? [];
     if (current.includes(trimmed)) return;
     const next = [...current, trimmed];
+    applyFlowTagsOptimistic(flow.id, next);
     if (flow.manualId) {
       updateFlowTagsMutation.mutate({ manualId: flow.manualId, tags: next });
     } else {
@@ -1700,6 +1711,7 @@ export default function TreasuryPage() {
                       : <TrendingDown className="h-3 w-3 text-red-500" />
                   }
                   highlight={periodKpis.net >= 0 ? "green" : "red"}
+                  white
                 />
               </>
             )}
@@ -2163,7 +2175,7 @@ export default function TreasuryPage() {
                                   value={tagInput}
                                   onChange={(e) => setTagInput(e.target.value)}
                                   placeholder="Chercher ou créer…"
-                                  className="h-7 text-[11px] mb-2"
+                                  className="h-7 text-[9px] mb-2"
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter") {
                                       const exact = allFlowTags.find(
