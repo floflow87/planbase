@@ -599,6 +599,12 @@ export async function syncGmail(accountId: string, userId: string, forceFullSync
   return { synced, linked };
 }
 
+interface EmailAttachment {
+  filename: string;
+  content: string;
+  mimeType: string;
+}
+
 export async function sendGmailEmail(
   accountId: string,
   userId: string,
@@ -609,15 +615,18 @@ export async function sendGmailEmail(
   threadId?: string,
   cc?: string,
   bcc?: string,
+  attachments?: EmailAttachment[],
 ): Promise<{ gmailMessageId: string }> {
   const { gmail, userEmail } = await getAuthedGmailClient(accountId, userId);
+
+  const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const hasAttachments = attachments && attachments.length > 0;
 
   const headers = [
     `From: ${userEmail}`,
     `To: ${to}`,
     `Subject: ${subject}`,
     `MIME-Version: 1.0`,
-    `Content-Type: text/plain; charset="UTF-8"`,
   ];
 
   if (cc) headers.push(`Cc: ${cc}`);
@@ -628,7 +637,26 @@ export async function sendGmailEmail(
     headers.push(`References: ${replyToMessageId}`);
   }
 
-  const rawMessage = headers.join("\r\n") + "\r\n\r\n" + body;
+  let rawMessage: string;
+
+  if (hasAttachments) {
+    headers.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
+    const parts: string[] = [];
+    parts.push(
+      `--${boundary}\r\nContent-Type: text/plain; charset="UTF-8"\r\nContent-Transfer-Encoding: 7bit\r\n\r\n${body}`
+    );
+    for (const att of attachments!) {
+      parts.push(
+        `--${boundary}\r\nContent-Type: ${att.mimeType}; name="${att.filename}"\r\nContent-Disposition: attachment; filename="${att.filename}"\r\nContent-Transfer-Encoding: base64\r\n\r\n${att.content}`
+      );
+    }
+    parts.push(`--${boundary}--`);
+    rawMessage = headers.join("\r\n") + "\r\n\r\n" + parts.join("\r\n");
+  } else {
+    headers.push(`Content-Type: text/plain; charset="UTF-8"`);
+    rawMessage = headers.join("\r\n") + "\r\n\r\n" + body;
+  }
+
   const encodedMessage = Buffer.from(rawMessage)
     .toString("base64")
     .replace(/\+/g, "-")

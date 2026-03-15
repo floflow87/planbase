@@ -2430,6 +2430,12 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Gmail email is_read column added");
 
+    await db.execute(sql`
+      ALTER TABLE crm_email_messages
+      ADD COLUMN IF NOT EXISTS is_deleted INTEGER NOT NULL DEFAULT 0;
+    `);
+    console.log("✅ Gmail email is_deleted column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

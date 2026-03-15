@@ -7789,12 +7789,12 @@ app.get("/config/feature-flags", async (_req, res) => {
       if (!token || !token.gmailEnabled) {
         return res.status(400).json({ error: "Gmail is not connected." });
       }
-      const { to, cc, bcc, subject, body, replyToMessageId, threadId } = req.body;
+      const { to, cc, bcc, subject, body, replyToMessageId, threadId, attachments } = req.body;
       if (!to || !subject || !body) {
         return res.status(400).json({ error: "Missing required fields: to, subject, body" });
       }
       const { sendGmailEmail } = await import("./lib/gmail-sync");
-      const result = await sendGmailEmail(req.accountId!, req.userId!, to, subject, body, replyToMessageId, threadId, cc, bcc);
+      const result = await sendGmailEmail(req.accountId!, req.userId!, to, subject, body, replyToMessageId, threadId, cc, bcc, attachments);
       res.json({ success: true, ...result });
     } catch (error: unknown) {
       console.error("Gmail send error:", error);
@@ -7873,6 +7873,32 @@ app.get("/config/feature-flags", async (_req, res) => {
         return res.status(400).json({ error: "ids must be a non-empty array" });
       }
       await storage.deleteEmailMessages(req.accountId!, ids);
+      res.json({ deleted: ids.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/gmail/messages/restore", requireAuth, async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "ids must be a non-empty array" });
+      }
+      await storage.restoreEmailMessages(req.accountId!, ids);
+      res.json({ restored: ids.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/gmail/messages/permanent", requireAuth, async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "ids must be a non-empty array" });
+      }
+      await storage.permanentlyDeleteEmailMessages(req.accountId!, ids);
       res.json({ deleted: ids.length });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

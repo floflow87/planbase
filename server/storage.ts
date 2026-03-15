@@ -338,6 +338,8 @@ export interface IStorage {
   getEmailMessages(accountId: string, userId: string, limit?: number, offset?: number, direction?: string, search?: string): Promise<typeof crmEmailMessages.$inferSelect[]>;
   markEmailsRead(accountId: string, ids: string[], isRead: boolean): Promise<void>;
   deleteEmailMessages(accountId: string, ids: string[]): Promise<void>;
+  restoreEmailMessages(accountId: string, ids: string[]): Promise<void>;
+  permanentlyDeleteEmailMessages(accountId: string, ids: string[]): Promise<void>;
   setGmailEnabled(accountId: string, userId: string, enabled: boolean, explicitDisconnect?: boolean): Promise<void>;
   setGmailSyncTimestamp(accountId: string, userId: string): Promise<void>;
   getGmailLastHistoryId(accountId: string, userId: string): Promise<string | null>;
@@ -2016,8 +2018,13 @@ export class DatabaseStorage implements IStorage {
       eq(crmEmailMessages.accountId, accountId),
       eq(crmEmailMessages.userId, userId),
     ];
-    if (direction && (direction === 'sent' || direction === 'received')) {
-      conditions.push(eq(crmEmailMessages.direction, direction as 'sent' | 'received'));
+    if (direction === 'trash') {
+      conditions.push(eq(crmEmailMessages.isDeleted, 1));
+    } else {
+      conditions.push(eq(crmEmailMessages.isDeleted, 0));
+      if (direction === 'sent' || direction === 'received') {
+        conditions.push(eq(crmEmailMessages.direction, direction as 'sent' | 'received'));
+      }
     }
     if (search) {
       conditions.push(
@@ -2045,6 +2052,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteEmailMessages(accountId: string, ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    await db.update(crmEmailMessages)
+      .set({ isDeleted: 1 })
+      .where(and(eq(crmEmailMessages.accountId, accountId), inArray(crmEmailMessages.id, ids)));
+  }
+
+  async restoreEmailMessages(accountId: string, ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    await db.update(crmEmailMessages)
+      .set({ isDeleted: 0 })
+      .where(and(eq(crmEmailMessages.accountId, accountId), inArray(crmEmailMessages.id, ids)));
+  }
+
+  async permanentlyDeleteEmailMessages(accountId: string, ids: string[]): Promise<void> {
     if (ids.length === 0) return;
     await db.delete(crmEmailMessages)
       .where(and(eq(crmEmailMessages.accountId, accountId), inArray(crmEmailMessages.id, ids)));

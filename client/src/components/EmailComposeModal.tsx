@@ -2,13 +2,20 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Minus, Maximize2, Send, ChevronDown } from "lucide-react";
+import { X, Minus, Maximize2, Send, ChevronDown, Paperclip, FileText, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Contact {
   id: string;
   fullName: string;
   email: string | null;
+}
+
+interface AttachmentFile {
+  filename: string;
+  content: string;
+  mimeType: string;
+  size: number;
 }
 
 interface ComposeData {
@@ -19,6 +26,7 @@ interface ComposeData {
   body: string;
   replyToMessageId?: string;
   threadId?: string;
+  attachments?: AttachmentFile[];
 }
 
 interface EmailComposeModalProps {
@@ -49,9 +57,7 @@ function EmailAutocomplete({
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setInputVal(value);
-  }, [value]);
+  useEffect(() => { setInputVal(value); }, [value]);
 
   function handleInput(v: string) {
     setInputVal(v);
@@ -119,6 +125,12 @@ function EmailAutocomplete({
   );
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} Mo`;
+}
+
 export function EmailComposeModal({
   open,
   onClose,
@@ -130,7 +142,9 @@ export function EmailComposeModal({
 }: EmailComposeModalProps) {
   const [minimized, setMinimized] = useState(false);
   const [showCcBcc, setShowCcBcc] = useState(false);
-  const [data, setData] = useState<ComposeData>({
+  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [data, setData] = useState<Omit<ComposeData, "attachments">>({
     to: initialData?.to || "",
     cc: initialData?.cc || "",
     bcc: initialData?.bcc || "",
@@ -151,14 +165,39 @@ export function EmailComposeModal({
         replyToMessageId: initialData.replyToMessageId,
         threadId: initialData.threadId,
       });
+      setAttachments([]);
       setMinimized(false);
       setShowCcBcc(false);
     }
   }, [open, initialData?.to, initialData?.subject, initialData?.body]);
 
+  function handleFilePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files) return;
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const result = ev.target?.result as string;
+        const base64 = result.split(",")[1];
+        setAttachments(prev => [...prev, {
+          filename: file.name,
+          content: base64,
+          mimeType: file.type || "application/octet-stream",
+          size: file.size,
+        }]);
+      };
+      reader.readAsDataURL(file);
+    });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function removeAttachment(idx: number) {
+    setAttachments(prev => prev.filter((_, i) => i !== idx));
+  }
+
   const handleSend = () => {
     if (data.to && data.subject && data.body) {
-      onSend(data);
+      onSend({ ...data, attachments: attachments.length > 0 ? attachments : undefined });
     }
   };
 
@@ -172,26 +211,18 @@ export function EmailComposeModal({
         data-testid="compose-email-minimized"
       >
         <div className="flex items-center justify-between px-3 py-2">
-          <span className="text-sm font-medium truncate">
-            {data.subject || "Nouveau message"}
-          </span>
+          <span className="text-sm font-medium truncate">{data.subject || "Nouveau message"}</span>
           <div className="flex items-center gap-1">
-            <Button
-              size="icon"
-              variant="ghost"
+            <Button size="icon" variant="ghost"
               className="h-5 w-5 text-primary-foreground no-default-hover-elevate no-default-active-elevate"
               onClick={(e) => { e.stopPropagation(); setMinimized(false); }}
-              data-testid="button-expand-compose"
-            >
+              data-testid="button-expand-compose">
               <Maximize2 className="w-3 h-3" />
             </Button>
-            <Button
-              size="icon"
-              variant="ghost"
+            <Button size="icon" variant="ghost"
               className="h-5 w-5 text-primary-foreground no-default-hover-elevate no-default-active-elevate"
               onClick={(e) => { e.stopPropagation(); onClose(); }}
-              data-testid="button-close-compose-minimized"
-            >
+              data-testid="button-close-compose-minimized">
               <X className="w-3 h-3" />
             </Button>
           </div>
@@ -202,29 +233,26 @@ export function EmailComposeModal({
 
   return (
     <div
-      className="fixed bottom-0 right-6 z-50 w-[480px] max-w-[calc(100vw-2rem)] bg-background border rounded-t-lg shadow-2xl flex flex-col"
-      style={{ maxHeight: "calc(100vh - 4rem)" }}
+      className="fixed bottom-0 right-6 z-50 w-[520px] max-w-[calc(100vw-2rem)] bg-background border rounded-t-lg shadow-2xl flex flex-col"
+      style={{ height: "600px", maxHeight: "calc(100vh - 4rem)" }}
       data-testid="compose-email-modal"
     >
-      <div className="flex items-center justify-between px-3 py-2 bg-primary text-primary-foreground rounded-t-lg">
-        <span className="text-sm font-medium">Nouveau message</span>
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2 bg-primary text-primary-foreground rounded-t-lg shrink-0">
+        <span className="text-sm font-medium">
+          {data.replyToMessageId ? "Répondre" : "Nouveau message"}
+        </span>
         <div className="flex items-center gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
+          <Button size="icon" variant="ghost"
             className="h-5 w-5 text-primary-foreground no-default-hover-elevate no-default-active-elevate"
             onClick={() => setMinimized(true)}
-            data-testid="button-minimize-compose"
-          >
+            data-testid="button-minimize-compose">
             <Minus className="w-3 h-3" />
           </Button>
-          <Button
-            size="icon"
-            variant="ghost"
+          <Button size="icon" variant="ghost"
             className="h-5 w-5 text-primary-foreground no-default-hover-elevate no-default-active-elevate"
             onClick={onClose}
-            data-testid="button-close-compose"
-          >
+            data-testid="button-close-compose">
             <X className="w-3 h-3" />
           </Button>
         </div>
@@ -253,36 +281,23 @@ export function EmailComposeModal({
           </div>
         </div>
 
-        {/* CC */}
         {showCcBcc && (
-          <div className="px-3 py-1.5 border-b">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground shrink-0 w-6">Cc</span>
-              <EmailAutocomplete
-                value={data.cc || ""}
-                onChange={(v) => setData(d => ({ ...d, cc: v }))}
-                placeholder="Copie"
-                contacts={contacts}
-                data-testid="input-compose-cc"
-              />
+          <>
+            <div className="px-3 py-1.5 border-b">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground shrink-0 w-6">Cc</span>
+                <EmailAutocomplete value={data.cc || ""} onChange={(v) => setData(d => ({ ...d, cc: v }))}
+                  placeholder="Copie" contacts={contacts} data-testid="input-compose-cc" />
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* BCC */}
-        {showCcBcc && (
-          <div className="px-3 py-1.5 border-b">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground shrink-0 w-6">Cci</span>
-              <EmailAutocomplete
-                value={data.bcc || ""}
-                onChange={(v) => setData(d => ({ ...d, bcc: v }))}
-                placeholder="Copie cachée"
-                contacts={contacts}
-                data-testid="input-compose-bcc"
-              />
+            <div className="px-3 py-1.5 border-b">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground shrink-0 w-6">Cci</span>
+                <EmailAutocomplete value={data.bcc || ""} onChange={(v) => setData(d => ({ ...d, bcc: v }))}
+                  placeholder="Copie cachée" contacts={contacts} data-testid="input-compose-bcc" />
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         {/* Subject */}
@@ -297,27 +312,67 @@ export function EmailComposeModal({
         </div>
 
         {/* Body */}
-        <div className="flex-1 px-3 py-2 overflow-hidden">
+        <div className="flex-1 px-3 py-2 overflow-hidden min-h-0">
           <Textarea
             value={data.body}
             onChange={(e) => setData(d => ({ ...d, body: e.target.value }))}
             placeholder="Contenu de l'email..."
-            className="border-0 shadow-none text-xs resize-none min-h-[200px] h-full focus-visible:ring-0"
+            className="border-0 shadow-none text-xs resize-none h-full focus-visible:ring-0"
             data-testid="input-compose-body"
           />
         </div>
 
+        {/* Attachments list */}
+        {attachments.length > 0 && (
+          <div className="px-3 py-2 border-t space-y-1 max-h-28 overflow-y-auto bg-muted/30">
+            {attachments.map((att, idx) => (
+              <div key={idx} className="flex items-center gap-2 bg-background rounded-md px-2 py-1">
+                <FileText className="w-3 h-3 text-muted-foreground shrink-0" />
+                <span className="text-[10px] text-foreground truncate flex-1">{att.filename}</span>
+                <span className="text-[10px] text-muted-foreground shrink-0">{formatFileSize(att.size)}</span>
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(idx)}
+                  className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                  data-testid={`button-remove-attachment-${idx}`}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Footer */}
-        <div className="flex items-center justify-between px-3 py-2 border-t gap-2">
-          <Button
-            size="sm"
-            onClick={handleSend}
-            disabled={!data.to || !data.subject || !data.body || isSending}
-            data-testid="button-send-compose"
-          >
-            <Send className="w-3.5 h-3.5 mr-1.5" />
-            {isSending ? "Envoi..." : "Envoyer"}
-          </Button>
+        <div className="flex items-center justify-between px-3 py-2 border-t gap-2 shrink-0">
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              onClick={handleSend}
+              disabled={!data.to || !data.subject || !data.body || isSending}
+              data-testid="button-send-compose"
+            >
+              <Send className="w-3.5 h-3.5 mr-1.5" />
+              {isSending ? "Envoi..." : "Envoyer"}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleFilePick}
+              data-testid="input-compose-file"
+            />
+            <Button
+              size="icon"
+              variant="ghost"
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              data-testid="button-attach-file"
+            >
+              <Paperclip className="w-4 h-4" />
+            </Button>
+          </div>
           {senderEmail && (
             <span className="text-[10px] text-muted-foreground truncate">
               depuis {senderEmail}

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { EmailComposeModal } from "@/components/EmailComposeModal";
 import { RocketLoader } from "@/design-system/primitives/RocketLoader";
 import {
@@ -20,11 +22,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Search, RefreshCw, Inbox, Send, Mail,
-  ChevronLeft, Paperclip, ArrowLeft, ArrowRight,
-  Reply, Forward, ExternalLink, Plus, Trash2,
-  MailOpen, MailCheck, X, PanelRightClose,
+  Search, RefreshCw, Mail, Paperclip, ArrowLeft, ArrowRight,
+  Reply, Forward, ExternalLink, Plus, Trash2, RotateCcw,
+  MailOpen, MailCheck, X, PanelRightClose, Settings, Send,
+  ChevronLeft,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { format, isToday, isYesterday } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -42,6 +46,7 @@ interface EmailMessage {
   sentAt: string;
   direction: "sent" | "received";
   isRead: number;
+  isDeleted: number;
   hasAttachments: number;
   labels: string[] | null;
 }
@@ -57,6 +62,27 @@ interface Client {
   id: string;
   name: string;
   email: string | null;
+}
+
+interface SignatureConfig {
+  newMessage: string;
+  reply: string;
+  useForNew: boolean;
+  useForReply: boolean;
+}
+
+const SIGNATURE_KEY = "planbase_email_signature";
+
+function loadSignature(): SignatureConfig {
+  try {
+    const raw = localStorage.getItem(SIGNATURE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { newMessage: "", reply: "", useForNew: false, useForReply: false };
+}
+
+function saveSignature(config: SignatureConfig) {
+  localStorage.setItem(SIGNATURE_KEY, JSON.stringify(config));
 }
 
 function decodeHTMLEntities(str: string | null | undefined): string {
@@ -106,13 +132,13 @@ function AvatarCircle({ name, email }: { name: string | null; email: string }) {
   );
 }
 
-const WT = "bg-white text-gray-900 border border-gray-200 dark:bg-gray-900 dark:text-white dark:border-gray-700";
+const WT = "bg-white text-gray-900 border border-gray-200 text-[10px] dark:bg-gray-900 dark:text-white dark:border-gray-700";
 
-type ComposeMode = "new" | "reply" | "forward";
+type FilterType = "received" | "sent" | "trash";
 
 export default function Emails() {
   const { toast } = useToast();
-  const [filter, setFilter] = useState<"all" | "received" | "sent">("all");
+  const [filter, setFilter] = useState<FilterType>("received");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [selected, setSelected] = useState<EmailMessage | null>(null);
@@ -121,6 +147,12 @@ export default function Emails() {
   const [composeInitial, setComposeInitial] = useState<any>(undefined);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [permanentDeleteConfirmOpen, setPermanentDeleteConfirmOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [pendingSelectFirst, setPendingSelectFirst] = useState(false);
+  const [localReadIds, setLocalReadIds] = useState<Set<string>>(new Set());
+  const [signature, setSignature] = useState<SignatureConfig>(loadSignature);
+  const [sigDraft, setSigDraft] = useState<SignatureConfig>(loadSignature);
   const limit = 50;
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
 
@@ -139,13 +171,20 @@ export default function Emails() {
       const params = new URLSearchParams({
         limit: String(limit),
         offset: String(offset),
-        ...(filter !== "all" ? { direction: filter } : {}),
+        direction: filter,
         ...(search ? { search } : {}),
       });
       const res = await apiRequest(`/api/gmail/messages?${params}`, "GET");
       return res.json();
     },
   });
+
+  useEffect(() => {
+    if (pendingSelectFirst && messages.length > 0) {
+      setSelected(messages[0]);
+      setPendingSelectFirst(false);
+    }
+  }, [messages, pendingSelectFirst]);
 
   const { data: clients = [] } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
@@ -176,10 +215,16 @@ export default function Emails() {
 
   const sendEmailMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest("/api/gmail/send", "POST", data);
+      const res = await apiRequest("/api/gmail/send", "POST", data);
+      return res.json();
     },
     onSuccess: () => {
       setComposeOpen(false);
+      setFilter("sent");
+      setOffset(0);
+      setSearch("");
+      setSearchInput("");
+      setPendingSelectFirst(true);
       queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
       toast({
         title: "Email envoyé",
@@ -207,11 +252,40 @@ export default function Emails() {
     },
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/gmail/status"] });
       setSelectedIds(new Set());
       if (selected && ids.includes(selected.id)) setSelected(null);
       toast({
-        title: `${ids.length} email(s) supprimé(s)`,
+        title: `${ids.length} email(s) déplacé(s) en corbeille`,
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+      });
+    },
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      return apiRequest("/api/gmail/messages/restore", "PATCH", { ids });
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
+      setSelectedIds(new Set());
+      if (selected && ids.includes(selected.id)) setSelected(null);
+      toast({
+        title: `${ids.length} email(s) restauré(s)`,
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+      });
+    },
+  });
+
+  const permanentDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      return apiRequest("/api/gmail/messages/permanent", "DELETE", { ids });
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
+      setSelectedIds(new Set());
+      if (selected && ids.includes(selected.id)) setSelected(null);
+      toast({
+        title: `${ids.length} email(s) supprimé(s) définitivement`,
         className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
       });
     },
@@ -226,11 +300,12 @@ export default function Emails() {
     }, 400);
   }
 
-  function handleFilterChange(f: typeof filter) {
+  function handleFilterChange(f: FilterType) {
     setFilter(f);
     setOffset(0);
     setSelected(null);
     setSelectedIds(new Set());
+    setLocalReadIds(new Set());
   }
 
   function toggleSelect(id: string, e: React.MouseEvent) {
@@ -252,10 +327,12 @@ export default function Emails() {
   }
 
   function openReply(msg: EmailMessage) {
+    const sig = loadSignature();
+    const signaturePart = sig.useForReply && sig.reply ? `\n\n-- \n${sig.reply}` : "";
     setComposeInitial({
       to: msg.fromEmail,
       subject: `Re: ${decodeHTMLEntities(msg.subject) || ""}`,
-      body: `\n\n---\nDe : ${msg.fromName || msg.fromEmail}\nDate : ${format(new Date(msg.sentAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n\n${decodeHTMLEntities(msg.bodyText) || ""}`,
+      body: `${signaturePart}\n\n---\nDe : ${msg.fromName || msg.fromEmail}\nDate : ${format(new Date(msg.sentAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n\n${decodeHTMLEntities(msg.bodyText) || ""}`,
       replyToMessageId: msg.gmailMessageId,
       threadId: msg.gmailThreadId || undefined,
     });
@@ -263,18 +340,42 @@ export default function Emails() {
   }
 
   function openForward(msg: EmailMessage) {
+    const sig = loadSignature();
+    const signaturePart = sig.useForReply && sig.reply ? `\n\n-- \n${sig.reply}` : "";
     setComposeInitial({
       to: "",
       subject: `Fwd: ${decodeHTMLEntities(msg.subject) || ""}`,
-      body: `\n\n---\nDe : ${msg.fromName || msg.fromEmail}\nDate : ${format(new Date(msg.sentAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}\nSujet : ${decodeHTMLEntities(msg.subject) || ""}\n\n${decodeHTMLEntities(msg.bodyText) || ""}`,
+      body: `${signaturePart}\n\n---\nDe : ${msg.fromName || msg.fromEmail}\nDate : ${format(new Date(msg.sentAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}\nSujet : ${decodeHTMLEntities(msg.subject) || ""}\n\n${decodeHTMLEntities(msg.bodyText) || ""}`,
     });
     setComposeOpen(true);
   }
 
-  const TABS: { key: typeof filter; label: string }[] = [
-    { key: "all", label: "Tous" },
+  function openNew() {
+    const sig = loadSignature();
+    const signaturePart = sig.useForNew && sig.newMessage ? `\n\n-- \n${sig.newMessage}` : "";
+    setComposeInitial({ to: "", subject: "", body: signaturePart });
+    setComposeOpen(true);
+  }
+
+  function openSettings() {
+    setSigDraft(loadSignature());
+    setSettingsOpen(true);
+  }
+
+  function saveSettings() {
+    saveSignature(sigDraft);
+    setSignature(sigDraft);
+    setSettingsOpen(false);
+    toast({
+      title: "Paramètres sauvegardés",
+      className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+    });
+  }
+
+  const TABS: { key: FilterType; label: string }[] = [
     { key: "received", label: "Reçus" },
     { key: "sent", label: "Envoyés" },
+    { key: "trash", label: "Corbeille" },
   ];
 
   if (!gmailStatus?.connected) {
@@ -298,33 +399,43 @@ export default function Emails() {
 
   const allSelected = messages.length > 0 && selectedIds.size === messages.length;
   const someSelected = selectedIds.size > 0;
+  const isTrash = filter === "trash";
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* ---- Left panel ---- */}
+      {/* ==================== LEFT PANEL (fixed width always) ==================== */}
       <div className={cn(
-        "flex flex-col transition-all bg-background shrink-0",
-        selected
-          ? "hidden md:flex md:w-64 lg:w-72"
-          : "w-full md:w-auto md:flex-1 md:max-w-xl"
+        "flex flex-col bg-background shrink-0 border-r border-border transition-all duration-150",
+        "w-full md:w-72 lg:w-80",
+        selected ? "hidden md:flex" : "flex"
       )}>
         {/* Header */}
-        <div className="flex items-center gap-2 px-3 py-2.5 border-b shrink-0">
+        <div className="flex items-center gap-1.5 px-3 py-2.5 border-b shrink-0">
           <Tooltip>
             <TooltipTrigger asChild>
-              <button className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
-                <Inbox className="w-4 h-4 text-muted-foreground shrink-0" />
-                <span className="font-semibold text-sm">Boîte mail</span>
+              <button className="flex items-center gap-1.5 hover:opacity-75 transition-opacity min-w-0">
+                <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span className="font-semibold text-sm truncate">Boîte mail</span>
               </button>
             </TooltipTrigger>
             <TooltipContent className={WT}>
               {gmailStatus?.email || "Non connecté"}
             </TooltipContent>
           </Tooltip>
-
           <div className="flex-1" />
-
-          {/* Sync button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={openSettings}
+                data-testid="button-email-settings"
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className={WT}>Paramètres</TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -339,14 +450,12 @@ export default function Emails() {
             </TooltipTrigger>
             <TooltipContent className={WT}>Synchroniser</TooltipContent>
           </Tooltip>
-
-          {/* Nouveau button — main color */}
           {gmailStatus?.canSend && (
             <Button
               size="sm"
-              onClick={() => { setComposeInitial(undefined); setComposeOpen(true); }}
+              onClick={openNew}
               data-testid="button-new-email"
-              className="gap-1.5"
+              className="gap-1"
             >
               <Plus className="w-3.5 h-3.5" />
               Nouveau
@@ -356,15 +465,15 @@ export default function Emails() {
 
         {/* White area */}
         <div className="flex flex-col flex-1 overflow-hidden bg-white dark:bg-background">
-          {/* Filter tabs + search row */}
-          <div className="flex items-center px-3 border-b shrink-0">
-            <div className="flex items-center -mb-px">
+          {/* Tabs + search */}
+          <div className="flex items-center px-2 border-b shrink-0 gap-1">
+            <div className="flex items-center -mb-px overflow-x-auto">
               {TABS.map(({ key, label }) => (
                 <button
                   key={key}
                   onClick={() => handleFilterChange(key)}
                   className={cn(
-                    "px-2.5 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap",
+                    "px-2 py-2.5 text-[11px] font-medium border-b-2 transition-colors whitespace-nowrap shrink-0",
                     filter === key
                       ? "border-primary text-primary"
                       : "border-transparent text-muted-foreground hover:text-foreground"
@@ -376,11 +485,12 @@ export default function Emails() {
               ))}
             </div>
             <div className="flex-1" />
-            <div className="relative w-28 py-1.5 shrink-0">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+            <div className="relative shrink-0 py-1.5">
+              <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-muted-foreground pointer-events-none" />
               <Input
-                className="pl-5 h-6 text-[11px]"
+                className="pl-5 h-6 text-[10px] w-24"
                 placeholder="Chercher..."
+                style={{ fontSize: "10px" }}
                 value={searchInput}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 data-testid="input-email-search"
@@ -389,101 +499,100 @@ export default function Emails() {
           </div>
 
           {/* Multi-select action bar */}
-          {someSelected && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 border-b shrink-0">
+          {someSelected ? (
+            <div className="flex items-center gap-1 px-3 py-1.5 bg-primary/5 border-b shrink-0">
               <Checkbox
                 checked={allSelected}
                 onCheckedChange={toggleSelectAll}
                 className="shrink-0"
                 data-testid="checkbox-select-all"
               />
-              <span className="text-xs text-muted-foreground flex-1">{selectedIds.size} sélectionné(s)</span>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7"
-                    onClick={() => markReadMutation.mutate({ ids: Array.from(selectedIds), isRead: true })}
-                    data-testid="button-mark-read"
-                  >
-                    <MailOpen className="w-3.5 h-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className={WT}>Marquer comme lu</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7"
-                    onClick={() => markReadMutation.mutate({ ids: Array.from(selectedIds), isRead: false })}
-                    data-testid="button-mark-unread"
-                  >
-                    <MailCheck className="w-3.5 h-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className={WT}>Marquer comme non lu</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7 text-destructive"
-                    onClick={() => setDeleteConfirmOpen(true)}
-                    data-testid="button-delete-selected"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className={WT}>Supprimer</TooltipContent>
-              </Tooltip>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7"
-                onClick={() => setSelectedIds(new Set())}
-                data-testid="button-clear-selection"
-              >
+              <span className="text-[10px] text-muted-foreground flex-1 ml-1">{selectedIds.size} sélect.</span>
+              {isTrash ? (
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-6 w-6"
+                        onClick={() => restoreMutation.mutate(Array.from(selectedIds))} data-testid="button-restore">
+                        <RotateCcw className="w-3 h-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className={WT}>Restaurer</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive"
+                        onClick={() => setPermanentDeleteConfirmOpen(true)} data-testid="button-permanent-delete">
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className={WT}>Supprimer définitivement</TooltipContent>
+                  </Tooltip>
+                </>
+              ) : (
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-6 w-6"
+                        onClick={() => markReadMutation.mutate({ ids: Array.from(selectedIds), isRead: true })} data-testid="button-mark-read">
+                        <MailOpen className="w-3 h-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className={WT}>Marquer comme lu</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-6 w-6"
+                        onClick={() => markReadMutation.mutate({ ids: Array.from(selectedIds), isRead: false })} data-testid="button-mark-unread">
+                        <MailCheck className="w-3 h-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className={WT}>Marquer non lu</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive"
+                        onClick={() => setDeleteConfirmOpen(true)} data-testid="button-delete-selected">
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className={WT}>Supprimer</TooltipContent>
+                  </Tooltip>
+                </>
+              )}
+              <Button size="icon" variant="ghost" className="h-6 w-6"
+                onClick={() => setSelectedIds(new Set())}>
                 <X className="w-3 h-3" />
               </Button>
             </div>
-          )}
-
-          {/* Select-all row (when none selected yet) */}
-          {!someSelected && messages.length > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 border-b shrink-0 bg-white dark:bg-background">
-              <Checkbox
-                checked={false}
-                onCheckedChange={toggleSelectAll}
-                className="shrink-0"
-                data-testid="checkbox-select-all-idle"
-              />
-              <span className="text-[11px] text-muted-foreground">Tout sélectionner</span>
-              {gmailStatus?.messageCount !== undefined && (
-                <span className="ml-auto text-[11px] text-muted-foreground">{gmailStatus.messageCount} emails</span>
-              )}
-            </div>
+          ) : (
+            messages.length > 0 && (
+              <div className="flex items-center gap-2 px-3 py-1 border-b shrink-0 bg-white dark:bg-background">
+                <Checkbox checked={false} onCheckedChange={toggleSelectAll} className="shrink-0" data-testid="checkbox-select-all-idle" />
+                <span className="text-[10px] text-muted-foreground flex-1">Tout sélectionner</span>
+                {gmailStatus?.messageCount !== undefined && !isTrash && (
+                  <span className="text-[10px] text-muted-foreground">{gmailStatus.messageCount}</span>
+                )}
+              </div>
+            )
           )}
 
           {/* Email list */}
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
-              <div className="flex flex-col items-center justify-center h-48 gap-4">
+              <div className="flex flex-col items-center justify-center h-48 gap-3">
                 <RocketLoader size="sm" />
-                <span className="text-xs text-muted-foreground">Chargement...</span>
+                <span className="text-[11px] text-muted-foreground">Chargement...</span>
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-40 text-muted-foreground gap-2">
                 <Mail className="w-8 h-8 opacity-30" />
-                <p className="text-sm">Aucun email trouvé</p>
+                <p className="text-xs">Aucun email</p>
               </div>
             ) : (
               <div className="divide-y">
                 {messages.map((msg) => {
-                  const isUnread = msg.isRead === 0 && msg.direction === "received";
+                  const isUnread = msg.isRead === 0 && msg.direction === "received" && !localReadIds.has(msg.id);
                   const isChecked = selectedIds.has(msg.id);
                   return (
                     <div
@@ -495,6 +604,7 @@ export default function Emails() {
                       onClick={() => {
                         setSelected(msg);
                         if (isUnread) {
+                          setLocalReadIds(prev => new Set([...prev, msg.id]));
                           markReadMutation.mutate({ ids: [msg.id], isRead: true });
                         }
                       }}
@@ -503,35 +613,32 @@ export default function Emails() {
                       {/* Checkbox */}
                       <div
                         className="mt-0.5 shrink-0"
-                        style={{ visibility: isChecked || someSelected ? "visible" : undefined }}
                         onClick={(e) => toggleSelect(msg.id, e)}
                       >
                         <Checkbox
                           checked={isChecked}
-                          className={cn("group-hover:opacity-100", !isChecked && !someSelected && "opacity-0")}
+                          className={cn("transition-opacity", !isChecked && !someSelected ? "opacity-0 group-hover:opacity-100" : "opacity-100")}
                           data-testid={`checkbox-email-${msg.id}`}
                         />
                       </div>
 
-                      {/* Avatar */}
                       <AvatarCircle name={msg.fromName} email={msg.fromEmail} />
 
-                      {/* Content */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1.5 mb-0.5">
-                          <span className={cn("text-[11px] truncate", isUnread ? "font-semibold text-foreground" : "font-medium text-foreground/80")}>
+                        <div className="flex items-center justify-between gap-1 mb-0.5">
+                          <span className={cn("text-[11px] truncate leading-none", isUnread ? "font-semibold" : "font-medium text-foreground/80")}>
                             {msg.direction === "sent" ? "Moi" : (decodeHTMLEntities(msg.fromName) || msg.fromEmail)}
                           </span>
                           <div className="flex items-center gap-1 shrink-0">
                             {isUnread && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 flex-shrink-0" />
                             )}
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-[10px] text-muted-foreground leading-none">
                               {formatEmailDate(msg.sentAt)}
                             </span>
                           </div>
                         </div>
-                        <p className={cn("text-[11px] truncate", isUnread ? "font-medium text-foreground" : "text-foreground/70")}>
+                        <p className={cn("text-[11px] truncate leading-tight", isUnread ? "font-medium" : "text-foreground/70")}>
                           {decodeHTMLEntities(msg.subject) || "(Sans objet)"}
                         </p>
                         <p className="text-[10px] text-muted-foreground truncate mt-0.5 leading-relaxed">
@@ -540,13 +647,13 @@ export default function Emails() {
                         {(msg.hasAttachments === 1 || msg.direction === "sent") && (
                           <div className="flex gap-1 mt-1 flex-wrap">
                             {msg.direction === "sent" && (
-                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-                                <Send className="w-2.5 h-2.5 mr-0.5" />Envoyé
+                              <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
+                                <Send className="w-2 h-2 mr-0.5" />Envoyé
                               </Badge>
                             )}
                             {msg.hasAttachments === 1 && (
-                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-                                <Paperclip className="w-2.5 h-2.5 mr-0.5" />PJ
+                              <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
+                                <Paperclip className="w-2 h-2 mr-0.5" />PJ
                               </Badge>
                             )}
                           </div>
@@ -560,16 +667,14 @@ export default function Emails() {
 
             {/* Pagination */}
             {messages.length > 0 && (
-              <div className="flex items-center justify-center gap-2 py-2.5 border-t">
+              <div className="flex items-center justify-center gap-2 py-2 border-t">
                 <Button size="sm" variant="ghost" disabled={offset === 0}
-                  onClick={() => setOffset(Math.max(0, offset - limit))}
-                  data-testid="button-prev-page">
+                  onClick={() => setOffset(Math.max(0, offset - limit))} data-testid="button-prev-page">
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
-                <span className="text-xs text-muted-foreground">{offset + 1}–{offset + messages.length}</span>
+                <span className="text-[10px] text-muted-foreground">{offset + 1}–{offset + messages.length}</span>
                 <Button size="sm" variant="ghost" disabled={messages.length < limit}
-                  onClick={() => setOffset(offset + limit)}
-                  data-testid="button-next-page">
+                  onClick={() => setOffset(offset + limit)} data-testid="button-next-page">
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               </div>
@@ -578,151 +683,245 @@ export default function Emails() {
         </div>
       </div>
 
-      {/* ---- Right panel ---- */}
-      {selected ? (
-        <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-background border-l-2 border-primary min-w-0">
-          {/* Detail header */}
-          <div className="flex items-center gap-2 px-4 py-2.5 border-b shrink-0 bg-white dark:bg-background">
-            {/* Back (mobile) */}
-            <Button size="icon" variant="ghost" className="md:hidden shrink-0"
-              onClick={() => setSelected(null)} data-testid="button-back-emails">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-
-            <div className="flex-1 min-w-0">
-              <h2 className="font-semibold text-xs truncate">{decodeHTMLEntities(selected.subject) || "(Sans objet)"}</h2>
-            </div>
-
-            <div className="flex items-center gap-0.5 shrink-0">
-              {gmailStatus?.canSend && (
-                <>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button size="icon" variant="ghost" onClick={() => openReply(selected)} data-testid="button-reply-email">
-                        <Reply className="w-3.5 h-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent className={WT}>Répondre</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button size="icon" variant="ghost" onClick={() => openForward(selected)} data-testid="button-forward-email">
-                        <Forward className="w-3.5 h-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent className={WT}>Transférer</TooltipContent>
-                  </Tooltip>
-                </>
-              )}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="icon" variant="ghost"
-                    onClick={() => window.open(`https://mail.google.com/mail/u/0/#inbox/${selected.gmailMessageId}`, "_blank")}
-                    data-testid="button-open-gmail">
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className={WT}>Ouvrir dans Gmail</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="icon" variant="ghost" className="hidden md:flex"
-                    onClick={() => setSelected(null)} data-testid="button-close-detail">
-                    <PanelRightClose className="w-3.5 h-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className={WT}>Fermer l'aperçu</TooltipContent>
-              </Tooltip>
-            </div>
-          </div>
-
-          {/* Email meta */}
-          <div className="px-4 py-3 border-b shrink-0 bg-white dark:bg-background">
-            <div className="flex items-start gap-3">
-              <AvatarCircle name={selected.fromName} email={selected.fromEmail} />
+      {/* ==================== RIGHT PANEL (flex-1) ==================== */}
+      <div className={cn(
+        "flex-1 flex flex-col overflow-hidden bg-white dark:bg-background min-w-0",
+        selected ? "flex" : "hidden md:flex"
+      )}>
+        {selected ? (
+          <>
+            {/* Detail header */}
+            <div className="flex items-center gap-1 px-4 py-2.5 border-b shrink-0 bg-white dark:bg-background">
+              <Button size="icon" variant="ghost" className="md:hidden shrink-0"
+                onClick={() => setSelected(null)} data-testid="button-back-emails">
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
               <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
-                  <span className="font-medium text-xs">
-                    {selected.direction === "sent" ? "Moi" : (decodeHTMLEntities(selected.fromName) || selected.fromEmail)}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {format(new Date(selected.sentAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}
-                  </span>
-                </div>
-                {selected.direction !== "sent" && (
-                  <span className="text-[10px] text-muted-foreground">{selected.fromEmail}</span>
+                <h2 className="font-semibold text-xs truncate">{decodeHTMLEntities(selected.subject) || "(Sans objet)"}</h2>
+              </div>
+              <div className="flex items-center gap-0 shrink-0">
+                {gmailStatus?.canSend && !isTrash && (
+                  <>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button size="icon" variant="ghost" onClick={() => openReply(selected)} data-testid="button-reply-email">
+                          <Reply className="w-3.5 h-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent className={WT}>Répondre</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button size="icon" variant="ghost" onClick={() => openForward(selected)} data-testid="button-forward-email">
+                          <Forward className="w-3.5 h-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent className={WT}>Transférer</TooltipContent>
+                    </Tooltip>
+                  </>
                 )}
-                {selected.direction === "sent" && (
-                  <Badge variant="secondary" className="mt-1 text-[10px] h-4 px-1.5">
-                    <Send className="w-2.5 h-2.5 mr-0.5" />Envoyé
-                  </Badge>
+                {isTrash && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" variant="ghost" onClick={() => restoreMutation.mutate([selected.id])} data-testid="button-restore-single">
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className={WT}>Restaurer</TooltipContent>
+                  </Tooltip>
                 )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="icon" variant="ghost"
+                      onClick={() => window.open(`https://mail.google.com/mail/u/0/#inbox/${selected.gmailMessageId}`, "_blank")}
+                      data-testid="button-open-gmail">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className={WT}>Ouvrir dans Gmail</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="icon" variant="ghost" className="hidden md:flex"
+                      onClick={() => setSelected(null)} data-testid="button-close-detail">
+                      <PanelRightClose className="w-3.5 h-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className={WT}>Fermer</TooltipContent>
+                </Tooltip>
               </div>
             </div>
-            {selected.hasAttachments === 1 && (
-              <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                <Paperclip className="w-3 h-3" />
-                <span>Contient des pièces jointes</span>
+
+            {/* Email meta */}
+            <div className="px-4 py-3 border-b shrink-0 bg-white dark:bg-background">
+              <div className="flex items-start gap-3">
+                <AvatarCircle name={selected.fromName} email={selected.fromEmail} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
+                    <span className="font-medium text-xs">
+                      {selected.direction === "sent" ? "Moi" : (decodeHTMLEntities(selected.fromName) || selected.fromEmail)}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {format(new Date(selected.sentAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}
+                    </span>
+                  </div>
+                  {selected.direction !== "sent" && (
+                    <span className="text-[10px] text-muted-foreground">{selected.fromEmail}</span>
+                  )}
+                  {selected.direction === "sent" && (
+                    <Badge variant="secondary" className="mt-1 text-[10px] h-4 px-1">
+                      <Send className="w-2 h-2 mr-0.5" />Envoyé
+                    </Badge>
+                  )}
+                </div>
               </div>
-            )}
+              {selected.hasAttachments === 1 && (
+                <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <Paperclip className="w-3 h-3" />
+                  <span>Contient des pièces jointes</span>
+                </div>
+              )}
+            </div>
+
+            {/* Email body */}
+            <div className="flex-1 overflow-hidden bg-white dark:bg-background">
+              {selected.bodyHtml ? (
+                <iframe
+                  srcDoc={selected.bodyHtml}
+                  sandbox="allow-same-origin allow-popups"
+                  className="w-full h-full border-0"
+                  title="Email content"
+                  data-testid="email-body-iframe"
+                />
+              ) : selected.bodyText ? (
+                <div className="h-full overflow-y-auto px-4 py-4">
+                  <pre className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-foreground">
+                    {decodeHTMLEntities(selected.bodyText)}
+                  </pre>
+                </div>
+              ) : selected.snippet ? (
+                <div className="px-4 py-4">
+                  <p className="text-xs text-muted-foreground italic">{decodeHTMLEntities(selected.snippet)}</p>
+                </div>
+              ) : (
+                <div className="px-4 py-4">
+                  <p className="text-xs text-muted-foreground italic">Corps de l'email non disponible.</p>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-center gap-3 text-muted-foreground border-l border-border">
+            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+              <Mail className="w-6 h-6 opacity-40" />
+            </div>
+            <p className="text-xs">Sélectionnez un email pour le lire</p>
+          </div>
+        )}
+      </div>
+
+      {/* ==================== SETTINGS SHEET ==================== */}
+      <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <SheetContent side="right" className="w-[360px] flex flex-col">
+          <SheetHeader>
+            <SheetTitle className="text-sm font-semibold">Paramètres des emails</SheetTitle>
+          </SheetHeader>
+
+          <div className="flex-1 overflow-y-auto space-y-6 py-4">
+            {/* Signature nouveau message */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-xs font-medium">Signature — nouveau message</Label>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Ajoutée en bas de chaque nouveau message</p>
+                </div>
+                <Switch
+                  checked={sigDraft.useForNew}
+                  onCheckedChange={(v) => setSigDraft(d => ({ ...d, useForNew: v }))}
+                  data-testid="switch-signature-new"
+                />
+              </div>
+              {sigDraft.useForNew && (
+                <Textarea
+                  value={sigDraft.newMessage}
+                  onChange={(e) => setSigDraft(d => ({ ...d, newMessage: e.target.value }))}
+                  placeholder="Votre signature..."
+                  className="text-xs resize-none min-h-[120px]"
+                  data-testid="textarea-signature-new"
+                />
+              )}
+            </div>
+
+            {/* Signature réponse */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-xs font-medium">Signature — réponse & transfert</Label>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Ajoutée lors des réponses et transferts</p>
+                </div>
+                <Switch
+                  checked={sigDraft.useForReply}
+                  onCheckedChange={(v) => setSigDraft(d => ({ ...d, useForReply: v }))}
+                  data-testid="switch-signature-reply"
+                />
+              </div>
+              {sigDraft.useForReply && (
+                <Textarea
+                  value={sigDraft.reply}
+                  onChange={(e) => setSigDraft(d => ({ ...d, reply: e.target.value }))}
+                  placeholder="Votre signature pour les réponses..."
+                  className="text-xs resize-none min-h-[120px]"
+                  data-testid="textarea-signature-reply"
+                />
+              )}
+            </div>
           </div>
 
-          {/* Email body */}
-          <div className="flex-1 overflow-hidden bg-white dark:bg-background">
-            {selected.bodyHtml ? (
-              <iframe
-                srcDoc={selected.bodyHtml}
-                sandbox="allow-same-origin allow-popups"
-                className="w-full h-full border-0"
-                title="Email content"
-                data-testid="email-body-iframe"
-              />
-            ) : selected.bodyText ? (
-              <div className="h-full overflow-y-auto px-4 py-4">
-                <pre className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-foreground">
-                  {decodeHTMLEntities(selected.bodyText)}
-                </pre>
-              </div>
-            ) : selected.snippet ? (
-              <div className="px-4 py-4">
-                <p className="text-xs text-muted-foreground italic">{decodeHTMLEntities(selected.snippet)}</p>
-              </div>
-            ) : (
-              <div className="px-4 py-4">
-                <p className="text-xs text-muted-foreground italic">Corps de l'email non disponible.</p>
-              </div>
-            )}
+          <div className="border-t pt-4">
+            <Button onClick={saveSettings} className="w-full" data-testid="button-save-settings">
+              Sauvegarder
+            </Button>
           </div>
-        </div>
-      ) : (
-        <div className="hidden md:flex flex-1 flex-col items-center justify-center text-center gap-3 text-muted-foreground bg-white dark:bg-background border-l border-border">
-          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-            <Mail className="w-6 h-6 opacity-50" />
-          </div>
-          <p className="text-xs">Sélectionnez un email pour le lire</p>
-        </div>
-      )}
+        </SheetContent>
+      </Sheet>
 
-      {/* Delete confirmation */}
+      {/* ==================== DIALOGS ==================== */}
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer {selectedIds.size} email(s) ?</AlertDialogTitle>
+            <AlertDialogTitle>Déplacer {selectedIds.size} email(s) vers la corbeille ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irréversible. Les emails sélectionnés seront définitivement supprimés de Planbase (pas de Gmail).
+              Vous pourrez les restaurer depuis le filtre Corbeille.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-              onClick={() => {
-                deleteMutation.mutate(Array.from(selectedIds));
-                setDeleteConfirmOpen(false);
-              }}
+              onClick={() => { deleteMutation.mutate(Array.from(selectedIds)); setDeleteConfirmOpen(false); }}
               data-testid="button-confirm-delete"
             >
-              Supprimer
+              Confirmer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={permanentDeleteConfirmOpen} onOpenChange={setPermanentDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer définitivement {selectedIds.size} email(s) ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. Les emails seront définitivement supprimés de Planbase.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground"
+              onClick={() => { permanentDeleteMutation.mutate(Array.from(selectedIds)); setPermanentDeleteConfirmOpen(false); }}
+              data-testid="button-confirm-permanent-delete"
+            >
+              Supprimer définitivement
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
