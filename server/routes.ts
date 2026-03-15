@@ -7840,6 +7840,19 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  app.get("/api/gmail/messages", requireAuth, async (req, res) => {
+    try {
+      const limit = Math.min(Number(req.query.limit) || 50, 100);
+      const offset = Number(req.query.offset) || 0;
+      const direction = req.query.direction as string | undefined;
+      const search = req.query.search as string | undefined;
+      const messages = await storage.getEmailMessages(req.accountId!, req.userId!, limit, offset, direction, search);
+      res.json(messages);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.patch("/api/gmail/sync-period", requireAuth, async (req, res) => {
     try {
       const { months } = req.body;

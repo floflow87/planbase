@@ -57,7 +57,7 @@ import {
   crmEmailMessages, crmEmailParticipants, crmEmailLinks,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, like, desc, sql, isNull, inArray, gte, lte, asc } from "drizzle-orm";
+import { eq, and, or, like, ilike, desc, sql, isNull, inArray, gte, lte, asc } from "drizzle-orm";
 
 // Helper functions to access Google OAuth credentials from environment variables
 // Global credentials shared across all accounts for multi-tenant SaaS
@@ -335,6 +335,7 @@ export interface IStorage {
   getEmailsByContactId(accountId: string, contactId: string): Promise<CrmEmailMessage[]>;
   getEmailsByClientId(accountId: string, clientId: string): Promise<CrmEmailMessage[]>;
   getEmailMessageCount(accountId: string, userId: string): Promise<number>;
+  getEmailMessages(accountId: string, userId: string, limit?: number, offset?: number, direction?: string, search?: string): Promise<typeof crmEmailMessages.$inferSelect[]>;
   setGmailEnabled(accountId: string, userId: string, enabled: boolean, explicitDisconnect?: boolean): Promise<void>;
   setGmailSyncTimestamp(accountId: string, userId: string): Promise<void>;
   getGmailLastHistoryId(accountId: string, userId: string): Promise<string | null>;
@@ -2005,6 +2006,32 @@ export class DatabaseStorage implements IStorage {
       .from(crmEmailMessages)
       .where(and(eq(crmEmailMessages.accountId, accountId), eq(crmEmailMessages.userId, userId)));
     return Number(result[0]?.count || 0);
+  }
+
+  async getEmailMessages(accountId: string, userId: string, limit = 50, offset = 0, direction?: string, search?: string): Promise<typeof crmEmailMessages.$inferSelect[]> {
+    const conditions = [
+      eq(crmEmailMessages.accountId, accountId),
+      eq(crmEmailMessages.userId, userId),
+    ];
+    if (direction && (direction === 'sent' || direction === 'received')) {
+      conditions.push(eq(crmEmailMessages.direction, direction as 'sent' | 'received'));
+    }
+    if (search) {
+      conditions.push(
+        or(
+          ilike(crmEmailMessages.subject, `%${search}%`),
+          ilike(crmEmailMessages.fromName, `%${search}%`),
+          ilike(crmEmailMessages.fromEmail, `%${search}%`),
+          ilike(crmEmailMessages.snippet, `%${search}%`),
+        )!
+      );
+    }
+    return db.select()
+      .from(crmEmailMessages)
+      .where(and(...conditions))
+      .orderBy(desc(crmEmailMessages.sentAt))
+      .limit(limit)
+      .offset(offset);
   }
 
   async setGmailEnabled(accountId: string, userId: string, enabled: boolean, explicitDisconnect?: boolean): Promise<void> {

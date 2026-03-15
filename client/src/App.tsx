@@ -47,6 +47,7 @@ import SharePublicPage from "@/pages/share-public";
 import ProjectDecisions from "@/pages/project-decisions";
 import ProjectExecutive from "@/pages/project-executive";
 import AcceptInvitation from "@/pages/accept-invitation";
+import Emails from "@/pages/emails";
 import NotFound from "@/pages/not-found";
 import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote, CalendarPlus, MoreHorizontal, Timer } from "lucide-react";
 import { AppointmentPanel } from "@/components/appointment-panel";
@@ -185,6 +186,9 @@ function Router() {
       </Route>
       <Route path="/legal">
         <ProtectedRoute><Legal /></ProtectedRoute>
+      </Route>
+      <Route path="/emails">
+        <ProtectedRoute><Emails /></ProtectedRoute>
       </Route>
       <Route path="/calendar">
         <ProtectedRoute><CalendarPage /></ProtectedRoute>
@@ -1430,7 +1434,7 @@ function AppLayout() {
                   <TimeTracker />
                 </div>
               )}
-              <Button variant="ghost" size="icon" className="hidden sm:flex" data-testid="button-mail">
+              <Button variant="ghost" size="icon" className="hidden sm:flex" onClick={() => setLocation("/emails")} data-testid="button-mail">
                 <Mail className="w-4 h-4 text-primary" />
               </Button>
               <Button
@@ -1463,7 +1467,7 @@ function AppLayout() {
                       <span>Time tracker</span>
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem data-testid="button-mail-mobile">
+                  <DropdownMenuItem onClick={() => setLocation("/emails")} data-testid="button-mail-mobile">
                     <Mail className="w-4 h-4 text-primary" />
                     <span>Mails</span>
                   </DropdownMenuItem>

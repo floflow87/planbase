@@ -257,8 +257,7 @@ export default function IntegrationDetailPage() {
 
   const syncPeriodMutation = useMutation({
     mutationFn: async (months: number) => {
-      const response = await apiRequest("/api/gmail/sync-period", "PATCH", { months });
-      return response.json();
+      await apiRequest("/api/gmail/sync-period", "PATCH", { months });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gmail/status"] });
