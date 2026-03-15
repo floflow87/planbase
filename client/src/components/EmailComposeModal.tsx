@@ -4,7 +4,14 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { X, Minus, Maximize2, Send, ChevronDown, Paperclip, FileText, Trash2, FolderOpen, Search, File, Bold, Italic, Underline, Strikethrough, List, ListOrdered } from "lucide-react";
+import {
+  X, Maximize2, Send, ChevronDown, Paperclip, FileText, Trash2, FolderOpen, Search, File,
+  Bold, Italic, Underline, Strikethrough, List, ListOrdered,
+  Undo2, Redo2, Type, AlignLeft, AlignCenter, AlignRight, AlignJustify,
+  Minus, Link2, Heading1, Heading2, Heading3,
+} from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface Contact {
@@ -163,9 +170,11 @@ export function EmailComposeModal({
   const [attachingFileId, setAttachingFileId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
-  const toolbarRef = useRef<HTMLDivElement>(null);
-  const [toolbarPos, setToolbarPos] = useState<{ x: number; y: number } | null>(null);
   const [activeFormats, setActiveFormats] = useState({ bold: false, italic: false, underline: false, strikethrough: false });
+  const [headingValue, setHeadingValue] = useState<"p" | "h1" | "h2" | "h3">("p");
+  const [alignValue, setAlignValue] = useState<"left" | "center" | "right" | "justify">("left");
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("https://");
   const [data, setData] = useState<Omit<ComposeData, "attachments">>({
     to: initialData?.to || "",
     cc: initialData?.cc || "",
@@ -204,7 +213,8 @@ export function EmailComposeModal({
       setAttachments([]);
       setMinimized(false);
       setShowCcBcc(false);
-      setToolbarPos(null);
+      setHeadingValue("p");
+      setAlignValue("left");
       // Sync into contenteditable on next tick
       setTimeout(() => {
         if (editorRef.current) editorRef.current.innerHTML = newBody;
@@ -212,19 +222,7 @@ export function EmailComposeModal({
     }
   }, [open, initialData?.to, initialData?.subject, initialData?.body]);
 
-  const detectSelection = useCallback(() => {
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
-      setToolbarPos(null);
-      return;
-    }
-    const range = sel.getRangeAt(0);
-    if (!editorRef.current?.contains(range.commonAncestorContainer)) {
-      setToolbarPos(null);
-      return;
-    }
-    const rect = range.getBoundingClientRect();
-    setToolbarPos({ x: rect.left + rect.width / 2, y: rect.top - 8 });
+  const updateFormatState = useCallback(() => {
     setActiveFormats({
       bold: document.queryCommandState("bold"),
       italic: document.queryCommandState("italic"),
@@ -234,24 +232,40 @@ export function EmailComposeModal({
   }, []);
 
   useEffect(() => {
-    document.addEventListener("selectionchange", detectSelection);
-    return () => document.removeEventListener("selectionchange", detectSelection);
-  }, [detectSelection]);
+    document.addEventListener("selectionchange", updateFormatState);
+    return () => document.removeEventListener("selectionchange", updateFormatState);
+  }, [updateFormatState]);
 
-  const applyFormat = useCallback((cmd: string) => {
-    document.execCommand(cmd, false, undefined);
+  const applyFormat = useCallback((cmd: string, value?: string) => {
     editorRef.current?.focus();
-    if (editorRef.current) {
-      const html = editorRef.current.innerHTML;
-      setData(d => ({ ...d, body: html }));
-    }
-    setActiveFormats({
-      bold: document.queryCommandState("bold"),
-      italic: document.queryCommandState("italic"),
-      underline: document.queryCommandState("underline"),
-      strikethrough: document.queryCommandState("strikeThrough"),
-    });
+    document.execCommand(cmd, false, value);
+    if (editorRef.current) setData(d => ({ ...d, body: editorRef.current!.innerHTML }));
+    updateFormatState();
+  }, [updateFormatState]);
+
+  const applyBlockFormat = useCallback((tag: "p" | "h1" | "h2" | "h3") => {
+    editorRef.current?.focus();
+    document.execCommand("formatBlock", false, tag);
+    setHeadingValue(tag);
+    if (editorRef.current) setData(d => ({ ...d, body: editorRef.current!.innerHTML }));
   }, []);
+
+  const applyAlign = useCallback((align: "left" | "center" | "right" | "justify") => {
+    editorRef.current?.focus();
+    const cmdMap = { left: "justifyLeft", center: "justifyCenter", right: "justifyRight", justify: "justifyFull" } as const;
+    document.execCommand(cmdMap[align], false, undefined);
+    setAlignValue(align);
+    if (editorRef.current) setData(d => ({ ...d, body: editorRef.current!.innerHTML }));
+  }, []);
+
+  const handleLinkInsert = useCallback(() => {
+    if (!linkUrl.trim() || linkUrl === "https://") return;
+    editorRef.current?.focus();
+    document.execCommand("createLink", false, linkUrl);
+    if (editorRef.current) setData(d => ({ ...d, body: editorRef.current!.innerHTML }));
+    setLinkDialogOpen(false);
+    setLinkUrl("https://");
+  }, [linkUrl]);
 
   function handleEditorInput() {
     if (editorRef.current) {
@@ -444,63 +458,178 @@ export function EmailComposeModal({
             />
           </div>
 
-          {/* Floating format toolbar */}
-          {toolbarPos && (
-            <div
-              ref={toolbarRef}
-              className="fixed z-[200] flex items-center gap-0.5 bg-popover border border-border rounded-md shadow-md px-1 py-0.5 -translate-x-1/2"
-              style={{ left: toolbarPos.x, top: toolbarPos.y - 36 }}
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              <button
-                type="button"
-                onMouseDown={(e) => { e.preventDefault(); applyFormat("bold"); }}
-                className={cn("p-1 rounded hover-elevate", activeFormats.bold && "bg-accent")}
-                title="Gras"
-              >
-                <Bold className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onMouseDown={(e) => { e.preventDefault(); applyFormat("italic"); }}
-                className={cn("p-1 rounded hover-elevate", activeFormats.italic && "bg-accent")}
-                title="Italique"
-              >
-                <Italic className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onMouseDown={(e) => { e.preventDefault(); applyFormat("underline"); }}
-                className={cn("p-1 rounded hover-elevate", activeFormats.underline && "bg-accent")}
-                title="Souligné"
-              >
-                <Underline className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onMouseDown={(e) => { e.preventDefault(); applyFormat("strikeThrough"); }}
-                className={cn("p-1 rounded hover-elevate", activeFormats.strikethrough && "bg-accent")}
-                title="Barré"
-              >
-                <Strikethrough className="w-3.5 h-3.5" />
-              </button>
-              <div className="w-px h-4 bg-border mx-0.5" />
-              <button
-                type="button"
-                onMouseDown={(e) => { e.preventDefault(); applyFormat("insertUnorderedList"); }}
-                className="p-1 rounded hover-elevate"
-                title="Liste"
-              >
-                <List className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onMouseDown={(e) => { e.preventDefault(); applyFormat("insertOrderedList"); }}
-                className="p-1 rounded hover-elevate"
-                title="Liste numérotée"
-              >
-                <ListOrdered className="w-3.5 h-3.5" />
-              </button>
+          {/* Static format toolbar */}
+          <div
+            className="border-b border-border px-2 py-1 flex items-center gap-0.5 bg-muted/30 overflow-x-auto whitespace-nowrap shrink-0"
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {/* Undo / Redo */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); applyFormat("undo"); }} className="h-7 w-7 flex items-center justify-center rounded hover-elevate text-muted-foreground hover:text-foreground">
+                  <Undo2 className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px]">Annuler</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); applyFormat("redo"); }} className="h-7 w-7 flex items-center justify-center rounded hover-elevate text-muted-foreground hover:text-foreground">
+                  <Redo2 className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px]">Rétablir</TooltipContent>
+            </Tooltip>
+            <div className="w-px h-4 bg-border mx-0.5 shrink-0" />
+            {/* Heading dropdown */}
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <button type="button" className="h-7 px-1.5 flex items-center gap-0.5 rounded hover-elevate text-muted-foreground hover:text-foreground text-[11px]">
+                      <Type className="w-3.5 h-3.5" />
+                      <ChevronDown className="w-3 h-3" />
+                    </button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-[10px]">Style de texte</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="start" className="text-xs min-w-[120px]">
+                <DropdownMenuItem onSelect={() => applyBlockFormat("p")} className={cn("text-xs", headingValue === "p" && "font-semibold")}>Normal</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => applyBlockFormat("h1")} className={cn("text-xs", headingValue === "h1" && "font-semibold")}>
+                  <Heading1 className="w-3.5 h-3.5 mr-1.5" />Titre 1
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => applyBlockFormat("h2")} className={cn("text-xs", headingValue === "h2" && "font-semibold")}>
+                  <Heading2 className="w-3.5 h-3.5 mr-1.5" />Titre 2
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => applyBlockFormat("h3")} className={cn("text-xs", headingValue === "h3" && "font-semibold")}>
+                  <Heading3 className="w-3.5 h-3.5 mr-1.5" />Titre 3
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <div className="w-px h-4 bg-border mx-0.5 shrink-0" />
+            {/* Bold / Italic / Underline / Strikethrough */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); applyFormat("bold"); }} className={cn("h-7 w-7 flex items-center justify-center rounded hover-elevate", activeFormats.bold ? "bg-[#EFE8FC] text-violet-700 dark:bg-violet-900/40 dark:text-violet-300" : "text-muted-foreground hover:text-foreground")}>
+                  <Bold className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px]">Gras</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); applyFormat("italic"); }} className={cn("h-7 w-7 flex items-center justify-center rounded hover-elevate", activeFormats.italic ? "bg-[#EFE8FC] text-violet-700 dark:bg-violet-900/40 dark:text-violet-300" : "text-muted-foreground hover:text-foreground")}>
+                  <Italic className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px]">Italique</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); applyFormat("underline"); }} className={cn("h-7 w-7 flex items-center justify-center rounded hover-elevate", activeFormats.underline ? "bg-[#EFE8FC] text-violet-700 dark:bg-violet-900/40 dark:text-violet-300" : "text-muted-foreground hover:text-foreground")}>
+                  <Underline className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px]">Souligné</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); applyFormat("strikeThrough"); }} className={cn("h-7 w-7 flex items-center justify-center rounded hover-elevate", activeFormats.strikethrough ? "bg-[#EFE8FC] text-violet-700 dark:bg-violet-900/40 dark:text-violet-300" : "text-muted-foreground hover:text-foreground")}>
+                  <Strikethrough className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px]">Barré</TooltipContent>
+            </Tooltip>
+            <div className="w-px h-4 bg-border mx-0.5 shrink-0" />
+            {/* Align dropdown */}
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <button type="button" className="h-7 px-1 flex items-center gap-0.5 rounded hover-elevate text-muted-foreground hover:text-foreground">
+                      {alignValue === "left" && <AlignLeft className="w-3.5 h-3.5" />}
+                      {alignValue === "center" && <AlignCenter className="w-3.5 h-3.5" />}
+                      {alignValue === "right" && <AlignRight className="w-3.5 h-3.5" />}
+                      {alignValue === "justify" && <AlignJustify className="w-3.5 h-3.5" />}
+                      <ChevronDown className="w-3 h-3" />
+                    </button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-[10px]">Alignement</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="start" className="min-w-[130px]">
+                <DropdownMenuItem onSelect={() => applyAlign("left")} className="text-xs gap-2">
+                  <AlignLeft className="w-3.5 h-3.5" />À gauche
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => applyAlign("center")} className="text-xs gap-2">
+                  <AlignCenter className="w-3.5 h-3.5" />Centré
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => applyAlign("right")} className="text-xs gap-2">
+                  <AlignRight className="w-3.5 h-3.5" />À droite
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => applyAlign("justify")} className="text-xs gap-2">
+                  <AlignJustify className="w-3.5 h-3.5" />Justifié
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <div className="w-px h-4 bg-border mx-0.5 shrink-0" />
+            {/* Lists */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); applyFormat("insertUnorderedList"); }} className="h-7 w-7 flex items-center justify-center rounded hover-elevate text-muted-foreground hover:text-foreground">
+                  <List className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px]">Liste à puces</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); applyFormat("insertOrderedList"); }} className="h-7 w-7 flex items-center justify-center rounded hover-elevate text-muted-foreground hover:text-foreground">
+                  <ListOrdered className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px]">Liste numérotée</TooltipContent>
+            </Tooltip>
+            {/* HR */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); applyFormat("insertHorizontalRule"); }} className="h-7 w-7 flex items-center justify-center rounded hover-elevate text-muted-foreground hover:text-foreground">
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px]">Séparateur</TooltipContent>
+            </Tooltip>
+            <div className="w-px h-4 bg-border mx-0.5 shrink-0" />
+            {/* Link */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); setLinkDialogOpen(true); }} className="h-7 w-7 flex items-center justify-center rounded hover-elevate text-muted-foreground hover:text-foreground">
+                  <Link2 className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px]">Insérer un lien</TooltipContent>
+            </Tooltip>
+          </div>
+
+          {/* Link insert dialog */}
+          {linkDialogOpen && (
+            <div className="absolute inset-0 z-[210] flex items-center justify-center bg-black/20 rounded-lg" onMouseDown={(e) => e.stopPropagation()}>
+              <div className="bg-popover border border-border rounded-md shadow-lg p-3 w-64">
+                <p className="text-xs font-medium mb-2">Insérer un lien</p>
+                <Input
+                  autoFocus
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleLinkInsert(); if (e.key === "Escape") setLinkDialogOpen(false); }}
+                  className="h-7 text-xs mb-2"
+                  placeholder="https://example.com"
+                />
+                <div className="flex gap-1.5 justify-end">
+                  <Button variant="ghost" size="sm" className="h-6 text-xs" onMouseDown={() => setLinkDialogOpen(false)}>Annuler</Button>
+                  <Button size="sm" className="h-6 text-xs" onMouseDown={handleLinkInsert}>Insérer</Button>
+                </div>
+              </div>
             </div>
           )}
 

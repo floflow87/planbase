@@ -605,6 +605,14 @@ interface EmailAttachment {
   mimeType: string;
 }
 
+export async function getGmailServiceForUser(accountId: string, userId: string) {
+  try {
+    return await getAuthedGmailClient(accountId, userId);
+  } catch {
+    return null;
+  }
+}
+
 export async function sendGmailEmail(
   accountId: string,
   userId: string,

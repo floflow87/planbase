@@ -335,11 +335,13 @@ export interface IStorage {
   getEmailsByContactId(accountId: string, contactId: string): Promise<CrmEmailMessage[]>;
   getEmailsByClientId(accountId: string, clientId: string): Promise<CrmEmailMessage[]>;
   getEmailMessageCount(accountId: string, userId: string): Promise<number>;
-  getEmailMessages(accountId: string, userId: string, limit?: number, offset?: number, direction?: string, search?: string): Promise<typeof crmEmailMessages.$inferSelect[]>;
+  getEmailMessage(accountId: string, userId: string, id: string): Promise<typeof crmEmailMessages.$inferSelect | undefined>;
+  getEmailMessages(accountId: string, userId: string, limit?: number, offset?: number, direction?: string, search?: string, searchField?: string, crmFilter?: string): Promise<Array<typeof crmEmailMessages.$inferSelect & { linkedClientId: string | null; linkedClientName: string | null }>>;
   markEmailsRead(accountId: string, ids: string[], isRead: boolean): Promise<void>;
   deleteEmailMessages(accountId: string, ids: string[]): Promise<void>;
   restoreEmailMessages(accountId: string, ids: string[]): Promise<void>;
   permanentlyDeleteEmailMessages(accountId: string, ids: string[]): Promise<void>;
+  archiveEmailMessages(accountId: string, ids: string[], archive: boolean): Promise<void>;
   setGmailEnabled(accountId: string, userId: string, enabled: boolean, explicitDisconnect?: boolean): Promise<void>;
   setGmailSyncTimestamp(accountId: string, userId: string): Promise<void>;
   getGmailLastHistoryId(accountId: string, userId: string): Promise<string | null>;
@@ -2013,35 +2015,96 @@ export class DatabaseStorage implements IStorage {
     return Number(result[0]?.count || 0);
   }
 
-  async getEmailMessages(accountId: string, userId: string, limit = 50, offset = 0, direction?: string, search?: string): Promise<typeof crmEmailMessages.$inferSelect[]> {
+  async getEmailMessage(accountId: string, userId: string, id: string): Promise<typeof crmEmailMessages.$inferSelect | undefined> {
+    const [msg] = await db.select().from(crmEmailMessages).where(
+      and(eq(crmEmailMessages.accountId, accountId), eq(crmEmailMessages.userId, userId), eq(crmEmailMessages.id, id))
+    );
+    return msg;
+  }
+
+  async getEmailMessages(accountId: string, userId: string, limit = 50, offset = 0, direction?: string, search?: string, searchField?: string, crmFilter?: string): Promise<Array<typeof crmEmailMessages.$inferSelect & { linkedClientId: string | null; linkedClientName: string | null }>> {
     const conditions = [
       eq(crmEmailMessages.accountId, accountId),
       eq(crmEmailMessages.userId, userId),
     ];
     if (direction === 'trash') {
       conditions.push(eq(crmEmailMessages.isDeleted, 1));
+    } else if (direction === 'archived') {
+      conditions.push(eq(crmEmailMessages.isDeleted, 0));
+      conditions.push(eq(crmEmailMessages.isArchived, 1));
     } else {
       conditions.push(eq(crmEmailMessages.isDeleted, 0));
+      conditions.push(eq(crmEmailMessages.isArchived, 0));
       if (direction === 'sent' || direction === 'received') {
         conditions.push(eq(crmEmailMessages.direction, direction as 'sent' | 'received'));
       }
     }
     if (search) {
-      conditions.push(
-        or(
+      let searchCond;
+      if (searchField === 'email') {
+        searchCond = ilike(crmEmailMessages.fromEmail, `%${search}%`);
+      } else if (searchField === 'name') {
+        searchCond = ilike(crmEmailMessages.fromName, `%${search}%`);
+      } else if (searchField === 'subject') {
+        searchCond = ilike(crmEmailMessages.subject, `%${search}%`);
+      } else if (searchField === 'content') {
+        searchCond = or(ilike(crmEmailMessages.bodyText, `%${search}%`), ilike(crmEmailMessages.snippet, `%${search}%`))!;
+      } else if (searchField === 'company') {
+        searchCond = sql`EXISTS (SELECT 1 FROM crm_email_links cel JOIN clients cl ON cl.id = cel.client_id WHERE cel.email_message_id = ${crmEmailMessages.id} AND cl.name ILIKE ${'%' + search + '%'})`;
+      } else {
+        searchCond = or(
           ilike(crmEmailMessages.subject, `%${search}%`),
           ilike(crmEmailMessages.fromName, `%${search}%`),
           ilike(crmEmailMessages.fromEmail, `%${search}%`),
           ilike(crmEmailMessages.snippet, `%${search}%`),
-        )!
-      );
+        )!;
+      }
+      conditions.push(searchCond);
     }
-    return db.select()
+    if (crmFilter === 'linked') {
+      conditions.push(sql`EXISTS (SELECT 1 FROM crm_email_links cel WHERE cel.email_message_id = ${crmEmailMessages.id})`);
+    } else if (crmFilter === 'unlinked') {
+      conditions.push(sql`NOT EXISTS (SELECT 1 FROM crm_email_links cel WHERE cel.email_message_id = ${crmEmailMessages.id})`);
+    } else if (crmFilter && crmFilter !== 'all') {
+      const clientFilterId = crmFilter;
+      conditions.push(sql`EXISTS (SELECT 1 FROM crm_email_links cel WHERE cel.email_message_id = ${crmEmailMessages.id} AND cel.client_id = ${clientFilterId}::uuid)`);
+    }
+    const rows = await db.select({
+      id: crmEmailMessages.id,
+      accountId: crmEmailMessages.accountId,
+      userId: crmEmailMessages.userId,
+      gmailMessageId: crmEmailMessages.gmailMessageId,
+      gmailThreadId: crmEmailMessages.gmailThreadId,
+      subject: crmEmailMessages.subject,
+      snippet: crmEmailMessages.snippet,
+      bodyText: crmEmailMessages.bodyText,
+      bodyHtml: crmEmailMessages.bodyHtml,
+      fromEmail: crmEmailMessages.fromEmail,
+      fromName: crmEmailMessages.fromName,
+      sentAt: crmEmailMessages.sentAt,
+      direction: crmEmailMessages.direction,
+      isRead: crmEmailMessages.isRead,
+      isDeleted: crmEmailMessages.isDeleted,
+      isArchived: crmEmailMessages.isArchived,
+      hasAttachments: crmEmailMessages.hasAttachments,
+      labels: crmEmailMessages.labels,
+      syncedAt: crmEmailMessages.syncedAt,
+      linkedClientId: sql<string | null>`(SELECT cel.client_id::text FROM crm_email_links cel WHERE cel.email_message_id = ${crmEmailMessages.id} LIMIT 1)`,
+      linkedClientName: sql<string | null>`(SELECT cl.name FROM crm_email_links cel JOIN clients cl ON cl.id = cel.client_id WHERE cel.email_message_id = ${crmEmailMessages.id} LIMIT 1)`,
+    })
       .from(crmEmailMessages)
       .where(and(...conditions))
       .orderBy(desc(crmEmailMessages.sentAt))
       .limit(limit)
       .offset(offset);
+    return rows;
+  }
+
+  async archiveEmailMessages(accountId: string, ids: string[], archive: boolean): Promise<void> {
+    if (ids.length === 0) return;
+    await db.update(crmEmailMessages)
+      .set({ isArchived: archive ? 1 : 0 })
+      .where(and(eq(crmEmailMessages.accountId, accountId), inArray(crmEmailMessages.id, ids)));
   }
 
   async markEmailsRead(accountId: string, ids: string[], isRead: boolean): Promise<void> {

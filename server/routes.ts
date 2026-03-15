@@ -7846,7 +7846,9 @@ app.get("/config/feature-flags", async (_req, res) => {
       const offset = Number(req.query.offset) || 0;
       const direction = req.query.direction as string | undefined;
       const search = req.query.search as string | undefined;
-      const messages = await storage.getEmailMessages(req.accountId!, req.userId!, limit, offset, direction, search);
+      const searchField = req.query.searchField as string | undefined;
+      const crmFilter = req.query.crmFilter as string | undefined;
+      const messages = await storage.getEmailMessages(req.accountId!, req.userId!, limit, offset, direction, search, searchField, crmFilter);
       res.json(messages);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -7900,6 +7902,79 @@ app.get("/config/feature-flags", async (_req, res) => {
       }
       await storage.permanentlyDeleteEmailMessages(req.accountId!, ids);
       res.json({ deleted: ids.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/gmail/messages/archive", requireAuth, async (req, res) => {
+    try {
+      const { ids, archive } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "ids must be a non-empty array" });
+      }
+      await storage.archiveEmailMessages(req.accountId!, ids, archive !== false);
+      res.json({ archived: ids.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/gmail/messages/:messageId/attachments", requireAuth, async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      const { getGmailServiceForUser } = await import("./lib/gmail-sync");
+      const gmailService = await getGmailServiceForUser(req.accountId!, req.userId!);
+      if (!gmailService) return res.json([]);
+      const dbMsg = await storage.getEmailMessage(req.accountId!, req.userId!, messageId);
+      if (!dbMsg) return res.status(404).json({ error: "Message not found" });
+      const fullMsg = await gmailService.gmail.users.messages.get({
+        userId: "me",
+        id: dbMsg.gmailMessageId,
+        format: "full",
+      });
+      const attachments: Array<{ filename: string; mimeType: string; size: number; attachmentId: string }> = [];
+      const extractParts = (parts: any[]) => {
+        if (!parts) return;
+        for (const part of parts) {
+          if (part.filename && part.body?.attachmentId) {
+            attachments.push({
+              filename: part.filename,
+              mimeType: part.mimeType,
+              size: part.body.size || 0,
+              attachmentId: part.body.attachmentId,
+            });
+          }
+          if (part.parts) extractParts(part.parts);
+        }
+      };
+      extractParts(fullMsg.data.payload?.parts || []);
+      res.json(attachments);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/gmail/messages/:messageId/attachments/:attachmentId/download", requireAuth, async (req, res) => {
+    try {
+      const { messageId, attachmentId } = req.params;
+      const filename = (req.query.filename as string) || "attachment";
+      const { getGmailServiceForUser } = await import("./lib/gmail-sync");
+      const gmailService = await getGmailServiceForUser(req.accountId!, req.userId!);
+      if (!gmailService) return res.status(403).json({ error: "Gmail not connected" });
+      const dbMsg = await storage.getEmailMessage(req.accountId!, req.userId!, messageId);
+      if (!dbMsg) return res.status(404).json({ error: "Message not found" });
+      const attachment = await gmailService.gmail.users.messages.attachments.get({
+        userId: "me",
+        messageId: dbMsg.gmailMessageId,
+        id: attachmentId,
+      });
+      const data = attachment.data.data;
+      if (!data) return res.status(404).json({ error: "Attachment not found" });
+      const buffer = Buffer.from(data, "base64url");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.send(buffer);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

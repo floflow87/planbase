@@ -1273,6 +1273,7 @@ export const crmEmailMessages = pgTable("crm_email_messages", {
   direction: text("direction", { enum: ['sent', 'received'] }).notNull(),
   isRead: integer("is_read").notNull().default(0),
   isDeleted: integer("is_deleted").notNull().default(0),
+  isArchived: integer("is_archived").notNull().default(0),
   hasAttachments: integer("has_attachments").notNull().default(0),
   labels: text("labels").array().default([]),
   syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow().notNull(),

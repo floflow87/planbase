@@ -30,9 +30,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Search, RefreshCw, Mail, Paperclip, ArrowLeft, ArrowRight,
-  Reply, Forward, ExternalLink, Plus, Trash2, RotateCcw,
+  Reply, ReplyAll, Forward, ExternalLink, Plus, Trash2, RotateCcw,
   MailOpen, MailCheck, X, PanelRightClose, Settings, Send,
-  ChevronLeft, MoreHorizontal, UserPlus,
+  ChevronLeft, MoreHorizontal, UserPlus, Archive, ArchiveRestore,
+  ClipboardList, FileText, ChevronDown, Download, Building2,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -54,8 +55,23 @@ interface EmailMessage {
   direction: "sent" | "received";
   isRead: number;
   isDeleted: number;
+  isArchived: number;
   hasAttachments: number;
   labels: string[] | null;
+  linkedClientId: string | null;
+  linkedClientName: string | null;
+}
+
+interface EmailAttachment {
+  filename: string;
+  mimeType: string;
+  size: number;
+  attachmentId: string;
+}
+
+interface TaskColumn {
+  id: string;
+  name: string;
 }
 
 interface GmailStatus {
@@ -141,13 +157,15 @@ function AvatarCircle({ name, email }: { name: string | null; email: string }) {
 
 const WT = "bg-white text-gray-900 border border-gray-200 text-[10px] dark:bg-gray-900 dark:text-white dark:border-gray-700";
 
-type FilterType = "received" | "sent" | "trash";
+type FilterType = "received" | "sent" | "trash" | "archived";
 
 export default function Emails() {
   const { toast } = useToast();
   const [filter, setFilter] = useState<FilterType>("received");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [searchField, setSearchField] = useState<string>("all");
+  const [crmFilter, setCrmFilter] = useState<string>("all");
   const [selected, setSelected] = useState<EmailMessage | null>(null);
   const [offset, setOffset] = useState(0);
   const [composeOpen, setComposeOpen] = useState(false);
@@ -155,6 +173,7 @@ export default function Emails() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [permanentDeleteConfirmOpen, setPermanentDeleteConfirmOpen] = useState(false);
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
   const [singleDeleteOpen, setSingleDeleteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pendingSelectFirst, setPendingSelectFirst] = useState(false);
@@ -165,6 +184,13 @@ export default function Emails() {
   const [addContactName, setAddContactName] = useState("");
   const [addContactEmail, setAddContactEmail] = useState("");
   const [addContactCompany, setAddContactCompany] = useState("");
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [createTaskTitle, setCreateTaskTitle] = useState("");
+  const [createTaskMsg, setCreateTaskMsg] = useState<EmailMessage | null>(null);
+  const [createNoteOpen, setCreateNoteOpen] = useState(false);
+  const [createNoteTitle, setCreateNoteTitle] = useState("");
+  const [createNoteMsg, setCreateNoteMsg] = useState<EmailMessage | null>(null);
+  const [attachmentEmail, setAttachmentEmail] = useState<string | null>(null);
   const limit = 50;
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
 
@@ -178,17 +204,32 @@ export default function Emails() {
   });
 
   const { data: messages = [], isLoading } = useQuery<EmailMessage[]>({
-    queryKey: ["/api/gmail/messages", filter, search, offset],
+    queryKey: ["/api/gmail/messages", filter, search, searchField, crmFilter, offset],
     queryFn: async () => {
       const params = new URLSearchParams({
         limit: String(limit),
         offset: String(offset),
         direction: filter,
         ...(search ? { search } : {}),
+        ...(searchField !== "all" ? { searchField } : {}),
+        ...(crmFilter !== "all" ? { crmFilter } : {}),
       });
       const res = await apiRequest(`/api/gmail/messages?${params}`, "GET");
       return res.json();
     },
+  });
+
+  const { data: attachments = [], isLoading: attachmentsLoading } = useQuery<EmailAttachment[]>({
+    queryKey: ["/api/gmail/messages", attachmentEmail, "attachments"],
+    queryFn: async () => {
+      const res = await apiRequest(`/api/gmail/messages/${attachmentEmail}/attachments`, "GET");
+      return res.json();
+    },
+    enabled: !!attachmentEmail,
+  });
+
+  const { data: taskColumns = [] } = useQuery<TaskColumn[]>({
+    queryKey: ["/api/task-columns"],
   });
 
   useEffect(() => {
@@ -303,6 +344,66 @@ export default function Emails() {
     },
   });
 
+  const archiveMutation = useMutation({
+    mutationFn: async ({ ids, archive }: { ids: string[]; archive: boolean }) => {
+      return apiRequest("/api/gmail/messages/archive", "PATCH", { ids, archive });
+    },
+    onSuccess: (_, { ids, archive }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
+      setSelectedIds(new Set());
+      if (selected && ids.includes(selected.id)) setSelected(null);
+      toast({
+        title: archive ? `${ids.length} email(s) archivé(s)` : `${ids.length} email(s) désarchivé(s)`,
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+      });
+    },
+    onError: () => {
+      toast({ title: "Erreur", description: "Impossible d'archiver.", variant: "destructive" });
+    },
+  });
+
+  const createTaskMutation = useMutation({
+    mutationFn: async ({ title, columnId }: { title: string; columnId?: string }) => {
+      const payload: any = { title };
+      if (columnId) payload.columnId = columnId;
+      const res = await apiRequest("/api/tasks", "POST", payload);
+      return res.json();
+    },
+    onSuccess: () => {
+      setCreateTaskOpen(false);
+      setCreateTaskTitle("");
+      setCreateTaskMsg(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "Tâche créée",
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+      });
+    },
+    onError: () => {
+      toast({ title: "Erreur", description: "Impossible de créer la tâche.", variant: "destructive" });
+    },
+  });
+
+  const createNoteMutation = useMutation({
+    mutationFn: async ({ title }: { title: string }) => {
+      const res = await apiRequest("/api/notes", "POST", { title, content: "" });
+      return res.json();
+    },
+    onSuccess: () => {
+      setCreateNoteOpen(false);
+      setCreateNoteTitle("");
+      setCreateNoteMsg(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      toast({
+        title: "Note créée",
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+      });
+    },
+    onError: () => {
+      toast({ title: "Erreur", description: "Impossible de créer la note.", variant: "destructive" });
+    },
+  });
+
   const addContactMutation = useMutation({
     mutationFn: async ({ name, email, company }: { name: string; email: string; company?: string }) => {
       const clientRes = await apiRequest("/api/clients", "POST", {
@@ -348,6 +449,7 @@ export default function Emails() {
   function handleFilterChange(f: FilterType) {
     setFilter(f);
     setOffset(0);
+    setCrmFilter("all");
     setSelected(null);
     setSelectedIds(new Set());
     setLocalReadIds(new Set());
@@ -424,9 +526,14 @@ export default function Emails() {
     setAddContactOpen(true);
   }
 
+  const { data: allClients = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/clients"],
+  });
+
   const TABS: { key: FilterType; label: string }[] = [
     { key: "received", label: "Reçus" },
     { key: "sent", label: "Envoyés" },
+    { key: "archived", label: "Archives" },
     { key: "trash", label: "Corbeille" },
   ];
 
@@ -452,6 +559,7 @@ export default function Emails() {
   const allSelected = messages.length > 0 && selectedIds.size === messages.length;
   const someSelected = selectedIds.size > 0;
   const isTrash = filter === "trash";
+  const isArchived = filter === "archived";
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -476,15 +584,38 @@ export default function Emails() {
             </TooltipContent>
           </Tooltip>
           <div className="flex-1" />
-          <div className="relative shrink-0 w-36">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <Input
-              className="pl-9 bg-white dark:bg-background placeholder:text-[10px]"
-              placeholder="Chercher..."
-              value={searchInput}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              data-testid="input-email-search"
-            />
+          <div className="flex items-center gap-1 shrink-0">
+            <div className="relative w-32">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                className="pl-8 pr-2 text-xs h-8 bg-white dark:bg-background placeholder:text-[10px]"
+                placeholder="Chercher..."
+                value={searchInput}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                data-testid="input-email-search"
+              />
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" data-testid="button-search-field">
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="text-xs min-w-[130px]">
+                {[
+                  { value: "all", label: "Tout" },
+                  { value: "subject", label: "Objet" },
+                  { value: "name", label: "Nom" },
+                  { value: "email", label: "Email" },
+                  { value: "content", label: "Contenu" },
+                  { value: "company", label: "Société" },
+                ].map(opt => (
+                  <DropdownMenuItem key={opt.value} className={cn("text-xs", searchField === opt.value && "font-semibold")} onSelect={() => { setSearchField(opt.value); setOffset(0); }}>
+                    {opt.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -547,6 +678,57 @@ export default function Emails() {
             ))}
           </div>
 
+          {/* CRM filter bar */}
+          <div className="flex items-center gap-1 px-2 py-1.5 border-b shrink-0 overflow-x-auto bg-muted/20">
+            {[
+              { value: "all", label: "Tous" },
+              { value: "linked", label: "Liés CRM" },
+              { value: "unlinked", label: "Non liés" },
+            ].map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => { setCrmFilter(opt.value); setOffset(0); }}
+                className={cn(
+                  "text-[10px] px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap shrink-0",
+                  crmFilter === opt.value
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "border-border text-muted-foreground hover:text-foreground bg-background"
+                )}
+                data-testid={`button-crm-filter-${opt.value}`}
+              >
+                {opt.label}
+              </button>
+            ))}
+            {allClients.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={cn(
+                      "text-[10px] px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap shrink-0 flex items-center gap-1",
+                      crmFilter.startsWith("client:") || allClients.some(c => c.id === crmFilter)
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "border-border text-muted-foreground hover:text-foreground bg-background"
+                    )}
+                  >
+                    <Building2 className="w-2.5 h-2.5" />
+                    {allClients.find(c => c.id === crmFilter)?.name || "Client..."}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="text-xs max-h-48 overflow-y-auto">
+                  <DropdownMenuItem className="text-xs" onSelect={() => { setCrmFilter("all"); setOffset(0); }}>
+                    Tous les clients
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {allClients.map(c => (
+                    <DropdownMenuItem key={c.id} className={cn("text-xs", crmFilter === c.id && "font-semibold")} onSelect={() => { setCrmFilter(c.id); setOffset(0); }}>
+                      {c.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+
           {/* Multi-select action bar */}
           {someSelected ? (
             <div className="flex items-center gap-1 px-3 py-1.5 bg-primary/5 border-b shrink-0">
@@ -578,6 +760,27 @@ export default function Emails() {
                     <TooltipContent className={WT}>Supprimer définitivement</TooltipContent>
                   </Tooltip>
                 </>
+              ) : isArchived ? (
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-6 w-6"
+                        onClick={() => archiveMutation.mutate({ ids: Array.from(selectedIds), archive: false })} data-testid="button-unarchive">
+                        <ArchiveRestore className="w-3 h-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className={WT}>Désarchiver</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive"
+                        onClick={() => setDeleteConfirmOpen(true)} data-testid="button-delete-selected">
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className={WT}>Supprimer</TooltipContent>
+                  </Tooltip>
+                </>
               ) : (
                 <>
                   <Tooltip>
@@ -597,6 +800,15 @@ export default function Emails() {
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent className={WT}>Marquer non lu</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-6 w-6"
+                        onClick={() => setArchiveConfirmOpen(true)} data-testid="button-archive-selected">
+                        <Archive className="w-3 h-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className={WT}>Archiver</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -698,8 +910,13 @@ export default function Emails() {
                         <p className="text-[10px] text-muted-foreground truncate mt-0.5 leading-relaxed">
                           {decodeHTMLEntities(msg.snippet)}
                         </p>
-                        {(msg.hasAttachments === 1 || msg.direction === "sent") && (
+                        {(msg.hasAttachments === 1 || msg.direction === "sent" || msg.linkedClientName) && (
                           <div className="flex gap-1 mt-1 flex-wrap">
+                            {msg.linkedClientName && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-violet-200 text-violet-700 dark:border-violet-700 dark:text-violet-400 max-w-[80px] truncate" title={msg.linkedClientName}>
+                                <Building2 className="w-2 h-2 mr-0.5 shrink-0" /><span className="truncate">{msg.linkedClientName}</span>
+                              </Badge>
+                            )}
                             {msg.direction === "sent" && (
                               <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
                                 <Send className="w-2 h-2 mr-0.5" />Envoyé
@@ -754,7 +971,7 @@ export default function Emails() {
                 <h2 className="font-semibold text-xs truncate">{decodeHTMLEntities(selected.subject) || "(Sans objet)"}</h2>
               </div>
               <div className="flex items-center gap-0 shrink-0">
-                {gmailStatus?.canSend && !isTrash && (
+                {gmailStatus?.canSend && !isTrash && !isArchived && (
                   <>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -764,6 +981,16 @@ export default function Emails() {
                       </TooltipTrigger>
                       <TooltipContent className={WT}>Répondre</TooltipContent>
                     </Tooltip>
+                    {selected.direction === "received" && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button size="icon" variant="ghost" onClick={() => openReply(selected)} data-testid="button-reply-all-email">
+                            <ReplyAll className="w-3.5 h-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className={WT}>Répondre à tous</TooltipContent>
+                      </Tooltip>
+                    )}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button size="icon" variant="ghost" onClick={() => openForward(selected)} data-testid="button-forward-email">
@@ -784,6 +1011,16 @@ export default function Emails() {
                     <TooltipContent className={WT}>Restaurer</TooltipContent>
                   </Tooltip>
                 )}
+                {isArchived && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" variant="ghost" onClick={() => archiveMutation.mutate({ ids: [selected.id], archive: false })} data-testid="button-unarchive-single">
+                        <ArchiveRestore className="w-3.5 h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className={WT}>Désarchiver</TooltipContent>
+                  </Tooltip>
+                )}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button size="icon" variant="ghost"
@@ -802,7 +1039,7 @@ export default function Emails() {
                       <MoreHorizontal className="w-3.5 h-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuContent align="end" className="w-52">
                     {selected.direction === "received" && (
                       <DropdownMenuItem
                         onClick={() => openAddContact(selected)}
@@ -812,7 +1049,21 @@ export default function Emails() {
                         Ajouter ce contact
                       </DropdownMenuItem>
                     )}
-                    {selected.direction === "received" && <DropdownMenuSeparator />}
+                    <DropdownMenuItem onClick={() => { setCreateTaskMsg(selected); setCreateTaskTitle(decodeHTMLEntities(selected.subject) || ""); setCreateTaskOpen(true); }} data-testid="button-create-task">
+                      <ClipboardList className="w-3.5 h-3.5 mr-2" />
+                      Créer une tâche
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setCreateNoteMsg(selected); setCreateNoteTitle(decodeHTMLEntities(selected.subject) || ""); setCreateNoteOpen(true); }} data-testid="button-create-note">
+                      <FileText className="w-3.5 h-3.5 mr-2" />
+                      Créer une note
+                    </DropdownMenuItem>
+                    {!isTrash && !isArchived && (
+                      <DropdownMenuItem onClick={() => archiveMutation.mutate({ ids: [selected.id], archive: true })} data-testid="button-archive-single">
+                        <Archive className="w-3.5 h-3.5 mr-2" />
+                        Archiver
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive"
                       onClick={() => setSingleDeleteOpen(true)}
@@ -859,10 +1110,56 @@ export default function Emails() {
                   )}
                 </div>
               </div>
+              {selected.linkedClientName && (
+                <div className="mt-1.5">
+                  <Badge variant="outline" className="text-[10px] border-violet-200 text-violet-700 dark:border-violet-700 dark:text-violet-400">
+                    <Building2 className="w-2.5 h-2.5 mr-1" />{selected.linkedClientName}
+                  </Badge>
+                </div>
+              )}
+              {selected.direction === "sent" && (
+                <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-green-600 dark:text-green-400">
+                  <MailCheck className="w-3 h-3" />
+                  <span>Livré</span>
+                </div>
+              )}
               {selected.hasAttachments === 1 && (
-                <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                  <Paperclip className="w-3 h-3" />
-                  <span>Contient des pièces jointes</span>
+                <div className="mt-1.5">
+                  {attachmentEmail !== selected.id ? (
+                    <button
+                      className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => setAttachmentEmail(selected.id)}
+                    >
+                      <Paperclip className="w-3 h-3" />
+                      <span>Voir les pièces jointes</span>
+                    </button>
+                  ) : attachmentsLoading ? (
+                    <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                      <Paperclip className="w-3 h-3 animate-pulse" />
+                      Chargement des pièces jointes...
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {attachments.map((att) => (
+                        <div key={att.attachmentId} className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-border bg-muted/40 text-[10px] max-w-[200px]">
+                          <Paperclip className="w-2.5 h-2.5 shrink-0 text-muted-foreground" />
+                          <span className="truncate text-foreground">{att.filename}</span>
+                          <span className="shrink-0 text-muted-foreground">{att.size > 1024 * 1024 ? `${(att.size / 1024 / 1024).toFixed(1)}MB` : att.size > 1024 ? `${Math.round(att.size / 1024)}KB` : `${att.size}B`}</span>
+                          <a
+                            href={`/api/gmail/messages/${selected.id}/attachments/${att.attachmentId}/download?filename=${encodeURIComponent(att.filename)}`}
+                            download={att.filename}
+                            className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                            title="Télécharger"
+                          >
+                            <Download className="w-2.5 h-2.5" />
+                          </a>
+                        </div>
+                      ))}
+                      {attachments.length === 0 && (
+                        <span className="text-[10px] text-muted-foreground">Aucune pièce jointe trouvée</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1117,6 +1414,124 @@ export default function Emails() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Archive confirm */}
+      <AlertDialog open={archiveConfirmOpen} onOpenChange={setArchiveConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archiver {selectedIds.size} email(s) ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Les emails archivés restent accessibles dans l'onglet Archives.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                archiveMutation.mutate({ ids: Array.from(selectedIds), archive: true });
+                setArchiveConfirmOpen(false);
+              }}
+              data-testid="button-confirm-archive"
+            >
+              Archiver
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Create task sheet */}
+      <Sheet open={createTaskOpen} onOpenChange={(open) => { if (!open) { setCreateTaskOpen(false); setCreateTaskTitle(""); setCreateTaskMsg(null); } }}>
+        <SheetContent side="right" className="w-[360px] flex flex-col">
+          <SheetHeader>
+            <SheetTitle className="text-sm font-semibold">Créer une tâche</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto space-y-4 py-4">
+            {createTaskMsg && (
+              <div className="text-[10px] text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+                Depuis: {decodeHTMLEntities(createTaskMsg.fromName) || createTaskMsg.fromEmail} — {decodeHTMLEntities(createTaskMsg.subject) || "(Sans objet)"}
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Titre de la tâche *</Label>
+              <Input
+                value={createTaskTitle}
+                onChange={(e) => setCreateTaskTitle(e.target.value)}
+                placeholder="Titre de la tâche..."
+                className="text-xs h-8"
+                autoFocus
+                data-testid="input-create-task-title"
+              />
+            </div>
+            {taskColumns.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Colonne</Label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="w-full justify-between text-xs">
+                      {taskColumns[0]?.name || "Aucune"}
+                      <ChevronDown className="w-3 h-3 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-full min-w-[200px]">
+                    {taskColumns.map(col => (
+                      <DropdownMenuItem key={col.id} className="text-xs">{col.name}</DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+          </div>
+          <div className="border-t pt-4 flex gap-2">
+            <Button variant="ghost" className="flex-1" onClick={() => { setCreateTaskOpen(false); setCreateTaskTitle(""); }}>Annuler</Button>
+            <Button
+              className="flex-1"
+              disabled={!createTaskTitle.trim() || createTaskMutation.isPending}
+              onClick={() => createTaskMutation.mutate({ title: createTaskTitle.trim(), columnId: taskColumns[0]?.id })}
+              data-testid="button-save-task"
+            >
+              {createTaskMutation.isPending ? "Création..." : "Créer"}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Create note sheet */}
+      <Sheet open={createNoteOpen} onOpenChange={(open) => { if (!open) { setCreateNoteOpen(false); setCreateNoteTitle(""); setCreateNoteMsg(null); } }}>
+        <SheetContent side="right" className="w-[360px] flex flex-col">
+          <SheetHeader>
+            <SheetTitle className="text-sm font-semibold">Créer une note</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto space-y-4 py-4">
+            {createNoteMsg && (
+              <div className="text-[10px] text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+                Depuis: {decodeHTMLEntities(createNoteMsg.fromName) || createNoteMsg.fromEmail} — {decodeHTMLEntities(createNoteMsg.subject) || "(Sans objet)"}
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Titre de la note *</Label>
+              <Input
+                value={createNoteTitle}
+                onChange={(e) => setCreateNoteTitle(e.target.value)}
+                placeholder="Titre de la note..."
+                className="text-xs h-8"
+                autoFocus
+                data-testid="input-create-note-title"
+              />
+            </div>
+          </div>
+          <div className="border-t pt-4 flex gap-2">
+            <Button variant="ghost" className="flex-1" onClick={() => { setCreateNoteOpen(false); setCreateNoteTitle(""); }}>Annuler</Button>
+            <Button
+              className="flex-1"
+              disabled={!createNoteTitle.trim() || createNoteMutation.isPending}
+              onClick={() => createNoteMutation.mutate({ title: createNoteTitle.trim() })}
+              data-testid="button-save-note"
+            >
+              {createNoteMutation.isPending ? "Création..." : "Créer"}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Compose modal */}
       <EmailComposeModal
