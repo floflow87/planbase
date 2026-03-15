@@ -49,6 +49,7 @@ import ProjectExecutive from "@/pages/project-executive";
 import AcceptInvitation from "@/pages/accept-invitation";
 import Emails from "@/pages/emails";
 import NotFound from "@/pages/not-found";
+import { EmailComposeModal } from "@/components/EmailComposeModal";
 import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote, CalendarPlus, MoreHorizontal, Timer } from "lucide-react";
 import { AppointmentPanel } from "@/components/appointment-panel";
 import { useState, useEffect } from "react";
@@ -75,6 +76,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, formatDateForStorage } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useProjectStagesUI } from "@/hooks/useProjectStagesUI";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -313,6 +315,34 @@ function QuickCreateMenu() {
   const [isTaskSheetOpen, setIsTaskSheetOpen] = useState(false);
   const [isNoteSheetOpen, setIsNoteSheetOpen] = useState(false);
   const [isAppointmentPanelOpen, setIsAppointmentPanelOpen] = useState(false);
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [composeInitial, setComposeInitial] = useState<any>({});
+
+  const { data: gmailStatus } = useQuery<{ connected: boolean; email?: string; canSend?: boolean }>({
+    queryKey: ["/api/gmail/status"],
+  });
+
+  const { data: crmContacts = [] } = useQuery<{ id: string; fullName: string; email: string | null }[]>({
+    queryKey: ["/api/contacts"],
+    enabled: isComposeOpen,
+  });
+
+  const sendEmailMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("/api/gmail/send", "POST", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      setIsComposeOpen(false);
+      toast({
+        title: "Email envoyé",
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+      });
+    },
+    onError: () => {
+      toast({ title: "Erreur", description: "Envoi échoué.", variant: "destructive" });
+    },
+  });
 
   // Get account ID from user metadata
   const accountId = user?.user_metadata?.account_id;
@@ -466,12 +496,15 @@ function QuickCreateMenu() {
 
   if (!user) return null;
 
+  const gmailConnected = gmailStatus?.canSend === true;
+
   const quickActions = [
-    { label: "Client", icon: Users, color: "bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400", onClick: () => setIsClientSheetOpen(true), testId: "dropdown-new-client" },
-    { label: "Projet", icon: FolderKanban, color: "bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400", onClick: () => setIsProjectSheetOpen(true), testId: "dropdown-new-project" },
-    { label: "Tâche", icon: CheckSquare, color: "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400", onClick: () => setIsTaskSheetOpen(true), testId: "dropdown-new-task" },
-    { label: "Note", icon: StickyNote, color: "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400", onClick: () => setIsNoteSheetOpen(true), testId: "dropdown-new-note" },
-    { label: "Rendez-vous", icon: CalendarPlus, color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400", onClick: () => setIsAppointmentPanelOpen(true), testId: "dropdown-new-appointment" },
+    { label: "Client", icon: Users, color: "bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400", onClick: () => setIsClientSheetOpen(true), testId: "dropdown-new-client", disabled: false },
+    { label: "Projet", icon: FolderKanban, color: "bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400", onClick: () => setIsProjectSheetOpen(true), testId: "dropdown-new-project", disabled: false },
+    { label: "Tâche", icon: CheckSquare, color: "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400", onClick: () => setIsTaskSheetOpen(true), testId: "dropdown-new-task", disabled: false },
+    { label: "Note", icon: StickyNote, color: "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400", onClick: () => setIsNoteSheetOpen(true), testId: "dropdown-new-note", disabled: false },
+    { label: "Rendez-vous", icon: CalendarPlus, color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400", onClick: () => setIsAppointmentPanelOpen(true), testId: "dropdown-new-appointment", disabled: false },
+    { label: "Email", icon: Mail, color: gmailConnected ? "bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-400" : "bg-muted text-muted-foreground", onClick: () => { setComposeInitial({ to: "", subject: "", body: "" }); setIsComposeOpen(true); }, testId: "dropdown-new-email", disabled: !gmailConnected },
   ];
 
   return (
@@ -490,8 +523,15 @@ function QuickCreateMenu() {
               <button
                 key={action.label}
                 type="button"
-                onClick={action.onClick}
-                className="flex flex-col items-center gap-1.5 p-2 rounded-md hover-elevate active-elevate-2 cursor-pointer"
+                onClick={action.disabled ? undefined : action.onClick}
+                disabled={action.disabled}
+                title={action.disabled && action.label === "Email" ? "Gmail non connecté" : undefined}
+                className={cn(
+                  "flex flex-col items-center gap-1.5 p-2 rounded-md",
+                  action.disabled
+                    ? "opacity-40 cursor-not-allowed"
+                    : "hover-elevate active-elevate-2 cursor-pointer"
+                )}
                 data-testid={action.testId}
               >
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center ${action.color}`}>
@@ -1006,6 +1046,16 @@ function QuickCreateMenu() {
         open={isAppointmentPanelOpen}
         onClose={() => setIsAppointmentPanelOpen(false)}
         mode="create"
+      />
+
+      <EmailComposeModal
+        open={isComposeOpen}
+        onClose={() => setIsComposeOpen(false)}
+        contacts={crmContacts.filter((c) => c.email).map((c) => ({ id: c.id, fullName: c.fullName, email: c.email! }))}
+        senderEmail={gmailStatus?.email}
+        initialData={composeInitial}
+        onSend={(data: any) => sendEmailMutation.mutate(data)}
+        isSending={sendEmailMutation.isPending}
       />
     </>
   );
