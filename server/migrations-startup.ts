@@ -2450,6 +2450,20 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Gmail email draft/schedule/tags columns added");
 
+    await db.execute(sql`
+      UPDATE crm_email_messages
+      SET is_draft = 0 WHERE is_draft IS NULL;
+    `);
+    await db.execute(sql`
+      UPDATE crm_email_messages
+      SET is_archived = 0 WHERE is_archived IS NULL;
+    `);
+    await db.execute(sql`
+      UPDATE crm_email_messages
+      SET is_deleted = 0 WHERE is_deleted IS NULL;
+    `);
+    console.log("✅ Gmail email NULL flags normalized to 0");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

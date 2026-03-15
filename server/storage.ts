@@ -2032,19 +2032,22 @@ export class DatabaseStorage implements IStorage {
       eq(crmEmailMessages.accountId, accountId),
       eq(crmEmailMessages.userId, userId),
     ];
+    const notDraft = or(eq(crmEmailMessages.isDraft, 0), isNull(crmEmailMessages.isDraft))!;
+    const notDeleted = or(eq(crmEmailMessages.isDeleted, 0), isNull(crmEmailMessages.isDeleted))!;
+    const notArchived = or(eq(crmEmailMessages.isArchived, 0), isNull(crmEmailMessages.isArchived))!;
     if (direction === 'trash') {
       conditions.push(eq(crmEmailMessages.isDeleted, 1));
     } else if (direction === 'archived') {
-      conditions.push(eq(crmEmailMessages.isDeleted, 0));
+      conditions.push(notDeleted);
       conditions.push(eq(crmEmailMessages.isArchived, 1));
-      conditions.push(eq(crmEmailMessages.isDraft, 0));
+      conditions.push(notDraft);
     } else if (direction === 'drafts') {
-      conditions.push(eq(crmEmailMessages.isDeleted, 0));
+      conditions.push(notDeleted);
       conditions.push(eq(crmEmailMessages.isDraft, 1));
     } else {
-      conditions.push(eq(crmEmailMessages.isDeleted, 0));
-      conditions.push(eq(crmEmailMessages.isArchived, 0));
-      conditions.push(eq(crmEmailMessages.isDraft, 0));
+      conditions.push(notDeleted);
+      conditions.push(notArchived);
+      conditions.push(notDraft);
       if (direction === 'sent' || direction === 'received') {
         conditions.push(eq(crmEmailMessages.direction, direction as 'sent' | 'received'));
       }
