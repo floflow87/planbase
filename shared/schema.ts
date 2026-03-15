@@ -1266,6 +1266,7 @@ export const crmEmailMessages = pgTable("crm_email_messages", {
   subject: text("subject"),
   snippet: text("snippet"),
   bodyText: text("body_text"),
+  bodyHtml: text("body_html"),
   fromEmail: text("from_email").notNull(),
   fromName: text("from_name"),
   sentAt: timestamp("sent_at", { withTimezone: true }).notNull(),

@@ -7789,12 +7789,12 @@ app.get("/config/feature-flags", async (_req, res) => {
       if (!token || !token.gmailEnabled) {
         return res.status(400).json({ error: "Gmail is not connected." });
       }
-      const { to, subject, body, replyToMessageId, threadId } = req.body;
+      const { to, cc, bcc, subject, body, replyToMessageId, threadId } = req.body;
       if (!to || !subject || !body) {
         return res.status(400).json({ error: "Missing required fields: to, subject, body" });
       }
       const { sendGmailEmail } = await import("./lib/gmail-sync");
-      const result = await sendGmailEmail(req.accountId!, req.userId!, to, subject, body, replyToMessageId, threadId);
+      const result = await sendGmailEmail(req.accountId!, req.userId!, to, subject, body, replyToMessageId, threadId, cc, bcc);
       res.json({ success: true, ...result });
     } catch (error: unknown) {
       console.error("Gmail send error:", error);

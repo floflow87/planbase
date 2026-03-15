@@ -2418,6 +2418,12 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Gmail sync period column added");
 
+    await db.execute(sql`
+      ALTER TABLE crm_email_messages
+      ADD COLUMN IF NOT EXISTS body_html TEXT;
+    `);
+    console.log("✅ Gmail email body_html column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

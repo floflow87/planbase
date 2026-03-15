@@ -607,6 +607,8 @@ export async function sendGmailEmail(
   body: string,
   replyToMessageId?: string,
   threadId?: string,
+  cc?: string,
+  bcc?: string,
 ): Promise<{ gmailMessageId: string }> {
   const { gmail, userEmail } = await getAuthedGmailClient(accountId, userId);
 
@@ -617,6 +619,9 @@ export async function sendGmailEmail(
     `MIME-Version: 1.0`,
     `Content-Type: text/plain; charset="UTF-8"`,
   ];
+
+  if (cc) headers.push(`Cc: ${cc}`);
+  if (bcc) headers.push(`Bcc: ${bcc}`);
 
   if (replyToMessageId) {
     headers.push(`In-Reply-To: ${replyToMessageId}`);

@@ -1948,6 +1948,7 @@ export class DatabaseStorage implements IStorage {
             subject: data.subject,
             snippet: data.snippet,
             bodyText: data.bodyText,
+            bodyHtml: data.bodyHtml,
             fromEmail: data.fromEmail,
             fromName: data.fromName,
             sentAt: data.sentAt,
