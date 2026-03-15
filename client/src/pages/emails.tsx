@@ -476,12 +476,11 @@ export default function Emails() {
             </TooltipContent>
           </Tooltip>
           <div className="flex-1" />
-          <div className="relative shrink-0">
-            <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-muted-foreground pointer-events-none" />
+          <div className="relative shrink-0 w-36">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <Input
-              className="pl-5 h-6 w-28"
+              className="pl-9 bg-white dark:bg-background placeholder:text-[10px]"
               placeholder="Chercher..."
-              style={{ fontSize: "6px" }}
               value={searchInput}
               onChange={(e) => handleSearchChange(e.target.value)}
               data-testid="input-email-search"
@@ -672,6 +671,14 @@ export default function Emails() {
                         />
                       </div>
 
+                      {/* Unread dot — left of avatar */}
+                      <span
+                        className={cn(
+                          "self-center w-1.5 h-1.5 rounded-full shrink-0 flex-shrink-0",
+                          isUnread ? "bg-primary" : "invisible"
+                        )}
+                      />
+
                       <AvatarCircle name={msg.fromName} email={msg.fromEmail} />
 
                       <div className="flex-1 min-w-0">
@@ -680,9 +687,6 @@ export default function Emails() {
                             {msg.direction === "sent" ? "Moi" : (decodeHTMLEntities(msg.fromName) || msg.fromEmail)}
                           </span>
                           <div className="flex items-center gap-1 shrink-0">
-                            {isUnread && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 flex-shrink-0" />
-                            )}
                             <span className="text-[10px] text-muted-foreground leading-none">
                               {formatEmailDate(msg.sentAt)}
                             </span>

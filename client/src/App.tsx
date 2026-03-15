@@ -1239,6 +1239,7 @@ function AppLayout() {
     if (path === "/legal") return "Légal";
     if (path === "/calendar") return "Calendrier";
     if (path === "/settings") return "Paramètres";
+    if (path === "/emails") return "Emails";
     return "Page";
   };
 
