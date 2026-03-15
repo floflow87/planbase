@@ -2352,6 +2352,10 @@ export async function runStartupMigrations() {
       ALTER TABLE treasury_settings
         ADD COLUMN IF NOT EXISTS period_tags JSONB DEFAULT '{}'::jsonb;
     `);
+    await db.execute(sql`
+      ALTER TABLE treasury_settings
+        ADD COLUMN IF NOT EXISTS flow_tags JSONB DEFAULT '{}'::jsonb;
+    `);
     console.log("✅ Treasury plan tables created");
 
     console.log("✅ Startup migrations completed successfully");

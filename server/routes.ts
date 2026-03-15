@@ -13421,6 +13421,14 @@ app.get("/config/feature-flags", async (_req, res) => {
       // Sort by date
       flows.sort((a, b) => a.date.localeCompare(b.date));
 
+      // Merge flow_tags from settings into auto-generated flows
+      const savedFlowTags = (tsSettings?.flowTags ?? {}) as Record<string, string[]>;
+      for (const flow of flows) {
+        if (savedFlowTags[flow.id] && flow.sourceType !== "manual") {
+          flow.tags = savedFlowTags[flow.id];
+        }
+      }
+
       // ── KPIs
       const startingCash = parseFloat(tsSettings?.startingCash?.toString() ?? "0");
       const today = new Date().toISOString().split("T")[0];
@@ -13511,6 +13519,25 @@ app.get("/config/feature-flags", async (_req, res) => {
         VALUES (${accountId}, ${JSON.stringify({ [periodKey]: tags })}::jsonb)
         ON CONFLICT (account_id) DO UPDATE
         SET period_tags = COALESCE(treasury_settings.period_tags, '{}'::jsonb) || ${JSON.stringify({ [periodKey]: tags })}::jsonb,
+            updated_at = NOW()
+      `);
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/treasury/flow-tags", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { flowId, tags } = req.body as { flowId: string; tags: string[] };
+      if (!flowId || !Array.isArray(tags)) return res.status(400).json({ error: "flowId and tags[] required" });
+      const patch = JSON.stringify({ [flowId]: tags });
+      await db.execute(sql`
+        INSERT INTO treasury_settings (account_id, flow_tags)
+        VALUES (${accountId}, ${patch}::jsonb)
+        ON CONFLICT (account_id) DO UPDATE
+        SET flow_tags = COALESCE(treasury_settings.flow_tags, '{}'::jsonb) || ${patch}::jsonb,
             updated_at = NOW()
       `);
       res.json({ ok: true });

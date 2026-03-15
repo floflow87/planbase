@@ -2396,6 +2396,7 @@ export const treasurySettings = pgTable("treasury_settings", {
   alertThreshold: numeric("alert_threshold", { precision: 14, scale: 2 }),
   defaultViewRange: text("default_view_range").default("month"), // 'week' | 'month' | 'quarter' | 'year'
   periodTags: jsonb("period_tags").$type<Record<string, string[]>>().default({}),
+  flowTags: jsonb("flow_tags").$type<Record<string, string[]>>().default({}),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

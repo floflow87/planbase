@@ -1374,26 +1374,39 @@ export default function TreasuryPage() {
     onError: (e: any) => toast({ title: "Erreur tags", description: e.message, variant: "destructive" }),
   });
 
+  const updateAutoFlowTagsMutation = useMutation({
+    mutationFn: ({ flowId, tags }: { flowId: string; tags: string[] }) =>
+      apiRequest("/api/treasury/flow-tags", "PATCH", { flowId, tags }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/treasury/flows"] }),
+    onError: (e: any) => toast({ title: "Erreur tags", description: e.message, variant: "destructive" }),
+  });
+
   const allFlowTags = useMemo(() => {
     if (!data) return [];
     return [...new Set(data.flows.flatMap((f) => f.tags ?? []))].sort();
   }, [data]);
 
   const handleToggleFlowTag = (flow: TreasuryFlow, tag: string) => {
-    if (!flow.manualId) return;
     const current = flow.tags ?? [];
     const next = current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag];
-    updateFlowTagsMutation.mutate({ manualId: flow.manualId, tags: next });
+    if (flow.manualId) {
+      updateFlowTagsMutation.mutate({ manualId: flow.manualId, tags: next });
+    } else {
+      updateAutoFlowTagsMutation.mutate({ flowId: flow.id, tags: next });
+    }
   };
 
   const handleAddNewFlowTag = (flow: TreasuryFlow, rawTag: string) => {
-    if (!flow.manualId) return;
     const trimmed = rawTag.trim();
     if (!trimmed) return;
     const current = flow.tags ?? [];
     if (current.includes(trimmed)) return;
     const next = [...current, trimmed];
-    updateFlowTagsMutation.mutate({ manualId: flow.manualId, tags: next });
+    if (flow.manualId) {
+      updateFlowTagsMutation.mutate({ manualId: flow.manualId, tags: next });
+    } else {
+      updateAutoFlowTagsMutation.mutate({ flowId: flow.id, tags: next });
+    }
   };
 
   // Period window — centré sur maintenant : pastMonths en arrière + reste en avant
@@ -2043,7 +2056,7 @@ export default function TreasuryPage() {
                     <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Tags</th>
                     <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Statut</th>
                     <th className="text-right py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Montant</th>
-                    <th className="text-right py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Balance</th>
+                    <th className="text-right py-1.5 px-3 font-medium text-muted-foreground text-[10px] bg-slate-100/80 dark:bg-slate-800/40">Balance</th>
                     <th className="py-1.5 px-3 w-14"></th>
                   </tr>
                 </thead>
@@ -2106,14 +2119,13 @@ export default function TreasuryPage() {
                           )}
                         </td>
                         <td className="py-1.5 px-3">
-                          {flow.manualId ? (
-                            <Popover
-                              open={tagPopoverOpen[flow.id] ?? false}
-                              onOpenChange={(v) => {
-                                setTagPopoverOpen((prev) => ({ ...prev, [flow.id]: v }));
-                                if (!v) setTagInput("");
-                              }}
-                            >
+                          <Popover
+                            open={tagPopoverOpen[flow.id] ?? false}
+                            onOpenChange={(v) => {
+                              setTagPopoverOpen((prev) => ({ ...prev, [flow.id]: v }));
+                              if (!v) setTagInput("");
+                            }}
+                          >
                               <PopoverTrigger asChild>
                                 <div
                                   className="flex flex-wrap gap-0.5 items-center min-h-[20px] cursor-pointer group"
@@ -2207,18 +2219,6 @@ export default function TreasuryPage() {
                                 </div>
                               </PopoverContent>
                             </Popover>
-                          ) : (
-                            <div className="flex flex-wrap gap-0.5">
-                              {(flow.tags ?? []).map((t) => (
-                                <span
-                                  key={t}
-                                  className="text-[9px] px-1 py-0 rounded border border-border bg-muted/50 text-muted-foreground whitespace-nowrap"
-                                >
-                                  {t}
-                                </span>
-                              ))}
-                            </div>
-                          )}
                         </td>
                         <td className="py-1.5 px-3">
                           <span
@@ -2242,7 +2242,7 @@ export default function TreasuryPage() {
                             {flow.type === "income" ? "+" : "−"}{fmt(flow.amount)}
                           </span>
                         </td>
-                        <td className="py-1.5 px-3 text-right whitespace-nowrap">
+                        <td className="py-1.5 px-3 text-right whitespace-nowrap bg-slate-100/80 dark:bg-slate-800/40">
                           <span
                             className={cn(
                               "text-[10px] font-medium tabular-nums",
