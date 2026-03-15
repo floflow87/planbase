@@ -53,3 +53,8 @@ integrations = ["javascript_openai:1.0.0", "github-source-control:1.0.0", "resen
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.shared]
+GOOGLE_REDIRECT_DOMAIN = "https://app.planbase.io"

@@ -27,6 +27,13 @@ interface GoogleStatus {
   calendarId?: string;
 }
 
+interface GmailStatus {
+  connected: boolean;
+  email?: string;
+  lastSyncAt?: string;
+  messageCount?: number;
+}
+
 interface Integration {
   id: string;
   name: string;
@@ -53,7 +60,7 @@ const integrations: Integration[] = [
     description: "Synchronisez vos emails avec Google Gmail",
     icon: <img src={gmailIcon} alt="Gmail" className="h-7 w-7 object-contain" />,
     iconBg: "bg-white dark:bg-gray-800",
-    available: false,
+    available: true,
     detailPath: "/settings/integrations/gmail",
   },
   {
@@ -164,6 +171,10 @@ export function IntegrationsTab() {
     queryKey: ["/api/google/status"],
   });
 
+  const { data: gmailStatus, isLoading: isLoadingGmail } = useQuery<GmailStatus>({
+    queryKey: ["/api/gmail/status"],
+  });
+
   const disconnectMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("/api/google/disconnect", "DELETE");
@@ -191,8 +202,9 @@ export function IntegrationsTab() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {integrations.map((integration) => {
           const isGoogleCalendar = integration.id === "google-calendar";
-          const isConnected = isGoogleCalendar && googleStatus?.connected;
-          const isLoading = isGoogleCalendar && isLoadingGoogle;
+          const isGmail = integration.id === "gmail";
+          const isConnected = (isGoogleCalendar && googleStatus?.connected) || (isGmail && gmailStatus?.connected);
+          const isLoading = (isGoogleCalendar && isLoadingGoogle) || (isGmail && isLoadingGmail);
 
           return (
             <Card 
@@ -231,9 +243,9 @@ export function IntegrationsTab() {
                 </p>
 
                 {/* Connected info */}
-                {isConnected && googleStatus?.email && (
+                {isConnected && (googleStatus?.email || gmailStatus?.email) && (
                   <p className="text-xs text-muted-foreground mb-3">
-                    Votre compte Google est connecté.{" "}
+                    {isGmail ? "Gmail est connecté." : "Votre compte Google est connecté."}{" "}
                     <Link href={integration.detailPath} className="text-primary hover:underline">
                       Voir les détails
                     </Link>

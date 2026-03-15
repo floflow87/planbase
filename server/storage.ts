@@ -45,12 +45,16 @@ import {
   type TreasuryTransaction, type InsertTreasuryTransaction,
   type TreasurySettings, type InsertTreasurySettings,
   type TreasuryScenario, type InsertTreasuryScenario,
+  type CrmEmailMessage, type InsertCrmEmailMessage,
+  type CrmEmailParticipant, type InsertCrmEmailParticipant,
+  type CrmEmailLink, type InsertCrmEmailLink,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
   projects, projectCategories, projectPayments, cdcSessions, projectBaselines, projectScopeItems, recommendationActions, taskColumns, tasks, notes, noteCategories, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems, roadmapItemLinks, roadmapDependencies,
   appointments, googleCalendarTokens, timeEntries,
   mindmaps, mindmapNodes, mindmapEdges, entityLinks, settings,
   treasuryCategories, treasuryTransactions, treasurySettings, treasuryScenarios,
+  crmEmailMessages, crmEmailParticipants, crmEmailLinks,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, like, desc, sql, isNull, inArray, gte, lte, asc } from "drizzle-orm";
@@ -323,6 +327,18 @@ export interface IStorage {
   upsertGoogleToken(token: InsertGoogleCalendarToken): Promise<GoogleCalendarToken>;
   deleteGoogleToken(accountId: string, userId: string): Promise<boolean>;
   updateGoogleTokenExpiry(accountId: string, userId: string, accessToken: string, expiresAt: Date): Promise<void>;
+
+  // Gmail Email Sync
+  upsertEmailMessage(data: InsertCrmEmailMessage): Promise<CrmEmailMessage | null>;
+  upsertEmailParticipants(emailMessageId: string, participants: InsertCrmEmailParticipant[]): Promise<void>;
+  upsertEmailLinks(emailMessageId: string, links: InsertCrmEmailLink[]): Promise<void>;
+  getEmailsByContactId(accountId: string, contactId: string): Promise<CrmEmailMessage[]>;
+  getEmailsByClientId(accountId: string, clientId: string): Promise<CrmEmailMessage[]>;
+  getEmailMessageCount(accountId: string, userId: string): Promise<number>;
+  setGmailEnabled(accountId: string, userId: string, enabled: boolean, explicitDisconnect?: boolean): Promise<void>;
+  setGmailSyncTimestamp(accountId: string, userId: string): Promise<void>;
+  getGmailLastHistoryId(accountId: string, userId: string): Promise<string | null>;
+  setGmailLastHistoryId(accountId: string, userId: string, historyId: string): Promise<void>;
 
   // Time Entries
   getTimeEntry(accountId: string, id: string): Promise<TimeEntry | undefined>;
@@ -1916,6 +1932,101 @@ export class DatabaseStorage implements IStorage {
     if (result.length === 0) {
       throw new Error(`Google token not found for user ${userId} in account ${accountId}`);
     }
+  }
+
+  // Gmail Email Sync
+  async upsertEmailMessage(data: InsertCrmEmailMessage): Promise<CrmEmailMessage | null> {
+    try {
+      const [msg] = await db.insert(crmEmailMessages)
+        .values(data)
+        .onConflictDoUpdate({
+          target: [crmEmailMessages.accountId, crmEmailMessages.gmailMessageId],
+          set: {
+            subject: data.subject,
+            snippet: data.snippet,
+            bodyText: data.bodyText,
+            fromEmail: data.fromEmail,
+            fromName: data.fromName,
+            sentAt: data.sentAt,
+            direction: data.direction,
+            hasAttachments: data.hasAttachments,
+            labels: data.labels,
+            syncedAt: new Date(),
+          },
+        })
+        .returning();
+      return msg;
+    } catch (err: any) {
+      console.error("Failed to upsert email message:", err.message);
+      return null;
+    }
+  }
+
+  async upsertEmailParticipants(emailMessageId: string, participants: InsertCrmEmailParticipant[]): Promise<void> {
+    await db.delete(crmEmailParticipants).where(eq(crmEmailParticipants.emailMessageId, emailMessageId));
+    if (participants.length > 0) {
+      await db.insert(crmEmailParticipants).values(participants);
+    }
+  }
+
+  async upsertEmailLinks(emailMessageId: string, links: InsertCrmEmailLink[]): Promise<void> {
+    await db.delete(crmEmailLinks).where(eq(crmEmailLinks.emailMessageId, emailMessageId));
+    if (links.length > 0) {
+      await db.insert(crmEmailLinks).values(links);
+    }
+  }
+
+  async getEmailsByContactId(accountId: string, contactId: string): Promise<CrmEmailMessage[]> {
+    const linked = await db.select({ emailMessageId: crmEmailLinks.emailMessageId })
+      .from(crmEmailLinks)
+      .where(eq(crmEmailLinks.contactId, contactId));
+    if (linked.length === 0) return [];
+    const ids = linked.map((l) => l.emailMessageId);
+    return await db.select().from(crmEmailMessages)
+      .where(and(eq(crmEmailMessages.accountId, accountId), inArray(crmEmailMessages.id, ids)))
+      .orderBy(desc(crmEmailMessages.sentAt));
+  }
+
+  async getEmailsByClientId(accountId: string, clientId: string): Promise<CrmEmailMessage[]> {
+    const linked = await db.select({ emailMessageId: crmEmailLinks.emailMessageId })
+      .from(crmEmailLinks)
+      .where(eq(crmEmailLinks.clientId, clientId));
+    if (linked.length === 0) return [];
+    const ids = [...new Set(linked.map((l) => l.emailMessageId))];
+    return await db.select().from(crmEmailMessages)
+      .where(and(eq(crmEmailMessages.accountId, accountId), inArray(crmEmailMessages.id, ids)))
+      .orderBy(desc(crmEmailMessages.sentAt));
+  }
+
+  async getEmailMessageCount(accountId: string, userId: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(crmEmailMessages)
+      .where(and(eq(crmEmailMessages.accountId, accountId), eq(crmEmailMessages.userId, userId)));
+    return Number(result[0]?.count || 0);
+  }
+
+  async setGmailEnabled(accountId: string, userId: string, enabled: boolean, explicitDisconnect?: boolean): Promise<void> {
+    const value = enabled ? 1 : (explicitDisconnect ? -1 : 0);
+    await db.update(googleCalendarTokens)
+      .set({ gmailEnabled: value, updatedAt: new Date() })
+      .where(and(eq(googleCalendarTokens.accountId, accountId), eq(googleCalendarTokens.userId, userId)));
+  }
+
+  async setGmailSyncTimestamp(accountId: string, userId: string): Promise<void> {
+    await db.update(googleCalendarTokens)
+      .set({ gmailLastSyncAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(googleCalendarTokens.accountId, accountId), eq(googleCalendarTokens.userId, userId)));
+  }
+
+  async getGmailLastHistoryId(accountId: string, userId: string): Promise<string | null> {
+    const token = await this.getGoogleTokenByUserId(accountId, userId);
+    return token?.gmailLastHistoryId || null;
+  }
+
+  async setGmailLastHistoryId(accountId: string, userId: string, historyId: string): Promise<void> {
+    await db.update(googleCalendarTokens)
+      .set({ gmailLastHistoryId: historyId, updatedAt: new Date() })
+      .where(and(eq(googleCalendarTokens.accountId, accountId), eq(googleCalendarTokens.userId, userId)));
   }
 
   // Time Entries

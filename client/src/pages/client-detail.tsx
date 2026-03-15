@@ -1,6 +1,8 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
 import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, CalendarDays, Save, Check, ChevronLeft, ChevronRight, Star, TrendingUp, ChevronsUpDown, DollarSign, StickyNote, Globe, Radar, BarChart4, CreditCard, Timer, Hourglass, Filter, Eye, CalendarPlus, NotebookPen, ListTodo, FolderOpen, Camera } from "lucide-react";
+import { EmailActivityCard } from "@/components/EmailActivityCard";
+import { EmailComposeModal } from "@/components/EmailComposeModal";
 import { FileExplorer } from "@/components/file-explorer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -210,6 +212,8 @@ export default function ClientDetail() {
     occurredAt: "",
   });
   const [isActivityDatePickerOpen, setIsActivityDatePickerOpen] = useState(false);
+  const [isComposeEmailOpen, setIsComposeEmailOpen] = useState(false);
+  const [composeEmailData, setComposeEmailData] = useState<{ to: string; subject: string; body: string; replyToMessageId?: string; threadId?: string }>({ to: "", subject: "", body: "" });
 
   // Fetch current user to get accountId
   const { data: currentUser } = useQuery<AppUser>({
@@ -290,6 +294,56 @@ export default function ClientDetail() {
     queryKey: ['/api/appointments'],
     enabled: !!accountId,
   });
+
+  const { data: gmailStatus } = useQuery<{ connected: boolean; email: string | null; canSend?: boolean; hasFullRead?: boolean }>({
+    queryKey: ["/api/gmail/status"],
+    enabled: !!accountId,
+  });
+
+  const sendEmailMutation = useMutation({
+    mutationFn: async (data: { to: string; subject: string; body: string; replyToMessageId?: string; threadId?: string }) => {
+      return apiRequest("/api/gmail/send", "POST", data);
+    },
+    onSuccess: () => {
+      toast({ title: "Email envoy\u00e9", description: "L'email a \u00e9t\u00e9 envoy\u00e9 avec succ\u00e8s via Gmail." });
+      setIsComposeEmailOpen(false);
+      setComposeEmailData({ to: "", subject: "", body: "" });
+      setTimeout(() => {
+        apiRequest("/api/gmail/sync", "POST").then(() => {
+          queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'activities'] });
+        }).catch(() => {});
+      }, 2000);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erreur d'envoi", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleEmailReply = (emailPayload: any) => {
+    const replyTo = emailPayload.direction === "sent"
+      ? (emailPayload.participants || []).find((p: any) => p.role === "to")?.email || ""
+      : emailPayload.fromEmail || "";
+    const subject = emailPayload.subject || "";
+    const replySubject = subject.startsWith("Re:") ? subject : `Re: ${subject}`;
+    setComposeEmailData({
+      to: replyTo,
+      subject: replySubject,
+      body: "",
+      replyToMessageId: emailPayload.rfcMessageId || undefined,
+      threadId: emailPayload.threadId || undefined,
+    });
+    setIsComposeEmailOpen(true);
+  };
+
+  const handleEmailForward = (emailPayload: any) => {
+    const subject = (emailPayload.subject as string) || "";
+    const fwdSubject = subject.startsWith("Fwd:") || subject.startsWith("Tr:") ? subject : `Tr: ${subject}`;
+    const bodyText = (emailPayload.bodyText as string) || (emailPayload.snippet as string) || "";
+    const fromName = (emailPayload.fromName as string) || (emailPayload.fromEmail as string) || "";
+    const fwdBody = `\n\n---------- Message transf\u00e9r\u00e9 ----------\nDe : ${fromName}\nObjet : ${subject}\n\n${bodyText}`;
+    setComposeEmailData({ to: "", subject: fwdSubject, body: fwdBody });
+    setIsComposeEmailOpen(true);
+  };
 
   const { data: allPayments = [] } = useQuery<any[]>({
     queryKey: ['/api/payments'],
@@ -1536,10 +1590,28 @@ export default function ClientDetail() {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
                     <CardTitle className="text-sm font-semibold tracking-tight">Activités</CardTitle>
-                    <Button onClick={() => openActivityDialog()} data-testid="button-add-activity" size="sm" className="text-[11px] h-7 px-2">
-                      <Plus className="w-3 h-3 mr-1" />
-                      Nouvelle activité
-                    </Button>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {gmailStatus?.connected && gmailStatus?.canSend && contacts.length > 0 && (
+                        <Button
+                          onClick={() => {
+                            const firstContactEmail = contacts.find(c => c.email)?.email || "";
+                            setComposeEmailData({ to: firstContactEmail, subject: "", body: "" });
+                            setIsComposeEmailOpen(true);
+                          }}
+                          data-testid="button-compose-email"
+                          size="sm"
+                          variant="outline"
+                          className="text-[11px] h-7 px-2"
+                        >
+                          <Mail className="w-3 h-3 mr-1" />
+                          Email
+                        </Button>
+                      )}
+                      <Button onClick={() => openActivityDialog()} data-testid="button-add-activity" size="sm" className="text-[11px] h-7 px-2">
+                        <Plus className="w-3 h-3 mr-1" />
+                        Nouvelle activité
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {clientActivities.length === 0 && ([...comments, ...contacts, ...projects, ...tasks].length === 0) ? (
@@ -1553,6 +1625,23 @@ export default function ClientDetail() {
                           const activityKindLabels: Record<string, string> = {
                             email: "Email", call: "Appel", meeting: "Réunion", note: "Note", task: "Tâche", custom: "Autre",
                           };
+                          const payload = activity.payload as Record<string, unknown>;
+                          const isGmailEmail = activity.kind === "email" && payload?.gmailMessageId;
+
+                          if (isGmailEmail) {
+                            return (
+                              <EmailActivityCard
+                                key={activity.id}
+                                activityId={activity.id}
+                                payload={payload}
+                                occurredAt={activity.occurredAt}
+                                variant="card"
+                                onReply={gmailStatus?.canSend ? handleEmailReply : undefined}
+                                onForward={gmailStatus?.canSend ? handleEmailForward : undefined}
+                              />
+                            );
+                          }
+
                           return (
                             <div
                               key={activity.id}
@@ -1575,6 +1664,11 @@ export default function ClientDetail() {
                                     )}
                                   </div>
                                   <p className="text-xs text-foreground whitespace-pre-wrap">{activity.description}</p>
+                                  {(activity.kind === "note" || activity.kind === "task") && payload?.description && typeof payload.description === "string" && payload.description !== activity.description && (
+                                    <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2 italic">
+                                      {payload.description}
+                                    </p>
+                                  )}
                                   {author && (
                                     <p className="text-[10px] text-muted-foreground mt-0.5">
                                       Par {author.firstName} {author.lastName}
@@ -1606,6 +1700,7 @@ export default function ClientDetail() {
                                 ...contacts.map((c) => ({ ...c, _date: new Date(c.createdAt), _type: 'contact' as const })),
                                 ...comments.map((c) => ({ ...c, _date: new Date(c.createdAt), _type: 'comment' as const })),
                                 ...clientActivities.filter(a => a.kind === "stage_change" || a.kind === "info_update").map(a => ({ ...a, _date: new Date(a.occurredAt || a.createdAt || 0), _type: a.kind as 'stage_change' | 'info_update' })),
+                                ...clientActivities.filter(a => a.kind === "email" && (a.payload as Record<string, unknown>)?.gmailMessageId).map(a => ({ ...a, _date: new Date(a.occurredAt || a.createdAt || 0), _type: 'gmail_email' as const })),
                               ]
                                 .sort((a, b) => b._date.getTime() - a._date.getTime())
                                 .map((item) => {
@@ -1685,6 +1780,20 @@ export default function ClientDetail() {
                                         <p className="text-xs text-foreground">{(item as any).description}</p>
                                         <p className="text-[10px] text-muted-foreground">{format(item._date, "d MMM yyyy 'à' HH:mm", { locale: fr })}</p>
                                       </div>
+                                    );
+                                  }
+                                  if (item._type === 'gmail_email') {
+                                    const emailPayload = item.payload as Record<string, unknown>;
+                                    return (
+                                      <EmailActivityCard
+                                        key={`email-timeline-${item.id}`}
+                                        activityId={item.id}
+                                        payload={emailPayload}
+                                        occurredAt={(item as any).occurredAt}
+                                        variant="timeline"
+                                        onReply={gmailStatus?.canSend ? handleEmailReply : undefined}
+                                        onForward={gmailStatus?.canSend ? handleEmailForward : undefined}
+                                      />
                                     );
                                   }
                                   return null;
@@ -3065,6 +3174,16 @@ export default function ClientDetail() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <EmailComposeModal
+          open={isComposeEmailOpen}
+          onClose={() => { setIsComposeEmailOpen(false); setComposeEmailData({ to: "", subject: "", body: "" }); }}
+          contacts={contacts}
+          senderEmail={gmailStatus?.email || undefined}
+          initialData={composeEmailData}
+          onSend={(data) => sendEmailMutation.mutate(data)}
+          isSending={sendEmailMutation.isPending}
+        />
 
         {/* Edit Client Info Sheet */}
         <Sheet open={isEditClientSidebarOpen} onOpenChange={setIsEditClientSidebarOpen}>

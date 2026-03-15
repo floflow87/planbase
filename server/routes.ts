@@ -1353,6 +1353,20 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  app.get("/api/contacts/:contactId/activities", requireAuth, requireOrgMember, requirePermission("crm", "read", "crm.clients"), async (req, res) => {
+    try {
+      const contact = await storage.getContact(req.accountId!, req.params.contactId);
+      if (!contact) {
+        return res.status(404).json({ error: "Contact not found" });
+      }
+      const activities = await storage.getActivitiesBySubject(req.accountId!, "contact", req.params.contactId);
+      res.json(activities);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      res.status(400).json({ error: message });
+    }
+  });
+
   // ============================================
   // CLIENT COMMENTS - Protected Routes
   // ============================================
@@ -7536,7 +7550,30 @@ app.get("/config/feature-flags", async (_req, res) => {
         return res.status(400).send("Missing code or state");
       }
 
-      const { accountId, userId } = JSON.parse(state as string);
+      let accountId: string;
+      let userId: string;
+      let purpose = "calendar";
+
+      const stateStr = state as string;
+      console.log("🔑 OAuth callback raw state:", stateStr);
+      const parsed = JSON.parse(stateStr);
+      console.log("🔑 OAuth callback parsed state:", JSON.stringify(parsed));
+      if (parsed.payload) {
+        const inner = JSON.parse(parsed.payload);
+        accountId = inner.accountId;
+        userId = inner.userId;
+        purpose = inner.purpose || "calendar";
+      } else {
+        accountId = parsed.accountId;
+        userId = parsed.userId;
+        purpose = parsed.purpose || "calendar";
+      }
+      console.log("🔑 OAuth callback resolved purpose:", purpose);
+
+      if (!accountId || !userId) {
+        return res.status(400).send("Invalid OAuth state: missing accountId or userId");
+      }
+
       const clientId = getGoogleClientId();
       const clientSecret = getGoogleClientSecret();
 
@@ -7549,7 +7586,7 @@ app.get("/config/feature-flags", async (_req, res) => {
       const domain = getGoogleRedirectDomain();
       const redirectUri = `${domain}/api/google/auth/callback`;
       
-      console.log("📅 Google OAuth Callback - Using redirect URI:", redirectUri);
+      console.log(`📅 Google OAuth Callback (${purpose}) - Using redirect URI:`, redirectUri);
       
       const oauth2Client = createOAuth2Client({
         clientId,
@@ -7559,7 +7596,6 @@ app.get("/config/feature-flags", async (_req, res) => {
 
       const tokens = await exchangeCodeForTokens(oauth2Client, code as string);
 
-      // Get user info to store email
       oauth2Client.setCredentials(tokens);
       const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
       const userInfo = await oauth2.userinfo.get();
@@ -7575,19 +7611,61 @@ app.get("/config/feature-flags", async (_req, res) => {
         scope: tokens.scope!,
       });
 
-      res.send(`
-        <html>
+      const successPage = (title: string, subtitle: string) => `
+        <!DOCTYPE html>
+        <html lang="fr">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>${title}</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #f8f9fa; color: #1a1a1a; padding: 24px; }
+              .card { background: #fff; border-radius: 12px; padding: 40px 32px; max-width: 420px; width: 100%; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+              .icon { width: 56px; height: 56px; background: #e8f5e9; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
+              .icon svg { width: 28px; height: 28px; color: #2e7d32; }
+              h1 { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+              p { font-size: 14px; color: #666; margin-bottom: 24px; line-height: 1.5; }
+              .btn { display: inline-block; padding: 10px 24px; background: #1a1a1a; color: #fff; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; transition: background 0.15s; }
+              .btn:hover { background: #333; }
+            </style>
+          </head>
           <body>
-            <h1>✅ Google Calendar connecté avec succès !</h1>
-            <p>Vous pouvez fermer cette fenêtre et retourner à Planbase.</p>
+            <div class="card">
+              <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>
+              <h1>${title}</h1>
+              <p>${subtitle}</p>
+              <a href="/" class="btn" data-testid="link-back-to-app">Retourner à Planbase</a>
+            </div>
             <script>
-              setTimeout(() => window.close(), 2000);
+              if (window.opener) { setTimeout(() => { window.opener.location.reload(); window.close(); }, 1500); }
             </script>
           </body>
         </html>
-      `);
-    } catch (error: any) {
-      res.status(500).send(`Error: ${error.message}`);
+      `;
+
+      if (purpose === "gmail") {
+        await storage.setGmailEnabled(accountId, userId, true);
+        await storage.setGmailLastHistoryId(accountId, userId, "");
+
+        const { syncGmail } = await import("./lib/gmail-sync");
+        syncGmail(accountId, userId).catch((err) =>
+          console.error("Background Gmail sync failed:", err instanceof Error ? err.message : err)
+        );
+
+        res.send(successPage(
+          "Gmail connecté avec succès !",
+          "La synchronisation de vos emails est en cours. Vos emails seront visibles dans les fiches contacts et clients."
+        ));
+      } else {
+        res.send(successPage(
+          "Google Calendar connecté avec succès !",
+          "Vos événements Google Calendar sont maintenant synchronisés avec Planbase."
+        ));
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      res.status(500).send(`Error: ${message}`);
     }
   });
 
@@ -7662,6 +7740,99 @@ app.get("/config/feature-flags", async (_req, res) => {
       res.json(event);
     } catch (error: any) {
       console.error("Failed to create Google Calendar event:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // GMAIL INTEGRATION
+  // ============================================
+
+  app.get("/api/gmail/auth/start", requireAuth, async (req, res) => {
+    try {
+      const { getGmailAuthUrl } = await import("./lib/gmail-sync");
+      const authUrl = getGmailAuthUrl(req.accountId!, req.userId!);
+      res.json({ authUrl });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/gmail/sync", requireAuth, async (req, res) => {
+    try {
+      const token = await storage.getGoogleTokenByUserId(req.accountId!, req.userId!);
+      if (!token || !token.gmailEnabled) {
+        return res.status(400).json({ error: "Gmail is not connected. Please connect Gmail first." });
+      }
+      const { syncGmail } = await import("./lib/gmail-sync");
+      const result = await syncGmail(req.accountId!, req.userId!, true);
+      res.json({ success: true, ...result });
+    } catch (error: unknown) {
+      console.error("Gmail sync error:", error);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  app.delete("/api/gmail/disconnect", requireAuth, async (req, res) => {
+    try {
+      await storage.setGmailEnabled(req.accountId!, req.userId!, false, true);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/gmail/send", requireAuth, async (req, res) => {
+    try {
+      const token = await storage.getGoogleTokenByUserId(req.accountId!, req.userId!);
+      if (!token || !token.gmailEnabled) {
+        return res.status(400).json({ error: "Gmail is not connected." });
+      }
+      const { to, subject, body, replyToMessageId, threadId } = req.body;
+      if (!to || !subject || !body) {
+        return res.status(400).json({ error: "Missing required fields: to, subject, body" });
+      }
+      const { sendGmailEmail } = await import("./lib/gmail-sync");
+      const result = await sendGmailEmail(req.accountId!, req.userId!, to, subject, body, replyToMessageId, threadId);
+      res.json({ success: true, ...result });
+    } catch (error: unknown) {
+      console.error("Gmail send error:", error);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({ error: message });
+    }
+  });
+
+  app.get("/api/gmail/status", requireAuth, async (req, res) => {
+    try {
+      const token = await storage.getGoogleTokenByUserId(req.accountId!, req.userId!);
+      let gmailEnabled = token?.gmailEnabled === 1;
+      const explicitlyDisconnected = token?.gmailEnabled === -1;
+
+      if (!gmailEnabled && !explicitlyDisconnected && token && token.scope && (token.scope.includes("gmail.readonly") || token.scope.includes("gmail.metadata"))) {
+        await storage.setGmailEnabled(req.accountId!, req.userId!, true);
+        gmailEnabled = true;
+
+        const { syncGmail } = await import("./lib/gmail-sync");
+        syncGmail(req.accountId!, req.userId!).catch((err) =>
+          console.error("Background Gmail sync failed:", err instanceof Error ? err.message : err)
+        );
+      }
+
+      const messageCount = gmailEnabled ? await storage.getEmailMessageCount(req.accountId!, req.userId!) : 0;
+
+      const canSend = !!(token?.scope && token.scope.includes("gmail.send"));
+      const hasFullRead = !!(token?.scope && token.scope.includes("gmail.readonly"));
+
+      res.json({
+        connected: gmailEnabled,
+        email: gmailEnabled ? token?.email : null,
+        lastSyncAt: token?.gmailLastSyncAt || null,
+        messageCount,
+        canSend,
+        hasFullRead,
+      });
+    } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });

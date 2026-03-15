@@ -7,7 +7,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { 
   ArrowLeft, CheckCircle, Loader2, Unlink, Calendar, RefreshCw, 
-  ExternalLink, Settings, Shield, Clock, Zap 
+  ExternalLink, Settings, Shield, Clock, Zap, Mail
 } from "lucide-react";
 import { SiCalendly } from "react-icons/si";
 
@@ -25,6 +25,15 @@ interface GoogleStatus {
   configured: boolean;
   email?: string;
   calendarId?: string;
+}
+
+interface GmailStatus {
+  connected: boolean;
+  email?: string;
+  lastSyncAt?: string;
+  messageCount?: number;
+  canSend?: boolean;
+  hasFullRead?: boolean;
 }
 
 interface IntegrationInfo {
@@ -58,16 +67,18 @@ const integrationDetails: Record<string, IntegrationInfo> = {
     id: "gmail",
     name: "Gmail",
     description: "Synchronisez vos emails avec Google Gmail",
-    longDescription: "Intégrez Gmail pour centraliser vos communications clients directement dans Planbase. Retrouvez vos emails importants liés à vos projets sans quitter l'application.",
+    longDescription: "Intégrez Gmail pour synchroniser automatiquement vos emails avec vos contacts CRM. Lisez le contenu complet des emails, envoyez des emails directement depuis les fiches clients, et suivez toutes les interactions dans l'historique d'activité.",
     icon: <img src={gmailIcon} alt="Gmail" className="h-10 w-10 object-contain" />,
     iconBg: "bg-white dark:bg-gray-800",
     features: [
-      "Synchronisation des emails clients",
-      "Envoi d'emails depuis Planbase",
-      "Historique des conversations",
-      "Pièces jointes accessibles",
+      "Lecture du contenu complet des emails",
+      "Envoi d'emails depuis les fiches clients",
+      "Liaison automatique avec vos contacts CRM",
+      "Historique email dans la timeline client",
+      "Détection automatique des pièces jointes",
+      "Filtrage automatique des spams et newsletters",
     ],
-    available: false,
+    available: true,
   },
   "google-meet": {
     id: "google-meet",
@@ -183,21 +194,31 @@ export default function IntegrationDetailPage() {
 
   const integration = integrationDetails[integrationId];
 
+  const isGmail = integrationId === "gmail";
+  const isGoogleCalendar = integrationId === "google-calendar";
+
   const { data: googleStatus, isLoading: isLoadingGoogle } = useQuery<GoogleStatus>({
     queryKey: ["/api/google/status"],
-    enabled: integrationId === "google-calendar",
+    enabled: isGoogleCalendar,
+  });
+
+  const { data: gmailStatus, isLoading: isLoadingGmail } = useQuery<GmailStatus>({
+    queryKey: ["/api/gmail/status"],
+    enabled: isGmail,
   });
 
   const disconnectMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("/api/google/disconnect", "DELETE");
+      const endpoint = isGmail ? "/api/gmail/disconnect" : "/api/google/disconnect";
+      const response = await apiRequest(endpoint, "DELETE");
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/google/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/gmail/status"] });
       toast({
         title: "Déconnexion réussie",
-        description: "Votre compte Google Calendar a été déconnecté.",
+        description: isGmail ? "Gmail a été déconnecté." : "Votre compte Google Calendar a été déconnecté.",
         variant: "success",
       });
     },
@@ -210,29 +231,56 @@ export default function IntegrationDetailPage() {
     },
   });
 
+  const gmailSyncMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("/api/gmail/sync", "POST");
+      return response.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/gmail/status"] });
+      toast({
+        title: "Synchronisation terminée",
+        description: `${data.synced} emails synchronisés, ${data.linked} liaisons créées.`,
+        variant: "success",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erreur",
+        description: "Impossible de synchroniser Gmail.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleConnectGoogle = async () => {
     try {
-      const response = await apiRequest("/api/google/auth-url", "GET");
+      const endpoint = isGmail ? "/api/gmail/auth/start" : "/api/google/auth/start";
+      const response = await apiRequest(endpoint, "GET");
       const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
       }
     } catch (error) {
       toast({
         title: "Erreur",
-        description: "Impossible de se connecter à Google Calendar.",
+        description: `Impossible de se connecter à ${isGmail ? 'Gmail' : 'Google Calendar'}.`,
         variant: "destructive",
       });
     }
   };
 
   const handleSyncGoogle = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/google/events"] });
-    toast({
-      title: "Synchronisation",
-      description: "Événements Google Calendar actualisés.",
-      variant: "success",
-    });
+    if (isGmail) {
+      gmailSyncMutation.mutate();
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["/api/google/events"] });
+      toast({
+        title: "Synchronisation",
+        description: "Événements Google Calendar actualisés.",
+        variant: "success",
+      });
+    }
   };
 
   if (!integration) {
@@ -253,8 +301,8 @@ export default function IntegrationDetailPage() {
     );
   }
 
-  const isConnected = integrationId === "google-calendar" && googleStatus?.connected;
-  const isLoading = integrationId === "google-calendar" && isLoadingGoogle;
+  const isConnected = (isGoogleCalendar && googleStatus?.connected) || (isGmail && gmailStatus?.connected);
+  const isLoading = (isGoogleCalendar && isLoadingGoogle) || (isGmail && isLoadingGmail);
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -298,7 +346,7 @@ export default function IntegrationDetailPage() {
         <CardContent className="space-y-6">
           {integration.available ? (
             <>
-              {isConnected && googleStatus ? (
+              {isConnected && (googleStatus || gmailStatus) ? (
                 <div className="space-y-4">
                   <div className="bg-muted/50 rounded-lg p-4 space-y-3">
                     <h4 className="font-medium text-sm flex items-center gap-2">
@@ -308,9 +356,9 @@ export default function IntegrationDetailPage() {
                     <div className="grid gap-2 text-sm">
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">Compte Google</span>
-                        <span className="font-medium">{googleStatus.email}</span>
+                        <span className="font-medium">{isGmail ? gmailStatus?.email : googleStatus?.email}</span>
                       </div>
-                      {googleStatus.calendarId && (
+                      {isGoogleCalendar && googleStatus?.calendarId && (
                         <div className="flex items-center justify-between">
                           <span className="text-muted-foreground">Calendrier ID</span>
                           <span className="font-mono text-xs truncate max-w-[200px]">
@@ -318,23 +366,51 @@ export default function IntegrationDetailPage() {
                           </span>
                         </div>
                       )}
+                      {isGmail && gmailStatus?.lastSyncAt && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Dernière synchronisation</span>
+                          <span className="text-xs">{new Date(gmailStatus.lastSyncAt).toLocaleString("fr-FR")}</span>
+                        </div>
+                      )}
+                      {isGmail && gmailStatus?.messageCount !== undefined && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Emails synchronisés</span>
+                          <span className="font-medium">{gmailStatus.messageCount}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
+                  {isGmail && gmailStatus?.connected && (!gmailStatus.canSend || !gmailStatus.hasFullRead) && (
+                    <div className="p-3 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200" data-testid="text-gmail-upgrade-notice">
+                      <p className="font-medium mb-1">Mise à jour disponible</p>
+                      <p className="text-amber-700 dark:text-amber-300">
+                        Reconnectez Gmail pour accéder au contenu complet des emails et à l'envoi d'emails depuis Planbase. Déconnectez puis reconnectez votre compte ci-dessous.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Button asChild size="sm" data-testid="button-open-calendar">
-                      <Link href="/calendar">
-                        <Calendar className="h-3.5 w-3.5 mr-1.5" />
-                        Ouvrir le calendrier
-                      </Link>
-                    </Button>
+                    {isGoogleCalendar && (
+                      <Button asChild size="sm" data-testid="button-open-calendar">
+                        <Link href="/calendar">
+                          <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                          Ouvrir le calendrier
+                        </Link>
+                      </Button>
+                    )}
                     <Button 
                       variant="outline" 
                       size="sm"
                       onClick={handleSyncGoogle}
-                      data-testid="button-sync-google"
+                      disabled={isGmail && gmailSyncMutation.isPending}
+                      data-testid="button-sync-gmail"
                     >
-                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                      {isGmail && gmailSyncMutation.isPending ? (
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                      )}
                       Synchroniser
                     </Button>
                     <Button

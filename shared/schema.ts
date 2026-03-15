@@ -685,7 +685,7 @@ export const deals = pgTable("deals", {
 export const activities = pgTable("activities", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
-  subjectType: text("subject_type", { enum: ['client', 'deal', 'project', 'note', 'task', 'document', 'backlog', 'epic', 'user_story', 'backlog_task', 'appointment', 'roadmap', 'roadmap_item', 'milestone', 'rubrique'] }).notNull(),
+  subjectType: text("subject_type", { enum: ['client', 'contact', 'deal', 'project', 'note', 'task', 'document', 'backlog', 'epic', 'user_story', 'backlog_task', 'appointment', 'roadmap', 'roadmap_item', 'milestone', 'rubrique'] }).notNull(),
   subjectId: uuid("subject_id").notNull(),
   kind: text("kind", { enum: ['created', 'updated', 'deleted', 'email', 'call', 'meeting', 'note', 'task', 'file', 'time_tracked', 'custom', 'stage_change', 'info_update'] }).notNull(),
   description: text("description"),
@@ -1241,16 +1241,62 @@ export const googleCalendarTokens = pgTable("google_calendar_tokens", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   userId: uuid("user_id").notNull().references(() => appUsers.id, { onDelete: "cascade" }),
-  email: text("email").notNull(), // Google account email
+  email: text("email").notNull(),
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token").notNull(),
   tokenType: text("token_type").notNull().default("Bearer"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   scope: text("scope").notNull(),
+  gmailEnabled: integer("gmail_enabled").notNull().default(0),
+  gmailLastHistoryId: text("gmail_last_history_id"),
+  gmailLastSyncAt: timestamp("gmail_last_sync_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
-  uniqueAccountUserIdx: uniqueIndex().on(table.accountId, table.userId), // One Google Calendar per user per account
+  uniqueAccountUserIdx: uniqueIndex().on(table.accountId, table.userId),
+}));
+
+export const crmEmailMessages = pgTable("crm_email_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => appUsers.id, { onDelete: "cascade" }),
+  gmailMessageId: text("gmail_message_id").notNull(),
+  gmailThreadId: text("gmail_thread_id"),
+  subject: text("subject"),
+  snippet: text("snippet"),
+  bodyText: text("body_text"),
+  fromEmail: text("from_email").notNull(),
+  fromName: text("from_name"),
+  sentAt: timestamp("sent_at", { withTimezone: true }).notNull(),
+  direction: text("direction", { enum: ['sent', 'received'] }).notNull(),
+  hasAttachments: integer("has_attachments").notNull().default(0),
+  labels: text("labels").array().default([]),
+  syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index("crm_email_messages_account_idx").on(table.accountId),
+  gmailMsgIdx: uniqueIndex("crm_email_messages_gmail_msg_idx").on(table.accountId, table.gmailMessageId),
+}));
+
+export const crmEmailParticipants = pgTable("crm_email_participants", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  emailMessageId: uuid("email_message_id").notNull().references(() => crmEmailMessages.id, { onDelete: "cascade" }),
+  emailAddress: text("email_address").notNull(),
+  displayName: text("display_name"),
+  role: text("role", { enum: ['from', 'to', 'cc', 'bcc'] }).notNull(),
+}, (table) => ({
+  messageIdx: index("crm_email_participants_msg_idx").on(table.emailMessageId),
+}));
+
+export const crmEmailLinks = pgTable("crm_email_links", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  emailMessageId: uuid("email_message_id").notNull().references(() => crmEmailMessages.id, { onDelete: "cascade" }),
+  contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "cascade" }),
+  clientId: uuid("client_id").references(() => clients.id, { onDelete: "cascade" }),
+  linkType: text("link_type").notNull().default("participant"),
+}, (table) => ({
+  messageIdx: index("crm_email_links_msg_idx").on(table.emailMessageId),
+  contactIdx: index("crm_email_links_contact_idx").on(table.contactId),
+  clientIdx: index("crm_email_links_client_idx").on(table.clientId),
 }));
 
 // ============================================
@@ -1848,6 +1894,10 @@ export const insertAppointmentSchema = createInsertSchema(appointments).omit({ i
 export const updateAppointmentSchema = insertAppointmentSchema.omit({ accountId: true, createdBy: true, googleEventId: true }).partial();
 export const insertGoogleCalendarTokenSchema = createInsertSchema(googleCalendarTokens).omit({ id: true, createdAt: true, updatedAt: true });
 
+export const insertCrmEmailMessageSchema = createInsertSchema(crmEmailMessages).omit({ id: true, syncedAt: true });
+export const insertCrmEmailParticipantSchema = createInsertSchema(crmEmailParticipants).omit({ id: true });
+export const insertCrmEmailLinkSchema = createInsertSchema(crmEmailLinks).omit({ id: true });
+
 // Mindmap schemas
 export const insertMindmapSchema = createInsertSchema(mindmaps).omit({ id: true, createdAt: true, updatedAt: true }).extend({
   layoutConfig: z.record(z.any()).optional().default({}),
@@ -2059,6 +2109,12 @@ export type NoteLink = typeof noteLinks.$inferSelect;
 export type DocumentLink = typeof documentLinks.$inferSelect;
 export type Appointment = typeof appointments.$inferSelect;
 export type GoogleCalendarToken = typeof googleCalendarTokens.$inferSelect;
+export type CrmEmailMessage = typeof crmEmailMessages.$inferSelect;
+export type InsertCrmEmailMessage = z.infer<typeof insertCrmEmailMessageSchema>;
+export type CrmEmailParticipant = typeof crmEmailParticipants.$inferSelect;
+export type InsertCrmEmailParticipant = z.infer<typeof insertCrmEmailParticipantSchema>;
+export type CrmEmailLink = typeof crmEmailLinks.$inferSelect;
+export type InsertCrmEmailLink = z.infer<typeof insertCrmEmailLinkSchema>;
 export type Mindmap = typeof mindmaps.$inferSelect;
 export type MindmapNode = typeof mindmapNodes.$inferSelect;
 export type MindmapEdge = typeof mindmapEdges.$inferSelect;

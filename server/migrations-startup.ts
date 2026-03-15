@@ -324,7 +324,7 @@ export async function runStartupMigrations() {
         -- Add new constraint with extended values including mindmap, backlog and roadmap types
         ALTER TABLE activities 
         ADD CONSTRAINT activities_subject_type_check 
-        CHECK (subject_type IN ('client','deal','project','note','task','document','mindmap','backlog','epic','user_story','backlog_task','roadmap','roadmap_item','milestone','rubrique'));
+        CHECK (subject_type IN ('client','contact','deal','project','note','task','document','mindmap','backlog','epic','user_story','backlog_task','appointment','roadmap','roadmap_item','milestone','rubrique'));
       EXCEPTION
         WHEN duplicate_object THEN
           NULL;
@@ -2357,6 +2357,60 @@ export async function runStartupMigrations() {
         ADD COLUMN IF NOT EXISTS flow_tags JSONB DEFAULT '{}'::jsonb;
     `);
     console.log("✅ Treasury plan tables created");
+
+    // ── GMAIL INTEGRATION ──
+    await db.execute(sql`
+      ALTER TABLE google_calendar_tokens
+        ADD COLUMN IF NOT EXISTS gmail_enabled INTEGER NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS gmail_last_history_id TEXT,
+        ADD COLUMN IF NOT EXISTS gmail_last_sync_at TIMESTAMPTZ;
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS crm_email_messages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+        gmail_message_id TEXT NOT NULL,
+        gmail_thread_id TEXT,
+        subject TEXT,
+        snippet TEXT,
+        body_text TEXT,
+        from_email TEXT NOT NULL,
+        from_name TEXT,
+        sent_at TIMESTAMPTZ NOT NULL,
+        direction TEXT NOT NULL,
+        has_attachments INTEGER NOT NULL DEFAULT 0,
+        labels TEXT[] DEFAULT '{}',
+        synced_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS crm_email_messages_account_idx ON crm_email_messages(account_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS crm_email_messages_gmail_msg_idx ON crm_email_messages(account_id, gmail_message_id);
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS crm_email_participants (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email_message_id UUID NOT NULL REFERENCES crm_email_messages(id) ON DELETE CASCADE,
+        email_address TEXT NOT NULL,
+        display_name TEXT,
+        role TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS crm_email_participants_msg_idx ON crm_email_participants(email_message_id);
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS crm_email_links (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email_message_id UUID NOT NULL REFERENCES crm_email_messages(id) ON DELETE CASCADE,
+        contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE,
+        client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+        link_type TEXT NOT NULL DEFAULT 'participant'
+      );
+      CREATE INDEX IF NOT EXISTS crm_email_links_msg_idx ON crm_email_links(email_message_id);
+      CREATE INDEX IF NOT EXISTS crm_email_links_contact_idx ON crm_email_links(contact_id);
+      CREATE INDEX IF NOT EXISTS crm_email_links_client_idx ON crm_email_links(client_id);
+    `);
+    console.log("✅ Gmail integration tables created");
+
+    console.log("✅ Gmail history IDs preserved");
 
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
