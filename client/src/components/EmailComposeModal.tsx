@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { X, Minus, Maximize2, Send, ChevronDown, Paperclip, FileText, Trash2, FolderOpen, Search, File } from "lucide-react";
+import { X, Minus, Maximize2, Send, ChevronDown, Paperclip, FileText, Trash2, FolderOpen, Search, File, Bold, Italic, Underline, Strikethrough, List, ListOrdered } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Contact {
@@ -163,6 +162,10 @@ export function EmailComposeModal({
   const [planbaseSearch, setPlanbaseSearch] = useState("");
   const [attachingFileId, setAttachingFileId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [toolbarPos, setToolbarPos] = useState<{ x: number; y: number } | null>(null);
+  const [activeFormats, setActiveFormats] = useState({ bold: false, italic: false, underline: false, strikethrough: false });
   const [data, setData] = useState<Omit<ComposeData, "attachments">>({
     to: initialData?.to || "",
     cc: initialData?.cc || "",
@@ -188,20 +191,80 @@ export function EmailComposeModal({
 
   useEffect(() => {
     if (open && initialData) {
+      const newBody = initialData.body || "";
       setData({
         to: initialData.to || "",
         cc: initialData.cc || "",
         bcc: initialData.bcc || "",
         subject: initialData.subject || "",
-        body: initialData.body || "",
+        body: newBody,
         replyToMessageId: initialData.replyToMessageId,
         threadId: initialData.threadId,
       });
       setAttachments([]);
       setMinimized(false);
       setShowCcBcc(false);
+      setToolbarPos(null);
+      // Sync into contenteditable on next tick
+      setTimeout(() => {
+        if (editorRef.current) editorRef.current.innerHTML = newBody;
+      }, 0);
     }
   }, [open, initialData?.to, initialData?.subject, initialData?.body]);
+
+  const detectSelection = useCallback(() => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+      setToolbarPos(null);
+      return;
+    }
+    const range = sel.getRangeAt(0);
+    if (!editorRef.current?.contains(range.commonAncestorContainer)) {
+      setToolbarPos(null);
+      return;
+    }
+    const rect = range.getBoundingClientRect();
+    setToolbarPos({ x: rect.left + rect.width / 2, y: rect.top - 8 });
+    setActiveFormats({
+      bold: document.queryCommandState("bold"),
+      italic: document.queryCommandState("italic"),
+      underline: document.queryCommandState("underline"),
+      strikethrough: document.queryCommandState("strikeThrough"),
+    });
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener("selectionchange", detectSelection);
+    return () => document.removeEventListener("selectionchange", detectSelection);
+  }, [detectSelection]);
+
+  const applyFormat = useCallback((cmd: string) => {
+    document.execCommand(cmd, false, undefined);
+    editorRef.current?.focus();
+    if (editorRef.current) {
+      const html = editorRef.current.innerHTML;
+      setData(d => ({ ...d, body: html }));
+    }
+    setActiveFormats({
+      bold: document.queryCommandState("bold"),
+      italic: document.queryCommandState("italic"),
+      underline: document.queryCommandState("underline"),
+      strikethrough: document.queryCommandState("strikeThrough"),
+    });
+  }, []);
+
+  function handleEditorInput() {
+    if (editorRef.current) {
+      setData(d => ({ ...d, body: editorRef.current!.innerHTML }));
+    }
+  }
+
+  function isBodyEmpty() {
+    const html = data.body;
+    if (!html) return true;
+    const stripped = html.replace(/<[^>]*>/g, "").trim();
+    return stripped === "";
+  }
 
   function handleFilePick(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
@@ -381,14 +444,77 @@ export function EmailComposeModal({
             />
           </div>
 
+          {/* Floating format toolbar */}
+          {toolbarPos && (
+            <div
+              ref={toolbarRef}
+              className="fixed z-[200] flex items-center gap-0.5 bg-popover border border-border rounded-md shadow-md px-1 py-0.5 -translate-x-1/2"
+              style={{ left: toolbarPos.x, top: toolbarPos.y - 36 }}
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); applyFormat("bold"); }}
+                className={cn("p-1 rounded hover-elevate", activeFormats.bold && "bg-accent")}
+                title="Gras"
+              >
+                <Bold className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); applyFormat("italic"); }}
+                className={cn("p-1 rounded hover-elevate", activeFormats.italic && "bg-accent")}
+                title="Italique"
+              >
+                <Italic className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); applyFormat("underline"); }}
+                className={cn("p-1 rounded hover-elevate", activeFormats.underline && "bg-accent")}
+                title="Souligné"
+              >
+                <Underline className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); applyFormat("strikeThrough"); }}
+                className={cn("p-1 rounded hover-elevate", activeFormats.strikethrough && "bg-accent")}
+                title="Barré"
+              >
+                <Strikethrough className="w-3.5 h-3.5" />
+              </button>
+              <div className="w-px h-4 bg-border mx-0.5" />
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); applyFormat("insertUnorderedList"); }}
+                className="p-1 rounded hover-elevate"
+                title="Liste"
+              >
+                <List className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); applyFormat("insertOrderedList"); }}
+                className="p-1 rounded hover-elevate"
+                title="Liste numérotée"
+              >
+                <ListOrdered className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* Body */}
-          <div className="flex-1 px-3 py-2 overflow-hidden min-h-0">
-            <Textarea
-              value={data.body}
-              onChange={(e) => setData(d => ({ ...d, body: e.target.value }))}
-              placeholder="Contenu de l'email..."
-              className="border-0 shadow-none text-xs resize-none h-full focus-visible:ring-0"
+          <div className="flex-1 px-3 py-2 overflow-y-auto min-h-0">
+            <div
+              ref={editorRef}
+              contentEditable
+              suppressContentEditableWarning
+              onInput={handleEditorInput}
+              className="outline-none text-xs min-h-full w-full leading-relaxed empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground empty:before:pointer-events-none"
+              data-placeholder="Contenu de l'email..."
               data-testid="input-compose-body"
+              style={{ wordBreak: "break-word" }}
             />
           </div>
 
@@ -419,7 +545,7 @@ export function EmailComposeModal({
               <Button
                 size="sm"
                 onClick={handleSend}
-                disabled={!data.to || !data.subject || !data.body || isSending}
+                disabled={!data.to || !data.subject || isBodyEmpty() || isSending}
                 data-testid="button-send-compose"
               >
                 <Send className="w-3.5 h-3.5 mr-1.5" />
