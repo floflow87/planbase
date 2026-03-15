@@ -7848,7 +7848,8 @@ app.get("/config/feature-flags", async (_req, res) => {
       const search = req.query.search as string | undefined;
       const searchField = req.query.searchField as string | undefined;
       const crmFilter = req.query.crmFilter as string | undefined;
-      const messages = await storage.getEmailMessages(req.accountId!, req.userId!, limit, offset, direction, search, searchField, crmFilter);
+      const tagFilter = req.query.tagFilter as string | undefined;
+      const messages = await storage.getEmailMessages(req.accountId!, req.userId!, limit, offset, direction, search, searchField, crmFilter, tagFilter);
       res.json(messages);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -7915,6 +7916,67 @@ app.get("/config/feature-flags", async (_req, res) => {
       }
       await storage.archiveEmailMessages(req.accountId!, ids, archive !== false);
       res.json({ archived: ids.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/gmail/messages/:messageId/tags", requireAuth, async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      const { tags } = req.body;
+      if (!Array.isArray(tags)) return res.status(400).json({ error: "tags must be an array" });
+      await storage.updateEmailTags(req.accountId!, messageId, tags);
+      res.json({ updated: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/gmail/messages/draft", requireAuth, async (req, res) => {
+    try {
+      const { id, to, cc, bcc, subject, body, replyToMessageId, threadId } = req.body;
+      const draftId = await storage.saveDraftEmail(req.accountId!, req.userId!, { id, to: to || '', cc, bcc, subject, body, replyToMessageId, threadId });
+      res.json({ id: draftId });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/gmail/messages/:messageId/schedule", requireAuth, async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      const { scheduledAt, to, cc, bcc, subject, body, replyToMessageId, threadId } = req.body;
+      if (!scheduledAt) return res.status(400).json({ error: "scheduledAt required" });
+      const schedDate = new Date(scheduledAt);
+      if (isNaN(schedDate.getTime())) return res.status(400).json({ error: "Invalid scheduledAt date" });
+      let resolvedId = messageId;
+      if (messageId === 'new') {
+        resolvedId = await storage.saveDraftEmail(req.accountId!, req.userId!, { to: to || '', cc, bcc, subject, body, replyToMessageId, threadId });
+      }
+      await storage.scheduleEmail(req.accountId!, resolvedId, schedDate);
+      res.json({ id: resolvedId, scheduledAt: schedDate.toISOString() });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/gmail/sync-interval", requireAuth, async (req, res) => {
+    try {
+      const minutes = await storage.getSyncInterval(req.accountId!, req.userId!);
+      res.json({ intervalMinutes: minutes });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/gmail/sync-interval", requireAuth, async (req, res) => {
+    try {
+      const { intervalMinutes } = req.body;
+      const allowed = [0, 5, 10, 15, 30, 60];
+      if (!allowed.includes(Number(intervalMinutes))) return res.status(400).json({ error: "Invalid interval. Allowed: 0, 5, 10, 15, 30, 60" });
+      await storage.setSyncInterval(req.accountId!, req.userId!, Number(intervalMinutes));
+      res.json({ intervalMinutes: Number(intervalMinutes) });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

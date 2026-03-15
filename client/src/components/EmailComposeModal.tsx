@@ -4,15 +4,19 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import {
   X, Maximize2, Send, ChevronDown, Paperclip, FileText, Trash2, FolderOpen, Search, File,
   Bold, Italic, Underline, Strikethrough, List, ListOrdered,
   Undo2, Redo2, Type, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Minus, Link2, Heading1, Heading2, Heading3,
+  Clock, CalendarIcon, FileEdit,
 } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { format, addDays, setHours, setMinutes, nextMonday } from "date-fns";
 
 interface Contact {
   id: string;
@@ -46,6 +50,10 @@ interface EmailComposeModalProps {
   initialData?: Partial<ComposeData>;
   onSend: (data: ComposeData) => void;
   isSending?: boolean;
+  onSaveDraft?: (data: ComposeData) => void;
+  isSavingDraft?: boolean;
+  onSchedule?: (data: ComposeData, scheduledAt: Date) => void;
+  isScheduling?: boolean;
 }
 
 interface PlanbaseFile {
@@ -161,6 +169,10 @@ export function EmailComposeModal({
   initialData,
   onSend,
   isSending,
+  onSaveDraft,
+  isSavingDraft,
+  onSchedule,
+  isScheduling,
 }: EmailComposeModalProps) {
   const [minimized, setMinimized] = useState(false);
   const [showCcBcc, setShowCcBcc] = useState(false);
@@ -175,6 +187,10 @@ export function EmailComposeModal({
   const [alignValue, setAlignValue] = useState<"left" | "center" | "right" | "justify">("left");
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("https://");
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [customDateOpen, setCustomDateOpen] = useState(false);
+  const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
+  const [customTime, setCustomTime] = useState("09:00");
   const [data, setData] = useState<Omit<ComposeData, "attachments">>({
     to: initialData?.to || "",
     cc: initialData?.cc || "",
@@ -345,6 +361,45 @@ export function EmailComposeModal({
     if (data.to && data.subject && data.body) {
       onSend({ ...data, attachments: attachments.length > 0 ? attachments : undefined });
     }
+  };
+
+  const handleSaveDraft = () => {
+    if (onSaveDraft) {
+      onSaveDraft({ ...data, attachments: attachments.length > 0 ? attachments : undefined });
+    }
+  };
+
+  const buildScheduledDate = (preset?: Date): Date => {
+    if (preset) return preset;
+    if (customDate) {
+      const [h, m] = customTime.split(":").map(Number);
+      const d = new Date(customDate);
+      d.setHours(h, m, 0, 0);
+      return d;
+    }
+    return addDays(new Date(), 1);
+  };
+
+  const handleSchedule = (scheduledAt: Date) => {
+    if (onSchedule) {
+      onSchedule({ ...data, attachments: attachments.length > 0 ? attachments : undefined }, scheduledAt);
+      setScheduleOpen(false);
+      setCustomDateOpen(false);
+    }
+  };
+
+  const schedulePresets = () => {
+    const now = new Date();
+    const tomorrow = addDays(now, 1);
+    const tomorrowMorning = setMinutes(setHours(tomorrow, 8), 0);
+    const tomorrowAfternoon = setMinutes(setHours(tomorrow, 13), 0);
+    const nextMon = nextMonday(now);
+    const nextMonMorning = setMinutes(setHours(nextMon, 8), 0);
+    return [
+      { label: "Demain matin", date: tomorrowMorning, display: format(tomorrowMorning, "d MMM HH:mm") },
+      { label: "Demain après-midi", date: tomorrowAfternoon, display: format(tomorrowAfternoon, "d MMM HH:mm") },
+      { label: "Lundi matin", date: nextMonMorning, display: format(nextMonMorning, "d MMM HH:mm") },
+    ];
   };
 
   if (!open) return null;
@@ -671,15 +726,102 @@ export function EmailComposeModal({
           {/* Footer */}
           <div className="flex items-center justify-between px-3 py-2 border-t gap-2 shrink-0">
             <div className="flex items-center gap-1">
-              <Button
-                size="sm"
-                onClick={handleSend}
-                disabled={!data.to || !data.subject || isBodyEmpty() || isSending}
-                data-testid="button-send-compose"
-              >
-                <Send className="w-3.5 h-3.5 mr-1.5" />
-                {isSending ? "Envoi..." : "Envoyer"}
-              </Button>
+              <div className="flex items-center">
+                <Button
+                  size="sm"
+                  onClick={handleSend}
+                  disabled={!data.to || !data.subject || isBodyEmpty() || isSending}
+                  data-testid="button-send-compose"
+                  className="rounded-r-none"
+                >
+                  <Send className="w-3.5 h-3.5 mr-1.5" />
+                  {isSending ? "Envoi..." : "Envoyer"}
+                </Button>
+                <Popover open={scheduleOpen} onOpenChange={setScheduleOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="default"
+                      disabled={!data.to || !data.subject || isBodyEmpty() || isSending || isScheduling}
+                      className="rounded-l-none border-l border-primary-foreground/20 px-1.5"
+                      data-testid="button-schedule-send"
+                      title="Programmer l'envoi"
+                    >
+                      <ChevronDown className="w-3 h-3" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" side="top" className="w-72 p-0">
+                    <div className="p-3 border-b">
+                      <p className="text-xs font-semibold">Programmer l'envoi</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">heure normale d'Europe centrale</p>
+                    </div>
+                    <div className="p-1">
+                      {schedulePresets().map(preset => (
+                        <button
+                          key={preset.label}
+                          className="w-full flex items-center justify-between px-3 py-2.5 rounded-md hover-elevate text-xs"
+                          onClick={() => handleSchedule(preset.date)}
+                          data-testid={`button-schedule-preset-${preset.label.replace(/\s+/g, '-')}`}
+                        >
+                          <span className="font-medium">{preset.label}</span>
+                          <span className="text-muted-foreground">{preset.display}</span>
+                        </button>
+                      ))}
+                      <div className="border-t mt-1 pt-1">
+                        <button
+                          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-md hover-elevate text-xs"
+                          onClick={() => setCustomDateOpen(!customDateOpen)}
+                          data-testid="button-schedule-custom"
+                        >
+                          <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="font-medium">Choisir une date et une heure</span>
+                        </button>
+                        {customDateOpen && (
+                          <div className="px-2 pb-2 space-y-2">
+                            <Calendar
+                              mode="single"
+                              selected={customDate}
+                              onSelect={setCustomDate}
+                              disabled={(d) => d < new Date()}
+                              className="rounded-md border scale-95 origin-top"
+                            />
+                            <div className="flex items-center gap-2 px-1">
+                              <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              <input
+                                type="time"
+                                value={customTime}
+                                onChange={(e) => setCustomTime(e.target.value)}
+                                className="text-xs border rounded px-2 py-1 flex-1 bg-background"
+                              />
+                              <Button
+                                size="sm"
+                                disabled={!customDate}
+                                onClick={() => handleSchedule(buildScheduledDate())}
+                                data-testid="button-schedule-custom-confirm"
+                              >
+                                OK
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              {onSaveDraft && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleSaveDraft}
+                  disabled={isSavingDraft}
+                  data-testid="button-save-draft"
+                  className="text-xs"
+                >
+                  <FileEdit className="w-3.5 h-3.5 mr-1.5" />
+                  {isSavingDraft ? "Enregistrement..." : "Brouillon"}
+                </Button>
+              )}
               <input
                 ref={fileInputRef}
                 type="file"

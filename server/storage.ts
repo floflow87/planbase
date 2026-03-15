@@ -336,7 +336,12 @@ export interface IStorage {
   getEmailsByClientId(accountId: string, clientId: string): Promise<CrmEmailMessage[]>;
   getEmailMessageCount(accountId: string, userId: string): Promise<number>;
   getEmailMessage(accountId: string, userId: string, id: string): Promise<typeof crmEmailMessages.$inferSelect | undefined>;
-  getEmailMessages(accountId: string, userId: string, limit?: number, offset?: number, direction?: string, search?: string, searchField?: string, crmFilter?: string): Promise<Array<typeof crmEmailMessages.$inferSelect & { linkedClientId: string | null; linkedClientName: string | null }>>;
+  getEmailMessages(accountId: string, userId: string, limit?: number, offset?: number, direction?: string, search?: string, searchField?: string, crmFilter?: string, tagFilter?: string): Promise<Array<typeof crmEmailMessages.$inferSelect & { linkedClientId: string | null; linkedClientName: string | null; linkedClientLogoUrl: string | null }>>;
+  updateEmailTags(accountId: string, id: string, tags: string[]): Promise<void>;
+  saveDraftEmail(accountId: string, userId: string, data: { to: string; cc?: string; bcc?: string; subject?: string; body?: string; replyToMessageId?: string; threadId?: string }): Promise<string>;
+  scheduleEmail(accountId: string, id: string, scheduledAt: Date | null): Promise<void>;
+  getSyncInterval(accountId: string, userId: string): Promise<number>;
+  setSyncInterval(accountId: string, userId: string, minutes: number): Promise<void>;
   markEmailsRead(accountId: string, ids: string[], isRead: boolean): Promise<void>;
   deleteEmailMessages(accountId: string, ids: string[]): Promise<void>;
   restoreEmailMessages(accountId: string, ids: string[]): Promise<void>;
@@ -2022,7 +2027,7 @@ export class DatabaseStorage implements IStorage {
     return msg;
   }
 
-  async getEmailMessages(accountId: string, userId: string, limit = 50, offset = 0, direction?: string, search?: string, searchField?: string, crmFilter?: string): Promise<Array<typeof crmEmailMessages.$inferSelect & { linkedClientId: string | null; linkedClientName: string | null }>> {
+  async getEmailMessages(accountId: string, userId: string, limit = 50, offset = 0, direction?: string, search?: string, searchField?: string, crmFilter?: string, tagFilter?: string): Promise<Array<typeof crmEmailMessages.$inferSelect & { linkedClientId: string | null; linkedClientName: string | null; linkedClientLogoUrl: string | null }>> {
     const conditions = [
       eq(crmEmailMessages.accountId, accountId),
       eq(crmEmailMessages.userId, userId),
@@ -2032,9 +2037,14 @@ export class DatabaseStorage implements IStorage {
     } else if (direction === 'archived') {
       conditions.push(eq(crmEmailMessages.isDeleted, 0));
       conditions.push(eq(crmEmailMessages.isArchived, 1));
+      conditions.push(eq(crmEmailMessages.isDraft, 0));
+    } else if (direction === 'drafts') {
+      conditions.push(eq(crmEmailMessages.isDeleted, 0));
+      conditions.push(eq(crmEmailMessages.isDraft, 1));
     } else {
       conditions.push(eq(crmEmailMessages.isDeleted, 0));
       conditions.push(eq(crmEmailMessages.isArchived, 0));
+      conditions.push(eq(crmEmailMessages.isDraft, 0));
       if (direction === 'sent' || direction === 'received') {
         conditions.push(eq(crmEmailMessages.direction, direction as 'sent' | 'received'));
       }
@@ -2069,6 +2079,9 @@ export class DatabaseStorage implements IStorage {
       const clientFilterId = crmFilter;
       conditions.push(sql`EXISTS (SELECT 1 FROM crm_email_links cel WHERE cel.email_message_id = ${crmEmailMessages.id} AND cel.client_id = ${clientFilterId}::uuid)`);
     }
+    if (tagFilter && tagFilter !== 'all') {
+      conditions.push(sql`${crmEmailMessages.tags} @> ARRAY[${tagFilter}]::TEXT[]`);
+    }
     const rows = await db.select({
       id: crmEmailMessages.id,
       accountId: crmEmailMessages.accountId,
@@ -2086,11 +2099,15 @@ export class DatabaseStorage implements IStorage {
       isRead: crmEmailMessages.isRead,
       isDeleted: crmEmailMessages.isDeleted,
       isArchived: crmEmailMessages.isArchived,
+      isDraft: crmEmailMessages.isDraft,
+      scheduledAt: crmEmailMessages.scheduledAt,
+      tags: crmEmailMessages.tags,
       hasAttachments: crmEmailMessages.hasAttachments,
       labels: crmEmailMessages.labels,
       syncedAt: crmEmailMessages.syncedAt,
       linkedClientId: sql<string | null>`(SELECT cel.client_id::text FROM crm_email_links cel WHERE cel.email_message_id = ${crmEmailMessages.id} LIMIT 1)`,
       linkedClientName: sql<string | null>`(SELECT cl.name FROM crm_email_links cel JOIN clients cl ON cl.id = cel.client_id WHERE cel.email_message_id = ${crmEmailMessages.id} LIMIT 1)`,
+      linkedClientLogoUrl: sql<string | null>`(SELECT cl.logo_url FROM crm_email_links cel JOIN clients cl ON cl.id = cel.client_id WHERE cel.email_message_id = ${crmEmailMessages.id} LIMIT 1)`,
     })
       .from(crmEmailMessages)
       .where(and(...conditions))
@@ -2105,6 +2122,73 @@ export class DatabaseStorage implements IStorage {
     await db.update(crmEmailMessages)
       .set({ isArchived: archive ? 1 : 0 })
       .where(and(eq(crmEmailMessages.accountId, accountId), inArray(crmEmailMessages.id, ids)));
+  }
+
+  async updateEmailTags(accountId: string, id: string, tags: string[]): Promise<void> {
+    await db.update(crmEmailMessages)
+      .set({ tags })
+      .where(and(eq(crmEmailMessages.accountId, accountId), eq(crmEmailMessages.id, id)));
+  }
+
+  async saveDraftEmail(accountId: string, userId: string, data: { id?: string; to: string; cc?: string; bcc?: string; subject?: string; body?: string; replyToMessageId?: string; threadId?: string }): Promise<string> {
+    if (data.id) {
+      await db.update(crmEmailMessages)
+        .set({
+          fromEmail: data.to,
+          subject: data.subject || '',
+          snippet: data.body?.replace(/<[^>]+>/g, '').slice(0, 200) || '',
+          bodyHtml: data.body || '',
+          syncedAt: new Date(),
+        })
+        .where(and(eq(crmEmailMessages.accountId, accountId), eq(crmEmailMessages.id, data.id), eq(crmEmailMessages.isDraft, 1)));
+      return data.id;
+    }
+    const [row] = await db.insert(crmEmailMessages).values({
+      accountId,
+      userId,
+      gmailMessageId: `draft-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      subject: data.subject || '',
+      snippet: data.body?.replace(/<[^>]+>/g, '').slice(0, 200) || '',
+      bodyHtml: data.body || '',
+      bodyText: data.body?.replace(/<[^>]+>/g, '') || '',
+      fromEmail: data.to || '',
+      direction: 'sent',
+      isDraft: 1,
+      sentAt: new Date(),
+    }).returning({ id: crmEmailMessages.id });
+    return row.id;
+  }
+
+  async scheduleEmail(accountId: string, id: string, scheduledAt: Date | null): Promise<void> {
+    await db.update(crmEmailMessages)
+      .set({ scheduledAt })
+      .where(and(eq(crmEmailMessages.accountId, accountId), eq(crmEmailMessages.id, id)));
+  }
+
+  async getSyncInterval(accountId: string, userId: string): Promise<number> {
+    const rows = await db.select().from(settings)
+      .where(and(eq(settings.scope, 'gmail_sync'), eq(settings.scopeId, userId), eq(settings.key, 'interval_minutes')));
+    if (rows.length === 0) return 0;
+    return Number(rows[0].value) || 0;
+  }
+
+  async setSyncInterval(accountId: string, userId: string, minutes: number): Promise<void> {
+    const existing = await db.select().from(settings)
+      .where(and(eq(settings.scope, 'gmail_sync'), eq(settings.scopeId, userId), eq(settings.key, 'interval_minutes')));
+    if (existing.length > 0) {
+      await db.update(settings)
+        .set({ value: minutes, updatedAt: new Date() })
+        .where(and(eq(settings.scope, 'gmail_sync'), eq(settings.scopeId, userId), eq(settings.key, 'interval_minutes')));
+    } else {
+      await db.insert(settings).values({
+        scope: 'gmail_sync',
+        scopeId: userId,
+        key: 'interval_minutes',
+        value: minutes,
+        source: 'customized',
+        updatedBy: userId,
+      });
+    }
   }
 
   async markEmailsRead(accountId: string, ids: string[], isRead: boolean): Promise<void> {

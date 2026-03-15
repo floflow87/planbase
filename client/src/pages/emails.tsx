@@ -34,6 +34,7 @@ import {
   MailOpen, MailCheck, X, PanelRightClose, Settings, Send,
   ChevronLeft, MoreHorizontal, UserPlus, Archive, ArchiveRestore,
   ClipboardList, FileText, ChevronDown, Download, Building2,
+  Tag, Clock, FileEdit,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -56,10 +57,14 @@ interface EmailMessage {
   isRead: number;
   isDeleted: number;
   isArchived: number;
+  isDraft: number;
+  scheduledAt: string | null;
+  tags: string[] | null;
   hasAttachments: number;
   labels: string[] | null;
   linkedClientId: string | null;
   linkedClientName: string | null;
+  linkedClientLogoUrl: string | null;
 }
 
 interface EmailAttachment {
@@ -157,7 +162,7 @@ function AvatarCircle({ name, email }: { name: string | null; email: string }) {
 
 const WT = "bg-white text-gray-900 border border-gray-200 text-[10px] dark:bg-gray-900 dark:text-white dark:border-gray-700";
 
-type FilterType = "received" | "sent" | "trash" | "archived";
+type FilterType = "received" | "sent" | "drafts" | "trash" | "archived";
 
 export default function Emails() {
   const { toast } = useToast();
@@ -191,6 +196,15 @@ export default function Emails() {
   const [createNoteTitle, setCreateNoteTitle] = useState("");
   const [createNoteMsg, setCreateNoteMsg] = useState<EmailMessage | null>(null);
   const [attachmentEmail, setAttachmentEmail] = useState<string | null>(null);
+  const [tagFilter, setTagFilter] = useState<string>("all");
+  const [syncInterval, setSyncIntervalState] = useState<number>(0);
+  const [postSendOpen, setPostSendOpen] = useState(false);
+  const [postSendDays, setPostSendDays] = useState<number>(3);
+  const [postSendTitle, setPostSendTitle] = useState<string>("");
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [tagInputOpen, setTagInputOpen] = useState(false);
+  const [tagInput, setTagInput] = useState<string>("");
   const limit = 50;
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
 
@@ -204,7 +218,7 @@ export default function Emails() {
   });
 
   const { data: messages = [], isLoading } = useQuery<EmailMessage[]>({
-    queryKey: ["/api/gmail/messages", filter, search, searchField, crmFilter, offset],
+    queryKey: ["/api/gmail/messages", filter, search, searchField, crmFilter, tagFilter, offset],
     queryFn: async () => {
       const params = new URLSearchParams({
         limit: String(limit),
@@ -213,6 +227,7 @@ export default function Emails() {
         ...(search ? { search } : {}),
         ...(searchField !== "all" ? { searchField } : {}),
         ...(crmFilter !== "all" ? { crmFilter } : {}),
+        ...(tagFilter !== "all" ? { tagFilter } : {}),
       });
       const res = await apiRequest(`/api/gmail/messages?${params}`, "GET");
       return res.json();
@@ -232,12 +247,23 @@ export default function Emails() {
     queryKey: ["/api/task-columns"],
   });
 
+  const { data: syncIntervalData } = useQuery<{ intervalMinutes: number }>({
+    queryKey: ["/api/gmail/sync-interval"],
+    enabled: !!gmailStatus?.connected,
+    onSuccess: (d: { intervalMinutes: number }) => setSyncIntervalState(d?.intervalMinutes ?? 0),
+  } as any);
+
   useEffect(() => {
     if (pendingSelectFirst && messages.length > 0) {
       setSelected(messages[0]);
       setPendingSelectFirst(false);
     }
   }, [messages, pendingSelectFirst]);
+
+  useEffect(() => {
+    setTagInputOpen(false);
+    setTagInput("");
+  }, [selected?.id]);
 
   const { data: crmContacts = [] } = useQuery<CrmContact[]>({
     queryKey: ["/api/contacts"],
@@ -271,7 +297,7 @@ export default function Emails() {
       const res = await apiRequest("/api/gmail/send", "POST", data);
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data: any, variables: any) => {
       setComposeOpen(false);
       setFilter("sent");
       setOffset(0);
@@ -283,10 +309,106 @@ export default function Emails() {
         title: "Email envoyé",
         className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
       });
+      const subjectTitle = variables?.subject ? decodeHTMLEntities(variables.subject) : "Email";
+      setPostSendTitle(`Relance : ${subjectTitle}`);
+      setPostSendOpen(true);
     },
     onError: () => {
       toast({ title: "Erreur", description: "Envoi échoué.", variant: "destructive" });
     },
+  });
+
+  const updateTagsMutation = useMutation({
+    mutationFn: async ({ id, tags }: { id: string; tags: string[] }) => {
+      const res = await apiRequest(`/api/gmail/messages/${id}/tags`, "PATCH", { tags });
+      return res.json();
+    },
+    onSuccess: (_data: any, variables: { id: string; tags: string[] }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
+      setSelected(prev => prev && prev.id === variables.id ? { ...prev, tags: variables.tags } : prev);
+      setTagInputOpen(false);
+      setTagInput("");
+    },
+    onError: () => toast({ title: "Erreur", description: "Mise à jour des tags échouée.", variant: "destructive" }),
+  });
+
+  const saveDraftMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("/api/gmail/messages/draft", "POST", data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setComposeOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
+      toast({
+        title: "Brouillon enregistré",
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+      });
+    },
+    onError: () => toast({ title: "Erreur", description: "Sauvegarde du brouillon échouée.", variant: "destructive" }),
+  });
+
+  const scheduleMutation = useMutation({
+    mutationFn: async ({ data, scheduledAt }: { data: any; scheduledAt: Date }) => {
+      const res = await apiRequest(`/api/gmail/messages/new/schedule`, "PATCH", {
+        to: data.to,
+        cc: data.cc,
+        bcc: data.bcc,
+        subject: data.subject,
+        body: data.body,
+        scheduledAt: scheduledAt.toISOString(),
+      });
+      return res.json();
+    },
+    onSuccess: (result) => {
+      setComposeOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
+      toast({
+        title: "Email programmé",
+        description: `Envoi prévu le ${new Date(result.scheduledAt).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}`,
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+      });
+    },
+    onError: () => toast({ title: "Erreur", description: "Programmation échouée.", variant: "destructive" }),
+  });
+
+  const setSyncIntervalMutation = useMutation({
+    mutationFn: async (intervalMinutes: number) => {
+      const res = await apiRequest("/api/gmail/sync-interval", "PATCH", { intervalMinutes });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setSyncIntervalState(data.intervalMinutes);
+      queryClient.invalidateQueries({ queryKey: ["/api/gmail/sync-interval"] });
+      toast({
+        title: "Synchronisation mise à jour",
+        description: data.intervalMinutes === 0 ? "Synchronisation manuelle uniquement." : `Synchronisation toutes les ${data.intervalMinutes} minutes.`,
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+      });
+    },
+    onError: () => toast({ title: "Erreur", description: "Mise à jour de l'intervalle échouée.", variant: "destructive" }),
+  });
+
+  const postSendTaskMutation = useMutation({
+    mutationFn: async ({ title, days }: { title: string; days: number }) => {
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + days);
+      const res = await apiRequest("/api/tasks", "POST", {
+        title,
+        columnId: taskColumns[0]?.id,
+        dueDate: dueDate.toISOString(),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      setPostSendOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "Tâche de relance créée",
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+      });
+    },
+    onError: () => toast({ title: "Erreur", description: "Création de la tâche échouée.", variant: "destructive" }),
   });
 
   const markReadMutation = useMutation({
@@ -533,6 +655,7 @@ export default function Emails() {
   const TABS: { key: FilterType; label: string }[] = [
     { key: "received", label: "Reçus" },
     { key: "sent", label: "Envoyés" },
+    { key: "drafts", label: "Brouillons" },
     { key: "archived", label: "Archives" },
     { key: "trash", label: "Corbeille" },
   ];
@@ -560,6 +683,7 @@ export default function Emails() {
   const someSelected = selectedIds.size > 0;
   const isTrash = filter === "trash";
   const isArchived = filter === "archived";
+  const isDrafts = filter === "drafts";
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -729,6 +853,34 @@ export default function Emails() {
             )}
           </div>
 
+          {/* Tag filter bar — only when tags exist */}
+          {(() => {
+            const allTags = Array.from(new Set(messages.flatMap(m => m.tags || [])));
+            if (allTags.length === 0) return null;
+            return (
+              <div className="flex items-center gap-1 px-2 py-1 border-b shrink-0 overflow-x-auto bg-muted/10">
+                <Tag className="w-2.5 h-2.5 text-muted-foreground shrink-0 mr-0.5" />
+                <button
+                  onClick={() => { setTagFilter("all"); setOffset(0); }}
+                  className={cn("text-[10px] px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap shrink-0", tagFilter === "all" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground bg-background")}
+                  data-testid="button-tag-filter-all"
+                >
+                  Tous
+                </button>
+                {allTags.map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => { setTagFilter(tag); setOffset(0); }}
+                    className={cn("text-[10px] px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap shrink-0", tagFilter === tag ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground bg-background")}
+                    data-testid={`button-tag-filter-${tag}`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
+
           {/* Multi-select action bar */}
           {someSelected ? (
             <div className="flex items-center gap-1 px-3 py-1.5 bg-primary/5 border-b shrink-0">
@@ -891,7 +1043,14 @@ export default function Emails() {
                         )}
                       />
 
-                      <AvatarCircle name={msg.fromName} email={msg.fromEmail} />
+                      {/* Avatar: company logo if CRM-linked, else person initial */}
+                      {msg.linkedClientLogoUrl ? (
+                        <div className="w-8 h-8 rounded-full shrink-0 overflow-hidden border border-border bg-muted flex items-center justify-center">
+                          <img src={msg.linkedClientLogoUrl} alt={msg.linkedClientName || ""} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        </div>
+                      ) : (
+                        <AvatarCircle name={msg.fromName} email={msg.fromEmail} />
+                      )}
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1 mb-0.5">
@@ -899,6 +1058,16 @@ export default function Emails() {
                             {msg.direction === "sent" ? "Moi" : (decodeHTMLEntities(msg.fromName) || msg.fromEmail)}
                           </span>
                           <div className="flex items-center gap-1 shrink-0">
+                            {msg.isDraft === 1 && (
+                              <Badge variant="secondary" className="text-[9px] px-1 py-0 h-3.5">
+                                <FileEdit className="w-1.5 h-1.5 mr-0.5" />Brouillon
+                              </Badge>
+                            )}
+                            {msg.scheduledAt && (
+                              <Badge variant="secondary" className="text-[9px] px-1 py-0 h-3.5">
+                                <Clock className="w-1.5 h-1.5 mr-0.5" />Programmé
+                              </Badge>
+                            )}
                             <span className="text-[10px] text-muted-foreground leading-none">
                               {formatEmailDate(msg.sentAt)}
                             </span>
@@ -910,13 +1079,18 @@ export default function Emails() {
                         <p className="text-[10px] text-muted-foreground truncate mt-0.5 leading-relaxed">
                           {decodeHTMLEntities(msg.snippet)}
                         </p>
-                        {(msg.hasAttachments === 1 || msg.direction === "sent" || msg.linkedClientName) && (
+                        {(msg.hasAttachments === 1 || msg.direction === "sent" || msg.linkedClientName || (msg.tags && msg.tags.length > 0)) && (
                           <div className="flex gap-1 mt-1 flex-wrap">
                             {msg.linkedClientName && (
                               <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-violet-200 text-violet-700 dark:border-violet-700 dark:text-violet-400 max-w-[80px] truncate" title={msg.linkedClientName}>
                                 <Building2 className="w-2 h-2 mr-0.5 shrink-0" /><span className="truncate">{msg.linkedClientName}</span>
                               </Badge>
                             )}
+                            {(msg.tags || []).map(tag => (
+                              <Badge key={tag} variant="secondary" className="text-[9px] px-1 py-0 h-4 max-w-[60px] truncate" title={tag}>
+                                <Tag className="w-1.5 h-1.5 mr-0.5 shrink-0" /><span className="truncate">{tag}</span>
+                              </Badge>
+                            ))}
                             {msg.direction === "sent" && (
                               <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
                                 <Send className="w-2 h-2 mr-0.5" />Envoyé
@@ -971,7 +1145,7 @@ export default function Emails() {
                 <h2 className="font-semibold text-xs truncate">{decodeHTMLEntities(selected.subject) || "(Sans objet)"}</h2>
               </div>
               <div className="flex items-center gap-0 shrink-0">
-                {gmailStatus?.canSend && !isTrash && !isArchived && (
+                {gmailStatus?.canSend && !isTrash && !isArchived && !isDrafts && (
                   <>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -1057,7 +1231,11 @@ export default function Emails() {
                       <FileText className="w-3.5 h-3.5 mr-2" />
                       Créer une note
                     </DropdownMenuItem>
-                    {!isTrash && !isArchived && (
+                    <DropdownMenuItem onClick={() => setTagInputOpen(v => !v)} data-testid="button-manage-tags">
+                      <Tag className="w-3.5 h-3.5 mr-2" />
+                      Étiquettes
+                    </DropdownMenuItem>
+                    {!isTrash && !isArchived && !isDrafts && (
                       <DropdownMenuItem onClick={() => archiveMutation.mutate({ ids: [selected.id], archive: true })} data-testid="button-archive-single">
                         <Archive className="w-3.5 h-3.5 mr-2" />
                         Archiver
@@ -1121,6 +1299,53 @@ export default function Emails() {
                 <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-green-600 dark:text-green-400">
                   <MailCheck className="w-3 h-3" />
                   <span>Livré</span>
+                </div>
+              )}
+              {/* Tags display */}
+              {((selected.tags && selected.tags.length > 0) || tagInputOpen) && (
+                <div className="mt-1.5">
+                  <div className="flex flex-wrap gap-1 items-center">
+                    {(selected.tags || []).map(tag => (
+                      <Badge key={tag} variant="secondary" className="text-[10px] px-1.5 py-0 h-5 cursor-pointer" onClick={() => {
+                        const newTags = (selected.tags || []).filter(t => t !== tag);
+                        updateTagsMutation.mutate({ id: selected.id, tags: newTags });
+                      }}>
+                        <Tag className="w-2.5 h-2.5 mr-0.5" />{tag}
+                        <X className="w-2 h-2 ml-0.5 opacity-60" />
+                      </Badge>
+                    ))}
+                    {tagInputOpen && (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          const newTag = tagInput.trim();
+                          if (newTag && !(selected.tags || []).includes(newTag)) {
+                            updateTagsMutation.mutate({ id: selected.id, tags: [...(selected.tags || []), newTag] });
+                          } else {
+                            setTagInputOpen(false);
+                            setTagInput("");
+                          }
+                        }}
+                        className="flex items-center gap-1"
+                      >
+                        <Input
+                          autoFocus
+                          value={tagInput}
+                          onChange={e => setTagInput(e.target.value)}
+                          placeholder="Nouvelle étiquette..."
+                          className="h-5 text-[10px] px-1.5 w-28 min-w-0"
+                          onKeyDown={(e) => { if (e.key === "Escape") { setTagInputOpen(false); setTagInput(""); }}}
+                          data-testid="input-new-tag"
+                        />
+                        <Button type="submit" size="icon" variant="ghost" className="h-5 w-5 shrink-0" disabled={updateTagsMutation.isPending}>
+                          <Plus className="w-2.5 h-2.5" />
+                        </Button>
+                        <Button type="button" size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => { setTagInputOpen(false); setTagInput(""); }}>
+                          <X className="w-2.5 h-2.5" />
+                        </Button>
+                      </form>
+                    )}
+                  </div>
                 </div>
               )}
               {selected.hasAttachments === 1 && (
@@ -1256,6 +1481,42 @@ export default function Emails() {
                 />
               )}
             </div>
+
+            {/* Sync interval */}
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs font-medium">Synchronisation automatique</Label>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Intervalle de synchronisation des emails Gmail</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "Manuelle", value: 0 },
+                  { label: "5 min", value: 5 },
+                  { label: "15 min", value: 15 },
+                  { label: "30 min", value: 30 },
+                  { label: "1 heure", value: 60 },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setSyncIntervalMutation.mutate(opt.value)}
+                    disabled={setSyncIntervalMutation.isPending}
+                    className={cn(
+                      "text-xs px-3 py-1 rounded-full border transition-colors",
+                      syncInterval === opt.value
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "border-border text-muted-foreground hover:text-foreground bg-background"
+                    )}
+                    data-testid={`button-sync-interval-${opt.value}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                {syncInterval === 0 ? "Synchronisation manuelle uniquement." : `Synchronisation automatique toutes les ${syncInterval} minutes.`}
+              </p>
+            </div>
+
           </div>
 
           <div className="border-t pt-4">
@@ -1542,7 +1803,54 @@ export default function Emails() {
         initialData={composeInitial}
         onSend={(data) => sendEmailMutation.mutate(data)}
         isSending={sendEmailMutation.isPending}
+        onSaveDraft={(data) => saveDraftMutation.mutate(data)}
+        isSavingDraft={saveDraftMutation.isPending}
+        onSchedule={(data, scheduledAt) => scheduleMutation.mutate({ data, scheduledAt })}
+        isScheduling={scheduleMutation.isPending}
       />
+
+      {/* Post-send follow-up dialog */}
+      <AlertDialog open={postSendOpen} onOpenChange={setPostSendOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Créer une tâche de relance ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Voulez-vous programmer une tâche de relance pour cet email ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="px-1 py-2">
+            <Input
+              value={postSendTitle}
+              onChange={e => setPostSendTitle(e.target.value)}
+              placeholder="Titre de la tâche"
+              className="mb-3 text-sm"
+              data-testid="input-post-send-task-title"
+            />
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { label: "Dans 2 jours", days: 2 },
+                { label: "Dans 5 jours", days: 5 },
+                { label: "Dans 1 semaine", days: 7 },
+                { label: "Dans 2 semaines", days: 14 },
+              ].map(({ label, days }) => (
+                <Button
+                  key={days}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => postSendTaskMutation.mutate({ title: postSendTitle.trim() || "Relance email", days })}
+                  disabled={postSendTaskMutation.isPending}
+                  data-testid={`button-post-send-${days}`}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-post-send-skip">Ignorer</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

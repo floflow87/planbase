@@ -2442,6 +2442,14 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Gmail email is_archived column added");
 
+    await db.execute(sql`
+      ALTER TABLE crm_email_messages
+      ADD COLUMN IF NOT EXISTS is_draft INTEGER NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
+    `);
+    console.log("✅ Gmail email draft/schedule/tags columns added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
