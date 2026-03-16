@@ -3427,8 +3427,26 @@ app.get("/config/feature-flags", async (_req, res) => {
       // Keep dueDate as string if it's in YYYY-MM-DD format (no timezone conversion needed)
       // PostgreSQL will handle the date string directly as a timestamp at midnight local time
       const { insertTaskSchema } = await import("@shared/schema");
+
+      // Auto-assign first column if no columnId provided (e.g. from header "Nouveau" button)
+      let columnId = req.body.columnId || null;
+      if (!columnId) {
+        const projectId = req.body.projectId || null;
+        if (projectId) {
+          // Use first column of the selected project
+          const projectColumns = await storage.getTaskColumnsByProjectId(projectId);
+          if (projectColumns.length > 0) columnId = projectColumns[0].id;
+        }
+        if (!columnId) {
+          // Fall back to first global column (no project)
+          const globalColumns = await storage.getGlobalTaskColumnsByAccountId(req.accountId!);
+          if (globalColumns.length > 0) columnId = globalColumns[0].id;
+        }
+      }
+
       const data = insertTaskSchema.parse({
         ...req.body,
+        columnId,
         accountId: req.accountId!,
         createdBy: req.userId!,
       });
