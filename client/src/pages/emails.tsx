@@ -264,6 +264,12 @@ export default function Emails() {
     queryKey: ["/api/task-columns"],
   });
 
+  const { data: fetchedHtmlBody, isLoading: htmlBodyLoading } = useQuery<{ bodyHtml: string }>({
+    queryKey: ["/api/gmail/messages", selected?.id, "html-body"],
+    enabled: !!selected && !selected.bodyHtml,
+    retry: false,
+  });
+
   const { data: syncIntervalData } = useQuery<{ intervalMinutes: number }>({
     queryKey: ["/api/gmail/sync-interval"],
     enabled: !!gmailStatus?.connected,
@@ -1527,29 +1533,43 @@ export default function Emails() {
 
             {/* Email body */}
             <div className="flex-1 overflow-hidden bg-white dark:bg-background">
-              {selected.bodyHtml ? (
-                <iframe
-                  srcDoc={enhanceEmailHtml(selected.bodyHtml)}
-                  sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                  className="w-full h-full border-0"
-                  title="Email content"
-                  data-testid="email-body-iframe"
-                />
-              ) : selected.bodyText ? (
-                <div className="h-full overflow-y-auto px-4 py-4">
-                  <pre className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-foreground">
-                    {decodeHTMLEntities(selected.bodyText)}
-                  </pre>
-                </div>
-              ) : selected.snippet ? (
-                <div className="px-4 py-4">
-                  <p className="text-xs text-muted-foreground italic">{decodeHTMLEntities(selected.snippet)}</p>
-                </div>
-              ) : (
-                <div className="px-4 py-4">
-                  <p className="text-xs text-muted-foreground italic">Corps de l'email non disponible.</p>
-                </div>
-              )}
+              {(() => {
+                const effectiveBodyHtml = selected.bodyHtml || fetchedHtmlBody?.bodyHtml;
+                if (effectiveBodyHtml) {
+                  return (
+                    <iframe
+                      srcDoc={enhanceEmailHtml(effectiveBodyHtml)}
+                      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                      className="w-full h-full border-0"
+                      title="Email content"
+                      data-testid="email-body-iframe"
+                    />
+                  );
+                }
+                if (htmlBodyLoading) {
+                  return (
+                    <div className="flex items-center justify-center h-full text-muted-foreground text-xs gap-2">
+                      <div className="w-4 h-4 border-2 border-muted-foreground/30 border-t-primary rounded-full animate-spin" />
+                      Chargement du contenu...
+                    </div>
+                  );
+                }
+                return selected.bodyText ? (
+                  <div className="h-full overflow-y-auto px-4 py-4">
+                    <pre className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-foreground">
+                      {decodeHTMLEntities(selected.bodyText)}
+                    </pre>
+                  </div>
+                ) : selected.snippet ? (
+                  <div className="px-4 py-4">
+                    <p className="text-xs text-muted-foreground italic">{decodeHTMLEntities(selected.snippet)}</p>
+                  </div>
+                ) : (
+                  <div className="px-4 py-4">
+                    <p className="text-xs text-muted-foreground italic">Corps de l'email non disponible.</p>
+                  </div>
+                );
+              })()}
             </div>
           </>
         ) : (

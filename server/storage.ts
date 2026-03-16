@@ -337,6 +337,7 @@ export interface IStorage {
   getEmailMessageCount(accountId: string, userId: string): Promise<number>;
   getEmailMessage(accountId: string, userId: string, id: string): Promise<typeof crmEmailMessages.$inferSelect | undefined>;
   getEmailMessages(accountId: string, userId: string, limit?: number, offset?: number, direction?: string, search?: string, searchField?: string, crmFilter?: string, tagFilter?: string): Promise<Array<typeof crmEmailMessages.$inferSelect & { linkedClientId: string | null; linkedClientName: string | null; linkedClientLogoUrl: string | null }>>;
+  updateEmailBodyHtml(accountId: string, id: string, bodyHtml: string): Promise<void>;
   updateEmailTags(accountId: string, id: string, tags: string[]): Promise<void>;
   saveDraftEmail(accountId: string, userId: string, data: { to: string; cc?: string; bcc?: string; subject?: string; body?: string; replyToMessageId?: string; threadId?: string }): Promise<string>;
   scheduleEmail(accountId: string, id: string, scheduledAt: Date | null): Promise<void>;
@@ -2130,6 +2131,12 @@ export class DatabaseStorage implements IStorage {
     await db.update(crmEmailMessages)
       .set({ isArchived: archive ? 1 : 0 })
       .where(and(eq(crmEmailMessages.accountId, accountId), inArray(crmEmailMessages.id, ids)));
+  }
+
+  async updateEmailBodyHtml(accountId: string, id: string, bodyHtml: string): Promise<void> {
+    await db.update(crmEmailMessages)
+      .set({ bodyHtml })
+      .where(and(eq(crmEmailMessages.accountId, accountId), eq(crmEmailMessages.id, id)));
   }
 
   async updateEmailTags(accountId: string, id: string, tags: string[]): Promise<void> {

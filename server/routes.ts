@@ -7999,6 +7999,39 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  app.get("/api/gmail/messages/:messageId/html-body", requireAuth, async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      const dbMsg = await storage.getEmailMessage(req.accountId!, req.userId!, messageId);
+      if (!dbMsg) return res.status(404).json({ error: "Message not found" });
+
+      if (dbMsg.bodyHtml) {
+        return res.json({ bodyHtml: dbMsg.bodyHtml });
+      }
+
+      const { getGmailServiceForUser, parseMessage } = await import("./lib/gmail-sync");
+      const gmailService = await getGmailServiceForUser(req.accountId!, req.userId!);
+      if (!gmailService) return res.status(403).json({ error: "Gmail not connected" });
+
+      const fullMsg = await gmailService.gmail.users.messages.get({
+        userId: "me",
+        id: dbMsg.gmailMessageId,
+        format: "full",
+      });
+
+      const parsed = parseMessage(fullMsg.data as Record<string, unknown>, gmailService.userEmail);
+      const bodyHtml = parsed?.bodyHtml || "";
+
+      if (bodyHtml) {
+        await storage.updateEmailBodyHtml(req.accountId!, messageId, bodyHtml);
+      }
+
+      return res.json({ bodyHtml });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/gmail/messages/:messageId/attachments", requireAuth, async (req, res) => {
     try {
       const { messageId } = req.params;
