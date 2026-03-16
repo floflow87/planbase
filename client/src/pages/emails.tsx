@@ -1707,9 +1707,10 @@ export default function Emails() {
                 }
                 return selected.bodyText ? (
                   <div className="h-full overflow-y-auto px-4 py-4">
-                    <pre className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-foreground">
-                      {decodeHTMLEntities(selected.bodyText)}
-                    </pre>
+                    <div
+                      className="text-xs leading-relaxed text-foreground prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{ __html: decodeHTMLEntities(selected.bodyText) }}
+                    />
                   </div>
                 ) : selected.snippet ? (
                   <div className="px-4 py-4">

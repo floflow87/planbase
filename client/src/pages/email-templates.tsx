@@ -274,7 +274,7 @@ export default function EmailTemplates() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-white dark:bg-card">
       {/* Header */}
       <div className="border-b px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
         <div>
@@ -295,18 +295,18 @@ export default function EmailTemplates() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Rechercher…"
-            className="pl-9"
+            className="pl-9 text-xs h-8"
             data-testid="input-template-search"
           />
         </div>
         <Select value={filterCat} onValueChange={setFilterCat}>
-          <SelectTrigger className="w-44" data-testid="select-template-filter">
+          <SelectTrigger className="w-44 text-xs h-8" data-testid="select-template-filter">
             <SelectValue placeholder="Catégorie" />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Toutes les catégories</SelectItem>
+          <SelectContent className="text-xs">
+            <SelectItem value="all" className="text-xs">Toutes les catégories</SelectItem>
             {TEMPLATE_CATEGORIES.map(c => (
-              <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+              <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
