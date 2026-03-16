@@ -847,6 +847,10 @@ export default function Settings() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [, setLocation] = useLocation();
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("tab") || "informations";
+  });
   
   const { startOnboarding } = useOnboarding();
   const { config, isLoading: configLoading, refetch: refetchConfig } = useConfig();
@@ -1091,7 +1095,7 @@ export default function Settings() {
   return (
     <div className="h-full overflow-auto bg-background">
       <div className="p-6">
-        <Tabs defaultValue="informations" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="w-full justify-start mb-3 overflow-x-auto overflow-y-hidden flex-nowrap h-10 p-0.5" data-testid="tabs-settings">
             <TabsTrigger value="informations" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-informations">
               <UserCircle className="w-3.5 h-3.5" />

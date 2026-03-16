@@ -236,9 +236,28 @@ export function EmailComposeModal({
     : emailTemplates;
 
   function applyTemplate(template: EmailTemplate) {
+    // Load saved signature from localStorage
+    let savedSignature = "";
+    try {
+      const raw = localStorage.getItem("planbase_email_signature");
+      if (raw) {
+        const sigConfig = JSON.parse(raw);
+        // Prefer newMessage signature, fall back to reply
+        const sigHtml: string = sigConfig.newMessage || sigConfig.reply || "";
+        // Strip HTML tags to get plain text for template variable
+        const tmp = document.createElement("div");
+        tmp.innerHTML = sigHtml;
+        savedSignature = tmp.textContent || tmp.innerText || "";
+      }
+    } catch {}
+
     const ctx: TemplateContext = {
       today: new Date().toLocaleDateString("fr-FR"),
       ...templateContext,
+      user: {
+        ...templateContext?.user,
+        signature: savedSignature || templateContext?.user?.signature || "",
+      },
     };
     const rendered = renderTemplate(template.subject, template.body, ctx);
     setData(prev => ({ ...prev, subject: rendered.subject }));

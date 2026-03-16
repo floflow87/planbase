@@ -1742,6 +1742,25 @@ export default function Emails() {
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto space-y-6 py-4">
+
+            {/* Templates info banner */}
+            <div className="rounded-md bg-muted/60 border border-border px-3 py-2.5 space-y-1.5">
+              <p className="text-[11px] font-medium text-foreground">Personnalisez vos envois avec les modèles</p>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                Créez des modèles d'emails réutilisables avec des variables dynamiques (contact, client, projet, signature…).
+                Ils sont accessibles depuis le bouton <span className="font-medium text-foreground">Modèle</span> lors de la rédaction d'un email.
+              </p>
+              <a
+                href="/settings?tab=templates"
+                onClick={() => setSettingsOpen(false)}
+                className="inline-flex items-center gap-1 text-[10px] text-primary font-medium hover:underline mt-0.5"
+                data-testid="link-email-templates-settings"
+              >
+                Gérer les modèles dans les Paramètres
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </a>
+            </div>
+
             {/* Signature nouveau message */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
