@@ -1552,7 +1552,7 @@ export default function Emails() {
                     </Badge>
                   )}
                   {linkClientOpen && (
-                    <div className="w-full mt-1 border rounded-md bg-popover shadow-sm p-1.5 max-h-48 overflow-y-auto">
+                    <div className="w-full mt-1 border rounded-md bg-white dark:bg-gray-900 shadow-md p-1.5 max-h-48 overflow-y-auto">
                       <Input
                         autoFocus
                         value={linkClientSearch}
