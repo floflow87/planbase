@@ -191,16 +191,26 @@ export const MermaidBlock = Node.create({
   },
 });
 
+const MERMAID_KEYWORDS = /^\s*(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram|stateDiagram-v2|erDiagram|journey|gantt|pie|gitGraph|mindmap|timeline|quadrantChart|xychart-beta|block-beta|sankey-beta|architecture-beta)/i;
+
 export function extractMermaidBlocks(text: string): { code: string; fullMatch: string }[] {
+  // First try fenced blocks
   const regex = /```mermaid\s*\n([\s\S]*?)```/gi;
   const results: { code: string; fullMatch: string }[] = [];
   let match;
   while ((match = regex.exec(text)) !== null) {
     results.push({ code: match[1].trim(), fullMatch: match[0] });
   }
+  if (results.length > 0) return results;
+  // Fall back: raw mermaid code (starts with a known keyword)
+  if (MERMAID_KEYWORDS.test(text)) {
+    results.push({ code: text.trim(), fullMatch: text });
+  }
   return results;
 }
 
 export function hasMermaidBlock(text: string): boolean {
-  return /```mermaid[\s\S]*?```/i.test(text);
+  if (/```mermaid[\s\S]*?```/i.test(text)) return true;
+  // Also detect raw mermaid code pasted without fences
+  return MERMAID_KEYWORDS.test(text.trim());
 }
