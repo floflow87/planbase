@@ -2571,6 +2571,11 @@ export default function Dashboard() {
                       medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
                       high: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
                     };
+                    const priorityBorderColors: Record<string, string> = {
+                      low: "#10b981",
+                      medium: "#f59e0b",
+                      high: "#ef4444",
+                    };
                     const priorityLabels: Record<string, string> = {
                       low: "Basse",
                       medium: "Moyenne",
@@ -2653,7 +2658,8 @@ export default function Dashboard() {
                     return (
                       <div
                         key={task.id}
-                        className="flex items-start gap-3 p-3 rounded-md border hover-elevate cursor-pointer"
+                        className="flex items-start gap-3 p-3 rounded-r-md border hover-elevate cursor-pointer border-l-4"
+                        style={{ borderLeftColor: priorityBorderColors[task.priority] ?? "#94a3b8" }}
                         data-testid={`today-task-${task.id}`}
                         onClick={() => handleTaskClick(task)}
                       >
@@ -2671,17 +2677,17 @@ export default function Dashboard() {
                               {task.description}
                             </p>
                           )}
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            <Badge className={priorityColors[task.priority]} data-testid={`badge-priority-${task.id}`}>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            <Badge className={`${priorityColors[task.priority]} text-[10px] px-1.5 py-0`} data-testid={`badge-priority-${task.id}`}>
                               {priorityLabels[task.priority]}
                             </Badge>
                             {client && (
-                              <Badge variant="outline" data-testid={`badge-client-${task.id}`}>
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0" data-testid={`badge-client-${task.id}`}>
                                 {client.name}
                               </Badge>
                             )}
                             {project && (
-                              <Badge variant="outline" data-testid={`badge-project-${task.id}`}>
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0" data-testid={`badge-project-${task.id}`}>
                                 {project.name}
                               </Badge>
                             )}
