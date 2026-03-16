@@ -2028,8 +2028,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getEmailMessages(accountId: string, userId: string, limit = 50, offset = 0, direction?: string, search?: string, searchField?: string, crmFilter?: string, tagFilter?: string): Promise<Array<typeof crmEmailMessages.$inferSelect & { linkedClientId: string | null; linkedClientName: string | null; linkedClientLogoUrl: string | null }>> {
-    const totalRaw = await db.execute(sql`SELECT COUNT(*) as n FROM crm_email_messages WHERE account_id = ${accountId}::uuid`);
-    console.log("📧 DB total emails for account:", JSON.stringify(totalRaw.rows[0]), "| queried userId:", userId);
     const conditions = [
       eq(crmEmailMessages.accountId, accountId),
     ];
