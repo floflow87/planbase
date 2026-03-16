@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, CalendarDays, Save, Check, ChevronLeft, ChevronRight, Star, TrendingUp, ChevronsUpDown, DollarSign, StickyNote, Globe, Radar, BarChart4, CreditCard, Timer, Hourglass, Filter, Eye, CalendarPlus, NotebookPen, ListTodo, FolderOpen, Camera } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, CalendarDays, Save, Check, ChevronLeft, ChevronRight, Star, TrendingUp, ChevronsUpDown, DollarSign, StickyNote, Globe, Radar, BarChart4, CreditCard, Timer, Hourglass, Filter, Eye, CalendarPlus, NotebookPen, ListTodo, FolderOpen, Camera, RefreshCw } from "lucide-react";
 import { EmailActivityCard } from "@/components/EmailActivityCard";
 import { EmailComposeModal } from "@/components/EmailComposeModal";
 import { FileExplorer } from "@/components/file-explorer";
@@ -285,10 +285,20 @@ export default function ClientDetail() {
     enabled: !!accountId && !!id,
   });
 
-  const { data: clientActivities = [] } = useQuery<Activity[]>({
+  const { data: clientActivities = [], refetch: refetchActivities } = useQuery<Activity[]>({
     queryKey: ['/api/clients', id, 'activities'],
     enabled: !!accountId && !!id,
   });
+
+  const { data: linkedEmails = [], refetch: refetchLinkedEmails } = useQuery<any[]>({
+    queryKey: ['/api/clients', id, 'emails'],
+    enabled: !!accountId && !!id,
+  });
+
+  const handleRefreshAll = () => {
+    refetchActivities();
+    refetchLinkedEmails();
+  };
 
   const { data: allAppointments = [] } = useQuery<any[]>({
     queryKey: ['/api/appointments'],
@@ -1607,6 +1617,9 @@ export default function ClientDetail() {
                           Email
                         </Button>
                       )}
+                      <Button onClick={handleRefreshAll} size="icon" variant="ghost" className="h-7 w-7" title="Mettre à jour" data-testid="button-refresh-activities">
+                        <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
+                      </Button>
                       <Button onClick={() => openActivityDialog()} data-testid="button-add-activity" size="sm" className="text-[11px] h-7 px-2">
                         <Plus className="w-3 h-3 mr-1" />
                         Nouvelle activité
@@ -1614,7 +1627,7 @@ export default function ClientDetail() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    {clientActivities.length === 0 && ([...comments, ...contacts, ...projects, ...tasks].length === 0) ? (
+                    {clientActivities.length === 0 && linkedEmails.length === 0 && ([...comments, ...contacts, ...projects, ...tasks].length === 0) ? (
                       <div className="py-8 text-center text-xs text-muted-foreground">
                         Aucune activité enregistrée pour ce client
                       </div>
@@ -1688,8 +1701,33 @@ export default function ClientDetail() {
                           );
                         })}
 
+                        {/* Linked emails from CRM module */}
+                        {linkedEmails.filter(email =>
+                          !clientActivities.some(a => a.kind === "email" && (a.payload as any)?.gmailMessageId === email.gmailMessageId)
+                        ).map(email => (
+                          <EmailActivityCard
+                            key={`linked-email-${email.id}`}
+                            activityId={email.id}
+                            payload={{
+                              gmailMessageId: email.gmailMessageId || email.id,
+                              subject: email.subject,
+                              snippet: email.snippet,
+                              bodyText: email.bodyText,
+                              bodyHtml: email.bodyHtml,
+                              fromEmail: email.fromEmail,
+                              fromName: email.fromName,
+                              direction: email.direction,
+                              hasAttachments: email.hasAttachments === 1,
+                            }}
+                            occurredAt={email.sentAt}
+                            variant="card"
+                            onReply={gmailStatus?.canSend ? handleEmailReply : undefined}
+                            onForward={gmailStatus?.canSend ? handleEmailForward : undefined}
+                          />
+                        ))}
+
                         {/* Auto history timeline */}
-                        {([...comments, ...contacts, ...projects, ...tasks].length > 0 || client || clientActivities.some(a => a.kind === "stage_change" || a.kind === "info_update")) && (
+                        {([...comments, ...contacts, ...projects, ...tasks].length > 0 || client || clientActivities.some(a => a.kind === "stage_change" || a.kind === "info_update") || linkedEmails.length > 0) && (
                           <div className="pt-2">
                             <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-3 font-medium">Historique automatique</p>
                             <div className="relative space-y-4 pl-7 before:absolute before:left-2.5 before:top-1 before:bottom-1 before:w-0.5 before:bg-border">
@@ -1701,6 +1739,9 @@ export default function ClientDetail() {
                                 ...comments.map((c) => ({ ...c, _date: new Date(c.createdAt), _type: 'comment' as const })),
                                 ...clientActivities.filter(a => a.kind === "stage_change" || a.kind === "info_update").map(a => ({ ...a, _date: new Date(a.occurredAt || a.createdAt || 0), _type: a.kind as 'stage_change' | 'info_update' })),
                                 ...clientActivities.filter(a => a.kind === "email" && (a.payload as Record<string, unknown>)?.gmailMessageId).map(a => ({ ...a, _date: new Date(a.occurredAt || a.createdAt || 0), _type: 'gmail_email' as const })),
+                                ...linkedEmails.filter(email =>
+                                  !clientActivities.some(a => a.kind === "email" && (a.payload as any)?.gmailMessageId === email.gmailMessageId)
+                                ).map(email => ({ ...email, _date: new Date(email.sentAt), _type: 'linked_email' as const })),
                               ]
                                 .sort((a, b) => b._date.getTime() - a._date.getTime())
                                 .map((item) => {
@@ -1790,6 +1831,30 @@ export default function ClientDetail() {
                                         activityId={item.id}
                                         payload={emailPayload}
                                         occurredAt={(item as any).occurredAt}
+                                        variant="timeline"
+                                        onReply={gmailStatus?.canSend ? handleEmailReply : undefined}
+                                        onForward={gmailStatus?.canSend ? handleEmailForward : undefined}
+                                      />
+                                    );
+                                  }
+                                  if (item._type === 'linked_email') {
+                                    const email = item as any;
+                                    return (
+                                      <EmailActivityCard
+                                        key={`linked-email-timeline-${email.id}`}
+                                        activityId={email.id}
+                                        payload={{
+                                          gmailMessageId: email.gmailMessageId || email.id,
+                                          subject: email.subject,
+                                          snippet: email.snippet,
+                                          bodyText: email.bodyText,
+                                          bodyHtml: email.bodyHtml,
+                                          fromEmail: email.fromEmail,
+                                          fromName: email.fromName,
+                                          direction: email.direction,
+                                          hasAttachments: email.hasAttachments === 1,
+                                        }}
+                                        occurredAt={email.sentAt}
                                         variant="timeline"
                                         onReply={gmailStatus?.canSend ? handleEmailReply : undefined}
                                         onForward={gmailStatus?.canSend ? handleEmailForward : undefined}

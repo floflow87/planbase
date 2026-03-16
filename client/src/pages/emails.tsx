@@ -512,6 +512,9 @@ export default function Emails() {
     },
     onSuccess: (_data: any, variables: { messageId: string; clientId: string | null }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
+      if (variables.clientId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/clients', variables.clientId, 'emails'] });
+      }
       const client = allClients.find(c => c.id === variables.clientId);
       setSelected(prev => prev && prev.id === variables.messageId ? { ...prev, linkedClientId: variables.clientId, linkedClientName: client?.name || null } : prev);
       setLinkClientOpen(false);

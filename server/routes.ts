@@ -7862,6 +7862,17 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  app.get("/api/clients/:clientId/emails", requireAuth, async (req, res) => {
+    try {
+      const { clientId } = req.params;
+      const messages = await storage.getEmailMessages(req.accountId!, req.userId!, 100, 0, undefined, undefined, undefined, clientId, undefined);
+      res.json(messages);
+    } catch (error: any) {
+      console.error("Error fetching client emails:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.patch("/api/gmail/messages/read", requireAuth, async (req, res) => {
     try {
       const { ids, isRead } = req.body;
