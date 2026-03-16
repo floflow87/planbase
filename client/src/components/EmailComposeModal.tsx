@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { renderTemplate, TEMPLATE_CATEGORIES } from "@/lib/emailTemplateRenderer";
+import type { TemplateContext } from "@/lib/emailTemplateRenderer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,7 +13,7 @@ import {
   Bold, Italic, Underline, Strikethrough, List, ListOrdered,
   Undo2, Redo2, Type, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Minus, Link2, Heading1, Heading2, Heading3,
-  Clock, CalendarIcon, FileEdit,
+  Clock, CalendarIcon, FileEdit, LayoutTemplate, AlertTriangle,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -42,12 +44,22 @@ interface ComposeData {
   attachments?: AttachmentFile[];
 }
 
+interface EmailTemplate {
+  id: string;
+  name: string;
+  category: string;
+  subject: string;
+  body: string;
+  description?: string | null;
+}
+
 interface EmailComposeModalProps {
   open: boolean;
   onClose: () => void;
   contacts: Contact[];
   senderEmail?: string;
   initialData?: Partial<ComposeData>;
+  templateContext?: TemplateContext;
   onSend: (data: ComposeData) => void;
   isSending?: boolean;
   onSaveDraft?: (data: ComposeData) => void;
@@ -167,6 +179,7 @@ export function EmailComposeModal({
   contacts,
   senderEmail,
   initialData,
+  templateContext,
   onSend,
   isSending,
   onSaveDraft,
@@ -179,6 +192,9 @@ export function EmailComposeModal({
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [planbaseOpen, setPlanbaseOpen] = useState(false);
   const [planbaseSearch, setPlanbaseSearch] = useState("");
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [templateSearch, setTemplateSearch] = useState("");
+  const [templateMissingVars, setTemplateMissingVars] = useState<string[]>([]);
   const [attachingFileId, setAttachingFileId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -205,6 +221,35 @@ export function EmailComposeModal({
     queryKey: ["/api/files"],
     enabled: planbaseOpen,
   });
+
+  const { data: emailTemplates = [] } = useQuery<EmailTemplate[]>({
+    queryKey: ["/api/email-templates"],
+    enabled: templatePickerOpen,
+  });
+
+  const filteredTemplates = templateSearch.trim()
+    ? emailTemplates.filter(t =>
+        t.name.toLowerCase().includes(templateSearch.toLowerCase()) ||
+        t.subject.toLowerCase().includes(templateSearch.toLowerCase()) ||
+        t.category.toLowerCase().includes(templateSearch.toLowerCase())
+      )
+    : emailTemplates;
+
+  function applyTemplate(template: EmailTemplate) {
+    const ctx: TemplateContext = {
+      today: new Date().toLocaleDateString("fr-FR"),
+      ...templateContext,
+    };
+    const rendered = renderTemplate(template.subject, template.body, ctx);
+    setData(prev => ({ ...prev, subject: rendered.subject }));
+    if (editorRef.current) {
+      const html = rendered.body.replace(/\n/g, "<br>");
+      editorRef.current.innerHTML = html;
+    }
+    setTemplateMissingVars(rendered.missingVars);
+    setTemplatePickerOpen(false);
+    setTemplateSearch("");
+  }
 
   const uploadedFiles = planbaseFiles.filter(f =>
     f.kind === "upload" && (f.storagePath || f.storageUrl)
@@ -850,12 +895,46 @@ export function EmailComposeModal({
               >
                 <FolderOpen className="w-4 h-4" />
               </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    type="button"
+                    onClick={() => { setTemplateSearch(""); setTemplatePickerOpen(true); }}
+                    data-testid="button-load-template"
+                  >
+                    <LayoutTemplate className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">Charger un template</TooltipContent>
+              </Tooltip>
             </div>
-            {senderEmail && (
-              <span className="text-[10px] text-muted-foreground truncate">
-                depuis {senderEmail}
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {templateMissingVars.length > 0 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 cursor-default">
+                      <AlertTriangle className="w-3 h-3 shrink-0" />
+                      <span>{templateMissingVars.length} variable{templateMissingVars.length > 1 ? "s" : ""} manquante{templateMissingVars.length > 1 ? "s" : ""}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs">
+                    <p className="font-medium mb-1">Variables non résolues :</p>
+                    <div className="flex flex-wrap gap-1">
+                      {templateMissingVars.map(v => (
+                        <code key={v} className="text-[10px] px-1 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">{v}</code>
+                      ))}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {senderEmail && (
+                <span className="text-[10px] text-muted-foreground truncate">
+                  depuis {senderEmail}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -905,6 +984,54 @@ export function EmailComposeModal({
                 </button>
               ))
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Template Picker Dialog */}
+      <Dialog open={templatePickerOpen} onOpenChange={v => { setTemplatePickerOpen(v); if (!v) setTemplateSearch(""); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Charger un template</DialogTitle>
+          </DialogHeader>
+          <div className="relative mb-3">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              className="pl-8 h-8 text-xs"
+              placeholder="Rechercher un template…"
+              value={templateSearch}
+              onChange={e => setTemplateSearch(e.target.value)}
+              autoFocus
+              data-testid="input-template-picker-search"
+            />
+          </div>
+          <div className="max-h-80 overflow-y-auto space-y-1.5">
+            {filteredTemplates.length === 0 ? (
+              <div className="text-center py-8 text-xs text-muted-foreground">
+                {emailTemplates.length === 0 ? "Aucun template disponible" : "Aucun résultat"}
+              </div>
+            ) : filteredTemplates.map(t => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => applyTemplate(t)}
+                className="w-full text-left rounded-md px-3 py-2.5 hover-elevate active-elevate-2 border border-transparent hover:border-border transition-colors"
+                data-testid={`picker-template-${t.id}`}
+              >
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-xs font-medium">{t.name}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                    TEMPLATE_CATEGORIES.find(c => c.value === t.category) ? "" : ""
+                  } bg-muted text-muted-foreground`}>
+                    {TEMPLATE_CATEGORIES.find(c => c.value === t.category)?.label ?? t.category}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground truncate">{t.subject}</p>
+                {t.description && (
+                  <p className="text-[10px] text-muted-foreground/70 truncate mt-0.5 italic">{t.description}</p>
+                )}
+              </button>
+            ))}
           </div>
         </DialogContent>
       </Dialog>

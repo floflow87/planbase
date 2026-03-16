@@ -48,6 +48,7 @@ import ProjectDecisions from "@/pages/project-decisions";
 import ProjectExecutive from "@/pages/project-executive";
 import AcceptInvitation from "@/pages/accept-invitation";
 import Emails from "@/pages/emails";
+import EmailTemplates from "@/pages/email-templates";
 import NotFound from "@/pages/not-found";
 import { EmailComposeModal } from "@/components/EmailComposeModal";
 import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote, CalendarPlus, MoreHorizontal, Timer } from "lucide-react";
@@ -191,6 +192,9 @@ function Router() {
       </Route>
       <Route path="/emails">
         <ProtectedRoute><Emails /></ProtectedRoute>
+      </Route>
+      <Route path="/email-templates">
+        <ProtectedRoute><EmailTemplates /></ProtectedRoute>
       </Route>
       <Route path="/calendar">
         <ProtectedRoute><CalendarPage /></ProtectedRoute>
@@ -1240,6 +1244,7 @@ function AppLayout() {
     if (path === "/calendar") return "Calendrier";
     if (path === "/settings") return "Paramètres";
     if (path === "/emails") return "Emails";
+    if (path === "/email-templates") return "Templates email";
     return "Page";
   };
 

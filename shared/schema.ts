@@ -2477,6 +2477,24 @@ export const insertTreasurySettingsSchema = createInsertSchema(treasurySettings)
 export type InsertTreasurySettings = z.infer<typeof insertTreasurySettingsSchema>;
 export type TreasurySettings = typeof treasurySettings.$inferSelect;
 
+// Email Templates
+export const emailTemplates = pgTable("email_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull(),
+  name: text("name").notNull(),
+  category: text("category").notNull().default("autre"),
+  subject: text("subject").notNull().default(""),
+  body: text("body").notNull().default(""),
+  description: text("description"),
+  createdBy: uuid("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertEmailTemplateSchema = createInsertSchema(emailTemplates).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
+export type EmailTemplate = typeof emailTemplates.$inferSelect;
+
 // Billing Status Options - Re-exported from centralized config for backwards compatibility
 export { 
   billingStatusOptions,

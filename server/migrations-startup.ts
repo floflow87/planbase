@@ -2470,6 +2470,23 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Gmail email opened_at column added");
 
+    // Email templates table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS email_templates (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id UUID NOT NULL,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'autre',
+        subject TEXT NOT NULL DEFAULT '',
+        body TEXT NOT NULL DEFAULT '',
+        description TEXT,
+        created_by UUID,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    console.log("✅ Email templates table created");
+
     // Backfill column_id for tasks that don't have one
     // 1. Tasks without a project: assign first global column (project_id IS NULL) for the account
     await db.execute(sql`

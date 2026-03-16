@@ -1,0 +1,183 @@
+Je souhaite ajouter une nouvelle fonctionnalité très forte dans le module Boîte mail de PlanBase : les templates d’emails dynamiques.
+
+OBJECTIF :
+permettre de créer une bibliothèque de templates email, puis de charger un template depuis la fenêtre “Nouveau message”, avec remplacement automatique de variables dynamiques selon le contexte CRM / projet.
+
+IMPORTANT :
+- ne pas casser l’existant de la boîte mail
+- intégrer cette feature proprement à l’interface actuelle
+- faire une V1 simple, robuste et très utile
+- concevoir l’architecture pour permettre plus tard des templates plus avancés
+
+## Fonctionnalité principale
+
+Je veux un espace dédié dans l’application pour gérer des templates d’emails.
+
+Nom du module :
+- Templates email
+
+Ce module doit permettre :
+- de créer un template
+- de l’éditer
+- de le supprimer
+- de le dupliquer
+- de le prévisualiser
+- de le catégoriser
+
+Chaque template contient :
+- un nom
+- une catégorie
+- un objet
+- un corps d’email
+- éventuellement une description interne
+
+## Chargement dans le composeur
+
+Dans la fenêtre “Nouveau message”, ajouter une action :
+- Charger un template
+
+Au clic :
+- afficher la liste des templates disponibles
+- permettre recherche / sélection
+- insérer le template dans le composeur
+
+Le chargement doit :
+- remplir l’objet
+- remplir le corps
+- remplacer automatiquement les variables disponibles selon le contexte
+
+## Variables dynamiques
+
+Je veux une logique de variables dynamiques simple et lisible, par exemple avec syntaxe :
+
+{{contact.first_name}}
+{{contact.last_name}}
+{{contact.full_name}}
+{{contact.email}}
+
+{{client.name}}
+
+{{project.name}}
+{{project.status}}
+{{project.start_date}}
+{{project.end_date}}
+{{project.budget}}
+
+{{user.full_name}}
+{{user.email}}
+{{user.phone}}
+{{user.signature}}
+
+{{today}}
+
+## Contexte de remplacement
+
+Le système doit remplir les variables automatiquement selon le contexte depuis lequel le mail est rédigé.
+
+Exemples :
+- depuis une fiche contact
+- depuis une fiche client
+- depuis une fiche projet
+- depuis la boîte mail avec un contact CRM déjà identifié
+
+Si une donnée existe, elle remplit la variable.
+Si une donnée manque, il faut gérer cela proprement.
+
+## Gestion des variables manquantes
+
+Si un template contient une variable qui ne peut pas être résolue :
+- ne pas casser l’email
+- afficher clairement qu’une variable est manquante
+- soit laisser vide
+- soit mettre un état visuel temporaire / avertissement
+
+Je veux une UX propre sur ce point.
+
+## UX attendue
+
+### Dans le module Templates email
+Afficher :
+- liste des templates
+- nom
+- catégorie
+- aperçu objet / extrait
+- actions : éditer, dupliquer, supprimer
+
+### Dans l’éditeur de template
+Champs :
+- nom
+- catégorie
+- objet
+- corps
+
+Ajouter une aide / panneau ou menu pour insérer facilement une variable, pour éviter que l’utilisateur doive taper la syntaxe à la main.
+
+### Dans le composeur email
+Ajouter :
+- bouton “Template”
+- sélection d’un template
+- insertion dans le message
+- remplacement automatique des variables
+
+## Catégories utiles à prévoir
+- Commercial
+- Projet
+- Facturation
+- Administratif
+- Autre
+
+## Exemples de templates utiles
+- prise de contact
+- relance sans réponse
+- envoi devis
+- envoi acompte
+- relance facture
+- recap call
+- partage planning
+- validation projet
+
+## Architecture recommandée
+
+Créer une entité du type :
+
+EmailTemplate
+- id
+- name
+- category
+- subject_template
+- body_template
+- description nullable
+- is_favorite nullable plus tard
+- created_by
+- created_at
+- updated_at
+
+Le système doit parser les variables présentes dans subject_template et body_template.
+
+Créer une logique de rendering de template séparée et réutilisable :
+- input = template + contexte
+- output = sujet rendu + corps rendu + liste des variables manquantes
+
+## Contraintes
+- ne pas casser le composeur actuel
+- garder une UX simple
+- éviter une logique trop complexe en V1
+- préparer le terrain pour des améliorations futures
+
+## V1 attendue
+Je veux prioriser :
+1. module Templates email
+2. création / édition / suppression / duplication
+3. chargement depuis “Nouveau message”
+4. variables dynamiques de base
+5. rendu automatique selon contexte
+6. gestion propre des variables manquantes
+
+Avant de coder :
+1. analyser l’architecture actuelle de la boîte mail
+2. proposer où intégrer le module Templates email
+3. proposer la structure de données
+4. proposer la logique de rendu des variables
+5. proposer le plan d’implémentation
+
+Puis implémente.

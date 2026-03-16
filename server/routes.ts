@@ -14299,6 +14299,83 @@ app.get("/config/feature-flags", async (_req, res) => {
   });
 
   // ============================================
+  // EMAIL TEMPLATES
+  // ============================================
+
+  app.get("/api/email-templates", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const templates = await storage.getEmailTemplates(req.accountId!);
+      res.json(templates);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/email-templates/:id", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const template = await storage.getEmailTemplate(req.params.id);
+      if (!template || template.accountId !== req.accountId) return res.status(404).json({ error: "Not found" });
+      res.json(template);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/email-templates", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { insertEmailTemplateSchema } = await import("@shared/schema");
+      const data = insertEmailTemplateSchema.parse({ ...req.body, accountId: req.accountId!, createdBy: req.userId });
+      const template = await storage.createEmailTemplate(data);
+      res.json(template);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  app.patch("/api/email-templates/:id", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const existing = await storage.getEmailTemplate(req.params.id);
+      if (!existing || existing.accountId !== req.accountId) return res.status(404).json({ error: "Not found" });
+      const updated = await storage.updateEmailTemplate(req.params.id, req.body);
+      res.json(updated);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  app.delete("/api/email-templates/:id", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const existing = await storage.getEmailTemplate(req.params.id);
+      if (!existing || existing.accountId !== req.accountId) return res.status(404).json({ error: "Not found" });
+      await storage.deleteEmailTemplate(req.params.id);
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/email-templates/:id/duplicate", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const existing = await storage.getEmailTemplate(req.params.id);
+      if (!existing || existing.accountId !== req.accountId) return res.status(404).json({ error: "Not found" });
+      const { insertEmailTemplateSchema } = await import("@shared/schema");
+      const data = insertEmailTemplateSchema.parse({
+        accountId: req.accountId!,
+        createdBy: req.userId,
+        name: `${existing.name} (copie)`,
+        category: existing.category,
+        subject: existing.subject,
+        body: existing.body,
+        description: existing.description,
+      });
+      const duplicate = await storage.createEmailTemplate(data);
+      res.json(duplicate);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // ============================================
   // SEED DATA (Development only)
   // ============================================
 

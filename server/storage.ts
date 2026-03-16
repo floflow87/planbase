@@ -44,6 +44,7 @@ import {
   type TreasuryCategory, type InsertTreasuryCategory,
   type TreasuryTransaction, type InsertTreasuryTransaction,
   type TreasurySettings, type InsertTreasurySettings,
+  type EmailTemplate, type InsertEmailTemplate, emailTemplates,
   type TreasuryScenario, type InsertTreasuryScenario,
   type CrmEmailMessage, type InsertCrmEmailMessage,
   type CrmEmailParticipant, type InsertCrmEmailParticipant,
@@ -417,6 +418,13 @@ export interface IStorage {
   // Treasury Settings
   getTreasurySettings(accountId: string): Promise<TreasurySettings | undefined>;
   upsertTreasurySettings(settings: InsertTreasurySettings): Promise<TreasurySettings>;
+
+  // Email Templates
+  getEmailTemplates(accountId: string): Promise<EmailTemplate[]>;
+  getEmailTemplate(id: string): Promise<EmailTemplate | undefined>;
+  createEmailTemplate(data: InsertEmailTemplate): Promise<EmailTemplate>;
+  updateEmailTemplate(id: string, data: Partial<InsertEmailTemplate>): Promise<EmailTemplate | undefined>;
+  deleteEmailTemplate(id: string): Promise<void>;
 
   // Treasury Scenarios
   getTreasuryScenariosByAccountId(accountId: string): Promise<TreasuryScenario[]>;
@@ -2630,6 +2638,31 @@ export class DatabaseStorage implements IStorage {
       .onConflictDoUpdate({ target: treasurySettings.accountId, set: { ...settingsData, updatedAt: new Date() } })
       .returning();
     return upserted;
+  }
+
+  // ── Email Templates ──
+  async getEmailTemplates(accountId: string): Promise<EmailTemplate[]> {
+    return db.select().from(emailTemplates)
+      .where(eq(emailTemplates.accountId, accountId))
+      .orderBy(emailTemplates.name);
+  }
+  async getEmailTemplate(id: string): Promise<EmailTemplate | undefined> {
+    const [row] = await db.select().from(emailTemplates).where(eq(emailTemplates.id, id));
+    return row;
+  }
+  async createEmailTemplate(data: InsertEmailTemplate): Promise<EmailTemplate> {
+    const [row] = await db.insert(emailTemplates).values(data).returning();
+    return row;
+  }
+  async updateEmailTemplate(id: string, data: Partial<InsertEmailTemplate>): Promise<EmailTemplate | undefined> {
+    const [row] = await db.update(emailTemplates)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(emailTemplates.id, id))
+      .returning();
+    return row;
+  }
+  async deleteEmailTemplate(id: string): Promise<void> {
+    await db.delete(emailTemplates).where(eq(emailTemplates.id, id));
   }
 
   // ── Treasury Scenarios ──
