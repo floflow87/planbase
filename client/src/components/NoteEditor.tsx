@@ -18,6 +18,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import ResizableImageExtension from 'tiptap-extension-resize-image';
 import { SlashCommands } from '@/components/SlashCommands';
 import { Details, DetailsSummary, DetailsContent } from '@/components/DetailsExtension';
+import { MermaidBlock, hasMermaidBlock, extractMermaidBlocks } from '@/components/MermaidBlock';
 import { 
   Bold, 
   Italic, 
@@ -211,6 +212,10 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
   const [entityType, setEntityType] = useState<'project' | 'task' | 'client' | null>(null);
   const [entitySearch, setEntitySearch] = useState('');
   
+  // Mermaid paste detection state
+  const [mermaidConfirmOpen, setMermaidConfirmOpen] = useState(false);
+  const [pendingMermaidPaste, setPendingMermaidPaste] = useState<{ code: string; fullText: string } | null>(null);
+
   // Format painter state
   interface CopiedFormat {
     bold: boolean;
@@ -300,6 +305,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       Details,
       DetailsSummary,
       DetailsContent,
+      MermaidBlock,
     ],
     content,
     editable,
@@ -313,6 +319,19 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     editorProps: {
       attributes: {
         class: `prose prose-sm max-w-none focus:outline-none min-h-[400px] ${borderless ? 'px-12 pt-4 pb-24' : 'p-4'}`,
+      },
+      handlePaste: (_view, event) => {
+        const text = event.clipboardData?.getData("text/plain") ?? "";
+        if (hasMermaidBlock(text)) {
+          event.preventDefault();
+          const blocks = extractMermaidBlocks(text);
+          if (blocks.length > 0) {
+            setPendingMermaidPaste({ code: blocks[0].code, fullText: text });
+            setMermaidConfirmOpen(true);
+          }
+          return true;
+        }
+        return false;
       },
       handleClick: (view, pos, event) => {
         const target = event.target as HTMLElement;
@@ -672,6 +691,24 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     setLinkUrl('');
     setLinkText('');
   }, [editor, linkUrl]);
+
+  const confirmInsertMermaid = useCallback(() => {
+    if (!editor || !pendingMermaidPaste) return;
+    editor
+      .chain()
+      .focus()
+      .insertContent({ type: "mermaidBlock", attrs: { code: pendingMermaidPaste.code } })
+      .run();
+    setPendingMermaidPaste(null);
+    setMermaidConfirmOpen(false);
+  }, [editor, pendingMermaidPaste]);
+
+  const rejectMermaidConvert = useCallback(() => {
+    if (!editor || !pendingMermaidPaste) return;
+    editor.chain().focus().insertContent(pendingMermaidPaste.fullText).run();
+    setPendingMermaidPaste(null);
+    setMermaidConfirmOpen(false);
+  }, [editor, pendingMermaidPaste]);
 
   // Image upload handler - converts to base64 for reliable storage
   const handleImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1892,6 +1929,33 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
             </Button>
             <Button onClick={handleSetLink} data-testid="button-save-link">
               {linkUrl ? 'Ajouter' : 'Supprimer le lien'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mermaid Confirmation Dialog */}
+      <Dialog open={mermaidConfirmOpen} onOpenChange={v => { if (!v) { rejectMermaidConvert(); } }}>
+        <DialogContent data-testid="dialog-mermaid-confirm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              Diagramme Mermaid détecté
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              Un bloc Mermaid a été détecté dans le texte collé. Voulez-vous le rendre sous forme de diagramme interactif ?
+            </DialogDescription>
+          </DialogHeader>
+          {pendingMermaidPaste && (
+            <div className="rounded-md border bg-muted/50 px-3 py-2 font-mono text-xs text-muted-foreground max-h-32 overflow-auto whitespace-pre-wrap">
+              {pendingMermaidPaste.code}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={rejectMermaidConvert} data-testid="button-mermaid-paste-raw">
+              Coller tel quel
+            </Button>
+            <Button onClick={confirmInsertMermaid} data-testid="button-mermaid-render">
+              Afficher le diagramme
             </Button>
           </DialogFooter>
         </DialogContent>
