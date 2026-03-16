@@ -19,11 +19,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { 
   Loader2, User, Mail, Briefcase, UserCircle, Phone, Building2, Lock, Eye, EyeOff, 
   Settings as SettingsIcon, Puzzle, Shield, Clock, AlertTriangle, Save, RotateCcw, 
-  DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check, Users, Trash2, CreditCard, Camera
+  DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check, Users, Trash2, CreditCard, Camera, LayoutTemplate
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PermissionsTab } from "@/components/settings/PermissionsTab";
 import { IntegrationsTab } from "@/components/settings/IntegrationsTab";
+import { EmailTemplatesTab } from "@/pages/email-templates";
 import { AuditTab } from "@/components/settings/AuditTab";
 import { SubscriptionTab } from "@/components/settings/SubscriptionTab";
 import { USER_PROFILES, type UserProfileType } from "@shared/userProfiles";
@@ -1108,6 +1109,10 @@ export default function Settings() {
               <Puzzle className="w-3.5 h-3.5" />
               Intégrations
             </TabsTrigger>
+            <TabsTrigger value="templates" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-templates">
+              <LayoutTemplate className="w-3.5 h-3.5" />
+              Templates
+            </TabsTrigger>
             <TabsTrigger value="security" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-security">
               <Shield className="w-3.5 h-3.5" />
               Sécurité
@@ -1593,6 +1598,10 @@ export default function Settings() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="templates" className="p-0 -mx-0 overflow-hidden rounded-lg border bg-background" style={{ minHeight: 500 }}>
+            <EmailTemplatesTab />
           </TabsContent>
 
           <TabsContent value="security" className="space-y-4">

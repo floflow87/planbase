@@ -219,6 +219,10 @@ function TemplatePreview({ subject, body }: { subject: string; body: string }) {
   );
 }
 
+export function EmailTemplatesTab() {
+  return <EmailTemplates />;
+}
+
 export default function EmailTemplates() {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
