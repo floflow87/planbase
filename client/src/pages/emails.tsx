@@ -130,6 +130,19 @@ function decodeHTMLEntities(str: string | null | undefined): string {
     .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
 }
 
+function enhanceEmailHtml(html: string): string {
+  const css = `<style>
+a { color: #7C3AED !important; text-decoration: underline !important; }
+img { max-width: 100% !important; height: auto !important; display: inline !important; }
+body { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.5; }
+</style>
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">`;
+  if (/<head[^>]*>/i.test(html)) {
+    return html.replace(/<head[^>]*>/i, m => `${m}${css}`);
+  }
+  return `${css}${html}`;
+}
+
 function formatEmailDate(dateStr: string): string {
   const date = new Date(dateStr);
   if (isToday(date)) return format(date, "HH:mm");
@@ -1101,7 +1114,7 @@ export default function Emails() {
                             </span>
                           </div>
                         </div>
-                        <p className="text-[11px] truncate leading-tight font-semibold text-foreground/90">
+                        <p className={cn("text-[11px] truncate leading-tight text-foreground/90", isUnread ? "font-semibold" : "font-normal")}>
                           {decodeHTMLEntities(msg.subject) || "(Sans objet)"}
                         </p>
                         <p className="text-[10px] text-muted-foreground truncate mt-0.5 leading-relaxed">
@@ -1516,8 +1529,8 @@ export default function Emails() {
             <div className="flex-1 overflow-hidden bg-white dark:bg-background">
               {selected.bodyHtml ? (
                 <iframe
-                  srcDoc={selected.bodyHtml}
-                  sandbox="allow-same-origin allow-popups"
+                  srcDoc={enhanceEmailHtml(selected.bodyHtml)}
+                  sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
                   className="w-full h-full border-0"
                   title="Email content"
                   data-testid="email-body-iframe"

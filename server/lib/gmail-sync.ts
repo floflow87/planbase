@@ -207,6 +207,38 @@ function extractHtmlBody(payload: Record<string, unknown> | undefined): string {
   return "";
 }
 
+function extractInlineImages(payload: Record<string, unknown> | undefined): Map<string, string> {
+  const images = new Map<string, string>();
+  if (!payload) return images;
+  const parts = payload.parts as Array<Record<string, unknown>> | undefined;
+  if (parts) {
+    for (const part of parts) {
+      const mimeType = part.mimeType as string | undefined;
+      const headers = part.headers as Array<{ name: string; value: string }> | undefined;
+      const contentId = headers?.find(h => h.name.toLowerCase() === "content-id")?.value;
+      const body = part.body as Record<string, unknown> | undefined;
+      if (contentId && mimeType?.startsWith("image/") && body?.data) {
+        const cid = contentId.replace(/^<|>$/g, "");
+        const base64 = (body.data as string).replace(/-/g, "+").replace(/_/g, "/");
+        images.set(cid, `data:${mimeType};base64,${base64}`);
+      }
+      const subImages = extractInlineImages(part);
+      subImages.forEach((v, k) => images.set(k, v));
+    }
+  }
+  return images;
+}
+
+function resolveInlineImages(html: string, images: Map<string, string>): string {
+  if (images.size === 0) return html;
+  let result = html;
+  images.forEach((dataUrl, cid) => {
+    const escaped = cid.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    result = result.replace(new RegExp(`cid:${escaped}`, "gi"), dataUrl);
+  });
+  return result;
+}
+
 function hasCalendarPart(payload: Record<string, unknown> | undefined): boolean {
   if (!payload) return false;
   if (payload.mimeType === "text/calendar") return true;
@@ -270,7 +302,9 @@ export function parseMessage(msg: Record<string, unknown>, userEmail: string): G
   const sentAt = dateStr ? new Date(dateStr) : new Date();
 
   const bodyText = extractTextBody(payload as Record<string, unknown> | undefined);
-  const bodyHtml = extractHtmlBody(payload as Record<string, unknown> | undefined);
+  const rawBodyHtml = extractHtmlBody(payload as Record<string, unknown> | undefined);
+  const inlineImages = extractInlineImages(payload as Record<string, unknown> | undefined);
+  const bodyHtml = resolveInlineImages(rawBodyHtml, inlineImages);
 
   const hasAttachments = detectAttachments(payload as Record<string, unknown> | undefined);
   const isCalendarInvite = hasCalendarPart(payload as Record<string, unknown> | undefined);
