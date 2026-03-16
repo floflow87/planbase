@@ -187,6 +187,9 @@ function SignatureRichEditor({ value, onChange, placeholder, testId }: {
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLInputElement>(null);
+  const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
+  const [imgWidth, setImgWidth] = useState(200);
+  const [hexInput, setHexInput] = useState('');
 
   useEffect(() => {
     if (editorRef.current) {
@@ -198,6 +201,30 @@ function SignatureRichEditor({ value, onChange, placeholder, testId }: {
     editorRef.current?.focus();
     document.execCommand(cmd, false, val);
     if (editorRef.current) onChange(editorRef.current.innerHTML);
+  };
+
+  const applyHex = () => {
+    const hex = hexInput.startsWith('#') ? hexInput : `#${hexInput}`;
+    if (/^#[0-9A-Fa-f]{6}$/.test(hex)) exec('foreColor', hex);
+  };
+
+  const handleWidthChange = (w: number) => {
+    setImgWidth(w);
+    if (selectedImg) {
+      selectedImg.style.width = `${w}px`;
+      selectedImg.style.height = 'auto';
+      if (editorRef.current) onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  const handleEditorClick = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).tagName === 'IMG') {
+      const img = e.target as HTMLImageElement;
+      setSelectedImg(img);
+      setImgWidth(img.offsetWidth || 200);
+    } else {
+      setSelectedImg(null);
+    }
   };
 
   const COLORS = ['#000000', '#7C3AED', '#2563EB', '#DC2626', '#16A34A', '#D97706', '#DB2777'];
@@ -224,6 +251,25 @@ function SignatureRichEditor({ value, onChange, placeholder, testId }: {
             onMouseDown={(e) => { e.preventDefault(); exec('foreColor', color); }}
           />
         ))}
+        <div className="flex items-center gap-0.5 ml-0.5">
+          <span className="text-[9px] text-muted-foreground font-mono">#</span>
+          <input
+            type="text"
+            maxLength={6}
+            placeholder="hex"
+            value={hexInput}
+            onChange={(e) => setHexInput(e.target.value.replace(/[^0-9A-Fa-f]/g, '').slice(0, 6))}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyHex(); } }}
+            className="w-10 h-5 text-[9px] px-1 border rounded bg-background font-mono outline-none focus:ring-1 focus:ring-ring"
+          />
+          <button
+            type="button"
+            className="w-5 h-5 rounded-sm border border-border/50 shrink-0"
+            style={{ backgroundColor: hexInput.length === 6 ? `#${hexInput}` : '#ffffff' }}
+            onMouseDown={(e) => { e.preventDefault(); applyHex(); }}
+            title="Appliquer la couleur"
+          />
+        </div>
         <div className="w-px h-4 bg-border mx-0.5" />
         <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onMouseDown={(e) => { e.preventDefault(); imgRef.current?.click(); }} title="Insérer une image">
           <ImageIcon className="h-3 w-3" />
@@ -239,18 +285,40 @@ function SignatureRichEditor({ value, onChange, placeholder, testId }: {
             const reader = new FileReader();
             reader.onload = () => {
               editorRef.current?.focus();
-              document.execCommand('insertHTML', false, `<img src="${reader.result}" style="max-width:200px;height:auto;display:block;margin:4px 0;" />`);
+              document.execCommand('insertHTML', false, `<img src="${reader.result}" style="width:200px;height:auto;display:block;margin:4px 0;" />`);
               if (editorRef.current) onChange(editorRef.current.innerHTML);
             };
             reader.readAsDataURL(file);
             e.target.value = '';
           }}
         />
+        {selectedImg && (
+          <div className="flex items-center gap-1 w-full pt-1 border-t mt-0.5">
+            <ImageIcon className="h-3 w-3 text-muted-foreground shrink-0" />
+            <input
+              type="range"
+              min={20}
+              max={500}
+              value={imgWidth}
+              onChange={(e) => handleWidthChange(Number(e.target.value))}
+              className="flex-1 h-2 accent-primary"
+            />
+            <span className="text-[9px] text-muted-foreground w-12 text-right font-mono">{imgWidth}px</span>
+            <button
+              type="button"
+              className="text-[9px] text-muted-foreground hover:text-foreground"
+              onMouseDown={(e) => { e.preventDefault(); setSelectedImg(null); }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
       </div>
       <div
         ref={editorRef}
         contentEditable
         suppressContentEditableWarning
+        onClick={handleEditorClick}
         onInput={() => { if (editorRef.current) onChange(editorRef.current.innerHTML); }}
         className="text-xs min-h-[100px] p-2 outline-none"
         data-testid={testId}
@@ -1181,9 +1249,35 @@ export default function Emails() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1 mb-0.5">
-                          <span className="text-[11px] truncate leading-none font-semibold text-foreground">
-                            {msg.direction === "sent" ? "Moi" : (decodeHTMLEntities(msg.fromName) || msg.fromEmail)}
-                          </span>
+                          <div className="flex items-center gap-1 min-w-0 flex-1">
+                            <span className="text-[11px] truncate leading-none font-semibold text-foreground">
+                              {msg.direction === "sent" ? "Moi" : (decodeHTMLEntities(msg.fromName) || msg.fromEmail)}
+                            </span>
+                            {msg.direction === "sent" && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800 text-[9px] px-1 py-0 h-3.5 cursor-default shrink-0">
+                                    <Send className="w-1.5 h-1.5" />
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className={WT}>
+                                  Envoyé le {format(new Date(msg.sentAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                            {msg.direction === "sent" && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800 text-[9px] px-1 py-0 h-3.5 cursor-default shrink-0">
+                                    <MailCheck className="w-1.5 h-1.5" />
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className={WT}>
+                                  Livré le {format(new Date(msg.sentAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
                           <div className="flex items-center gap-1 shrink-0">
                             {msg.isDraft === 1 && (
                               <Badge variant="secondary" className="text-[9px] px-1 py-0 h-3.5">
@@ -1209,7 +1303,7 @@ export default function Emails() {
                         <p className="text-[10px] text-muted-foreground truncate mt-0.5 leading-relaxed">
                           {decodeHTMLEntities(msg.snippet)}
                         </p>
-                        {(msg.hasAttachments === 1 || msg.direction === "sent" || msg.linkedClientName || (msg.tags && msg.tags.length > 0)) && (
+                        {(msg.linkedClientName || (msg.tags && msg.tags.length > 0)) && (
                           <div className="flex gap-1 mt-1 flex-wrap">
                             {msg.linkedClientName && (
                               <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-violet-200 text-violet-700 dark:border-violet-700 dark:text-violet-400 max-w-[80px] truncate" title={msg.linkedClientName}>
@@ -1221,35 +1315,6 @@ export default function Emails() {
                                 <Tag className="w-1.5 h-1.5 mr-0.5 shrink-0" /><span className="truncate">{tag}</span>
                               </Badge>
                             ))}
-                            {msg.direction === "sent" && (
-                              <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800 text-[10px] px-1 py-0 h-4">
-                                <Send className="w-2 h-2 mr-0.5" />Envoyé
-                              </Badge>
-                            )}
-                            {msg.direction === "sent" && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800 text-[10px] px-1 py-0 h-4 cursor-default">
-                                    <MailCheck className="w-2 h-2" />
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent className={WT}>
-                                  Livré le {format(new Date(msg.sentAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                            {msg.direction === "sent" && msg.openedAt && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800 text-[10px] px-1 py-0 h-4 cursor-default">
-                                    <CheckCheck className="w-2 h-2 mr-0.5" />Lu
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent className={WT}>
-                                  Lu le {format(new Date(msg.openedAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
                           </div>
                         )}
                       </div>
@@ -1436,9 +1501,16 @@ export default function Emails() {
                   )}
                   {selected.direction === "sent" && (
                     <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800 text-[10px] h-4 px-1">
-                        <Send className="w-2 h-2 mr-0.5" />Envoyé
-                      </Badge>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800 text-[10px] h-4 px-1 cursor-default">
+                            <Send className="w-2 h-2" />
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent className={WT}>
+                          Envoyé le {format(new Date(selected.sentAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                        </TooltipContent>
+                      </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Badge className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800 text-[10px] h-4 px-1 cursor-default">
