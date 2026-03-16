@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { EmailComposeModal } from "@/components/EmailComposeModal";
@@ -35,6 +34,7 @@ import {
   ChevronLeft, MoreHorizontal, UserPlus, Archive, ArchiveRestore,
   ClipboardList, FileText, ChevronDown, Download, Building2,
   Tag, Clock, FileEdit, CheckCheck, Link2,
+  Bold, Italic, Underline, ImageIcon,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
@@ -178,6 +178,86 @@ function AvatarCircle({ name, email }: { name: string | null; email: string }) {
 const WT = "bg-white text-gray-900 border border-gray-200 text-[10px] dark:bg-gray-900 dark:text-white dark:border-gray-700";
 
 type FilterType = "received" | "sent" | "drafts" | "scheduled" | "trash" | "archived";
+
+function SignatureRichEditor({ value, onChange, placeholder, testId }: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  testId?: string;
+}) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editorRef.current) {
+      editorRef.current.innerHTML = value;
+    }
+  }, []);
+
+  const exec = (cmd: string, val?: string) => {
+    editorRef.current?.focus();
+    document.execCommand(cmd, false, val);
+    if (editorRef.current) onChange(editorRef.current.innerHTML);
+  };
+
+  const COLORS = ['#000000', '#7C3AED', '#2563EB', '#DC2626', '#16A34A', '#D97706', '#DB2777'];
+
+  return (
+    <div className="border rounded-md overflow-hidden focus-within:ring-1 focus-within:ring-ring">
+      <div className="flex items-center gap-0.5 p-1 border-b bg-muted/30 flex-wrap">
+        <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onMouseDown={(e) => { e.preventDefault(); exec('bold'); }}>
+          <Bold className="h-3 w-3" />
+        </Button>
+        <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onMouseDown={(e) => { e.preventDefault(); exec('italic'); }}>
+          <Italic className="h-3 w-3" />
+        </Button>
+        <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onMouseDown={(e) => { e.preventDefault(); exec('underline'); }}>
+          <Underline className="h-3 w-3" />
+        </Button>
+        <div className="w-px h-4 bg-border mx-0.5" />
+        {COLORS.map(color => (
+          <button
+            key={color}
+            type="button"
+            className="w-3.5 h-3.5 rounded-sm border border-border/50 shrink-0"
+            style={{ backgroundColor: color }}
+            onMouseDown={(e) => { e.preventDefault(); exec('foreColor', color); }}
+          />
+        ))}
+        <div className="w-px h-4 bg-border mx-0.5" />
+        <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onMouseDown={(e) => { e.preventDefault(); imgRef.current?.click(); }} title="Insérer une image">
+          <ImageIcon className="h-3 w-3" />
+        </Button>
+        <input
+          ref={imgRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+              editorRef.current?.focus();
+              document.execCommand('insertHTML', false, `<img src="${reader.result}" style="max-width:200px;height:auto;display:block;margin:4px 0;" />`);
+              if (editorRef.current) onChange(editorRef.current.innerHTML);
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+          }}
+        />
+      </div>
+      <div
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={() => { if (editorRef.current) onChange(editorRef.current.innerHTML); }}
+        className="text-xs min-h-[100px] p-2 outline-none"
+        data-testid={testId}
+      />
+    </div>
+  );
+}
 
 export default function Emails() {
   const { toast } = useToast();
@@ -1120,9 +1200,12 @@ export default function Emails() {
                             </span>
                           </div>
                         </div>
-                        <p className={cn("text-[11px] truncate leading-tight text-foreground/90", isUnread ? "font-semibold" : "font-normal")}>
-                          {decodeHTMLEntities(msg.subject) || "(Sans objet)"}
-                        </p>
+                        <div className="flex items-center gap-1 min-w-0">
+                          <p className={cn("text-[11px] truncate leading-tight text-foreground/90 flex-1 min-w-0", isUnread ? "font-semibold" : "font-normal")}>
+                            {decodeHTMLEntities(msg.subject) || "(Sans objet)"}
+                          </p>
+                          {msg.hasAttachments === 1 && <Paperclip className="w-2.5 h-2.5 shrink-0 text-muted-foreground" />}
+                        </div>
                         <p className="text-[10px] text-muted-foreground truncate mt-0.5 leading-relaxed">
                           {decodeHTMLEntities(msg.snippet)}
                         </p>
@@ -1147,11 +1230,11 @@ export default function Emails() {
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Badge className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800 text-[10px] px-1 py-0 h-4 cursor-default">
-                                    <MailCheck className="w-2 h-2 mr-0.5" />Livré
+                                    <MailCheck className="w-2 h-2" />
                                   </Badge>
                                 </TooltipTrigger>
                                 <TooltipContent className={WT}>
-                                  {format(new Date(msg.sentAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}
+                                  Livré le {format(new Date(msg.sentAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}
                                 </TooltipContent>
                               </Tooltip>
                             )}
@@ -1166,11 +1249,6 @@ export default function Emails() {
                                   Lu le {format(new Date(msg.openedAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}
                                 </TooltipContent>
                               </Tooltip>
-                            )}
-                            {msg.hasAttachments === 1 && (
-                              <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
-                                <Paperclip className="w-2 h-2 mr-0.5" />PJ
-                              </Badge>
                             )}
                           </div>
                         )}
@@ -1357,9 +1435,33 @@ export default function Emails() {
                     <span className="text-[10px] text-muted-foreground">{selected.fromEmail}</span>
                   )}
                   {selected.direction === "sent" && (
-                    <Badge className="mt-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800 text-[10px] h-4 px-1">
-                      <Send className="w-2 h-2 mr-0.5" />Envoyé
-                    </Badge>
+                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800 text-[10px] h-4 px-1">
+                        <Send className="w-2 h-2 mr-0.5" />Envoyé
+                      </Badge>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800 text-[10px] h-4 px-1 cursor-default">
+                            <MailCheck className="w-2 h-2" />
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent className={WT}>
+                          Livré le {format(new Date(selected.sentAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                        </TooltipContent>
+                      </Tooltip>
+                      {selected.openedAt && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800 text-[10px] h-4 px-1 cursor-default">
+                              <CheckCheck className="w-2 h-2 mr-0.5" />Lu
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent className={WT}>
+                            Lu le {format(new Date(selected.openedAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -1414,32 +1516,6 @@ export default function Emails() {
                         </button>
                       </div>
                     </div>
-                  )}
-                </div>
-              )}
-              {selected.direction === "sent" && (
-                <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800 text-[10px] h-4 px-1 cursor-default">
-                        <MailCheck className="w-2.5 h-2.5 mr-0.5" />Livré
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent className={WT}>
-                      Livré le {format(new Date(selected.sentAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
-                    </TooltipContent>
-                  </Tooltip>
-                  {selected.openedAt && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Badge className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800 text-[10px] h-4 px-1 cursor-default">
-                          <CheckCheck className="w-2.5 h-2.5 mr-0.5" />Lu
-                        </Badge>
-                      </TooltipTrigger>
-                      <TooltipContent className={WT}>
-                        Lu le {format(new Date(selected.openedAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
-                      </TooltipContent>
-                    </Tooltip>
                   )}
                 </div>
               )}
@@ -1604,12 +1680,11 @@ export default function Emails() {
                 />
               </div>
               {sigDraft.useForNew && (
-                <Textarea
+                <SignatureRichEditor
                   value={sigDraft.newMessage}
-                  onChange={(e) => setSigDraft(d => ({ ...d, newMessage: e.target.value }))}
+                  onChange={(v) => setSigDraft(d => ({ ...d, newMessage: v }))}
                   placeholder="Votre signature..."
-                  className="text-xs resize-none min-h-[120px]"
-                  data-testid="textarea-signature-new"
+                  testId="editor-signature-new"
                 />
               )}
             </div>
@@ -1628,12 +1703,11 @@ export default function Emails() {
                 />
               </div>
               {sigDraft.useForReply && (
-                <Textarea
+                <SignatureRichEditor
                   value={sigDraft.reply}
-                  onChange={(e) => setSigDraft(d => ({ ...d, reply: e.target.value }))}
+                  onChange={(v) => setSigDraft(d => ({ ...d, reply: v }))}
                   placeholder="Votre signature pour les réponses..."
-                  className="text-xs resize-none min-h-[120px]"
-                  data-testid="textarea-signature-reply"
+                  testId="editor-signature-reply"
                 />
               )}
             </div>
