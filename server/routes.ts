@@ -7849,9 +7849,12 @@ app.get("/config/feature-flags", async (_req, res) => {
       const searchField = req.query.searchField as string | undefined;
       const crmFilter = req.query.crmFilter as string | undefined;
       const tagFilter = req.query.tagFilter as string | undefined;
+      console.log("📧 GET /api/gmail/messages", { accountId: req.accountId, userId: req.userId, direction, limit, offset });
       const messages = await storage.getEmailMessages(req.accountId!, req.userId!, limit, offset, direction, search, searchField, crmFilter, tagFilter);
+      console.log(`📧 Found ${messages.length} messages`);
       res.json(messages);
     } catch (error: any) {
+      console.error("📧 Error fetching messages:", error);
       res.status(500).json({ error: error.message });
     }
   });

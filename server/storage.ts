@@ -2016,21 +2016,22 @@ export class DatabaseStorage implements IStorage {
   async getEmailMessageCount(accountId: string, userId: string): Promise<number> {
     const result = await db.select({ count: sql<number>`count(*)` })
       .from(crmEmailMessages)
-      .where(and(eq(crmEmailMessages.accountId, accountId), eq(crmEmailMessages.userId, userId)));
+      .where(eq(crmEmailMessages.accountId, accountId));
     return Number(result[0]?.count || 0);
   }
 
   async getEmailMessage(accountId: string, userId: string, id: string): Promise<typeof crmEmailMessages.$inferSelect | undefined> {
     const [msg] = await db.select().from(crmEmailMessages).where(
-      and(eq(crmEmailMessages.accountId, accountId), eq(crmEmailMessages.userId, userId), eq(crmEmailMessages.id, id))
+      and(eq(crmEmailMessages.accountId, accountId), eq(crmEmailMessages.id, id))
     );
     return msg;
   }
 
   async getEmailMessages(accountId: string, userId: string, limit = 50, offset = 0, direction?: string, search?: string, searchField?: string, crmFilter?: string, tagFilter?: string): Promise<Array<typeof crmEmailMessages.$inferSelect & { linkedClientId: string | null; linkedClientName: string | null; linkedClientLogoUrl: string | null }>> {
+    const totalRaw = await db.execute(sql`SELECT COUNT(*) as n FROM crm_email_messages WHERE account_id = ${accountId}::uuid`);
+    console.log("📧 DB total emails for account:", JSON.stringify(totalRaw.rows[0]), "| queried userId:", userId);
     const conditions = [
       eq(crmEmailMessages.accountId, accountId),
-      eq(crmEmailMessages.userId, userId),
     ];
     const notDraft = or(eq(crmEmailMessages.isDraft, 0), isNull(crmEmailMessages.isDraft))!;
     const notDeleted = or(eq(crmEmailMessages.isDeleted, 0), isNull(crmEmailMessages.isDeleted))!;
