@@ -2470,6 +2470,48 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Gmail email opened_at column added");
 
+    // Backfill column_id for tasks that don't have one
+    // 1. Tasks without a project: assign first global column (project_id IS NULL) for the account
+    await db.execute(sql`
+      UPDATE tasks t
+      SET column_id = (
+        SELECT tc.id FROM task_columns tc
+        WHERE tc.account_id = t.account_id
+          AND tc.project_id IS NULL
+        ORDER BY tc."order" ASC
+        LIMIT 1
+      )
+      WHERE t.column_id IS NULL
+        AND t.project_id IS NULL
+        AND EXISTS (
+          SELECT 1 FROM task_columns tc2
+          WHERE tc2.account_id = t.account_id AND tc2.project_id IS NULL
+        )
+    `);
+    // 2. Tasks with a project: assign first column for that project, fallback to first global column
+    await db.execute(sql`
+      UPDATE tasks t
+      SET column_id = COALESCE(
+        (
+          SELECT tc.id FROM task_columns tc
+          WHERE tc.account_id = t.account_id
+            AND tc.project_id = t.project_id
+          ORDER BY tc."order" ASC
+          LIMIT 1
+        ),
+        (
+          SELECT tc.id FROM task_columns tc
+          WHERE tc.account_id = t.account_id
+            AND tc.project_id IS NULL
+          ORDER BY tc."order" ASC
+          LIMIT 1
+        )
+      )
+      WHERE t.column_id IS NULL
+        AND t.project_id IS NOT NULL
+    `);
+    console.log("✅ Tasks column_id backfilled for existing tasks");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
