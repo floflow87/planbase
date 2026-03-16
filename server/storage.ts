@@ -57,7 +57,7 @@ import {
   crmEmailMessages, crmEmailParticipants, crmEmailLinks,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, like, ilike, desc, sql, isNull, inArray, gte, lte, asc } from "drizzle-orm";
+import { eq, and, or, like, ilike, desc, sql, isNull, isNotNull, inArray, gte, lte, asc } from "drizzle-orm";
 
 // Helper functions to access Google OAuth credentials from environment variables
 // Global credentials shared across all accounts for multi-tenant SaaS
@@ -2040,9 +2040,14 @@ export class DatabaseStorage implements IStorage {
       conditions.push(notDeleted);
       conditions.push(eq(crmEmailMessages.isArchived, 1));
       conditions.push(notDraft);
+    } else if (direction === 'scheduled') {
+      conditions.push(notDeleted);
+      conditions.push(eq(crmEmailMessages.isDraft, 1));
+      conditions.push(isNotNull(crmEmailMessages.scheduledAt));
     } else if (direction === 'drafts') {
       conditions.push(notDeleted);
       conditions.push(eq(crmEmailMessages.isDraft, 1));
+      conditions.push(isNull(crmEmailMessages.scheduledAt));
     } else {
       conditions.push(notDeleted);
       conditions.push(notArchived);

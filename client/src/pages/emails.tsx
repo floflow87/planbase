@@ -162,7 +162,7 @@ function AvatarCircle({ name, email }: { name: string | null; email: string }) {
 
 const WT = "bg-white text-gray-900 border border-gray-200 text-[10px] dark:bg-gray-900 dark:text-white dark:border-gray-700";
 
-type FilterType = "received" | "sent" | "drafts" | "trash" | "archived";
+type FilterType = "received" | "sent" | "drafts" | "scheduled" | "trash" | "archived";
 
 export default function Emails() {
   const { toast } = useToast();
@@ -597,11 +597,13 @@ export default function Emails() {
 
   function openReply(msg: EmailMessage) {
     const sig = loadSignature();
-    const signaturePart = sig.useForReply && sig.reply ? `\n\n-- \n${sig.reply}` : "";
+    const sigText = sig.useForReply && sig.reply ? sig.reply.replace(/\n/g, '<br>') : "";
+    const signaturePart = sigText ? `<br><br>-- <br>${sigText}` : "";
+    const bodyText = (decodeHTMLEntities(msg.bodyText) || "").replace(/\n/g, '<br>');
     setComposeInitial({
       to: msg.fromEmail,
       subject: `Re: ${decodeHTMLEntities(msg.subject) || ""}`,
-      body: `${signaturePart}\n\n---\nDe : ${msg.fromName || msg.fromEmail}\nDate : ${format(new Date(msg.sentAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n\n${decodeHTMLEntities(msg.bodyText) || ""}`,
+      body: `${signaturePart}<br><br>---<br>De&nbsp;: ${msg.fromName || msg.fromEmail}<br>Date&nbsp;: ${format(new Date(msg.sentAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}<br><br>${bodyText}`,
       replyToMessageId: msg.gmailMessageId,
       threadId: msg.gmailThreadId || undefined,
     });
@@ -610,18 +612,21 @@ export default function Emails() {
 
   function openForward(msg: EmailMessage) {
     const sig = loadSignature();
-    const signaturePart = sig.useForReply && sig.reply ? `\n\n-- \n${sig.reply}` : "";
+    const sigText = sig.useForReply && sig.reply ? sig.reply.replace(/\n/g, '<br>') : "";
+    const signaturePart = sigText ? `<br><br>-- <br>${sigText}` : "";
+    const bodyText = (decodeHTMLEntities(msg.bodyText) || "").replace(/\n/g, '<br>');
     setComposeInitial({
       to: "",
       subject: `Fwd: ${decodeHTMLEntities(msg.subject) || ""}`,
-      body: `${signaturePart}\n\n---\nDe : ${msg.fromName || msg.fromEmail}\nDate : ${format(new Date(msg.sentAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}\nSujet : ${decodeHTMLEntities(msg.subject) || ""}\n\n${decodeHTMLEntities(msg.bodyText) || ""}`,
+      body: `${signaturePart}<br><br>---<br>De&nbsp;: ${msg.fromName || msg.fromEmail}<br>Date&nbsp;: ${format(new Date(msg.sentAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}<br>Sujet&nbsp;: ${decodeHTMLEntities(msg.subject) || ""}<br><br>${bodyText}`,
     });
     setComposeOpen(true);
   }
 
   function openNew() {
     const sig = loadSignature();
-    const signaturePart = sig.useForNew && sig.newMessage ? `\n\n-- \n${sig.newMessage}` : "";
+    const sigText = sig.useForNew && sig.newMessage ? sig.newMessage.replace(/\n/g, '<br>') : "";
+    const signaturePart = sigText ? `<br><br>-- <br>${sigText}` : "";
     setComposeInitial({ to: "", subject: "", body: signaturePart });
     setComposeOpen(true);
   }
@@ -656,6 +661,7 @@ export default function Emails() {
     { key: "received", label: "Reçus" },
     { key: "sent", label: "Envoyés" },
     { key: "drafts", label: "Brouillons" },
+    { key: "scheduled", label: "Programmé" },
     { key: "archived", label: "Archives" },
     { key: "trash", label: "Corbeille" },
   ];
