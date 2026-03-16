@@ -34,8 +34,9 @@ import {
   MailOpen, MailCheck, X, PanelRightClose, Settings, Send,
   ChevronLeft, MoreHorizontal, UserPlus, Archive, ArchiveRestore,
   ClipboardList, FileText, ChevronDown, Download, Building2,
-  Tag, Clock, FileEdit,
+  Tag, Clock, FileEdit, CheckCheck, Link2,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -60,6 +61,7 @@ interface EmailMessage {
   isDraft: number;
   scheduledAt: string | null;
   tags: string[] | null;
+  openedAt: string | null;
   hasAttachments: number;
   labels: string[] | null;
   linkedClientId: string | null;
@@ -205,6 +207,8 @@ export default function Emails() {
   const [isScheduling, setIsScheduling] = useState(false);
   const [tagInputOpen, setTagInputOpen] = useState(false);
   const [tagInput, setTagInput] = useState<string>("");
+  const [linkClientOpen, setLinkClientOpen] = useState(false);
+  const [linkClientSearch, setLinkClientSearch] = useState("");
   const limit = 50;
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
 
@@ -263,6 +267,8 @@ export default function Emails() {
   useEffect(() => {
     setTagInputOpen(false);
     setTagInput("");
+    setLinkClientOpen(false);
+    setLinkClientSearch("");
   }, [selected?.id]);
 
   const { data: crmContacts = [] } = useQuery<CrmContact[]>({
@@ -330,6 +336,22 @@ export default function Emails() {
       setTagInput("");
     },
     onError: () => toast({ title: "Erreur", description: "Mise à jour des tags échouée.", variant: "destructive" }),
+  });
+
+  const linkClientMutation = useMutation({
+    mutationFn: async ({ messageId, clientId }: { messageId: string; clientId: string | null }) => {
+      const res = await apiRequest(`/api/gmail/messages/${messageId}/link-client`, "PATCH", { clientId });
+      return res.json();
+    },
+    onSuccess: (_data: any, variables: { messageId: string; clientId: string | null }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
+      const client = allClients.find(c => c.id === variables.clientId);
+      setSelected(prev => prev && prev.id === variables.messageId ? { ...prev, linkedClientId: variables.clientId, linkedClientName: client?.name || null } : prev);
+      setLinkClientOpen(false);
+      setLinkClientSearch("");
+      toast({ title: "Client associé", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600" });
+    },
+    onError: () => toast({ title: "Erreur", description: "Association client échouée.", variant: "destructive" }),
   });
 
   const saveDraftMutation = useMutation({
@@ -1098,9 +1120,33 @@ export default function Emails() {
                               </Badge>
                             ))}
                             {msg.direction === "sent" && (
-                              <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
+                              <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800 text-[10px] px-1 py-0 h-4">
                                 <Send className="w-2 h-2 mr-0.5" />Envoyé
                               </Badge>
+                            )}
+                            {msg.direction === "sent" && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800 text-[10px] px-1 py-0 h-4 cursor-default">
+                                    <MailCheck className="w-2 h-2 mr-0.5" />Livré
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className={WT}>
+                                  {format(new Date(msg.sentAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                            {msg.direction === "sent" && msg.openedAt && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800 text-[10px] px-1 py-0 h-4 cursor-default">
+                                    <CheckCheck className="w-2 h-2 mr-0.5" />Lu
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className={WT}>
+                                  Lu le {format(new Date(msg.openedAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}
+                                </TooltipContent>
+                              </Tooltip>
                             )}
                             {msg.hasAttachments === 1 && (
                               <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
@@ -1241,6 +1287,10 @@ export default function Emails() {
                       <Tag className="w-3.5 h-3.5 mr-2" />
                       Étiquettes
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setLinkClientOpen(true); setLinkClientSearch(""); }} data-testid="button-link-client">
+                      <Link2 className="w-3.5 h-3.5 mr-2" />
+                      Associer à un client
+                    </DropdownMenuItem>
                     {!isTrash && !isArchived && !isDrafts && (
                       <DropdownMenuItem onClick={() => archiveMutation.mutate({ ids: [selected.id], archive: true })} data-testid="button-archive-single">
                         <Archive className="w-3.5 h-3.5 mr-2" />
@@ -1288,23 +1338,90 @@ export default function Emails() {
                     <span className="text-[10px] text-muted-foreground">{selected.fromEmail}</span>
                   )}
                   {selected.direction === "sent" && (
-                    <Badge variant="secondary" className="mt-1 text-[10px] h-4 px-1">
+                    <Badge className="mt-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800 text-[10px] h-4 px-1">
                       <Send className="w-2 h-2 mr-0.5" />Envoyé
                     </Badge>
                   )}
                 </div>
               </div>
-              {selected.linkedClientName && (
-                <div className="mt-1.5">
-                  <Badge variant="outline" className="text-[10px] border-violet-200 text-violet-700 dark:border-violet-700 dark:text-violet-400">
-                    <Building2 className="w-2.5 h-2.5 mr-1" />{selected.linkedClientName}
-                  </Badge>
+              {(selected.linkedClientName || linkClientOpen) && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  {selected.linkedClientName && (
+                    <Badge variant="outline" className="text-[10px] border-violet-200 text-violet-700 dark:border-violet-700 dark:text-violet-400">
+                      <Building2 className="w-2.5 h-2.5 mr-1" />{selected.linkedClientName}
+                      <button
+                        className="ml-1 opacity-50 hover:opacity-100"
+                        onClick={() => linkClientMutation.mutate({ messageId: selected.id, clientId: null })}
+                        data-testid="button-unlink-client"
+                      >
+                        <X className="w-2 h-2" />
+                      </button>
+                    </Badge>
+                  )}
+                  {linkClientOpen && (
+                    <div className="w-full mt-1 border rounded-md bg-popover shadow-sm p-1.5 max-h-48 overflow-y-auto">
+                      <Input
+                        autoFocus
+                        value={linkClientSearch}
+                        onChange={e => setLinkClientSearch(e.target.value)}
+                        placeholder="Rechercher un client..."
+                        className="h-6 text-[11px] px-2 mb-1"
+                        data-testid="input-search-client"
+                      />
+                      {allClients
+                        .filter(c => c.name.toLowerCase().includes(linkClientSearch.toLowerCase()))
+                        .slice(0, 8)
+                        .map(client => (
+                          <button
+                            key={client.id}
+                            className="w-full text-left text-[11px] px-2 py-1 rounded hover-elevate flex items-center gap-1.5"
+                            onClick={() => linkClientMutation.mutate({ messageId: selected.id, clientId: client.id })}
+                            data-testid={`button-select-client-${client.id}`}
+                          >
+                            <Building2 className="w-3 h-3 text-violet-500 shrink-0" />
+                            {client.name}
+                          </button>
+                        ))}
+                      {allClients.filter(c => c.name.toLowerCase().includes(linkClientSearch.toLowerCase())).length === 0 && (
+                        <p className="text-[10px] text-muted-foreground text-center py-2">Aucun client trouvé</p>
+                      )}
+                      <div className="mt-1 pt-1 border-t">
+                        <button
+                          className="w-full text-left text-[10px] text-muted-foreground px-2 py-0.5 rounded hover-elevate"
+                          onClick={() => { setLinkClientOpen(false); setLinkClientSearch(""); }}
+                          data-testid="button-cancel-link-client"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               {selected.direction === "sent" && (
-                <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-green-600 dark:text-green-400">
-                  <MailCheck className="w-3 h-3" />
-                  <span>Livré</span>
+                <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800 text-[10px] h-4 px-1 cursor-default">
+                        <MailCheck className="w-2.5 h-2.5 mr-0.5" />Livré
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent className={WT}>
+                      Livré le {format(new Date(selected.sentAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                    </TooltipContent>
+                  </Tooltip>
+                  {selected.openedAt && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800 text-[10px] h-4 px-1 cursor-default">
+                          <CheckCheck className="w-2.5 h-2.5 mr-0.5" />Lu
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent className={WT}>
+                        Lu le {format(new Date(selected.openedAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
                 </div>
               )}
               {/* Tags display */}

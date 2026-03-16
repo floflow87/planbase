@@ -7939,6 +7939,17 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  app.patch("/api/gmail/messages/:messageId/link-client", requireAuth, async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      const { clientId } = req.body;
+      await storage.linkEmailToClient(req.accountId!, messageId, clientId || null);
+      res.json({ updated: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/gmail/messages/draft", requireAuth, async (req, res) => {
     try {
       const { id, to, cc, bcc, subject, body, replyToMessageId, threadId } = req.body;

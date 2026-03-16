@@ -340,6 +340,7 @@ export interface IStorage {
   updateEmailTags(accountId: string, id: string, tags: string[]): Promise<void>;
   saveDraftEmail(accountId: string, userId: string, data: { to: string; cc?: string; bcc?: string; subject?: string; body?: string; replyToMessageId?: string; threadId?: string }): Promise<string>;
   scheduleEmail(accountId: string, id: string, scheduledAt: Date | null): Promise<void>;
+  linkEmailToClient(accountId: string, messageId: string, clientId: string | null): Promise<void>;
   getSyncInterval(accountId: string, userId: string): Promise<number>;
   setSyncInterval(accountId: string, userId: string, minutes: number): Promise<void>;
   markEmailsRead(accountId: string, ids: string[], isRead: boolean): Promise<void>;
@@ -2170,6 +2171,15 @@ export class DatabaseStorage implements IStorage {
     await db.update(crmEmailMessages)
       .set({ scheduledAt })
       .where(and(eq(crmEmailMessages.accountId, accountId), eq(crmEmailMessages.id, id)));
+  }
+
+  async linkEmailToClient(accountId: string, messageId: string, clientId: string | null): Promise<void> {
+    await db.delete(crmEmailLinks).where(
+      and(eq(crmEmailLinks.emailMessageId, messageId), isNotNull(crmEmailLinks.clientId))
+    );
+    if (clientId) {
+      await db.insert(crmEmailLinks).values({ emailMessageId: messageId, clientId, linkType: "client" });
+    }
   }
 
   async getSyncInterval(accountId: string, userId: string): Promise<number> {

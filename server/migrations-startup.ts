@@ -2464,6 +2464,12 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Gmail email NULL flags normalized to 0");
 
+    await db.execute(sql`
+      ALTER TABLE crm_email_messages
+      ADD COLUMN IF NOT EXISTS opened_at TIMESTAMPTZ;
+    `);
+    console.log("✅ Gmail email opened_at column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
