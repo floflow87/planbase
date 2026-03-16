@@ -2062,7 +2062,7 @@ export class DatabaseStorage implements IStorage {
       } else if (searchField === 'content') {
         searchCond = or(ilike(crmEmailMessages.bodyText, `%${search}%`), ilike(crmEmailMessages.snippet, `%${search}%`))!;
       } else if (searchField === 'company') {
-        searchCond = sql`EXISTS (SELECT 1 FROM crm_email_links cel JOIN clients cl ON cl.id = cel.client_id WHERE cel.email_message_id = ${crmEmailMessages.id} AND cl.name ILIKE ${'%' + search + '%'})`;
+        searchCond = sql`EXISTS (SELECT 1 FROM crm_email_links cel JOIN clients cl ON cl.id = cel.client_id WHERE cel.email_message_id = crm_email_messages.id AND cl.name ILIKE ${'%' + search + '%'})`;
       } else {
         searchCond = or(
           ilike(crmEmailMessages.subject, `%${search}%`),
@@ -2074,15 +2074,15 @@ export class DatabaseStorage implements IStorage {
       conditions.push(searchCond);
     }
     if (crmFilter === 'linked') {
-      conditions.push(sql`EXISTS (SELECT 1 FROM crm_email_links cel WHERE cel.email_message_id = ${crmEmailMessages.id})`);
+      conditions.push(sql`EXISTS (SELECT 1 FROM crm_email_links cel WHERE cel.email_message_id = crm_email_messages.id)`);
     } else if (crmFilter === 'unlinked') {
-      conditions.push(sql`NOT EXISTS (SELECT 1 FROM crm_email_links cel WHERE cel.email_message_id = ${crmEmailMessages.id})`);
+      conditions.push(sql`NOT EXISTS (SELECT 1 FROM crm_email_links cel WHERE cel.email_message_id = crm_email_messages.id)`);
     } else if (crmFilter && crmFilter !== 'all') {
       const clientFilterId = crmFilter;
-      conditions.push(sql`EXISTS (SELECT 1 FROM crm_email_links cel WHERE cel.email_message_id = ${crmEmailMessages.id} AND cel.client_id = ${clientFilterId}::uuid)`);
+      conditions.push(sql`EXISTS (SELECT 1 FROM crm_email_links cel WHERE cel.email_message_id = crm_email_messages.id AND cel.client_id = ${clientFilterId}::uuid)`);
     }
     if (tagFilter && tagFilter !== 'all') {
-      conditions.push(sql`${crmEmailMessages.tags} @> ARRAY[${tagFilter}]::TEXT[]`);
+      conditions.push(sql`crm_email_messages.tags @> ARRAY[${tagFilter}]::TEXT[]`);
     }
     const rows = await db.select({
       id: crmEmailMessages.id,
@@ -2107,9 +2107,9 @@ export class DatabaseStorage implements IStorage {
       hasAttachments: crmEmailMessages.hasAttachments,
       labels: crmEmailMessages.labels,
       syncedAt: crmEmailMessages.syncedAt,
-      linkedClientId: sql<string | null>`(SELECT cel.client_id::text FROM crm_email_links cel WHERE cel.email_message_id = ${crmEmailMessages.id} LIMIT 1)`,
-      linkedClientName: sql<string | null>`(SELECT cl.name FROM crm_email_links cel JOIN clients cl ON cl.id = cel.client_id WHERE cel.email_message_id = ${crmEmailMessages.id} LIMIT 1)`,
-      linkedClientLogoUrl: sql<string | null>`(SELECT cl.logo_url FROM crm_email_links cel JOIN clients cl ON cl.id = cel.client_id WHERE cel.email_message_id = ${crmEmailMessages.id} LIMIT 1)`,
+      linkedClientId: sql<string | null>`(SELECT cel.client_id::text FROM crm_email_links cel WHERE cel.email_message_id = crm_email_messages.id LIMIT 1)`,
+      linkedClientName: sql<string | null>`(SELECT cl.name FROM crm_email_links cel JOIN clients cl ON cl.id = cel.client_id WHERE cel.email_message_id = crm_email_messages.id LIMIT 1)`,
+      linkedClientLogoUrl: sql<string | null>`(SELECT cl.logo_url FROM crm_email_links cel JOIN clients cl ON cl.id = cel.client_id WHERE cel.email_message_id = crm_email_messages.id LIMIT 1)`,
     })
       .from(crmEmailMessages)
       .where(and(...conditions))

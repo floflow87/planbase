@@ -7850,6 +7850,9 @@ app.get("/config/feature-flags", async (_req, res) => {
       const crmFilter = req.query.crmFilter as string | undefined;
       const tagFilter = req.query.tagFilter as string | undefined;
       console.log("📧 GET /api/gmail/messages", { accountId: req.accountId, userId: req.userId, direction, limit, offset });
+      // Diagnostic: count emails by direction to understand what's in DB
+      const countResult = await db.execute(sql`SELECT direction, COUNT(*) as cnt FROM crm_email_messages WHERE account_id = ${req.accountId}::uuid GROUP BY direction`);
+      console.log("📧 DB email counts by direction:", countResult);
       const messages = await storage.getEmailMessages(req.accountId!, req.userId!, limit, offset, direction, search, searchField, crmFilter, tagFilter);
       console.log(`📧 Found ${messages.length} messages`);
       res.json(messages);
