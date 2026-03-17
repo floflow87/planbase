@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Filter, Download, LayoutGrid, Table2, Plus, MoreVertical, Edit, MessageSquare, Trash2, TrendingUp, Users as UsersIcon, Target, Euro, X, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Settings2, Phone, Mail, Building2, Columns3 } from "lucide-react";
+import { Search, Filter, Download, LayoutGrid, Table2, Plus, MoreVertical, Edit, MessageSquare, Trash2, TrendingUp, Users as UsersIcon, Target, Euro, X, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Settings2, Phone, Mail, Building2, Columns3, Eye, EyeOff } from "lucide-react";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -267,6 +267,8 @@ function DroppableKanbanColumn({
   projects,
   onEditClient,
   onDeleteClient,
+  isCollapsed,
+  onToggleCollapse,
 }: {
   status: typeof KANBAN_STATUSES[0];
   clients: Client[];
@@ -274,6 +276,8 @@ function DroppableKanbanColumn({
   projects: Project[];
   onEditClient: (client: Client) => void;
   onDeleteClient: (clientId: string) => void;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
 }) {
   const { isOver, setNodeRef } = useDroppable({
     id: `column-${status.id}`,
@@ -286,43 +290,90 @@ function DroppableKanbanColumn({
   }, 0);
 
   return (
-    <div className="flex flex-col min-w-[280px] max-w-[320px] flex-1" data-testid={`kanban-column-${status.id}`}>
-      <div className={`flex items-center justify-between p-3 rounded-t-lg border-b ${status.headerBg} border-border/30`}>
-        <div className="flex items-center gap-2">
-          <h3 className={`text-sm font-semibold ${status.textColor}`}>{status.label}</h3>
-          <Badge variant="secondary" className="text-xs h-5 px-1.5">{clients.length}</Badge>
-        </div>
-        <span className="text-xs font-medium text-muted-foreground">€ {totalBudget.toLocaleString()}</span>
-      </div>
-      
-      <div 
-        ref={setNodeRef}
-        className={`p-2 space-y-2 rounded-b-lg border ${status.color} min-h-[100px] max-h-[500px] overflow-y-auto transition-all ${isOver ? 'ring-2 ring-primary/50 scale-[1.02]' : ''}`}
-      >
-        {clients.map((client) => {
-          const clientContact = contacts.find((c: any) => c.clientId === client.id);
-          const clientProjects = projects.filter((p: any) => p.clientId === client.id);
-          const clientBudget = clientProjects.reduce((sum, p: Project) => sum + parseFloat(p.totalBilled || "0"), 0);
-          
-          return (
-            <DraggableKanbanCard
-              key={client.id}
-              client={client}
-              contact={clientContact}
-              totalBudget={clientBudget}
-              onEdit={() => onEditClient(client)}
-              onDelete={() => onDeleteClient(client.id)}
-              columnHex={status.hex}
-            />
-          );
-        })}
-        
-        {clients.length === 0 && (
-          <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">
-            Aucun client
+    <div
+      className={`flex flex-col ${isCollapsed ? 'w-[44px] min-w-[44px] max-w-[44px]' : 'min-w-[280px] max-w-[320px] flex-1'} transition-all duration-200`}
+      data-testid={`kanban-column-${status.id}`}
+    >
+      {/* Header */}
+      {isCollapsed ? (
+        /* Collapsed: vertical header */
+        <div
+          className={`flex flex-col items-center justify-between py-3 px-2 rounded-lg border ${status.headerBg} border-border/30 cursor-pointer h-full gap-3`}
+          onClick={onToggleCollapse}
+          data-testid={`kanban-column-header-collapsed-${status.id}`}
+        >
+          <button
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            onClick={(e) => { e.stopPropagation(); onToggleCollapse(); }}
+            data-testid={`button-toggle-column-${status.id}`}
+            title="Afficher la colonne"
+          >
+            <Eye className="w-3.5 h-3.5" />
+          </button>
+          <div className="flex flex-col items-center gap-2 flex-1 justify-center">
+            <span
+              className={`text-xs font-semibold ${status.textColor} whitespace-nowrap`}
+              style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+            >
+              {status.label}
+            </span>
+            <Badge variant="secondary" className="text-[10px] h-4 px-1 min-w-0">
+              {clients.length}
+            </Badge>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        /* Expanded: normal header */
+        <div className={`flex items-center justify-between p-3 rounded-t-lg border-b ${status.headerBg} border-border/30`}>
+          <div className="flex items-center gap-2">
+            <h3 className={`text-sm font-semibold ${status.textColor}`}>{status.label}</h3>
+            <Badge variant="secondary" className="text-xs h-5 px-1.5">{clients.length}</Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">€ {totalBudget.toLocaleString()}</span>
+            <button
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              onClick={onToggleCollapse}
+              data-testid={`button-toggle-column-${status.id}`}
+              title="Masquer la colonne"
+            >
+              <EyeOff className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Body — hidden when collapsed */}
+      {!isCollapsed && (
+        <div
+          ref={setNodeRef}
+          className={`p-2 space-y-2 rounded-b-lg border ${status.color} min-h-[100px] max-h-[500px] overflow-y-auto transition-all ${isOver ? 'ring-2 ring-primary/50 scale-[1.02]' : ''}`}
+        >
+          {clients.map((client) => {
+            const clientContact = contacts.find((c: any) => c.clientId === client.id);
+            const clientProjects = projects.filter((p: any) => p.clientId === client.id);
+            const clientBudget = clientProjects.reduce((sum, p: Project) => sum + parseFloat(p.totalBilled || "0"), 0);
+            
+            return (
+              <DraggableKanbanCard
+                key={client.id}
+                client={client}
+                contact={clientContact}
+                totalBudget={clientBudget}
+                onEdit={() => onEditClient(client)}
+                onDelete={() => onDeleteClient(client.id)}
+                columnHex={status.hex}
+              />
+            );
+          })}
+          
+          {clients.length === 0 && (
+            <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">
+              Aucun client
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -382,7 +433,22 @@ export default function CRM() {
   useEffect(() => {
     localStorage.setItem('crmKanbanColumnVisibility', JSON.stringify(kanbanColumnVisibility));
   }, [kanbanColumnVisibility]);
-  
+
+  // Kanban column collapsed state (show header only) with localStorage persistence
+  const [kanbanColumnCollapsed, setKanbanColumnCollapsed] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('crmKanbanColumnCollapsed');
+    if (saved) return JSON.parse(saved);
+    return {};
+  });
+
+  useEffect(() => {
+    localStorage.setItem('crmKanbanColumnCollapsed', JSON.stringify(kanbanColumnCollapsed));
+  }, [kanbanColumnCollapsed]);
+
+  const toggleColumnCollapse = (statusId: string) => {
+    setKanbanColumnCollapsed(prev => ({ ...prev, [statusId]: !prev[statusId] }));
+  };
+
   // Colonnes configurables (flex layout - pas de col-span)
   const [columns, setColumns] = useState<Column[]>([
     { id: "client", label: "Client", width: 1, className: "" },
@@ -1387,6 +1453,8 @@ export default function CRM() {
                               setClientToDelete(clientId);
                               setIsDeleteDialogOpen(true);
                             }}
+                            isCollapsed={!!kanbanColumnCollapsed[status.id]}
+                            onToggleCollapse={() => toggleColumnCollapse(status.id)}
                           />
                         );
                       })}

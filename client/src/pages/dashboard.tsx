@@ -2234,7 +2234,7 @@ export default function Dashboard() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-5 my-1.5">
+              <div className="flex items-center gap-5 my-3">
                 <label className="flex items-center gap-1.5 cursor-pointer select-none" data-testid="toggle-forecast" title="Afficher les échéances de paiements non encaissés des projets signés.">
                   <Switch
                     checked={showForecast}
@@ -2700,7 +2700,7 @@ export default function Dashboard() {
                                 const { bgColor, textColor } = getColorVariants(currentColumn.color);
                                 return (
                                   <Badge
-                                    className="cursor-pointer hover-elevate text-xs border-0"
+                                    className="cursor-pointer hover-elevate text-[10px] px-1.5 py-0 border-0"
                                     style={{
                                       backgroundColor: bgColor,
                                       color: textColor,
@@ -2712,7 +2712,7 @@ export default function Dashboard() {
                                 );
                               })() : (
                                 <Badge
-                                  className="cursor-pointer hover-elevate text-xs border-0"
+                                  className="cursor-pointer hover-elevate text-[10px] px-1.5 py-0 border-0"
                                   data-testid={`badge-status-${task.id}`}
                                 >
                                   Aucun
