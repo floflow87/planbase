@@ -19,7 +19,7 @@ import ResizableImageExtension from 'tiptap-extension-resize-image';
 import { SlashCommands } from '@/components/SlashCommands';
 import { Details, DetailsSummary, DetailsContent } from '@/components/DetailsExtension';
 import { MermaidBlock, hasMermaidBlock, extractMermaidBlocks } from '@/components/MermaidBlock';
-import { SearchReplaceExtension, getSearchPluginState } from '@/components/SearchReplaceExtension';
+import { SearchReplaceExtension, searchPluginKey } from '@/components/SearchReplaceExtension';
 import { 
   Bold, 
   Italic, 
@@ -223,6 +223,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
   const [findTerm, setFindTerm] = useState('');
   const [replaceTerm, setReplaceTerm] = useState('');
   const findInputRef = useRef<HTMLInputElement>(null);
+  const [searchVersion, setSearchVersion] = useState(0); // bumped to force re-render on nav
 
   // Format painter state
   interface CopiedFormat {
@@ -645,7 +646,10 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
         setFindOpen(false);
         setFindTerm('');
         setReplaceTerm('');
-        if (editor) (editor as any).commands.srClearTerm();
+        if (editor) {
+          const clearTr = editor.state.tr.setMeta(searchPluginKey, { term: '', currentIndex: 0 });
+          editor.view.dispatch(clearTr);
+        }
       }
     };
     window.addEventListener('keydown', handleKey);
@@ -654,22 +658,34 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
 
   useEffect(() => {
     if (!editor) return;
-    if (findTerm) {
-      (editor as any).commands.srSetTerm(findTerm);
-    } else {
-      (editor as any).commands.srClearTerm();
-    }
+    const tr = editor.state.tr.setMeta(searchPluginKey, { term: findTerm ?? '', currentIndex: 0 });
+    editor.view.dispatch(tr);
+    setSearchVersion(v => v + 1);
   }, [editor, findTerm]);
 
-  const searchState = editor ? getSearchPluginState(editor) : null;
+  // Read plugin state fresh every render (searchVersion forces re-render on nav)
+  const searchState = editor ? searchPluginKey.getState(editor.view.state) : null;
   const matchCount = searchState?.matches.length ?? 0;
   const currentMatchIdx = (searchState?.currentIndex ?? 0) + 1;
+
+  function dispatchSearchNav(delta: 1 | -1) {
+    if (!editor) return;
+    const ps = searchPluginKey.getState(editor.view.state);
+    if (!ps || ps.matches.length === 0) return;
+    const next = (ps.currentIndex + delta + ps.matches.length) % ps.matches.length;
+    const tr = editor.state.tr.setMeta(searchPluginKey, { currentIndex: next });
+    editor.view.dispatch(tr);
+    setSearchVersion(v => v + 1);
+  }
 
   function closeFindBar() {
     setFindOpen(false);
     setFindTerm('');
     setReplaceTerm('');
-    if (editor) (editor as any).commands.srClearTerm();
+    if (editor) {
+      const tr = editor.state.tr.setMeta(searchPluginKey, { term: '', currentIndex: 0 });
+      editor.view.dispatch(tr);
+    }
   }
 
   useEffect(() => {
@@ -1009,7 +1025,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  (editor as any)?.commands.srFindNext();
+                  dispatchSearchNav(e.shiftKey ? -1 : 1);
                 }
               }}
               placeholder="Rechercher…"
@@ -1022,7 +1038,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
             </span>
             {/* Prev */}
             <button
-              onClick={() => (editor as any)?.commands.srFindPrev()}
+              onClick={() => dispatchSearchNav(-1)}
               disabled={matchCount === 0}
               title="Précédent (Shift+Entrée)"
               className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30"
@@ -1032,7 +1048,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
             </button>
             {/* Next */}
             <button
-              onClick={() => (editor as any)?.commands.srFindNext()}
+              onClick={() => dispatchSearchNav(1)}
               disabled={matchCount === 0}
               title="Suivant (Entrée)"
               className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30"
@@ -1072,7 +1088,21 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                 data-testid="input-replace-term"
               />
               <button
-                onClick={() => (editor as any)?.commands.srReplaceOne(replaceTerm)}
+                onClick={() => {
+                  if (!editor) return;
+                  const ps = searchPluginKey.getState(editor.view.state);
+                  if (!ps || ps.matches.length === 0) return;
+                  const match = ps.matches[ps.currentIndex];
+                  if (!match) return;
+                  const tr = editor.state.tr;
+                  if (replaceTerm) {
+                    tr.replaceWith(match.from, match.to, editor.state.schema.text(replaceTerm));
+                  } else {
+                    tr.delete(match.from, match.to);
+                  }
+                  editor.view.dispatch(tr);
+                  setSearchVersion(v => v + 1);
+                }}
                 disabled={matchCount === 0}
                 title="Remplacer"
                 className="text-[10px] px-2 h-7 rounded bg-muted hover:bg-accent text-foreground disabled:opacity-30 whitespace-nowrap font-medium"
@@ -1081,7 +1111,24 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                 Remplacer
               </button>
               <button
-                onClick={() => { (editor as any)?.commands.srReplaceAll(replaceTerm); setFindTerm(''); }}
+                onClick={() => {
+                  if (!editor) return;
+                  const ps = searchPluginKey.getState(editor.view.state);
+                  if (!ps || ps.matches.length === 0) return;
+                  const reversed = [...ps.matches].reverse();
+                  const tr = editor.state.tr;
+                  for (const m of reversed) {
+                    if (replaceTerm) {
+                      tr.replaceWith(m.from, m.to, editor.state.schema.text(replaceTerm));
+                    } else {
+                      tr.delete(m.from, m.to);
+                    }
+                  }
+                  tr.setMeta(searchPluginKey, { term: '', currentIndex: 0 });
+                  editor.view.dispatch(tr);
+                  setFindTerm('');
+                  setSearchVersion(v => v + 1);
+                }}
                 disabled={matchCount === 0}
                 title="Remplacer tout"
                 className="text-[10px] px-2 h-7 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 whitespace-nowrap font-medium"
