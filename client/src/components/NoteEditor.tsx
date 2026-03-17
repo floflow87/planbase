@@ -19,6 +19,7 @@ import ResizableImageExtension from 'tiptap-extension-resize-image';
 import { SlashCommands } from '@/components/SlashCommands';
 import { Details, DetailsSummary, DetailsContent } from '@/components/DetailsExtension';
 import { MermaidBlock, hasMermaidBlock, extractMermaidBlocks } from '@/components/MermaidBlock';
+import { SearchReplaceExtension, getSearchPluginState } from '@/components/SearchReplaceExtension';
 import { 
   Bold, 
   Italic, 
@@ -216,6 +217,13 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
   const [mermaidConfirmOpen, setMermaidConfirmOpen] = useState(false);
   const [pendingMermaidPaste, setPendingMermaidPaste] = useState<{ code: string; fullText: string } | null>(null);
 
+  // Find & Replace bar state
+  const [findOpen, setFindOpen] = useState(false);
+  const [showReplace, setShowReplace] = useState(false);
+  const [findTerm, setFindTerm] = useState('');
+  const [replaceTerm, setReplaceTerm] = useState('');
+  const findInputRef = useRef<HTMLInputElement>(null);
+
   // Format painter state
   interface CopiedFormat {
     bold: boolean;
@@ -306,6 +314,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       DetailsSummary,
       DetailsContent,
       MermaidBlock,
+      SearchReplaceExtension,
     ],
     content,
     editable,
@@ -617,6 +626,52 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
   }, [editor]);
 
   // Track text selection to show/hide floating bubble menu
+  // Find & Replace keyboard shortcuts and sync
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        setFindOpen(true);
+        setShowReplace(false);
+        setTimeout(() => findInputRef.current?.focus(), 50);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
+        e.preventDefault();
+        setFindOpen(true);
+        setShowReplace(true);
+        setTimeout(() => findInputRef.current?.focus(), 50);
+      }
+      if (e.key === 'Escape' && findOpen) {
+        setFindOpen(false);
+        setFindTerm('');
+        setReplaceTerm('');
+        if (editor) (editor as any).commands.srClearTerm();
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [editor, findOpen]);
+
+  useEffect(() => {
+    if (!editor) return;
+    if (findTerm) {
+      (editor as any).commands.srSetTerm(findTerm);
+    } else {
+      (editor as any).commands.srClearTerm();
+    }
+  }, [editor, findTerm]);
+
+  const searchState = editor ? getSearchPluginState(editor) : null;
+  const matchCount = searchState?.matches.length ?? 0;
+  const currentMatchIdx = (searchState?.currentIndex ?? 0) + 1;
+
+  function closeFindBar() {
+    setFindOpen(false);
+    setFindTerm('');
+    setReplaceTerm('');
+    if (editor) (editor as any).commands.srClearTerm();
+  }
+
   useEffect(() => {
     if (!editor || !borderless) return;
 
@@ -936,6 +991,109 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
 
   return (
     <div className={borderless ? "bg-background relative" : "border border-border rounded-md bg-background"}>
+
+      {/* Find & Replace bar */}
+      {findOpen && (
+        <div
+          className="fixed z-[9990] top-16 right-4 w-80 bg-white dark:bg-gray-900 border border-border rounded-md shadow-lg"
+          data-testid="find-replace-bar"
+          onKeyDown={(e) => { if (e.key === 'Escape') closeFindBar(); }}
+        >
+          {/* Search row */}
+          <div className="flex items-center gap-1.5 px-2 py-2 border-b border-border">
+            <input
+              ref={findInputRef}
+              type="text"
+              value={findTerm}
+              onChange={(e) => setFindTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  (editor as any)?.commands.srFindNext();
+                }
+              }}
+              placeholder="Rechercher…"
+              className="flex-1 text-xs bg-white dark:bg-gray-800 border border-input rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary h-7"
+              data-testid="input-find-term"
+            />
+            {/* Match counter */}
+            <span className="text-[10px] text-muted-foreground whitespace-nowrap min-w-[36px] text-center">
+              {findTerm ? (matchCount === 0 ? '0/0' : `${currentMatchIdx}/${matchCount}`) : ''}
+            </span>
+            {/* Prev */}
+            <button
+              onClick={() => (editor as any)?.commands.srFindPrev()}
+              disabled={matchCount === 0}
+              title="Précédent (Shift+Entrée)"
+              className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30"
+              data-testid="button-find-prev"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+            </button>
+            {/* Next */}
+            <button
+              onClick={() => (editor as any)?.commands.srFindNext()}
+              disabled={matchCount === 0}
+              title="Suivant (Entrée)"
+              className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30"
+              data-testid="button-find-next"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            {/* Toggle replace */}
+            <button
+              onClick={() => setShowReplace(v => !v)}
+              title={showReplace ? 'Masquer le remplacement' : 'Afficher le remplacement'}
+              className={`h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted ${showReplace ? 'bg-muted text-foreground' : ''}`}
+              data-testid="button-toggle-replace"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            </button>
+            {/* Close */}
+            <button
+              onClick={closeFindBar}
+              title="Fermer (Échap)"
+              className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+              data-testid="button-find-close"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          {/* Replace row */}
+          {showReplace && (
+            <div className="flex items-center gap-1.5 px-2 py-2">
+              <input
+                type="text"
+                value={replaceTerm}
+                onChange={(e) => setReplaceTerm(e.target.value)}
+                placeholder="Remplacer par…"
+                className="flex-1 text-xs bg-white dark:bg-gray-800 border border-input rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary h-7"
+                data-testid="input-replace-term"
+              />
+              <button
+                onClick={() => (editor as any)?.commands.srReplaceOne(replaceTerm)}
+                disabled={matchCount === 0}
+                title="Remplacer"
+                className="text-[10px] px-2 h-7 rounded bg-muted hover:bg-accent text-foreground disabled:opacity-30 whitespace-nowrap font-medium"
+                data-testid="button-replace-one"
+              >
+                Remplacer
+              </button>
+              <button
+                onClick={() => { (editor as any)?.commands.srReplaceAll(replaceTerm); setFindTerm(''); }}
+                disabled={matchCount === 0}
+                title="Remplacer tout"
+                className="text-[10px] px-2 h-7 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 whitespace-nowrap font-medium"
+                data-testid="button-replace-all"
+              >
+                Tout
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Notion-style title — only in borderless (desktop) mode */}
       {title !== undefined && borderless && (
         <div className="px-12 pt-10 pb-6">
