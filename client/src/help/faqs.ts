@@ -36,6 +36,7 @@ export const MODULE_HELP: Record<string, ModuleHelp> = {
     ctaLabel: "Voir mes projets",
     ctaAction: "/projects",
   },
+
   crm: {
     id: "crm",
     title: "CRM & Pipeline",
@@ -62,6 +63,7 @@ export const MODULE_HELP: Record<string, ModuleHelp> = {
     ctaLabel: "Ajouter un client",
     ctaAction: "new-client",
   },
+
   projects: {
     id: "projects",
     title: "Projets",
@@ -88,6 +90,7 @@ export const MODULE_HELP: Record<string, ModuleHelp> = {
     ctaLabel: "Créer un projet",
     ctaAction: "create-project",
   },
+
   tasks: {
     id: "tasks",
     title: "Tâches",
@@ -106,19 +109,32 @@ export const MODULE_HELP: Record<string, ModuleHelp> = {
         question: "Puis-je lier une tâche à un ticket backlog ?",
         answer: "Oui, dans la fiche tâche tu peux la relier à un ticket. Le temps saisi sur la tâche sera aussi comptabilisé sur le ticket.",
       },
+      {
+        question: "Comment ajouter des colonnes personnalisées ?",
+        answer: "En haut du Kanban, clique sur '+ Colonne' pour créer un nouveau statut adapté à ton process.",
+      },
     ],
     ctaLabel: "Ajouter une tâche",
     ctaAction: "new-task",
   },
+
   notes: {
     id: "notes",
     title: "Notes",
-    summary: "Capture tes idées, réunions et décisions. Organise-les par projet pour garder le contexte.",
+    summary: "Capture tes idées, réunions et décisions. Organise-les par projet pour garder le contexte. L'éditeur supporte les titres, listes, blocs de code, tableaux et diagrammes Mermaid.",
     avatarMessage: "Je te réponds ici.",
     faqs: [
       {
         question: "Comment créer une note ?",
-        answer: "Clique sur '+ Note' et commence à écrire. Tu peux utiliser le formatage riche : titres, listes, liens, etc.",
+        answer: "Clique sur '+ Note' et commence à écrire. Tape '/' pour ouvrir le menu des blocs (titre, liste, code, tableau…).",
+      },
+      {
+        question: "Comment faire une recherche dans une note ?",
+        answer: "Appuie sur Ctrl+F (ou Cmd+F sur Mac) pour ouvrir la barre de recherche. Ctrl+H ouvre directement la recherche avec remplacement.",
+      },
+      {
+        question: "Comment insérer un diagramme ?",
+        answer: "Tape '/' et choisis 'Mermaid' pour insérer un diagramme. Tu peux aussi coller du code Mermaid directement dans l'éditeur.",
       },
       {
         question: "Comment lier une note à un projet ?",
@@ -132,6 +148,7 @@ export const MODULE_HELP: Record<string, ModuleHelp> = {
     ctaLabel: "Créer une note",
     ctaAction: "nouvelle-note",
   },
+
   backlog: {
     id: "backlog",
     title: "Backlog",
@@ -158,6 +175,7 @@ export const MODULE_HELP: Record<string, ModuleHelp> = {
     ctaLabel: "Créer une story",
     ctaAction: "add-user-story",
   },
+
   roadmap: {
     id: "roadmap",
     title: "Roadmap",
@@ -173,6 +191,10 @@ export const MODULE_HELP: Record<string, ModuleHelp> = {
         answer: "Sélectionne un élément, puis clique sur 'Ajouter dépendance' et choisis l'élément prédécesseur.",
       },
       {
+        question: "Quelle est la différence entre la vue Gantt et Now/Next/Later ?",
+        answer: "La vue Gantt place tes éléments sur une timeline avec des dates précises. Now/Next/Later te donne une vision plus simple : ce que tu fais maintenant, ensuite, et plus tard.",
+      },
+      {
         question: "Puis-je exporter ma roadmap ?",
         answer: "L'export image/PDF est prévu pour une prochaine version.",
       },
@@ -180,6 +202,7 @@ export const MODULE_HELP: Record<string, ModuleHelp> = {
     ctaLabel: "Voir la roadmap",
     ctaAction: "/roadmap",
   },
+
   finance: {
     id: "finance",
     title: "Rentabilité",
@@ -206,6 +229,146 @@ export const MODULE_HELP: Record<string, ModuleHelp> = {
     ctaLabel: "Voir mes projets",
     ctaAction: "/projects",
   },
+
+  emails: {
+    id: "emails",
+    title: "Emails",
+    summary: "Gère ta boîte mail directement dans Planbase. Réponds à tes clients, envoie des emails planifiés, utilise des templates et relie les conversations à tes projets CRM.",
+    avatarMessage: "Je te réponds ici.",
+    faqs: [
+      {
+        question: "Comment connecter ma boîte Gmail ?",
+        answer: "Va dans Paramètres > Intégrations et clique sur 'Connecter Gmail'. Tu seras redirigé vers Google pour autoriser l'accès.",
+      },
+      {
+        question: "Comment utiliser les templates d'email ?",
+        answer: "Dans la fenêtre de composition, clique sur l'icône 'Templates'. Tu peux insérer un template et personnaliser les variables comme {{contact.first_name}} ou {{project.name}}.",
+      },
+      {
+        question: "Comment planifier l'envoi d'un email ?",
+        answer: "Clique sur la flèche à côté du bouton Envoyer, puis 'Planifier l'envoi'. Choisis la date et l'heure souhaitées.",
+      },
+      {
+        question: "Comment relier un email à un client CRM ?",
+        answer: "Dans la vue email, utilise le filtre CRM pour voir les emails liés à un client. Tu peux aussi associer manuellement un email depuis la fiche client.",
+      },
+      {
+        question: "Les pièces jointes sont-elles supportées ?",
+        answer: "Oui, tu peux ajouter des pièces jointes en glissant-déposant un fichier dans la fenêtre de composition, ou en cliquant sur l'icône trombone.",
+      },
+    ],
+    ctaLabel: "Ouvrir mes emails",
+    ctaAction: "/emails",
+  },
+
+  treasury: {
+    id: "treasury",
+    title: "Trésorerie",
+    summary: "Gère ta trésorerie, suis tes entrées et sorties, crée des scénarios prévisionnels et anticipe tes besoins de financement.",
+    avatarMessage: "Je te réponds ici.",
+    faqs: [
+      {
+        question: "Comment ajouter une transaction ?",
+        answer: "Dans l'onglet Transactions, clique sur '+ Transaction'. Renseigne le montant, la catégorie et la date. Tu peux aussi importer via CSV.",
+      },
+      {
+        question: "Comment créer un scénario prévisionnel ?",
+        answer: "Clique sur 'Nouveau scénario' pour créer une projection. Tu peux simuler différentes hypothèses (optimiste, pessimiste) pour anticiper ta trésorerie.",
+      },
+      {
+        question: "Comment voir ma trésorerie par mois ?",
+        answer: "Le tableau de bord trésorerie affiche automatiquement tes entrées, sorties et solde mois par mois sous forme de graphique et de tableau.",
+      },
+      {
+        question: "Les projets sont-ils liés à la trésorerie ?",
+        answer: "Oui, les paiements de projets (acomptes, factures) remontent automatiquement dans ta trésorerie si tu les enregistres dans la fiche projet.",
+      },
+    ],
+    ctaLabel: "Voir la trésorerie",
+    ctaAction: "/cashflow",
+  },
+
+  files: {
+    id: "files",
+    title: "Fichiers",
+    summary: "Stocke, organise et partage tes fichiers par projet ou client. Gère les versions et retrouve n'importe quel document rapidement.",
+    avatarMessage: "Je te réponds ici.",
+    faqs: [
+      {
+        question: "Comment uploader un fichier ?",
+        answer: "Clique sur '+ Fichier' ou glisse-dépose directement dans le dossier cible. Les fichiers sont stockés de manière sécurisée.",
+      },
+      {
+        question: "Comment organiser mes fichiers en dossiers ?",
+        answer: "Clique sur '+ Dossier' pour créer une arborescence. Tu peux imbriquer les dossiers et les associer à des projets.",
+      },
+      {
+        question: "Comment partager un fichier ?",
+        answer: "Clique sur les '...' d'un fichier et choisis 'Partager'. Tu peux générer un lien public ou partager avec un membre de l'équipe.",
+      },
+      {
+        question: "Le versioning est-il supporté ?",
+        answer: "Oui, chaque nouvelle version d'un fichier est conservée. Tu peux voir l'historique des versions et revenir à une version précédente.",
+      },
+    ],
+    ctaLabel: "Voir mes fichiers",
+    ctaAction: "/files",
+  },
+
+  whiteboards: {
+    id: "whiteboards",
+    title: "Whiteboards",
+    summary: "Crée des cartes mentales et des schémas collaboratifs. Idéal pour le brainstorming, la planification visuelle et les ateliers.",
+    avatarMessage: "Je te réponds ici.",
+    faqs: [
+      {
+        question: "Comment créer un whiteboard ?",
+        answer: "Clique sur '+ Whiteboard' dans la liste. Tu peux nommer ta carte et commencer à ajouter des nœuds en double-cliquant sur le fond.",
+      },
+      {
+        question: "Comment connecter des nœuds ?",
+        answer: "Survole un nœud et clique sur le point de connexion qui apparaît, puis glisse vers le nœud cible pour créer une flèche.",
+      },
+      {
+        question: "Comment importer un diagramme Mermaid ?",
+        answer: "Tu peux coller du code Mermaid directement dans l'éditeur, qui le convertira automatiquement en diagramme visuel.",
+      },
+      {
+        question: "Les whiteboards sont-ils exportables ?",
+        answer: "L'export PNG/SVG est prévu pour une prochaine version. En attendant, tu peux faire une capture d'écran.",
+      },
+    ],
+    ctaLabel: "Créer un whiteboard",
+    ctaAction: "/mindmaps",
+  },
+
+  settings: {
+    id: "settings",
+    title: "Paramètres",
+    summary: "Configure ton compte, ton profil, les intégrations et les préférences de ton espace Planbase.",
+    avatarMessage: "Je te réponds ici.",
+    faqs: [
+      {
+        question: "Comment modifier mon profil ?",
+        answer: "Dans Paramètres > Profil, tu peux changer ton nom, ton avatar, ton TJM par défaut et tes informations de contact.",
+      },
+      {
+        question: "Comment connecter Gmail ?",
+        answer: "Dans Paramètres > Intégrations, clique sur 'Connecter Gmail' et autorise l'accès via ton compte Google.",
+      },
+      {
+        question: "Comment créer des templates d'email ?",
+        answer: "Dans Paramètres > Templates d'email, clique sur '+ Template'. Tu peux utiliser des variables comme {{contact.first_name}} pour personnaliser automatiquement.",
+      },
+      {
+        question: "Comment gérer les membres de mon équipe ?",
+        answer: "Dans Paramètres > Équipe, tu peux inviter des membres, gérer leurs rôles (admin, membre, invité) et leurs accès aux modules.",
+      },
+    ],
+    ctaLabel: "Voir les paramètres",
+    ctaAction: "/settings",
+  },
+
   "time-tracker": {
     id: "time-tracker",
     title: "Suivi du temps",
@@ -243,10 +406,12 @@ export function getModuleIdFromPath(path: string): string | undefined {
   if (path.startsWith("/product")) return "backlog";
   if (path.startsWith("/roadmap")) return "roadmap";
   if (path.startsWith("/finance")) return "finance";
+  if (path.startsWith("/emails")) return "emails";
+  if (path.startsWith("/cashflow") || path.startsWith("/treasury")) return "treasury";
+  if (path.startsWith("/files") || path.startsWith("/documents")) return "files";
+  if (path.startsWith("/mindmaps")) return "whiteboards";
   if (path.startsWith("/calendar")) return "dashboard";
-  if (path.startsWith("/settings")) return "dashboard";
-  if (path.startsWith("/documents")) return "notes";
-  if (path.startsWith("/mindmaps")) return "notes";
+  if (path.startsWith("/settings")) return "settings";
   if (path.startsWith("/marketing")) return "dashboard";
   if (path.startsWith("/commercial")) return "crm";
   if (path.startsWith("/legal")) return "dashboard";

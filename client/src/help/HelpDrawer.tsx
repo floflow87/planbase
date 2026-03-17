@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,10 @@ export function HelpDrawer({ isOpen, onClose, moduleHelp }: HelpDrawerProps) {
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) setExpandedFaq(null);
+  }, [isOpen]);
+
   const handleCtaClick = () => {
     if (moduleHelp.ctaAction) {
       if (moduleHelp.ctaAction.startsWith("/")) {
@@ -54,22 +59,26 @@ export function HelpDrawer({ isOpen, onClose, moduleHelp }: HelpDrawerProps) {
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <>
+      {/* Full-screen overlay — above everything */}
       <div
-        className="fixed inset-0 z-[1000] bg-black/50"
+        className="fixed inset-0 bg-black/50"
+        style={{ zIndex: 9900 }}
         onClick={onClose}
         data-testid="help-drawer-overlay"
       />
 
+      {/* Drawer panel */}
       <div
         className={cn(
-          "fixed top-0 right-0 bottom-0 z-[1001] bg-card shadow-xl w-full max-w-md overflow-hidden flex flex-col",
+          "fixed top-0 right-0 bottom-0 bg-card shadow-xl w-full max-w-md overflow-hidden flex flex-col",
           "sm:w-96",
           !prefersReducedMotion && "animate-slide-in-right"
         )}
         style={{
-          animation: prefersReducedMotion ? 'none' : 'slideInRight 0.3s ease-out forwards'
+          zIndex: 9901,
+          animation: prefersReducedMotion ? "none" : "slideInRight 0.3s ease-out forwards",
         }}
         data-testid="help-drawer"
       >
@@ -145,7 +154,6 @@ export function HelpDrawer({ isOpen, onClose, moduleHelp }: HelpDrawerProps) {
           </div>
         )}
 
-        {/* Avatar at bottom of panel */}
         <div className="p-4 border-t border-border flex justify-center">
           <div
             className={cn(
@@ -165,6 +173,7 @@ export function HelpDrawer({ isOpen, onClose, moduleHelp }: HelpDrawerProps) {
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }
