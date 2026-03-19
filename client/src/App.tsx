@@ -38,6 +38,7 @@ import BacklogDetail from "@/pages/backlog-detail";
 import Marketing from "@/pages/marketing";
 import Finance from "@/pages/finance";
 import TreasuryPage from "@/pages/treasury";
+import Pricing from "@/pages/pricing";
 import Commercial from "@/pages/commercial";
 import Legal from "@/pages/legal";
 import CalendarPage from "@/pages/calendar";
@@ -198,6 +199,9 @@ function Router() {
       </Route>
       <Route path="/calendar">
         <ProtectedRoute><CalendarPage /></ProtectedRoute>
+      </Route>
+      <Route path="/pricing">
+        <Pricing />
       </Route>
       <Route path="/settings">
         <ProtectedRoute><Settings /></ProtectedRoute>

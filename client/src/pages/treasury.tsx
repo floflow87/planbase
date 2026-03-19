@@ -1301,7 +1301,9 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
-export default function TreasuryPage() {
+import { PremiumGate } from "@/components/billing/PremiumGate";
+
+function TreasuryPageInner() {
   const { toast } = useToast();
 
   const [mainTab, setMainTab] = useState<"flux" | "plan">("flux");
@@ -2364,5 +2366,13 @@ export default function TreasuryPage() {
       </div>
       )}
     </div>
+  );
+}
+
+export default function TreasuryPage() {
+  return (
+    <PremiumGate feature="treasury">
+      <TreasuryPageInner />
+    </PremiumGate>
   );
 }

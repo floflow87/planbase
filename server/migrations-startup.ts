@@ -2529,6 +2529,20 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Tasks column_id backfilled for existing tasks");
 
+    // ── Stripe / Billing columns on accounts ──────────────────────────────
+    await db.execute(sql`
+      ALTER TABLE accounts
+        ADD COLUMN IF NOT EXISTS stripe_customer_id      text,
+        ADD COLUMN IF NOT EXISTS stripe_subscription_id  text,
+        ADD COLUMN IF NOT EXISTS stripe_price_id         text,
+        ADD COLUMN IF NOT EXISTS billing_interval        text,
+        ADD COLUMN IF NOT EXISTS subscription_status     text,
+        ADD COLUMN IF NOT EXISTS trial_ends_at           timestamptz,
+        ADD COLUMN IF NOT EXISTS current_period_end      timestamptz,
+        ADD COLUMN IF NOT EXISTS cancel_at_period_end    boolean DEFAULT false
+    `);
+    console.log("✅ Stripe billing columns added to accounts");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

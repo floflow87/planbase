@@ -1,286 +1,243 @@
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CreditCard, Crown, Calendar, Zap, AlertTriangle, CheckCircle, Clock, XCircle, ArrowRight, HelpCircle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { useToast } from "@/hooks/use-toast";
-import { Check, Crown, Sparkles, HelpCircle, MoreHorizontal, CreditCard, Calendar, Info, X } from "lucide-react";
-import { FAQ_ITEMS } from "@/data/subscriptionMock";
-import { useConfigAll } from "@/hooks/useConfigAll";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useBilling } from "@/hooks/useBilling";
+import { useLocation } from "wouter";
 
-interface StrapiFeature {
-  key: string;
-  label: string;
-  order: number;
-  included: boolean;
-}
-
-interface StrapiPlan {
-  id: number;
-  code: string;
-  name: string;
-  is_active: boolean;
-  price_monthly: number | null;
-  stripe_price_id: string | null;
-  features: {
-    ui?: { highlight?: boolean; cardVariant?: string };
-    cta?: { type?: string; label?: string; disabled?: boolean };
-    badge?: { text?: string; variant?: string };
-    price?: { amount?: number; period?: string; currency?: string; formatted?: string };
-    limits?: Record<string, number>;
-    modules?: Record<string, boolean>;
-    features?: StrapiFeature[];
-    is_default?: boolean;
-    sort_order?: number;
+// ─── Status display helpers ──────────────────────────────────────────────────
+function StatusBadge({ status }: { status: string | null }) {
+  if (!status) return <Badge variant="secondary">Aucun plan</Badge>;
+  const map: Record<string, { label: string; icon: any; variant: "secondary" | "destructive" | "default" | "outline" }> = {
+    active:             { label: "Actif", icon: CheckCircle, variant: "default" },
+    trialing:           { label: "Essai gratuit", icon: Clock, variant: "secondary" },
+    past_due:           { label: "Paiement en retard", icon: AlertTriangle, variant: "destructive" },
+    canceled:           { label: "Annulé", icon: XCircle, variant: "destructive" },
+    incomplete:         { label: "Incomplet", icon: AlertTriangle, variant: "destructive" },
+    incomplete_expired: { label: "Expiré", icon: XCircle, variant: "destructive" },
+    unpaid:             { label: "Impayé", icon: AlertTriangle, variant: "destructive" },
   };
+  const s = map[status] ?? { label: status, icon: HelpCircle, variant: "secondary" as const };
+  const Icon = s.icon;
+  return (
+    <Badge variant={s.variant} className="flex items-center gap-1">
+      <Icon className="w-3 h-3" />
+      {s.label}
+    </Badge>
+  );
 }
+
+function PlanBadge({ plan }: { plan: string | null }) {
+  const display = plan === "agency" ? "Agence" : plan === "freelance" ? "Freelance" : plan === "starter" ? "Starter" : "—";
+  const isAgency = plan === "agency";
+  return (
+    <Badge variant={isAgency ? "default" : "secondary"} className={isAgency ? "bg-violet-600 text-white" : ""}>
+      {isAgency && <Crown className="w-3 h-3 mr-1" />}
+      {display}
+    </Badge>
+  );
+}
+
+function formatDate(iso: string | null) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+}
+
+const FAQ_ITEMS = [
+  {
+    question: "Puis-je annuler à tout moment ?",
+    answer: "Oui, vous pouvez annuler votre abonnement à tout moment depuis le portail de gestion. Votre accès reste actif jusqu'à la fin de la période en cours.",
+  },
+  {
+    question: "L'essai gratuit est-il vraiment gratuit ?",
+    answer: "Oui, 7 jours d'essai complet sans carte bancaire requise. Vous pourrez saisir vos informations de paiement à la fin de la période d'essai.",
+  },
+  {
+    question: "Que se passe-t-il si je passe du plan Agence au plan Freelance ?",
+    answer: "Vous conservez l'accès aux fonctionnalités Agence jusqu'à la fin de votre période en cours, puis vous passez automatiquement aux fonctionnalités Freelance.",
+  },
+  {
+    question: "Comment changer mon moyen de paiement ?",
+    answer: "Accédez au portail de gestion Stripe via le bouton \"Gérer l'abonnement\" pour modifier votre carte ou tout autre paramètre de facturation.",
+  },
+];
 
 export function SubscriptionTab() {
-  const { toast } = useToast();
-  const { data: configAll, isLoading: isConfigLoading } = useConfigAll();
-  const isDev = import.meta.env.DEV;
+  const { billing, isLoading, isActive, isTrialing, trialDaysLeft, startCheckout, isCheckingOut, openPortal, isOpeningPortal } = useBilling();
+  const [, setLocation] = useLocation();
 
-  const strapiPlans: StrapiPlan[] = (configAll?.plans ?? [])
-    .filter((p: StrapiPlan) => p.is_active)
-    .sort((a: StrapiPlan, b: StrapiPlan) => (a.features?.sort_order ?? 0) - (b.features?.sort_order ?? 0));
-
-  const [currentPlanCode, setCurrentPlanCode] = useState<string | null>(null);
-
-  const activePlanCode = currentPlanCode ?? strapiPlans.find(p => p.features?.is_default)?.code ?? strapiPlans[0]?.code ?? null;
-  const currentPlan = strapiPlans.find(p => p.code === activePlanCode);
-
-  const handleUpgrade = (planCode: string) => {
-    setCurrentPlanCode(planCode);
-    const plan = strapiPlans.find(p => p.code === planCode);
-    toast({
-      title: plan ? `Bienvenue sur ${plan.name} !` : "Plan modifie",
-      description: "Votre abonnement a ete mis a jour (simulation).",
-      variant: "success",
-    });
-  };
-
-  const handleDowngrade = () => {
-    const defaultPlan = strapiPlans.find(p => p.features?.is_default) ?? strapiPlans[0];
-    if (defaultPlan) {
-      setCurrentPlanCode(defaultPlan.code);
-      toast({
-        title: "Plan modifie",
-        description: `Vous etes revenu au plan ${defaultPlan.name} (simulation).`,
-      });
-    }
-  };
-
-  const getFormattedPrice = (plan: StrapiPlan): string => {
-    if (plan.features?.price?.formatted) return plan.features.price.formatted;
-    if (plan.price_monthly != null && plan.price_monthly > 0) return `${plan.price_monthly}€ / mois`;
-    return "Gratuit";
-  };
-
-  if (isConfigLoading) {
+  if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h3 className="text-lg font-semibold flex items-center gap-2" data-testid="text-subscription-title">
-            <CreditCard className="w-5 h-5" />
-            Abonnement
-          </h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Chargement des plans...
-          </p>
-        </div>
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-28 w-full" />
+        <Skeleton className="h-28 w-full" />
       </div>
     );
   }
 
-  if (strapiPlans.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h3 className="text-lg font-semibold flex items-center gap-2" data-testid="text-subscription-title">
-            <CreditCard className="w-5 h-5" />
-            Abonnement
-          </h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Aucun plan disponible pour le moment.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const plan = billing?.plan ?? null;
+  const status = billing?.subscriptionStatus ?? null;
+  const noSubscription = !status || status === "canceled";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="subscription-tab">
+      {/* Header */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2" data-testid="text-subscription-title">
           <CreditCard className="w-5 h-5" />
           Abonnement
         </h3>
-        <p className="text-sm text-muted-foreground mt-1" data-testid="text-subscription-subtitle">
-          Choisissez le plan adapte a votre activite.
+        <p className="text-sm text-muted-foreground mt-1">
+          Gérez votre plan et vos informations de facturation.
         </p>
       </div>
 
-      <Card className="bg-muted/50 border-muted">
-        <CardContent className="py-3">
-          <p className="text-xs text-muted-foreground flex items-center gap-2" data-testid="text-info-payment">
-            <Info className="w-4 h-4 flex-shrink-0" />
-            Le paiement par carte arrive bientot. Pour l'instant, la montee en gamme est simulee.
-          </p>
+      {/* Trial banner */}
+      {isTrialing && trialDaysLeft !== null && (
+        <Card className="border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-900/10" data-testid="card-trial-banner">
+          <CardContent className="pt-4 pb-4 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-violet-500" />
+              <span className="text-sm text-violet-700 dark:text-violet-300">
+                <strong>{trialDaysLeft} jour{trialDaysLeft !== 1 ? "s" : ""}</strong> restant{trialDaysLeft !== 1 ? "s" : ""} dans votre essai gratuit.
+              </span>
+            </div>
+            <Button size="sm" onClick={() => setLocation("/pricing")} data-testid="button-trial-choose-plan">
+              Choisir un plan <ArrowRight className="w-3.5 h-3.5 ml-1" />
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Expired / no subscription */}
+      {noSubscription && (
+        <Card className="border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-900/10" data-testid="card-no-subscription">
+          <CardContent className="pt-4 pb-4 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-orange-500" />
+              <span className="text-sm text-orange-700 dark:text-orange-300">
+                Aucun abonnement actif. Choisissez un plan pour continuer.
+              </span>
+            </div>
+            <Button size="sm" onClick={() => setLocation("/pricing")} data-testid="button-no-sub-choose-plan">
+              Voir les plans <ArrowRight className="w-3.5 h-3.5 ml-1" />
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Current plan overview */}
+      <Card data-testid="card-current-plan">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium text-muted-foreground">Plan actuel</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <PlanBadge plan={plan} />
+            <StatusBadge status={status} />
+          </div>
+          {billing?.billingInterval && (
+            <p className="text-xs text-muted-foreground">
+              Facturation {billing.billingInterval === "monthly" ? "mensuelle" : "annuelle"}
+            </p>
+          )}
+          {billing?.currentPeriodEnd && isActive && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Calendar className="w-3.5 h-3.5" />
+              {billing.cancelAtPeriodEnd
+                ? `Se termine le ${formatDate(billing.currentPeriodEnd)}`
+                : `Renouvellement le ${formatDate(billing.currentPeriodEnd)}`}
+            </div>
+          )}
+          {billing?.trialEndsAt && isTrialing && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Clock className="w-3.5 h-3.5" />
+              Essai jusqu'au {formatDate(billing.trialEndsAt)}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      <Card data-testid="card-current-plan">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-md bg-primary/10">
-                <Crown className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-sm">Votre plan actuel</CardTitle>
-                <CardDescription className="text-xs" data-testid="text-current-plan-name">
-                  {currentPlan?.name ?? "Aucun"} - {currentPlan ? getFormattedPrice(currentPlan) : ""}
-                </CardDescription>
-              </div>
-            </div>
-            <Badge variant="secondary" data-testid="badge-status-active">
-              Actif
-            </Badge>
-          </div>
-        </CardHeader>
-      </Card>
-
-      <div className={`grid grid-cols-1 ${strapiPlans.length >= 2 ? "md:grid-cols-2" : ""} ${strapiPlans.length >= 3 ? "lg:grid-cols-3" : ""} gap-4`}>
-        {strapiPlans.map((plan) => {
-          const isCurrent = plan.code === activePlanCode;
-          const isHighlight = plan.features?.ui?.highlight === true;
-          const badgeText = plan.features?.badge?.text;
-          const cta = plan.features?.cta;
-          const planFeatures: StrapiFeature[] = (plan.features?.features ?? [])
-            .sort((a: StrapiFeature, b: StrapiFeature) => (a.order ?? 0) - (b.order ?? 0));
-          
-          return (
-            <Card 
-              key={plan.id} 
-              className={`relative transition-all ${
-                isCurrent 
-                  ? "ring-2 ring-primary" 
-                  : isHighlight 
-                    ? "ring-1 ring-accent" 
-                    : ""
-              }`}
-              data-testid={`card-plan-${plan.code}`}
-            >
-              {badgeText && !isCurrent && (
-                <Badge 
-                  className="absolute -top-2.5 left-4"
-                  data-testid={`badge-popular-${plan.code}`}
-                >
-                  <Sparkles className="w-3 h-3 mr-1" />
-                  {badgeText}
-                </Badge>
-              )}
-              {isCurrent && (
-                <Badge 
-                  variant="secondary"
-                  className="absolute -top-2.5 right-4"
-                  data-testid={`badge-current-${plan.code}`}
-                >
-                  <Check className="w-3 h-3 mr-1" />
-                  Actuel
-                </Badge>
-              )}
-              
-              <CardHeader className="pb-3 pt-6">
-                <div className="flex items-center justify-between gap-2">
-                  <CardTitle className="text-base" data-testid={`text-plan-name-${plan.code}`}>{plan.name}</CardTitle>
-                  {isDev && isCurrent && !plan.features?.is_default && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" data-testid="button-dev-menu">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={handleDowngrade} data-testid="button-dev-downgrade">
-                          Revenir au plan par defaut (dev)
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </div>
-                <div className="mt-2" data-testid={`text-plan-price-${plan.code}`}>
-                  <span className="text-2xl font-bold">{getFormattedPrice(plan)}</span>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-4">
-                {planFeatures.length > 0 && (
-                  <ul className="space-y-2">
-                    {planFeatures.map((feature, index) => (
-                      <li key={feature.key} className="flex items-start gap-2 text-sm" data-testid={`text-feature-${plan.code}-${index}`}>
-                        {feature.included ? (
-                          <Check className="w-4 h-4 text-green-500 dark:text-green-400 flex-shrink-0 mt-0.5" />
-                        ) : (
-                          <X className="w-4 h-4 text-muted-foreground/50 flex-shrink-0 mt-0.5" />
-                        )}
-                        <span className={feature.included ? "" : "text-muted-foreground/60 line-through"}>
-                          {feature.label}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                
-                <div className="pt-2">
-                  {isCurrent ? (
-                    <Button 
-                      variant="outline" 
-                      className="w-full" 
-                      disabled
-                      data-testid={`button-plan-${plan.code}-current`}
-                    >
-                      Plan actuel
-                    </Button>
-                  ) : cta?.type === "upgrade" ? (
-                    <Button 
-                      className="w-full"
-                      onClick={() => handleUpgrade(plan.code)}
-                      disabled={cta.disabled === true}
-                      data-testid={`button-upgrade-${plan.code}`}
-                    >
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      {cta.label ?? `Passer a ${plan.name}`}
-                    </Button>
-                  ) : (
-                    <Button 
-                      variant="outline" 
-                      className="w-full"
-                      onClick={() => handleUpgrade(plan.code)}
-                      disabled={cta?.disabled === true}
-                      data-testid={`button-select-${plan.code}`}
-                    >
-                      {cta?.label ?? `Choisir ${plan.name}`}
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+      {/* Action buttons */}
+      <div className="flex flex-col gap-2" data-testid="billing-actions">
+        {noSubscription || !isActive ? (
+          <Button
+            className="w-full"
+            onClick={() => setLocation("/pricing")}
+            data-testid="button-choose-plan"
+          >
+            <Crown className="w-4 h-4 mr-2" />
+            Choisir un plan
+          </Button>
+        ) : (
+          <>
+            {plan !== "agency" && (
+              <Button
+                className="w-full"
+                onClick={() => startCheckout({ plan: "agency", interval: billing?.billingInterval ?? "monthly" })}
+                disabled={isCheckingOut}
+                data-testid="button-upgrade-agency"
+              >
+                <Crown className="w-4 h-4 mr-2" />
+                Passer au plan Agence
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            )}
+            {billing?.stripeCustomerId && (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => openPortal()}
+                disabled={isOpeningPortal}
+                data-testid="button-manage-subscription"
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                Gérer l'abonnement
+              </Button>
+            )}
+          </>
+        )}
+        <Button variant="ghost" className="w-full text-muted-foreground" onClick={() => setLocation("/pricing")} data-testid="button-see-all-plans">
+          Voir tous les plans
+        </Button>
       </div>
 
+      {/* Plans comparison quick view */}
+      {!noSubscription && isActive && (
+        <Card data-testid="card-plan-features">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Fonctionnalités incluses</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-1.5 text-sm">
+              {["CRM & pipeline", "Projets & tâches", "Notes & documents", "Gmail intégré", "Google Calendar", "Fichiers"].map(f => (
+                <li key={f} className="flex items-center gap-2 text-muted-foreground">
+                  <Zap className="w-3 h-3 text-cyan-500" /> {f}
+                </li>
+              ))}
+              {plan === "agency" && (
+                <>
+                  {["Multi-utilisateurs", "Templates email", "Trésorerie", "Rentabilité & finance"].map(f => (
+                    <li key={f} className="flex items-center gap-2">
+                      <Crown className="w-3 h-3 text-violet-500" /> {f}
+                    </li>
+                  ))}
+                </>
+              )}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* FAQ */}
       <Card data-testid="card-faq">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <HelpCircle className="w-4 h-4" />
-            Questions frequentes
+            Questions fréquentes
           </CardTitle>
         </CardHeader>
         <CardContent>

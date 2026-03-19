@@ -219,11 +219,9 @@ function TemplatePreview({ subject, body }: { subject: string; body: string }) {
   );
 }
 
-export function EmailTemplatesTab() {
-  return <EmailTemplates />;
-}
+import { PremiumGate } from "@/components/billing/PremiumGate";
 
-export default function EmailTemplates() {
+function EmailTemplatesInner() {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
@@ -449,4 +447,18 @@ export default function EmailTemplates() {
       </AlertDialog>
     </div>
   );
+}
+
+function EmailTemplatesGated() {
+  return (
+    <PremiumGate feature="email_templates">
+      <EmailTemplatesInner />
+    </PremiumGate>
+  );
+}
+
+export default EmailTemplatesGated;
+
+export function EmailTemplatesTab() {
+  return <EmailTemplatesGated />;
 }

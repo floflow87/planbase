@@ -1043,7 +1043,9 @@ function EmptyState() {
   );
 }
 
-export default function Finance() {
+import { PremiumGate } from "@/components/billing/PremiumGate";
+
+function FinanceInner() {
   const { readOnly, canCreate, canUpdate, canDelete } = useReadOnlyMode("profitability");
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'profitable' | 'at_risk' | 'deficit'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -1953,5 +1955,13 @@ export default function Finance() {
         </Tabs>
       </div>
     </PermissionGuard>
+  );
+}
+
+export default function Finance() {
+  return (
+    <PremiumGate feature="finance">
+      <FinanceInner />
+    </PremiumGate>
   );
 }

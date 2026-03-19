@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import path from "node:path";
 import { strapiGet } from "./lib/strapi";
+import billingRouter from "./routes/billing";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
@@ -534,6 +535,14 @@ app.use((req, res, next) => {
 
   next();
 });
+
+// ── Stripe webhook must receive raw body (registered before JSON middleware catch-all) ──
+// Webhook needs raw body — register before any other middleware processes /api/billing/webhook
+app.use("/api/billing/webhook", express.raw({ type: "application/json" }), (req: any, _res: any, next: any) => {
+  req.body = req.body; // raw Buffer is passed directly
+  next();
+});
+app.use("/api/billing", billingRouter);
 
 app.get("/api/config/feature-flags", async (req, res) => {
   try {
