@@ -1,0 +1,266 @@
+Je souhaite préparer la commercialisation de PlanBase en mettant en place un système d’abonnement avec Stripe, une gestion des plans, une page billing et un feature gating simple.
+
+IMPORTANT :
+- ne pas casser l’existant
+- faire une implémentation propre, modulaire et évolutive
+- prioriser une V1 simple, robuste et rapidement commercialisable
+- ne pas surcomplexifier le pricing ni la logique de limitations
+- ne pas intégrer l’IA pour le moment
+- l’objectif principal est de rendre PlanBase vendable rapidement
+
+## Contexte produit
+
+PlanBase est un SaaS destiné aux freelances et petites agences pour gérer :
+- CRM
+- projets
+- tâches
+- notes
+- Gmail
+- Google Calendar
+- timeline client
+- fichiers
+- boîte mail intégrée
+- autres modules existants
+
+Je veux désormais mettre en place 2 plans payants :
+
+### 1. Plan Freelance
+Prix :
+- 19€/mois en mensuel
+- 12€/mois en annuel (facturé annuellement)
+
+Destiné à un usage solo.
+
+Il inclut :
+- CRM
+- projets
+- tâches
+- notes
+- Gmail
+- Google Calendar
+- timeline client
+- fichiers
+- boîte mail
+- réunions basiques / intégration calendar
+- tags simples
+- toutes les fonctionnalités core solo déjà présentes
+
+### 2. Plan Agence
+Prix :
+- 39€/mois en mensuel
+- 29€/mois en annuel (facturé annuellement)
+
+Destiné à un usage équipe / pilotage avancé.
+
+Il inclut tout le plan Freelance + :
+- multi-users
+- templates email
+- trésorerie
+- rentabilité
+
+IMPORTANT :
+- l’IA n’est pas encore disponible, donc ne pas la prévoir dans les plans pour l’instant
+- l’objectif est de garder un pricing simple et compréhensible
+
+## Ce que je veux mettre en place
+
+### 1. Intégration Stripe
+Créer une intégration Stripe propre avec :
+- produits Stripe
+- prix mensuels et annuels
+- checkout
+- gestion des abonnements
+- gestion du statut d’abonnement
+- webhooks Stripe
+
+Je veux gérer au minimum :
+- création d’un customer Stripe
+- création d’une subscription
+- abonnement mensuel ou annuel
+- statut :
+  - trialing
+  - active
+  - past_due
+  - canceled
+  - incomplete si utile
+- mise à jour du statut dans PlanBase via webhook
+
+### 2. Essai gratuit
+Je veux une V1 simple avec :
+- période d’essai gratuite de 7 jours
+- accès complet pendant l’essai
+- à la fin du trial, obligation de choisir un plan payant
+
+Le plus simple possible.
+
+### 3. Modèle de données abonnement
+Je veux stocker côté application les informations d’abonnement nécessaires.
+
+Exemple de structure attendue :
+
+User / Workspace / Subscription selon l’architecture actuelle :
+- stripe_customer_id
+- stripe_subscription_id
+- stripe_price_id
+- billing_interval (monthly / yearly)
+- plan (freelance / agency)
+- subscription_status
+- trial_ends_at
+- current_period_end
+- cancel_at_period_end
+- created_at / updated_at
+
+Adapter cela proprement au modèle existant.
+
+### 4. Feature gating simple
+Je veux un système simple de contrôle d’accès aux fonctionnalités selon le plan.
+
+### Plan Freelance
+doit avoir accès à :
+- toutes les features core solo
+
+### Plan Agence
+doit avoir accès en plus à :
+- multi-users
+- templates email
+- trésorerie
+- rentabilité
+
+IMPORTANT :
+- ne pas faire un système de permissions ultra complexe
+- faire un feature gating simple, lisible et maintenable
+- idéalement centraliser la logique dans un helper / service du type :
+  - hasFeature(plan, feature)
+  - canAccessModule(plan, module)
+
+### 5. Modules à bloquer côté Freelance
+Pour l’instant, les modules / fonctionnalités premium à bloquer sur le plan Freelance sont :
+- multi-users
+- templates email
+- trésorerie
+- rentabilité
+
+Je veux que si un utilisateur Freelance tente d’y accéder :
+- il voie un écran / état premium propre
+- avec message clair
+- CTA “Passer au plan Agence”
+
+### 6. Page Billing
+Créer une page / section Billing dans l’application avec :
+- plan actuel
+- statut abonnement
+- date de renouvellement
+- période d’essai restante si applicable
+- bouton upgrade / changer de plan
+- bouton gérer l’abonnement
+- bouton annuler l’abonnement si pertinent
+- historique simple plus tard si nécessaire
+
+Si possible, utiliser Stripe Customer Portal pour la gestion standard (changer moyen de paiement, annuler, etc.) plutôt que tout reconstruire.
+
+### 7. Paywall / upgrade prompts
+Je veux des paywalls simples et propres dans l’app :
+- si trial expiré
+- si accès à une feature Agence depuis un compte Freelance
+- si besoin d’upgrade
+
+Exemples :
+- “Votre période d’essai est terminée”
+- “Cette fonctionnalité est disponible avec le plan Agence”
+
+Toujours avec CTA :
+- choisir un plan
+- passer au plan Agence
+
+### 8. Écran pricing
+Créer une page Pricing simple avec 2 cartes :
+
+#### Freelance
+- 19€/mois
+- 12€/mois en annuel
+- pour les indépendants
+- gestion complète solo
+
+#### Agence
+- 39€/mois
+- 29€/mois en annuel
+- pour les équipes et le pilotage avancé
+- inclut multi-users, templates email, trésorerie, rentabilité
+
+Prévoir un toggle mensuel / annuel.
+
+Le design doit être propre, clair, cohérent avec PlanBase.
+
+### 9. Choix de plan au bon moment
+Je veux que l’utilisateur puisse :
+- choisir un plan depuis la page pricing
+- upgrader depuis la page billing
+- upgrader depuis un écran bloqué premium
+- upgrader après la fin du trial
+
+### 10. Architecture recommandée
+Je veux une implémentation modulaire.
+
+Séparer clairement :
+- logique Stripe
+- logique billing
+- logique abonnement
+- logique feature gating
+- UI pricing / billing
+- webhooks
+
+Éviter les if dispersés partout dans le code.
+
+### 11. V1 prioritaire
+Je veux prioriser :
+1. configuration Stripe
+2. création des produits / prix
+3. modèle abonnement côté app
+4. checkout
+5. webhooks
+6. page pricing
+7. page billing
+8. feature gating simple
+9. paywalls
+
+### 12. Hors scope pour l’instant
+Ne pas intégrer pour le moment :
+- IA
+- usage-based billing
+- ajout de sièges complexe
+- coupons complexes
+- essais multiples avancés
+- plan Enterprise
+- marketplace
+- limites ultra détaillées
+- reporting financier avancé Stripe
+
+## UX attendue
+Je veux une UX :
+- simple
+- premium
+- lisible
+- SaaS moderne
+- cohérente avec PlanBase
+- sans usine à gaz
+
+L’objectif n’est pas de construire un système billing ultra sophistiqué, mais un système suffisamment propre pour lancer le produit et commencer à vendre.
+
+## Contraintes importantes
+- ne pas casser l’existant
+- réutiliser l’architecture actuelle
+- faire une V1 commercialisable rapidement
+- garder le code maintenable
+- éviter toute surcomplexité inutile
+
+## Livrable attendu
+Avant de coder :
+1. analyser l’architecture actuelle utilisateur / auth / workspace
+2. proposer comment rattacher les abonnements au bon niveau (user ou workspace)
+3. proposer les tables / champs à créer
+4. proposer la logique de trial
+5. proposer la logique de feature gating
+6. proposer le plan d’implémentation
+7. proposer la config Stripe à créer côté dashboard
+
+Puis implémente la V1 complète.
