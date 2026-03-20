@@ -108,7 +108,7 @@ export function TrialBanner() {
 
   if (needsUpgrade && billing?.subscriptionStatus !== "trialing") {
     return (
-      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md px-4 py-3 flex items-center justify-between gap-4 mb-4"
+      <div className="mx-4 mt-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md px-4 py-3 flex items-center justify-between gap-4 shrink-0"
         data-testid="banner-trial-expired"
       >
         <div className="flex items-center gap-2">
@@ -126,7 +126,7 @@ export function TrialBanner() {
 
   if (isTrialing && trialDaysLeft !== null) {
     return (
-      <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-md px-4 py-3 flex items-center justify-between gap-4 mb-4"
+      <div className="mx-4 mt-3 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-md px-4 py-3 flex items-center justify-between gap-4 shrink-0"
         data-testid="banner-trial-active"
       >
         <div className="flex items-center gap-2">

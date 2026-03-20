@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Settings, Network, HelpCircle, ChevronsLeft, ChevronsRight, Wallet } from "lucide-react";
+import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Settings, Network, HelpCircle, ChevronsLeft, ChevronsRight, Wallet, Zap } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useConfigAll } from "@/hooks/useConfigAll";
+import { useBilling } from "@/hooks/useBilling";
 import type { RbacModule } from "@shared/schema";
 import {
   Sidebar,
@@ -61,6 +62,8 @@ export function AppSidebar() {
   const { state, setOpenMobile, isMobile, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const { billing } = useBilling();
+  const showUpgradeCTA = billing?.subscriptionStatus !== "active";
 
   const moduleId = getModuleIdFromPath(location);
   const moduleHelp = moduleId ? getModuleHelp(moduleId) : MODULE_HELP.dashboard;
@@ -257,6 +260,34 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </div>
+
+      {/* Upgrade CTA */}
+      {showUpgradeCTA && (
+        <div className="border-t border-sidebar-border px-2 py-1">
+          {isCollapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href="/pricing" onClick={handleNavigation}>
+                  <SidebarMenuButton className="justify-center text-violet-600 dark:text-violet-400" data-testid="button-upgrade-cta-collapsed">
+                    <Zap className="w-4 h-4" />
+                  </SidebarMenuButton>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">Passer à un plan supérieur</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Link href="/pricing" onClick={handleNavigation}>
+              <div className="flex items-center gap-2 px-2 py-2 rounded-md hover-elevate cursor-pointer bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800" data-testid="button-upgrade-cta">
+                <Zap className="w-4 h-4 text-violet-600 dark:text-violet-400 shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">Passer à l'Agence</span>
+                  <span className="text-[10px] text-violet-500 dark:text-violet-400">Débloquer tous les modules</span>
+                </div>
+              </div>
+            </Link>
+          )}
+        </div>
+      )}
 
       <SidebarFooter className={`border-t border-sidebar-border bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500 ${isCollapsed ? 'p-2' : 'p-4'}`}>
         <Link href="/settings" onClick={handleNavigation}>
