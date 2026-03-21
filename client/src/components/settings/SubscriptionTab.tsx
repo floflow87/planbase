@@ -1,10 +1,11 @@
-import { CreditCard, Crown, Calendar, Zap, AlertTriangle, CheckCircle, Clock, XCircle, ArrowRight, HelpCircle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { CreditCard, Crown, Calendar, Zap, AlertTriangle, CheckCircle, Clock, XCircle, ArrowRight, HelpCircle, RefreshCw } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useBilling } from "@/hooks/useBilling";
+import { useBilling, type Plan } from "@/hooks/useBilling";
 import { useLocation } from "wouter";
 
 // ─── Status display helpers ──────────────────────────────────────────────────
@@ -67,6 +68,8 @@ const FAQ_ITEMS = [
 export function SubscriptionTab() {
   const { billing, isLoading, isActive, isAdmin, isTrialing, trialDaysLeft, startCheckout, isCheckingOut, openPortal, isOpeningPortal } = useBilling();
   const [, setLocation] = useLocation();
+  const [selectedPlan, setSelectedPlan] = useState<Plan>("agency");
+  const [selectedInterval, setSelectedInterval] = useState<"monthly" | "yearly">("monthly");
 
   if (isLoading) {
     return (
@@ -241,6 +244,111 @@ export function SubscriptionTab() {
           Voir tous les plans
         </Button>
       </div>
+
+      {/* ── Payment info card ── */}
+      <Card data-testid="card-payment-info">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CreditCard className="w-4 h-4" />
+            Informations de paiement
+          </CardTitle>
+          <CardDescription className="text-xs">
+            {isActive
+              ? "Gérez votre moyen de paiement et votre facturation via le portail Stripe."
+              : "Choisissez un plan et renseignez vos informations de paiement pour débloquer les modules."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isActive && billing?.stripeCustomerId ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                Moyen de paiement enregistré — facturation{" "}
+                {billing.billingInterval === "yearly" ? "annuelle" : "mensuelle"}.
+              </div>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => openPortal()}
+                disabled={isOpeningPortal}
+                data-testid="button-update-payment"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                {isOpeningPortal ? "Ouverture…" : "Mettre à jour le moyen de paiement"}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Billing interval toggle */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Fréquence de facturation</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedInterval("monthly")}
+                    className={`flex-1 py-2 px-3 rounded-md text-sm border transition-colors ${selectedInterval === "monthly" ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:border-muted-foreground"}`}
+                    data-testid="btn-interval-monthly"
+                  >
+                    Mensuel
+                  </button>
+                  <button
+                    onClick={() => setSelectedInterval("yearly")}
+                    className={`flex-1 py-2 px-3 rounded-md text-sm border transition-colors relative ${selectedInterval === "yearly" ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:border-muted-foreground"}`}
+                    data-testid="btn-interval-yearly"
+                  >
+                    Annuel
+                    <span className="absolute -top-2 -right-1 bg-green-500 text-white text-[9px] px-1 rounded-full">-20%</span>
+                  </button>
+                </div>
+              </div>
+              {/* Plan selection */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Plan</p>
+                <div className="flex flex-col gap-2">
+                  {([
+                    { key: "freelance" as Plan, name: "Freelance", priceMonthly: 19, priceYearly: 15, desc: "CRM, projets, notes, Gmail" },
+                    { key: "agency" as Plan, name: "Agence", priceMonthly: 39, priceYearly: 31, desc: "+ Trésorerie, finance, multi-users", premium: true },
+                  ] as const).map((p) => {
+                    const price = selectedInterval === "yearly" ? p.priceYearly : p.priceMonthly;
+                    const isSelected = selectedPlan === p.key;
+                    return (
+                      <button
+                        key={p.key}
+                        onClick={() => setSelectedPlan(p.key)}
+                        className={`w-full text-left p-3 rounded-md border transition-colors ${isSelected ? "border-primary bg-primary/10" : "border-border hover:border-muted-foreground"}`}
+                        data-testid={`btn-plan-${p.key}`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            {p.premium && <Crown className="w-3.5 h-3.5 text-violet-500 shrink-0" />}
+                            <span className={`text-sm font-medium ${isSelected ? "text-primary" : "text-foreground"}`}>{p.name}</span>
+                          </div>
+                          <span className={`text-sm font-semibold tabular-nums ${isSelected ? "text-primary" : "text-foreground"}`}>
+                            {price}€<span className="text-xs font-normal text-muted-foreground">/mois</span>
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 pl-0">{p.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* Subscribe CTA */}
+              <Button
+                className="w-full"
+                onClick={() => startCheckout({ plan: selectedPlan, interval: selectedInterval })}
+                disabled={isCheckingOut}
+                data-testid="button-subscribe-now"
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                {isCheckingOut ? "Redirection…" : `S'abonner — ${selectedPlan === "agency" ? (selectedInterval === "yearly" ? "31€" : "39€") : (selectedInterval === "yearly" ? "15€" : "19€")}/mois`}
+              </Button>
+              <p className="text-[11px] text-muted-foreground text-center">
+                Paiement sécurisé via Stripe · Annulation possible à tout moment
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Plans comparison quick view */}
       {!noSubscription && isActive && (

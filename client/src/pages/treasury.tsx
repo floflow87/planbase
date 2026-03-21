@@ -866,8 +866,22 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
     return result;
   }, [periods, localCells, localSettings.initialBalance, planData?.lines]);
 
+  const evalFormula = (raw: string): number => {
+    const trimmed = raw.trim();
+    if (!trimmed.startsWith("=")) return parseFloat(trimmed) || 0;
+    const expr = trimmed.slice(1).replace(/,/g, ".");
+    if (!/^[\d\s+\-*/().%]+$/.test(expr)) return 0;
+    try {
+      // eslint-disable-next-line no-new-func
+      const result = new Function(`"use strict"; return (${expr})`)();
+      return typeof result === "number" && isFinite(result) ? Math.round(result * 100) / 100 : 0;
+    } catch {
+      return 0;
+    }
+  };
+
   const handleCellSave = (lineId: string, periodKey: string) => {
-    const amount = parseFloat(editValue) || 0;
+    const amount = evalFormula(editValue);
     setLocalCells((prev) => ({ ...prev, [lineId]: { ...(prev[lineId] ?? {}), [periodKey]: amount } }));
     saveCellMutation.mutate([{ lineId, periodKey, amount }]);
     setEditingCell(null);
@@ -1150,7 +1164,7 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                                 >
                                   {isEditing ? (
                                     <input
-                                      type="number"
+                                      type="text"
                                       value={editValue}
                                       onChange={(e) => setEditValue(e.target.value)}
                                       onBlur={() => handleCellSave(line.id, p.key)}
@@ -1158,6 +1172,7 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                                         if (e.key === "Enter") handleCellSave(line.id, p.key);
                                         if (e.key === "Escape") setEditingCell(null);
                                       }}
+                                      placeholder="0 ou =1200+800"
                                       className="w-full text-right text-[11px] tabular-nums bg-primary/10 rounded px-1 py-1 outline-none border border-primary/30"
                                       style={{ minWidth: 60 }}
                                       autoFocus
