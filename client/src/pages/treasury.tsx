@@ -171,8 +171,9 @@ const RUBRIQUES: Array<{ key: string; label: string; type: "income" | "expense" 
   { key: "entrees_clients", label: "Entrées clients", type: "income" },
   { key: "entrees_exceptionnelles", label: "Entrées exceptionnelles", type: "income" },
   { key: "sorties_ressources", label: "Sorties ressources", type: "expense" },
-  { key: "sorties_outils", label: "Sorties outils", type: "expense" },
+  { key: "sorties_abonnement", label: "Sorties abonnement", type: "expense" },
   { key: "sorties_charges", label: "Sorties charges", type: "expense" },
+  { key: "sorties_exceptionnelles", label: "Sorties exceptionnelles", type: "expense" },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -775,7 +776,7 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
   });
 
   const periods = useMemo(() => {
-    const result: Array<{ key: string; label: string; isCurrent: boolean }> = [];
+    const result: Array<{ key: string; label: string; isCurrent: boolean; subtitle?: string }> = [];
     const now = new Date();
     if (localSettings.granularity === "month") {
       for (let i = -2; i <= 9; i++) {
@@ -801,10 +802,15 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
         const year = d.getFullYear();
         const startOfYear = new Date(year, 0, 1);
         const weekNum = Math.ceil(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
+        const sun = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 6);
+        const subtitle = d.getMonth() === sun.getMonth()
+          ? `${d.getDate()}-${sun.getDate()} ${sun.toLocaleDateString("fr-FR", { month: "short" }).replace(".", "")}`
+          : `${d.getDate()} ${d.toLocaleDateString("fr-FR", { month: "short" }).replace(".", "")} - ${sun.getDate()} ${sun.toLocaleDateString("fr-FR", { month: "short" }).replace(".", "")}`;
         result.push({
           key: `${year}-W${String(weekNum).padStart(2, "0")}`,
           label: `S${weekNum} '${String(year).slice(2)}`,
           isCurrent: i === 0,
+          subtitle,
         });
       }
     }
@@ -847,7 +853,7 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
     ["entrees_clients", "entrees_exceptionnelles"].reduce((s, k) => s + getRubriqueTotal(k, periodKey), 0);
 
   const getTotalSorties = (periodKey: string): number =>
-    ["sorties_ressources", "sorties_outils", "sorties_charges"].reduce((s, k) => s + getRubriqueTotal(k, periodKey), 0);
+    ["sorties_ressources", "sorties_abonnement", "sorties_charges", "sorties_exceptionnelles"].reduce((s, k) => s + getRubriqueTotal(k, periodKey), 0);
 
   const balances = useMemo(() => {
     let balance = localSettings.initialBalance;
@@ -1007,9 +1013,16 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                     style={{ minWidth: COL_W }}
                   >
                     {p.label}
+                    {p.subtitle && <span className="block text-[9px] font-normal normal-case text-muted-foreground/60">{p.subtitle}</span>}
                     {p.isCurrent && <span className="block text-[8px] font-normal text-primary/60 normal-case">en cours</span>}
                   </th>
                 ))}
+                <th
+                  className="text-right py-2 px-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground border-l border-border/50 bg-muted/20"
+                  style={{ minWidth: COL_W }}
+                >
+                  Total
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -1059,6 +1072,12 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                           </td>
                         );
                       })}
+                      <td className="py-2 px-2 text-right tabular-nums text-[11px] font-semibold border-l border-border/50 bg-muted/20">
+                        {(() => {
+                          const t = periods.reduce((sum, p) => sum + getRubriqueTotal(rubrique.key, p.key), 0);
+                          return t !== 0 ? <span className={rubrique.type === "income" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>{fmt(t)}</span> : null;
+                        })()}
+                      </td>
                     </tr>
 
                     {/* Child lines */}
@@ -1093,6 +1112,14 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                                     title="Double-clic pour renommer"
                                   >{line.label}</span>
                                 )}
+                                <button
+                                  onClick={() => { setEditingLineId(line.id); setEditingLineLabel(line.label); }}
+                                  className="invisible group-hover:visible text-muted-foreground hover:text-primary transition-colors"
+                                  title="Renommer la ligne"
+                                  data-testid={`btn-rename-plan-line-${line.id}`}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </button>
                                 <button
                                   onClick={() => duplicateLineMutation.mutate(line.id)}
                                   className="invisible group-hover:visible text-muted-foreground hover:text-primary transition-colors"
@@ -1169,6 +1196,12 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                                 </td>
                               );
                             })}
+                            <td className="py-0.5 px-2 text-right tabular-nums text-[11px] font-semibold border-l border-border/50 bg-muted/10 whitespace-nowrap">
+                              {(() => {
+                                const t = periods.reduce((sum, p) => sum + getCellValue(line.id, p.key), 0);
+                                return t !== 0 ? <span className="text-foreground">{fmt(t)}</span> : <span className="text-border/50">—</span>;
+                              })()}
+                            </td>
                           </tr>
                         ))}
 
@@ -1206,6 +1239,7 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                               </div>
                             </td>
                             {periods.map((p) => <td key={p.key} className={p.isCurrent ? "bg-primary/5" : ""} />)}
+                          <td className="border-l border-border/50 bg-muted/10" />
                           </tr>
                         ) : (
                           <tr className="border-t border-border/10">
@@ -1219,6 +1253,7 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                               </button>
                             </td>
                             {periods.map((p) => <td key={p.key} className={p.isCurrent ? "bg-primary/5" : ""} />)}
+                            <td className="border-l border-border/50 bg-muted/10" />
                           </tr>
                         )}
                       </>
@@ -1243,6 +1278,9 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                     </td>
                   );
                 })}
+                <td className="py-2 px-2 text-right tabular-nums text-[11px] font-semibold border-l border-border/50 bg-muted/20">
+                  {(() => { const t = periods.reduce((s, p) => s + getTotalEntrees(p.key), 0); return <span className={t > 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}>{t !== 0 ? fmt(t) : "—"}</span>; })()}
+                </td>
               </tr>
               <tr className="border-t border-border/50">
                 <td className="py-2 px-3 sticky left-0 bg-card z-10">
@@ -1259,6 +1297,9 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                     </td>
                   );
                 })}
+                <td className="py-2 px-2 text-right tabular-nums text-[11px] font-semibold border-l border-border/50 bg-muted/20">
+                  {(() => { const t = periods.reduce((s, p) => s + getTotalSorties(p.key), 0); return <span className={t > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}>{t !== 0 ? fmt(t) : "—"}</span>; })()}
+                </td>
               </tr>
               <tr className="border-t border-border/50 bg-muted/5">
                 <td className="py-2 px-3 sticky left-0 bg-muted/5 z-10">
@@ -1274,6 +1315,9 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                     </td>
                   );
                 })}
+                <td className="py-2 px-2 text-right tabular-nums text-[11px] font-bold border-l border-border/50 bg-muted/20">
+                  {(() => { const t = periods.reduce((s, p) => s + (balances[p.key]?.variation ?? 0), 0); return <span className={t > 0 ? "text-green-600 dark:text-green-400" : t < 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}>{t !== 0 ? `${t > 0 ? "+" : ""}${fmt(t)}` : "—"}</span>; })()}
+                </td>
               </tr>
               <tr className="border-t-2 border-border bg-muted/10">
                 <td className="py-2.5 px-3 sticky left-0 bg-muted/10 z-10">
@@ -1290,6 +1334,7 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                     </td>
                   );
                 })}
+                <td className="py-2.5 px-2 border-l border-border/50 bg-muted/20" />
               </tr>
             </tbody>
           </table>

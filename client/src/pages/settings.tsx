@@ -1775,7 +1775,7 @@ export default function Settings() {
             </Accordion>
           </TabsContent>
 
-          <TabsContent value="subscription" className="space-y-6">
+          <TabsContent value="subscription" className="space-y-6 overflow-y-auto" style={{ maxHeight: "calc(100vh - 180px)" }}>
             <SubscriptionTab />
           </TabsContent>
         </Tabs>

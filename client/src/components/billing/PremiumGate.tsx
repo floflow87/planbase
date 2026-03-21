@@ -113,7 +113,7 @@ export function TrialBanner() {
       >
         <div className="flex items-center gap-2">
           <Lock className="w-4 h-4 text-red-500 shrink-0" />
-          <span className="text-sm font-medium text-red-700 dark:text-red-300">
+          <span className="text-xs text-red-700 dark:text-red-300">
             Votre période d'essai est terminée — choisissez un plan pour continuer.
           </span>
         </div>
