@@ -1173,7 +1173,7 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                                         if (e.key === "Escape") setEditingCell(null);
                                       }}
                                       placeholder="0 ou =1200+800"
-                                      className="w-full text-right text-[11px] tabular-nums bg-primary/10 rounded px-1 py-1 outline-none border border-primary/30"
+                                      className="w-full text-right text-[11px] tabular-nums bg-primary/10 rounded px-1 py-1 outline-none border border-primary/30 placeholder:text-[9px]"
                                       style={{ minWidth: 60 }}
                                       autoFocus
                                     />
