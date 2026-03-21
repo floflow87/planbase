@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type Plan = "freelance" | "agency" | "starter";
 export type SubscriptionStatus =
@@ -29,6 +30,20 @@ export type PremiumFeature = "treasury" | "finance" | "email_templates" | "multi
 
 const AGENCY_FEATURES: PremiumFeature[] = ["treasury", "finance", "email_templates", "multi_users"];
 
+const ADMIN_EMAILS = ["floflow87@planbase.io", "demo@yopmail.com"];
+
+const ADMIN_BILLING: BillingStatus = {
+  plan: "agency",
+  subscriptionStatus: "active",
+  billingInterval: "monthly",
+  stripeCustomerId: null,
+  stripeSubscriptionId: null,
+  stripePriceId: null,
+  trialEndsAt: null,
+  currentPeriodEnd: null,
+  cancelAtPeriodEnd: false,
+};
+
 export function isSubscriptionActive(status: SubscriptionStatus): boolean {
   return status === "active" || status === "trialing" || status === "past_due";
 }
@@ -38,17 +53,21 @@ export function hasFeature(billing: BillingStatus | undefined, feature: PremiumF
   if (!isSubscriptionActive(billing.subscriptionStatus)) return false;
   const plan = billing.plan === "starter" ? "freelance" : billing.plan;
   if (plan === "agency") return true;
-  // freelance has no premium features
   return false;
 }
 
 export function useBilling() {
   const qc = useQueryClient();
+  const { user } = useAuth();
 
-  const { data: billing, isLoading } = useQuery<BillingStatus>({
+  const isAdmin = ADMIN_EMAILS.includes(user?.email ?? "");
+
+  const { data: rawBilling, isLoading } = useQuery<BillingStatus>({
     queryKey: ["/api/billing/status"],
     staleTime: 30_000,
   });
+
+  const billing = isAdmin ? ADMIN_BILLING : rawBilling;
 
   const checkoutMutation = useMutation({
     mutationFn: async ({ plan, interval }: { plan: Plan; interval: "monthly" | "yearly" }) => {
@@ -82,6 +101,7 @@ export function useBilling() {
   return {
     billing,
     isLoading,
+    isAdmin,
     isActive,
     isTrialing,
     isCanceled,

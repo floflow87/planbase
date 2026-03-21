@@ -65,7 +65,7 @@ const FAQ_ITEMS = [
 ];
 
 export function SubscriptionTab() {
-  const { billing, isLoading, isActive, isTrialing, trialDaysLeft, startCheckout, isCheckingOut, openPortal, isOpeningPortal } = useBilling();
+  const { billing, isLoading, isActive, isAdmin, isTrialing, trialDaysLeft, startCheckout, isCheckingOut, openPortal, isOpeningPortal } = useBilling();
   const [, setLocation] = useLocation();
 
   if (isLoading) {
@@ -74,6 +74,43 @@ export function SubscriptionTab() {
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-28 w-full" />
         <Skeleton className="h-28 w-full" />
+      </div>
+    );
+  }
+
+  if (isAdmin) {
+    return (
+      <div className="space-y-6" data-testid="subscription-tab">
+        <div>
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Crown className="w-5 h-5 text-violet-500" />
+            Abonnement
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">Statut de votre accès à Planbase.</p>
+        </div>
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 bg-violet-100 dark:bg-violet-900/30 rounded-md p-2">
+                <Crown className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">Compte administrateur</p>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Ce compte bénéficie d'un accès complet au plan Agence sans abonnement requis.
+                </p>
+                <div className="flex items-center gap-2 mt-3">
+                  <Badge variant="default" className="bg-violet-600 text-white">
+                    <Crown className="w-3 h-3 mr-1" /> Agence
+                  </Badge>
+                  <Badge variant="default" className="bg-green-600 text-white">
+                    <CheckCircle className="w-3 h-3 mr-1" /> Accès complet
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
