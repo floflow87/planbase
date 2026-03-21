@@ -919,17 +919,23 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                     return `${year}-W${String(weekNum).padStart(2, "0")}`;
                   };
                   const newCells: Array<{ lineId: string; periodKey: string; amount: number }> = [];
+                  const nextLocalCells: Record<string, Record<string, number>> = {};
                   for (const [lineId, lineCells] of Object.entries(localCells)) {
+                    nextLocalCells[lineId] = {};
                     for (const [pk, amount] of Object.entries(lineCells)) {
                       if (amount === 0) continue;
                       if (/^\d{4}-\d{2}$/.test(pk)) {
                         const [yr, mo] = pk.split("-").map(Number);
                         const lastDay = new Date(yr, mo, 0);
                         const weekKey = getWeekKey(lastDay);
+                        nextLocalCells[lineId][weekKey] = (nextLocalCells[lineId][weekKey] ?? 0) + amount;
                         newCells.push({ lineId, periodKey: weekKey, amount });
+                      } else {
+                        nextLocalCells[lineId][pk] = amount;
                       }
                     }
                   }
+                  setLocalCells(nextLocalCells);
                   if (newCells.length > 0) saveCellMutation.mutate(newCells);
                 } else if (prev === "week" && g === "month") {
                   const newCells: Array<{ lineId: string; periodKey: string; amount: number }> = [];
@@ -950,11 +956,15 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                       }
                     }
                   }
+                  const nextLocalCells: Record<string, Record<string, number>> = {};
                   for (const [lineId, months] of Object.entries(monthTotals)) {
+                    nextLocalCells[lineId] = {};
                     for (const [mKey, amount] of Object.entries(months)) {
+                      nextLocalCells[lineId][mKey] = amount;
                       newCells.push({ lineId, periodKey: mKey, amount });
                     }
                   }
+                  setLocalCells(nextLocalCells);
                   if (newCells.length > 0) saveCellMutation.mutate(newCells);
                 }
               }}
