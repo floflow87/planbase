@@ -638,6 +638,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
   // ---------- Selection helpers ----------
   const toggleSelect = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    setFocusedId(id);
     if (e.ctrlKey || e.metaKey) {
       setSelectedIds(prev => {
         const next = new Set(prev);

@@ -122,7 +122,7 @@ export default function Pricing() {
         {/* Agency */}
         <Card className="flex-1 border-violet-200 dark:border-violet-800 relative" data-testid="plan-card-agency">
           <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-            <Badge className="bg-violet-600 text-white text-[10px] px-3 shadow-sm">Recommandé</Badge>
+            <Badge className="bg-violet-600 text-white text-[10px] px-3 shadow-sm">Populaire</Badge>
           </div>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between gap-2 flex-wrap">

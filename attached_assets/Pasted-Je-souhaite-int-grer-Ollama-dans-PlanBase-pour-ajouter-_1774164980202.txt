@@ -1,0 +1,269 @@
+Je souhaite intégrer Ollama dans PlanBase pour ajouter une première couche d’intelligence artificielle utile, simple et non intrusive.
+
+IMPORTANT :
+- ne pas créer une usine à gaz
+- intégrer l’IA de manière contextuelle dans les bons endroits
+- privilégier des use cases concrets et actionnables
+- garder une UX fluide, rapide et compréhensible
+- ne pas casser l’existant
+- implémenter une V1 robuste et évolutive
+
+## Objectif V1
+
+Créer un assistant IA basé sur Ollama capable de :
+
+1. répondre aux questions générales sur l’application (assistant produit)
+2. analyser un projet et donner des recommandations business (rentabilité, organisation, priorités)
+3. résumer des notes et documents
+4. proposer des améliorations concrètes sur des contenus existants
+
+## Stack attendue
+
+- Backend Node.js existant
+- Ollama en local (via API HTTP)
+- modèle recommandé :
+  - llama3 ou mistral (léger pour V1)
+- architecture modulaire :
+  - ai.service.ts
+  - ai.routes.ts
+  - ai.controller.ts
+
+---
+
+# 1. SERVICE OLLAMA
+
+Créer un service centralisé :
+
+aiService avec :
+
+- fonction callOllama(prompt, context)
+- gestion timeout
+- gestion erreurs
+- possibilité d’injecter :
+  - contexte utilisateur
+  - contexte projet
+  - contenu texte (note, doc)
+
+Structure attendue :
+
+- model: "llama3"
+- stream: false (V1 simple)
+- temperature modérée (0.4–0.7)
+
+---
+
+# 2. ASSISTANT GLOBAL (CHATBOT)
+
+Créer un module assistant accessible depuis :
+
+- bouton flottant
+- ou sidebar
+
+Fonctionnalités :
+
+### 1. Questions produit
+Exemples :
+- "comment créer un projet ?"
+- "comment améliorer mon organisation ?"
+- "comment utiliser le CRM ?"
+
+### 2. Questions business projet
+Si un projet est sélectionné :
+
+- injecter contexte :
+  - nom projet
+  - budget
+  - temps consommé
+  - marge
+  - statut
+
+Exemples de questions :
+- "comment améliorer la rentabilité ?"
+- "quels sont les risques sur ce projet ?"
+- "que devrais-je faire en priorité ?"
+
+### 3. Conseils proactifs
+
+Le bot doit pouvoir suggérer :
+
+- actions prioritaires
+- points d’attention
+- bonnes pratiques
+
+---
+
+# 3. PROMPT SYSTEM (IMPORTANT)
+
+Créer un prompt système structuré :
+
+Rôle :
+Tu es un assistant produit et business intégré à PlanBase.
+
+Objectifs :
+- aider l’utilisateur à mieux gérer ses projets
+- améliorer sa rentabilité
+- structurer son travail
+- proposer des actions concrètes
+
+Style :
+- clair
+- actionnable
+- orienté produit / business
+- éviter le blabla
+- proposer des listes structurées
+
+Toujours inclure :
+- recommandations concrètes
+- points d’attention
+- actions suivantes
+
+---
+
+# 4. ANALYSE PROJET
+
+Créer une route :
+
+POST /ai/project-analysis
+
+Input :
+- projet (budget, temps, marge, statut)
+
+Output attendu :
+
+1. diagnostic
+2. risques
+3. recommandations
+4. quick wins
+5. actions prioritaires
+
+---
+
+# 5. NOTES & DOCUMENTS
+
+Ajouter des actions IA dans :
+
+- module Notes
+- module Documents
+
+## 1. Résumé
+
+Bouton :
+→ "Synthétiser"
+
+Input :
+- contenu note / document
+
+Output :
+- résumé clair
+- points clés
+- décisions
+
+---
+
+## 2. Amélioration
+
+Bouton :
+→ "Améliorer"
+
+Output :
+- version plus claire
+- structuration
+- reformulation
+
+---
+
+## 3. Recommandations
+
+Bouton :
+→ "Recommandations"
+
+Output :
+- éléments manquants
+- axes d’amélioration
+- checklist
+
+---
+
+# 6. UX
+
+Assistant :
+
+- interface simple type chat
+- réponses formatées (titres, bullets)
+- loader pendant génération
+
+Notes / docs :
+
+- boutons discrets
+- résultats affichés inline ou dans un panel
+
+---
+
+# 7. CONTEXTE INTELLIGENT
+
+Toujours injecter si disponible :
+
+- utilisateur
+- projet courant
+- type de contenu
+
+Mais :
+
+- fallback si aucun contexte
+- ne jamais bloquer la réponse
+
+---
+
+# 8. SÉCURITÉ / PERFORMANCE
+
+- limiter taille des prompts
+- tronquer contenu long si nécessaire
+- gérer erreurs Ollama
+- fallback message user-friendly
+
+---
+
+# 9. FEATURE GATING
+
+Cette fonctionnalité doit être :
+
+→ disponible uniquement pour le plan Agence
+
+Si plan Freelance :
+
+- afficher message :
+  "Assistant IA disponible avec le plan Agence"
+- CTA upgrade
+
+---
+
+# 10. LIVRABLE ATTENDU
+
+Avant de coder :
+
+1. proposer architecture aiService
+2. proposer structure des prompts
+3. proposer endpoints
+4. proposer intégration UI
+
+Puis implémenter :
+
+- service Ollama
+- chatbot global
+- analyse projet
+- actions notes / documents
+
+---
+
+# 11. ÉVOLUTION FUTURE (ne pas implémenter maintenant)
+
+- génération de tickets
+- OKR auto
+- automatisations
+- suggestions proactives temps réel
+
+---
+
+Objectif final :
+
+Un assistant simple, utile et immédiatement différenciant dans PlanBase, sans complexité excessive.

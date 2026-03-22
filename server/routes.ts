@@ -14118,6 +14118,20 @@ app.get("/config/feature-flags", async (_req, res) => {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  app.patch("/api/treasury/scenarios/:id", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { name } = req.body;
+      if (!name?.trim()) return res.status(400).json({ error: "name required" });
+      const result = await db.execute(sql`
+        UPDATE treasury_scenarios SET name = ${name.trim()} WHERE id = ${req.params.id} AND account_id = ${accountId} RETURNING *
+      `);
+      const row = Array.isArray(result) ? result[0] : (result as any).rows?.[0];
+      if (!row) return res.status(404).json({ error: "Not found" });
+      res.json(row);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   app.delete("/api/treasury/scenarios/:id", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const accountId = req.accountId!;
@@ -14176,6 +14190,19 @@ app.get("/config/feature-flags", async (_req, res) => {
         RETURNING *
       `);
       const row = Array.isArray(result) ? result[0] : (result as any).rows?.[0];
+      res.json(row);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.patch("/api/treasury/plan/scenarios/:id", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { name } = req.body;
+      if (!name?.trim()) return res.status(400).json({ error: "name required" });
+      const result = await db.execute(sql`
+        UPDATE treasury_plan_scenarios SET name = ${name.trim()} WHERE id = ${req.params.id} AND account_id = ${req.accountId!} RETURNING *
+      `);
+      const row = Array.isArray(result) ? result[0] : (result as any).rows?.[0];
+      if (!row) return res.status(404).json({ error: "Not found" });
       res.json(row);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });

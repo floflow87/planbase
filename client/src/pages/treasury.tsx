@@ -49,6 +49,7 @@ import {
   FolderKanban,
   Loader2,
   ArrowRightLeft,
+  MapPin,
 } from "lucide-react";
 import {
   Dialog,
@@ -723,6 +724,9 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   const [activePlanScenarioId, setActivePlanScenarioId] = useState<string | null>(null);
   const [showCreatePlanScenario, setShowCreatePlanScenario] = useState(false);
   const [newPlanScenarioName, setNewPlanScenarioName] = useState("");
+  const [deletePlanScenarioConfirm, setDeletePlanScenarioConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [renamePlanScenarioId, setRenamePlanScenarioId] = useState<string | null>(null);
+  const [renamePlanScenarioName, setRenamePlanScenarioName] = useState("");
 
   // Sync entrées dialog
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
@@ -771,7 +775,20 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] });
       setActivePlanScenarioId(null);
+      setDeletePlanScenarioConfirm(null);
     },
+  });
+
+  const renamePlanScenarioMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      apiRequest(`/api/treasury/plan/scenarios/${id}`, "PATCH", { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] });
+      setRenamePlanScenarioId(null);
+      setRenamePlanScenarioName("");
+      toast({ title: "Scénario renommé", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100" });
+    },
+    onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
 
   const createLineMutation = useMutation({
@@ -901,11 +918,12 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
 
       let count = 0;
       for (const [, { name, periodAmounts }] of Object.entries(byProject)) {
-        const created = await apiRequest("/api/treasury/plan/lines", "POST", {
+        const lineRes = await apiRequest("/api/treasury/plan/lines", "POST", {
           rubrique: "entrees_clients",
           label: name,
           planScenarioId: activePlanScenarioId,
         });
+        const created = await lineRes.json();
         if (created?.id) {
           const cells = Object.entries(periodAmounts)
             .filter(([, amount]) => amount > 0)
@@ -1142,36 +1160,66 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1 px-2" data-testid="btn-plan-scenario-select">
+                {activePlanScenarioId && <MapPin className="h-2.5 w-2.5 text-violet-500" />}
                 {activePlanScenarioId
                   ? (planData?.planScenarios?.find((s) => s.id === activePlanScenarioId)?.name ?? "Scénario")
                   : "Plan de base"}
                 <ChevronDown className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-52">
+            <DropdownMenuContent align="start" className="w-56">
               <DropdownMenuLabel className="text-[10px]">Scénarios du plan</DropdownMenuLabel>
               <DropdownMenuItem
                 onClick={() => setActivePlanScenarioId(null)}
                 className="text-xs gap-2"
               >
-                {!activePlanScenarioId && <Check className="h-3 w-3" />}
+                {!activePlanScenarioId
+                  ? <MapPin className="h-3 w-3 text-violet-500" />
+                  : <span className="w-3" />}
                 <span className={!activePlanScenarioId ? "font-medium" : ""}>Plan de base</span>
               </DropdownMenuItem>
               {(planData?.planScenarios ?? []).map((s) => (
-                <DropdownMenuItem key={s.id} className="text-xs gap-2 justify-between group" onClick={() => setActivePlanScenarioId(s.id)}>
-                  <span className="flex items-center gap-2">
-                    {activePlanScenarioId === s.id && <Check className="h-3 w-3" />}
-                    <span className={activePlanScenarioId === s.id ? "font-medium" : ""}>{s.name}</span>
-                  </span>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-4 w-4 opacity-0 group-hover:opacity-100"
-                    onClick={(e) => { e.stopPropagation(); if (confirm(`Supprimer le scénario "${s.name}" ?`)) deletePlanScenarioMutation.mutate(s.id); }}
-                    data-testid={`btn-delete-plan-scenario-${s.id}`}
-                  >
-                    <X className="h-2.5 w-2.5" />
-                  </Button>
+                <DropdownMenuItem key={s.id} className="text-xs gap-2 justify-between group" onClick={() => { setActivePlanScenarioId(s.id); setRenamePlanScenarioId(null); }}>
+                  {renamePlanScenarioId === s.id ? (
+                    <div className="flex items-center gap-1 w-full" onClick={(e) => e.stopPropagation()}>
+                      <Input
+                        value={renamePlanScenarioName}
+                        onChange={(e) => setRenamePlanScenarioName(e.target.value)}
+                        className="h-5 text-[11px] flex-1 px-1"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && renamePlanScenarioName.trim()) renamePlanScenarioMutation.mutate({ id: s.id, name: renamePlanScenarioName.trim() });
+                          if (e.key === "Escape") { setRenamePlanScenarioId(null); setRenamePlanScenarioName(""); }
+                        }}
+                      />
+                      <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => { if (renamePlanScenarioName.trim()) renamePlanScenarioMutation.mutate({ id: s.id, name: renamePlanScenarioName.trim() }); }}>
+                        <Check className="h-2.5 w-2.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="flex items-center gap-2 flex-1 min-w-0">
+                        {activePlanScenarioId === s.id
+                          ? <MapPin className="h-3 w-3 text-violet-500 shrink-0" />
+                          : <span className="w-3 shrink-0" />}
+                        <span className={`truncate ${activePlanScenarioId === s.id ? "font-medium" : ""}`}>{s.name}</span>
+                      </span>
+                      <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+                        <Button size="icon" variant="ghost" className="h-4 w-4"
+                          onClick={(e) => { e.stopPropagation(); setRenamePlanScenarioId(s.id); setRenamePlanScenarioName(s.name); }}
+                          data-testid={`btn-rename-plan-scenario-${s.id}`}
+                        >
+                          <Pencil className="h-2.5 w-2.5" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-4 w-4"
+                          onClick={(e) => { e.stopPropagation(); setDeletePlanScenarioConfirm({ id: s.id, name: s.name }); }}
+                          data-testid={`btn-delete-plan-scenario-${s.id}`}
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </Button>
+                      </span>
+                    </>
+                  )}
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
@@ -1202,6 +1250,24 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        {/* Delete plan scenario confirmation dialog */}
+        <Dialog open={!!deletePlanScenarioConfirm} onOpenChange={(o) => { if (!o) setDeletePlanScenarioConfirm(null); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Supprimer le scénario</DialogTitle>
+              <DialogDescription>
+                Supprimer <strong>"{deletePlanScenarioConfirm?.name}"</strong> ? Cette action est irréversible et supprimera toutes les données associées.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setDeletePlanScenarioConfirm(null)}>Annuler</Button>
+              <Button variant="destructive" size="sm" onClick={() => { if (deletePlanScenarioConfirm) deletePlanScenarioMutation.mutate(deletePlanScenarioConfirm.id); }} disabled={deletePlanScenarioMutation.isPending}>
+                {deletePlanScenarioMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Supprimer"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Initial balance */}
         <div className="flex items-center gap-2 ml-auto">
@@ -1722,7 +1788,11 @@ function TreasuryPageInner() {
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
   const [showScenarioCreate, setShowScenarioCreate] = useState(false);
   const [newScenarioName, setNewScenarioName] = useState("");
+  const [deleteScenarioConfirm, setDeleteScenarioConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [renameScenarioId, setRenameScenarioId] = useState<string | null>(null);
+  const [renameScenarioName, setRenameScenarioName] = useState("");
 
+  const [deleteFlowConfirm, setDeleteFlowConfirm] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [editFlow, setEditFlow] = useState<TreasuryFlow | null>(null);
   const [tagPopoverOpen, setTagPopoverOpen] = useState<Record<string, boolean>>({});
@@ -1736,6 +1806,7 @@ function TreasuryPageInner() {
     mutationFn: (id: string) => apiRequest(`/api/treasury/transactions/${id}`, "DELETE"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/treasury/flows"] });
+      setDeleteFlowConfirm(null);
       toast({ title: "Flux supprimé" });
     },
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
@@ -1758,6 +1829,19 @@ function TreasuryPageInner() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/treasury/flows"] });
       setSelectedScenarioId(null);
+      setDeleteScenarioConfirm(null);
+    },
+    onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+  });
+
+  const renameScenarioMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      apiRequest(`/api/treasury/scenarios/${id}`, "PATCH", { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/treasury/flows"] });
+      setRenameScenarioId(null);
+      setRenameScenarioName("");
+      toast({ title: "Scénario renommé", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100" });
     },
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
@@ -2156,67 +2240,112 @@ function TreasuryPageInner() {
                 </div>
 
                 {/* Scenario selector */}
-                {(data?.scenarios?.length ?? 0) > 0 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 px-2" data-testid="button-scenario-select">
-                        <GitBranch className="h-2.5 w-2.5" />
-                        {selectedScenarioId
-                          ? data?.scenarios?.find((s) => s.id === selectedScenarioId)?.name ?? "Scénario"
-                          : "Base"}
-                        <ChevronDown className="h-2.5 w-2.5" />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 px-2" data-testid="button-scenario-select">
+                      <GitBranch className="h-2.5 w-2.5" />
+                      {selectedScenarioId
+                        ? data?.scenarios?.find((s) => s.id === selectedScenarioId)?.name ?? "Scénario"
+                        : "Base"}
+                      {selectedScenarioId && <MapPin className="h-2 w-2 text-violet-500" />}
+                      <ChevronDown className="h-2.5 w-2.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuLabel className="text-[10px]">Scénarios</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {data?.scenarios?.map((s) => (
+                      <DropdownMenuItem
+                        key={s.id}
+                        className="text-xs gap-2 justify-between group"
+                        onClick={() => { setSelectedScenarioId(s.isBase ? null : s.id); setRenameScenarioId(null); }}
+                      >
+                        {renameScenarioId === s.id && !s.isBase ? (
+                          <div className="flex items-center gap-1 w-full" onClick={(e) => e.stopPropagation()}>
+                            <Input
+                              value={renameScenarioName}
+                              onChange={(e) => setRenameScenarioName(e.target.value)}
+                              className="h-5 text-[10px] flex-1 px-1"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && renameScenarioName.trim()) renameScenarioMutation.mutate({ id: s.id, name: renameScenarioName.trim() });
+                                if (e.key === "Escape") { setRenameScenarioId(null); setRenameScenarioName(""); }
+                              }}
+                            />
+                            <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => { if (renameScenarioName.trim()) renameScenarioMutation.mutate({ id: s.id, name: renameScenarioName.trim() }); }}>
+                              <Check className="h-2.5 w-2.5" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="flex items-center gap-2 flex-1 min-w-0">
+                              {s.color && <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />}
+                              <span className={`truncate ${(s.isBase ? !selectedScenarioId : selectedScenarioId === s.id) ? "font-medium" : ""}`}>{s.name}</span>
+                              {(s.isBase ? !selectedScenarioId : selectedScenarioId === s.id) && (
+                                <MapPin className="h-2.5 w-2.5 text-violet-500 shrink-0" />
+                              )}
+                            </span>
+                            {!s.isBase && (
+                              <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+                                <Button size="icon" variant="ghost" className="h-4 w-4"
+                                  onClick={(e) => { e.stopPropagation(); setRenameScenarioId(s.id); setRenameScenarioName(s.name); }}
+                                >
+                                  <Pencil className="h-2.5 w-2.5" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-4 w-4"
+                                  onClick={(e) => { e.stopPropagation(); setDeleteScenarioConfirm({ id: s.id, name: s.name }); }}
+                                >
+                                  <X className="h-2.5 w-2.5" />
+                                </Button>
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                    {showScenarioCreate ? (
+                      <div className="flex items-center gap-1 p-1" onClick={(e) => e.stopPropagation()}>
+                        <Input
+                          autoFocus
+                          value={newScenarioName}
+                          onChange={(e) => setNewScenarioName(e.target.value)}
+                          placeholder="Nom du scénario"
+                          className="h-6 text-[10px]"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && newScenarioName.trim()) createScenarioMutation.mutate(newScenarioName.trim());
+                            if (e.key === "Escape") setShowScenarioCreate(false);
+                          }}
+                        />
+                        <Button size="icon" variant="ghost" className="shrink-0" onClick={() => { if (newScenarioName.trim()) createScenarioMutation.mutate(newScenarioName.trim()); }}>
+                          <Check className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <DropdownMenuItem className="text-xs" onClick={() => setShowScenarioCreate(true)}>
+                        <Plus className="h-3 w-3 mr-1" /> Nouveau scénario
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* Delete flow scenario confirmation dialog */}
+                <Dialog open={!!deleteScenarioConfirm} onOpenChange={(o) => { if (!o) setDeleteScenarioConfirm(null); }}>
+                  <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                      <DialogTitle>Supprimer le scénario</DialogTitle>
+                      <DialogDescription>
+                        Supprimer <strong>"{deleteScenarioConfirm?.name}"</strong> ? Cette action est irréversible.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button variant="outline" size="sm" onClick={() => setDeleteScenarioConfirm(null)}>Annuler</Button>
+                      <Button variant="destructive" size="sm" onClick={() => { if (deleteScenarioConfirm) deleteScenarioMutation.mutate(deleteScenarioConfirm.id); }} disabled={deleteScenarioMutation.isPending}>
+                        {deleteScenarioMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Supprimer"}
                       </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="text-xs">
-                      <DropdownMenuLabel className="text-[10px]">Scénarios</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {data?.scenarios?.map((s) => (
-                        <DropdownMenuItem
-                          key={s.id}
-                          className="text-xs gap-2"
-                          onClick={() => setSelectedScenarioId(s.id)}
-                        >
-                          {s.color && (
-                            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                          )}
-                          {s.name}
-                          {selectedScenarioId === s.id && <Check className="h-3 w-3 ml-auto" />}
-                          {!s.isBase && selectedScenarioId === s.id && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); deleteScenarioMutation.mutate(s.id); }}
-                              className="ml-1 text-muted-foreground hover:text-destructive"
-                            >
-                              <X className="h-2.5 w-2.5" />
-                            </button>
-                          )}
-                        </DropdownMenuItem>
-                      ))}
-                      <DropdownMenuSeparator />
-                      {showScenarioCreate ? (
-                        <div className="flex items-center gap-1 p-1">
-                          <Input
-                            autoFocus
-                            value={newScenarioName}
-                            onChange={(e) => setNewScenarioName(e.target.value)}
-                            placeholder="Nom du scénario"
-                            className="h-6 text-[10px]"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && newScenarioName.trim()) createScenarioMutation.mutate(newScenarioName.trim());
-                              if (e.key === "Escape") setShowScenarioCreate(false);
-                            }}
-                          />
-                          <Button size="icon" variant="ghost" className="shrink-0" onClick={() => { if (newScenarioName.trim()) createScenarioMutation.mutate(newScenarioName.trim()); }}>
-                            <Check className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <DropdownMenuItem className="text-xs" onClick={() => setShowScenarioCreate(true)}>
-                          <Plus className="h-3 w-3 mr-1" /> Nouveau scénario
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
 
                 {/* Period tabs */}
                 <Tabs value={periodTab} onValueChange={(v) => setPeriodTab(v as typeof periodTab)}>
@@ -2717,9 +2846,7 @@ function TreasuryPageInner() {
                                   size="icon"
                                   variant="ghost"
                                   className="h-5 w-5 text-destructive"
-                                  onClick={() => {
-                                    if (confirm("Supprimer ce flux ?")) deleteMutation.mutate(flow.manualId!);
-                                  }}
+                                  onClick={() => setDeleteFlowConfirm(flow.manualId!)}
                                   data-testid={`button-delete-flow-${flow.id}`}
                                 >
                                   <Trash2 className="h-2.5 w-2.5" />
@@ -2764,6 +2891,24 @@ function TreasuryPageInner() {
           projects={projects}
           activeScenarioId={selectedScenarioId}
         />
+
+        {/* Delete flow confirmation dialog */}
+        <Dialog open={!!deleteFlowConfirm} onOpenChange={(o) => { if (!o) setDeleteFlowConfirm(null); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Supprimer ce flux</DialogTitle>
+              <DialogDescription>
+                Cette action est irréversible. Ce flux sera définitivement supprimé.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setDeleteFlowConfirm(null)}>Annuler</Button>
+              <Button variant="destructive" size="sm" onClick={() => { if (deleteFlowConfirm) deleteMutation.mutate(deleteFlowConfirm); }} disabled={deleteMutation.isPending}>
+                {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Supprimer"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
       )}
     </div>
