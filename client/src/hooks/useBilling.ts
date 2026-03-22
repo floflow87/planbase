@@ -11,6 +11,7 @@ export type SubscriptionStatus =
   | "incomplete"
   | "incomplete_expired"
   | "unpaid"
+  | "expired"
   | null;
 export type BillingInterval = "monthly" | "yearly" | null;
 
@@ -46,6 +47,10 @@ const ADMIN_BILLING: BillingStatus = {
 
 export function isSubscriptionActive(status: SubscriptionStatus): boolean {
   return status === "active" || status === "trialing" || status === "past_due";
+}
+
+export function isTrialExpiredStatus(status: SubscriptionStatus): boolean {
+  return status === "expired" || status === "canceled";
 }
 
 export function hasFeature(billing: BillingStatus | undefined, feature: PremiumFeature): boolean {
@@ -96,6 +101,7 @@ export function useBilling() {
   const isActive = isSubscriptionActive(billing?.subscriptionStatus ?? null);
   const isTrialing = billing?.subscriptionStatus === "trialing";
   const isCanceled = billing?.subscriptionStatus === "canceled";
+  const isTrialExpired = !isAdmin && isTrialExpiredStatus(billing?.subscriptionStatus ?? null);
   const needsUpgrade = !isActive;
 
   return {
@@ -105,6 +111,7 @@ export function useBilling() {
     isActive,
     isTrialing,
     isCanceled,
+    isTrialExpired,
     needsUpgrade,
     trialDaysLeft,
     hasFeature: (feature: PremiumFeature) => hasFeature(billing, feature),

@@ -2561,6 +2561,16 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Treasury plan scenarios table created");
 
+    // ── AUTO TRIAL: set trial_ends_at = created_at + 7 days for accounts without subscription ──
+    await db.execute(sql`
+      UPDATE accounts
+      SET trial_ends_at = created_at + INTERVAL '7 days'
+      WHERE trial_ends_at IS NULL
+        AND subscription_status IS NULL
+        AND stripe_subscription_id IS NULL
+    `);
+    console.log("✅ Auto-trial: trial_ends_at set for accounts without subscription");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

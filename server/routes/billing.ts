@@ -34,9 +34,20 @@ router.get("/status", requireAuth, async (req: Request, res: Response) => {
     const account = await getAccountBilling(accountId);
     if (!account) return res.status(404).json({ error: "Account not found" });
 
+    // Derive subscription status from local trial when no Stripe subscription exists
+    let effectiveStatus = account.subscription_status ?? null;
+    if (!effectiveStatus && !account.stripe_subscription_id) {
+      if (account.trial_ends_at) {
+        const trialEnd = new Date(account.trial_ends_at);
+        effectiveStatus = trialEnd > new Date() ? "trialing" : "expired";
+      } else {
+        effectiveStatus = "expired";
+      }
+    }
+
     res.json({
       plan: account.plan ?? "freelance",
-      subscriptionStatus: account.subscription_status ?? null,
+      subscriptionStatus: effectiveStatus,
       billingInterval: account.billing_interval ?? null,
       stripeCustomerId: account.stripe_customer_id ?? null,
       stripeSubscriptionId: account.stripe_subscription_id ?? null,

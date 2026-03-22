@@ -100,13 +100,12 @@ export function PremiumGate({ feature, children }: PremiumGateProps) {
 
 // ─── Trial / expired banner ──────────────────────────────────────────────────
 export function TrialBanner() {
-  const { billing, trialDaysLeft, isTrialing, needsUpgrade, startCheckout, isCheckingOut } = useBilling();
+  const { billing, trialDaysLeft, isTrialing, isTrialExpired } = useBilling();
   const [, setLocation] = useLocation();
 
-  if (!isTrialing && !needsUpgrade) return null;
   if (billing?.subscriptionStatus === "active") return null;
 
-  if (needsUpgrade && billing?.subscriptionStatus !== "trialing") {
+  if (isTrialExpired) {
     return (
       <div className="mx-4 mt-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md px-4 py-3 flex items-center justify-between gap-4 shrink-0"
         data-testid="banner-trial-expired"
@@ -143,4 +142,44 @@ export function TrialBanner() {
   }
 
   return null;
+}
+
+// ─── Global Trial Expired Gate ────────────────────────────────────────────────
+export function TrialExpiredGate({ children }: { children: React.ReactNode }) {
+  const { isLoading, isTrialExpired } = useBilling();
+  const [location, setLocation] = useLocation();
+
+  const allowedPaths = ["/pricing", "/settings", "/login", "/signup", "/accept-invitation"];
+  const isAllowed = allowedPaths.some((p) => location === p || location.startsWith(p + "?"));
+
+  if (isLoading) return <>{children}</>;
+  if (!isTrialExpired || isAllowed) return <>{children}</>;
+
+  return (
+    <div className="flex-1 flex items-center justify-center p-8" data-testid="trial-expired-gate">
+      <div className="max-w-md w-full text-center space-y-6">
+        <div className="flex justify-center">
+          <div className="rounded-full bg-red-100 dark:bg-red-900/30 p-5">
+            <Lock className="w-8 h-8 text-red-500" />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-semibold">Période d'essai terminée</h2>
+          <p className="text-sm text-muted-foreground">
+            Votre essai gratuit de 7 jours est arrivé à expiration. Choisissez un plan pour accéder à toutes les fonctionnalités.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Button className="w-full" onClick={() => setLocation("/pricing")} data-testid="button-trial-gate-pricing">
+            <Crown className="w-4 h-4 mr-2" />
+            Voir les plans
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+          <Button variant="outline" className="w-full" onClick={() => setLocation("/settings?tab=subscription")} data-testid="button-trial-gate-settings">
+            Gérer mon abonnement
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }

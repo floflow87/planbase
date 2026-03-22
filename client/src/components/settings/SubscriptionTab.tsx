@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CreditCard, Crown, Calendar, Zap, AlertTriangle, CheckCircle, Clock, XCircle, ArrowRight, HelpCircle, RefreshCw } from "lucide-react";
+import { CreditCard, Crown, Calendar, Zap, AlertTriangle, CheckCircle, Clock, XCircle, ArrowRight, HelpCircle, RefreshCw, Lock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,53 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBilling, type Plan } from "@/hooks/useBilling";
 import { useLocation } from "wouter";
+
+// ─── Circular Trial Progress ─────────────────────────────────────────────────
+const TRIAL_DAYS = 7;
+
+function TrialCircularProgress({ daysLeft, isExpired }: { daysLeft: number; isExpired: boolean }) {
+  const radius = 44;
+  const circumference = 2 * Math.PI * radius;
+  const progress = isExpired ? 0 : Math.min(1, daysLeft / TRIAL_DAYS);
+  const dashOffset = circumference * (1 - progress);
+
+  const color = isExpired
+    ? "#ef4444"
+    : daysLeft <= 2
+    ? "#f97316"
+    : daysLeft <= 4
+    ? "#eab308"
+    : "#10b981";
+
+  return (
+    <div className="relative w-28 h-28 shrink-0" data-testid="trial-progress-circle">
+      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r={radius} fill="none" stroke="currentColor" strokeWidth="8" className="text-muted/20" />
+        <circle
+          cx="50" cy="50" r={radius} fill="none"
+          stroke={color}
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          style={{ transition: "stroke-dashoffset 0.6s ease" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        {isExpired ? (
+          <Lock className="w-6 h-6 text-red-500" />
+        ) : (
+          <>
+            <span className="text-2xl font-bold leading-none" style={{ color }} data-testid="text-trial-days-left">{daysLeft}</span>
+            <span className="text-[10px] text-muted-foreground leading-none mt-0.5">
+              {daysLeft <= 1 ? "jour" : "jours"}
+            </span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ─── Status display helpers ──────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string | null }) {
@@ -16,6 +63,7 @@ function StatusBadge({ status }: { status: string | null }) {
     trialing:           { label: "Essai gratuit", icon: Clock, variant: "secondary" },
     past_due:           { label: "Paiement en retard", icon: AlertTriangle, variant: "destructive" },
     canceled:           { label: "Annulé", icon: XCircle, variant: "destructive" },
+    expired:            { label: "Essai expiré", icon: XCircle, variant: "destructive" },
     incomplete:         { label: "Incomplet", icon: AlertTriangle, variant: "destructive" },
     incomplete_expired: { label: "Expiré", icon: XCircle, variant: "destructive" },
     unpaid:             { label: "Impayé", icon: AlertTriangle, variant: "destructive" },
@@ -66,7 +114,7 @@ const FAQ_ITEMS = [
 ];
 
 export function SubscriptionTab() {
-  const { billing, isLoading, isActive, isAdmin, isTrialing, trialDaysLeft, startCheckout, isCheckingOut, openPortal, isOpeningPortal } = useBilling();
+  const { billing, isLoading, isActive, isAdmin, isTrialing, isTrialExpired, trialDaysLeft, startCheckout, isCheckingOut, openPortal, isOpeningPortal } = useBilling();
   const [, setLocation] = useLocation();
   const [selectedPlan, setSelectedPlan] = useState<Plan>("agency");
   const [selectedInterval, setSelectedInterval] = useState<"monthly" | "yearly">("monthly");
@@ -120,7 +168,8 @@ export function SubscriptionTab() {
 
   const plan = billing?.plan ?? null;
   const status = billing?.subscriptionStatus ?? null;
-  const noSubscription = !status || status === "canceled";
+  const noSubscription = !status || status === "canceled" || status === "expired";
+  const showTrialCard = isTrialing || isTrialExpired;
 
   return (
     <div className="space-y-6" data-testid="subscription-tab">
@@ -135,36 +184,53 @@ export function SubscriptionTab() {
         </p>
       </div>
 
-      {/* Trial banner */}
-      {isTrialing && trialDaysLeft !== null && (
-        <Card className="border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-900/10" data-testid="card-trial-banner">
-          <CardContent className="pt-4 pb-4 flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-violet-500" />
-              <span className="text-sm text-violet-700 dark:text-violet-300">
-                <strong>{trialDaysLeft} jour{trialDaysLeft !== 1 ? "s" : ""}</strong> restant{trialDaysLeft !== 1 ? "s" : ""} dans votre essai gratuit.
-              </span>
+      {/* Trial progress card */}
+      {showTrialCard && (
+        <Card
+          className={isTrialExpired
+            ? "border-red-200 dark:border-red-800 bg-red-50/40 dark:bg-red-900/10"
+            : "border-violet-200 dark:border-violet-800 bg-violet-50/40 dark:bg-violet-900/10"}
+          data-testid="card-trial-progress"
+        >
+          <CardContent className="pt-5 pb-5">
+            <div className="flex items-center gap-6 flex-wrap">
+              <TrialCircularProgress
+                daysLeft={trialDaysLeft ?? 0}
+                isExpired={isTrialExpired}
+              />
+              <div className="flex-1 min-w-0 space-y-2">
+                <div>
+                  <p className="font-semibold text-foreground" data-testid="text-trial-status-label">
+                    {isTrialExpired ? "Essai gratuit expiré" : "Essai gratuit en cours"}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {isTrialExpired
+                      ? "Votre période d'essai de 7 jours est terminée. Choisissez un plan pour retrouver l'accès complet."
+                      : `Il vous reste ${trialDaysLeft} jour${(trialDaysLeft ?? 0) !== 1 ? "s" : ""} sur les 7 jours d'essai gratuit.`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    onClick={() => startCheckout({ plan: "freelance", interval: "monthly" })}
+                    disabled={isCheckingOut}
+                    data-testid="button-trial-freelance"
+                  >
+                    Freelance — 19€/mois
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => startCheckout({ plan: "agency", interval: "monthly" })}
+                    disabled={isCheckingOut}
+                    data-testid="button-trial-agency"
+                  >
+                    <Crown className="w-3.5 h-3.5 mr-1.5" />
+                    Agence — 39€/mois
+                  </Button>
+                </div>
+              </div>
             </div>
-            <Button size="sm" onClick={() => setLocation("/pricing")} data-testid="button-trial-choose-plan">
-              Choisir un plan <ArrowRight className="w-3.5 h-3.5 ml-1" />
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Expired / no subscription */}
-      {noSubscription && (
-        <Card className="border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-900/10" data-testid="card-no-subscription">
-          <CardContent className="pt-4 pb-4 flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-orange-500" />
-              <span className="text-sm text-orange-700 dark:text-orange-300">
-                Aucun abonnement actif. Choisissez un plan pour continuer.
-              </span>
-            </div>
-            <Button size="sm" onClick={() => setLocation("/pricing")} data-testid="button-no-sub-choose-plan">
-              Voir les plans <ArrowRight className="w-3.5 h-3.5 ml-1" />
-            </Button>
           </CardContent>
         </Card>
       )}

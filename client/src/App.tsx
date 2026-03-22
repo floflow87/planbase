@@ -53,7 +53,7 @@ import EmailTemplates from "@/pages/email-templates";
 import NotFound from "@/pages/not-found";
 import { EmailComposeModal } from "@/components/EmailComposeModal";
 import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote, CalendarPlus, MoreHorizontal, Timer } from "lucide-react";
-import { TrialBanner } from "@/components/billing/PremiumGate";
+import { TrialBanner, TrialExpiredGate } from "@/components/billing/PremiumGate";
 import { AppointmentPanel } from "@/components/appointment-panel";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -1547,8 +1547,10 @@ function AppLayout() {
           </header>
           <main className="flex-1 overflow-hidden flex flex-col">
             <TrialBanner />
-            <div className="flex-1 overflow-hidden">
-              <Router />
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <TrialExpiredGate>
+                <Router />
+              </TrialExpiredGate>
             </div>
           </main>
         </div>
