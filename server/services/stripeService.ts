@@ -2,21 +2,29 @@ import Stripe from "stripe";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-12-18.acacia",
-});
+// Lazy initialization — prevents crash at startup if STRIPE_SECRET_KEY is not set
+let _stripe: Stripe | null = null;
 
-export default stripe;
+function getStripe(): Stripe {
+  if (!_stripe) {
+    const key = process.env.STRIPE_SECRET_KEY;
+    if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
+    _stripe = new Stripe(key, { apiVersion: "2024-12-18.acacia" });
+  }
+  return _stripe;
+}
+
+export default getStripe;
 
 // ─── Price IDs from env ─────────────────────────────────────────────────────
 export const PRICE_IDS = {
   freelance: {
-    monthly: process.env.STRIPE_PRICE_FREELANCE_MONTHLY!,
-    yearly: process.env.STRIPE_PRICE_FREELANCE_YEARLY!,
+    monthly: process.env.STRIPE_PRICE_FREELANCE_MONTHLY ?? "",
+    yearly: process.env.STRIPE_PRICE_FREELANCE_YEARLY ?? "",
   },
   agency: {
-    monthly: process.env.STRIPE_PRICE_AGENCY_MONTHLY!,
-    yearly: process.env.STRIPE_PRICE_AGENCY_YEARLY!,
+    monthly: process.env.STRIPE_PRICE_AGENCY_MONTHLY ?? "",
+    yearly: process.env.STRIPE_PRICE_AGENCY_YEARLY ?? "",
   },
 } as const;
 
@@ -45,7 +53,7 @@ export async function getOrCreateCustomer(accountId: string, email: string, name
 
   if (row?.stripe_customer_id) return row.stripe_customer_id;
 
-  const customer = await stripe.customers.create({
+  const customer = await getStripe().customers.create({
     email,
     name,
     metadata: { account_id: accountId },
@@ -66,7 +74,7 @@ export async function createCheckoutSession(
   successUrl: string,
   cancelUrl: string
 ): Promise<Stripe.Checkout.Session> {
-  return stripe.checkout.sessions.create({
+  return getStripe().checkout.sessions.create({
     customer: customerId,
     payment_method_types: ["card"],
     line_items: [{ price: priceId, quantity: 1 }],
@@ -84,7 +92,7 @@ export async function createCheckoutSession(
 
 // ─── Create billing portal session ──────────────────────────────────────────
 export async function createPortalSession(customerId: string, returnUrl: string): Promise<Stripe.BillingPortal.Session> {
-  return stripe.billingPortal.sessions.create({
+  return getStripe().billingPortal.sessions.create({
     customer: customerId,
     return_url: returnUrl,
   });

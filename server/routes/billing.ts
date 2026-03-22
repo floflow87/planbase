@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import Stripe from "stripe";
-import stripe, {
+import getStripe, {
   PRICE_IDS,
   getOrCreateCustomer,
   createCheckoutSession,
@@ -119,7 +119,7 @@ router.post("/webhook", async (req: Request, res: Response) => {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, secret);
+    event = getStripe().webhooks.constructEvent(req.body, sig, secret);
   } catch (err: any) {
     console.error("⚠️  Webhook signature verification failed:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -153,10 +153,10 @@ router.post("/webhook", async (req: Request, res: Response) => {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         if (session.subscription && session.metadata?.account_id) {
-          const sub = await stripe.subscriptions.retrieve(session.subscription as string);
+          const sub = await getStripe().subscriptions.retrieve(session.subscription as string);
           // Inject account_id if missing from subscription metadata
           if (!sub.metadata?.account_id) {
-            await stripe.subscriptions.update(sub.id, {
+            await getStripe().subscriptions.update(sub.id, {
               metadata: { account_id: session.metadata.account_id },
             });
             (sub as any).metadata = { account_id: session.metadata.account_id };
