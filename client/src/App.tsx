@@ -1250,6 +1250,7 @@ function AppLayout() {
     if (path === "/settings") return "Paramètres";
     if (path === "/emails") return "Emails";
     if (path === "/email-templates") return "Templates email";
+    if (path === "/pricing") return "Plans";
     return "Page";
   };
 
@@ -1324,6 +1325,9 @@ function AppLayout() {
     if (path === "/legal") return "Légal";
     if (path === "/calendar") return "Calendrier";
     if (path === "/settings") return "Paramètres";
+    if (path === "/emails") return "Emails";
+    if (path === "/email-templates") return "Templates email";
+    if (path === "/pricing") return "Plans";
     return "Page";
   };
 

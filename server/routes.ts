@@ -14292,11 +14292,19 @@ app.get("/config/feature-flags", async (_req, res) => {
   app.patch("/api/treasury/plan/lines/:id", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const accountId = req.accountId!;
-      const { label } = req.body;
-      await db.execute(sql`
-        UPDATE treasury_plan_lines SET label = ${label}
-        WHERE id = ${req.params.id} AND account_id = ${accountId}
-      `);
+      const { label, rubrique } = req.body;
+      if (rubrique) {
+        await db.execute(sql`
+          UPDATE treasury_plan_lines SET rubrique = ${rubrique}
+          WHERE id = ${req.params.id} AND account_id = ${accountId}
+        `);
+      }
+      if (label !== undefined) {
+        await db.execute(sql`
+          UPDATE treasury_plan_lines SET label = ${label}
+          WHERE id = ${req.params.id} AND account_id = ${accountId}
+        `);
+      }
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });

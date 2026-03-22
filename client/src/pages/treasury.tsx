@@ -48,6 +48,7 @@ import {
   Sparkles,
   FolderKanban,
   Loader2,
+  ArrowRightLeft,
 } from "lucide-react";
 import {
   Dialog,
@@ -807,6 +808,29 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     onSuccess: () => queryClient.invalidateQueries({ queryKey: planQueryKey }),
   });
 
+  const moveLineRubriqueMutation = useMutation({
+    mutationFn: ({ id, rubrique }: { id: string; rubrique: string }) =>
+      apiRequest(`/api/treasury/plan/lines/${id}`, "PATCH", { rubrique }),
+    onMutate: async ({ id, rubrique }) => {
+      await queryClient.cancelQueries({ queryKey: planQueryKey });
+      const prev = queryClient.getQueryData<PlanData>(planQueryKey);
+      if (prev) {
+        queryClient.setQueryData<PlanData>(planQueryKey, {
+          ...prev,
+          lines: prev.lines.map((l) => l.id === id ? { ...l, rubrique } : l),
+        });
+      }
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(planQueryKey, ctx.prev);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: planQueryKey });
+      toast({ title: "Ligne déplacée", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600" });
+    },
+  });
+
   const duplicateLineMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/treasury/plan/lines/${id}/duplicate`, "POST", {}),
     onMutate: async (id: string) => {
@@ -835,28 +859,64 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
 
   const syncEntriesMutation = useMutation({
     mutationFn: async (projectIds: string[]) => {
-      const now = new Date();
-      const periodKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "00")}`;
-      const incomeFlows = flows.filter((f) => f.type === "income" && f.projectId && projectIds.includes(f.projectId));
-      const grouped: Record<string, { name: string; total: number }> = {};
-      for (const f of incomeFlows) {
-        if (!grouped[f.projectId!]) grouped[f.projectId!] = { name: f.projectName ?? f.projectId!, total: 0 };
-        grouped[f.projectId!].total += f.amount;
+      // Helper: compute period key from a date string based on granularity
+      const toPeriodKey = (dateStr: string): string => {
+        if (localSettings.granularity === "month") {
+          return dateStr.substring(0, 7); // "YYYY-MM"
+        }
+        // Weekly: find the Monday of the week containing the date
+        const d = new Date(dateStr);
+        const day = d.getDay();
+        d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
+        const year = d.getFullYear();
+        const startOfYear = new Date(year, 0, 1);
+        const weekNum = Math.ceil(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
+        return `${year}-W${String(weekNum).padStart(2, "0")}`;
+      };
+
+      // Priority 1: project_payment flows (individual échéances with their dates)
+      const paymentFlows = flows.filter(
+        (f) => f.sourceType === "project_payment" && f.projectId && projectIds.includes(f.projectId)
+      );
+
+      // Group payment flows by project, then by period
+      const byProject: Record<string, { name: string; periodAmounts: Record<string, number> }> = {};
+      for (const f of paymentFlows) {
+        if (!byProject[f.projectId!]) byProject[f.projectId!] = { name: f.projectName ?? f.projectId!, periodAmounts: {} };
+        const pk = toPeriodKey(f.date);
+        byProject[f.projectId!].periodAmounts[pk] = (byProject[f.projectId!].periodAmounts[pk] ?? 0) + f.amount;
       }
-      const entries = Object.entries(grouped);
-      for (const [, { name, total }] of entries) {
+
+      // Priority 2: for selected projects with no project_payment flows, use total income flows at current period
+      const now = new Date();
+      const currentPeriodKey = toPeriodKey(now.toISOString().substring(0, 10));
+      const projectsWithPayments = new Set(Object.keys(byProject));
+      const fallbackFlows = flows.filter(
+        (f) => f.type === "income" && f.projectId && projectIds.includes(f.projectId) && !projectsWithPayments.has(f.projectId!)
+      );
+      for (const f of fallbackFlows) {
+        if (!byProject[f.projectId!]) byProject[f.projectId!] = { name: f.projectName ?? f.projectId!, periodAmounts: {} };
+        byProject[f.projectId!].periodAmounts[currentPeriodKey] = (byProject[f.projectId!].periodAmounts[currentPeriodKey] ?? 0) + f.amount;
+      }
+
+      let count = 0;
+      for (const [, { name, periodAmounts }] of Object.entries(byProject)) {
         const created = await apiRequest("/api/treasury/plan/lines", "POST", {
           rubrique: "entrees_clients",
           label: name,
           planScenarioId: activePlanScenarioId,
         });
-        if (created?.id && total > 0) {
-          await apiRequest("/api/treasury/plan/cells", "PUT", {
-            cells: [{ lineId: created.id, periodKey, amount: total }],
-          });
+        if (created?.id) {
+          const cells = Object.entries(periodAmounts)
+            .filter(([, amount]) => amount > 0)
+            .map(([periodKey, amount]) => ({ lineId: created.id, periodKey, amount }));
+          if (cells.length > 0) {
+            await apiRequest("/api/treasury/plan/cells", "PUT", { cells });
+          }
+          count++;
         }
       }
-      return entries.length;
+      return count;
     },
     onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey: planQueryKey });
@@ -1337,6 +1397,31 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                                 >
                                   <Copy className="h-3 w-3" />
                                 </button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button
+                                      className="invisible group-hover:visible text-muted-foreground hover:text-violet-600 transition-colors"
+                                      title="Déplacer vers une autre rubrique"
+                                      data-testid={`btn-move-plan-line-${line.id}`}
+                                    >
+                                      <ArrowRightLeft className="h-3 w-3" />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="start" className="w-52">
+                                    <DropdownMenuLabel className="text-[10px]">Déplacer vers</DropdownMenuLabel>
+                                    {RUBRIQUES.filter((r) => r.key !== line.rubrique).map((r) => (
+                                      <DropdownMenuItem
+                                        key={r.key}
+                                        className="text-xs gap-2"
+                                        onClick={() => moveLineRubriqueMutation.mutate({ id: line.id, rubrique: r.key })}
+                                        data-testid={`move-line-to-${r.key}`}
+                                      >
+                                        <span className={r.type === "income" ? "text-green-600" : "text-red-500"}>{r.type === "income" ? "+" : "−"}</span>
+                                        {r.label}
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                                 <button
                                   onClick={() => deleteLineMutation.mutate(line.id)}
                                   className="invisible group-hover:visible text-muted-foreground hover:text-destructive transition-colors"
@@ -1560,22 +1645,23 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
               Synchroniser les entrées clients
             </DialogTitle>
             <DialogDescription>
-              Sélectionnez les projets dont vous souhaitez importer les flux de revenus comme lignes de plan.
+              Sélectionnez les projets à importer. Les échéances de règlement seront importées aux bonnes dates.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2 max-h-64 overflow-y-auto">
             {(() => {
               const incomeFlows = flows.filter((f) => f.type === "income" && f.projectId);
-              const grouped: Record<string, { name: string; total: number }> = {};
+              const grouped: Record<string, { name: string; total: number; echeances: number }> = {};
               for (const f of incomeFlows) {
-                if (!grouped[f.projectId!]) grouped[f.projectId!] = { name: f.projectName ?? f.projectId!, total: 0 };
+                if (!grouped[f.projectId!]) grouped[f.projectId!] = { name: f.projectName ?? f.projectId!, total: 0, echeances: 0 };
                 grouped[f.projectId!].total += f.amount;
+                if (f.sourceType === "project_payment") grouped[f.projectId!].echeances += 1;
               }
               const entries = Object.entries(grouped);
               if (entries.length === 0) {
                 return <p className="text-sm text-muted-foreground text-center py-4">Aucun flux de revenus avec projet trouvé.</p>;
               }
-              return entries.map(([projectId, { name, total }]) => (
+              return entries.map(([projectId, { name, total, echeances }]) => (
                 <div key={projectId} className="flex items-center gap-3 px-2 py-1.5 rounded-md hover-elevate cursor-pointer" onClick={() => {
                   setSyncSelectedProjects((prev) => {
                     const next = new Set(prev);
@@ -1587,7 +1673,9 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                   <input type="checkbox" checked={syncSelectedProjects.has(projectId)} readOnly className="accent-violet-600 h-4 w-4" />
                   <div className="flex-1 min-w-0">
                     <span className="text-sm font-medium truncate block">{name}</span>
-                    <span className="text-[11px] text-muted-foreground">{fmt(total)} de flux de revenus</span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {fmt(total)}{echeances > 0 ? ` · ${echeances} échéance${echeances > 1 ? "s" : ""}` : " · montant facturé"}
+                    </span>
                   </div>
                 </div>
               ));

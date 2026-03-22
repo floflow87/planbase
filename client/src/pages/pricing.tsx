@@ -40,7 +40,7 @@ export default function Pricing() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center py-16 px-4" data-testid="page-pricing">
+    <div className="h-full overflow-y-auto bg-background" data-testid="page-pricing"><div className="flex flex-col items-center py-16 px-4">
       {/* Header */}
       <div className="text-center mb-10 space-y-3 max-w-xl">
         <Badge variant="secondary" className="text-[10px] px-2">Tarification simple</Badge>
@@ -197,6 +197,6 @@ export default function Pricing() {
       >
         Retour à la gestion d'abonnement
       </button>
-    </div>
+    </div></div>
   );
 }

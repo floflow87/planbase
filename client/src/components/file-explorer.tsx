@@ -763,8 +763,8 @@ export function FileExplorer({ clientId, projectId }: Props) {
         setFocusedId(null);
       }
     };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    document.addEventListener("keydown", handler, { capture: true });
+    return () => document.removeEventListener("keydown", handler, { capture: true });
   }, [filteredFolders, filteredEntries, selectedIds, focusedId]);
 
   const handleContentMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
