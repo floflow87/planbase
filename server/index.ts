@@ -554,9 +554,6 @@ app.get("/api/config/feature-flags", async (req, res) => {
 });
 
 (async () => {
-  // Run startup migrations
-  await runStartupMigrations();
-  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -587,5 +584,10 @@ app.get("/api/config/feature-flags", async (req, res) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    // Run migrations AFTER the server is listening so the port is bound immediately
+    // This prevents deployment platforms from timing out waiting for port binding
+    runStartupMigrations().catch(err => {
+      console.error('❌ Startup migration error:', err);
+    });
   });
 })();
