@@ -40,9 +40,8 @@ router.get("/status", requireAuth, async (req: Request, res: Response) => {
       if (account.trial_ends_at) {
         const trialEnd = new Date(account.trial_ends_at);
         effectiveStatus = trialEnd > new Date() ? "trialing" : "expired";
-      } else {
-        effectiveStatus = "expired";
       }
+      // else: trial_ends_at IS NULL → status stays null (trial not started yet)
     }
 
     res.json({
@@ -118,6 +117,33 @@ router.post("/portal", requireAuth, async (req: Request, res: Response) => {
     res.json({ url: portalSession.url });
   } catch (err) {
     console.error("billing/portal error:", err);
+    res.status(500).json({ error: "Internal error" });
+  }
+});
+
+// ─── POST /api/billing/start-trial ───────────────────────────────────────────
+router.post("/start-trial", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const accountId = (req as any).accountId;
+    const account = await getAccountBilling(accountId);
+    if (!account) return res.status(404).json({ error: "Account not found" });
+
+    // Only allow starting trial if no trial/subscription already exists
+    if (account.trial_ends_at || account.subscription_status) {
+      return res.status(400).json({ error: "Trial or subscription already exists" });
+    }
+
+    await db.execute(sql`
+      UPDATE accounts
+      SET trial_ends_at = NOW() + INTERVAL '7 days'
+      WHERE id = ${accountId}
+        AND trial_ends_at IS NULL
+        AND subscription_status IS NULL
+    `);
+
+    res.json({ success: true, message: "Trial started for 7 days" });
+  } catch (err) {
+    console.error("billing/start-trial error:", err);
     res.status(500).json({ error: "Internal error" });
   }
 });

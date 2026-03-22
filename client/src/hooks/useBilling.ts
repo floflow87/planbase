@@ -94,6 +94,16 @@ export function useBilling() {
     },
   });
 
+  const startTrialMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/billing/start-trial", {});
+      return res.json();
+    },
+    onSuccess: async () => {
+      await qc.refetchQueries({ queryKey: ["/api/billing/status"] });
+    },
+  });
+
   const trialDaysLeft = billing?.trialEndsAt
     ? Math.max(0, Math.ceil((new Date(billing.trialEndsAt).getTime() - Date.now()) / 86_400_000))
     : null;
@@ -102,6 +112,7 @@ export function useBilling() {
   const isTrialing = billing?.subscriptionStatus === "trialing";
   const isCanceled = billing?.subscriptionStatus === "canceled";
   const isTrialExpired = !isAdmin && isTrialExpiredStatus(billing?.subscriptionStatus ?? null);
+  const hasNoTrial = !isAdmin && !isLoading && billing?.subscriptionStatus === null;
   const needsUpgrade = !isActive;
 
   return {
@@ -112,6 +123,7 @@ export function useBilling() {
     isTrialing,
     isCanceled,
     isTrialExpired,
+    hasNoTrial,
     needsUpgrade,
     trialDaysLeft,
     hasFeature: (feature: PremiumFeature) => hasFeature(billing, feature),
@@ -119,5 +131,7 @@ export function useBilling() {
     isCheckingOut: checkoutMutation.isPending,
     openPortal: portalMutation.mutate,
     isOpeningPortal: portalMutation.isPending,
+    startTrial: startTrialMutation.mutate,
+    isStartingTrial: startTrialMutation.isPending,
   };
 }
