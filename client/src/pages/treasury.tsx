@@ -1813,7 +1813,7 @@ function TreasuryPageInner() {
   });
 
   const createScenarioMutation = useMutation({
-    mutationFn: (name: string) => apiRequest("/api/treasury/scenarios", "POST", { name }),
+    mutationFn: async (name: string) => { const r = await apiRequest("/api/treasury/scenarios", "POST", { name }); return r.json() as Promise<TreasuryScenario>; },
     onSuccess: (s: TreasuryScenario) => {
       queryClient.invalidateQueries({ queryKey: ["/api/treasury/flows"] });
       setSelectedScenarioId(s.id);
@@ -2329,24 +2329,6 @@ function TreasuryPageInner() {
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {/* Delete flow scenario confirmation dialog */}
-                <Dialog open={!!deleteScenarioConfirm} onOpenChange={(o) => { if (!o) setDeleteScenarioConfirm(null); }}>
-                  <DialogContent className="max-w-sm">
-                    <DialogHeader>
-                      <DialogTitle>Supprimer le scénario</DialogTitle>
-                      <DialogDescription>
-                        Supprimer <strong>"{deleteScenarioConfirm?.name}"</strong> ? Cette action est irréversible.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                      <Button variant="outline" size="sm" onClick={() => setDeleteScenarioConfirm(null)}>Annuler</Button>
-                      <Button variant="destructive" size="sm" onClick={() => { if (deleteScenarioConfirm) deleteScenarioMutation.mutate(deleteScenarioConfirm.id); }} disabled={deleteScenarioMutation.isPending}>
-                        {deleteScenarioMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Supprimer"}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-
                 {/* Period tabs */}
                 <Tabs value={periodTab} onValueChange={(v) => setPeriodTab(v as typeof periodTab)}>
                   <TabsList className="h-6">
@@ -2402,6 +2384,24 @@ function TreasuryPageInner() {
               )}
             </CardContent>
           </Card>
+
+          {/* Delete flow scenario confirmation dialog */}
+          <Dialog open={!!deleteScenarioConfirm} onOpenChange={(o) => { if (!o) setDeleteScenarioConfirm(null); }}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Supprimer le scénario</DialogTitle>
+                <DialogDescription>
+                  Supprimer <strong>"{deleteScenarioConfirm?.name}"</strong> ? Cette action est irréversible.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" size="sm" onClick={() => setDeleteScenarioConfirm(null)}>Annuler</Button>
+                <Button variant="destructive" size="sm" onClick={() => { if (deleteScenarioConfirm) deleteScenarioMutation.mutate(deleteScenarioConfirm.id); }} disabled={deleteScenarioMutation.isPending}>
+                  {deleteScenarioMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Supprimer"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* ── Tableau / Synthèse ── */}
           {/* Filters + view toggle */}
