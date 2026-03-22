@@ -2240,94 +2240,80 @@ function TreasuryPageInner() {
                 </div>
 
                 {/* Scenario selector */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 px-2" data-testid="button-scenario-select">
-                      <GitBranch className="h-2.5 w-2.5" />
-                      {selectedScenarioId
-                        ? data?.scenarios?.find((s) => s.id === selectedScenarioId)?.name ?? "Scénario"
-                        : "Base"}
-                      {selectedScenarioId && <MapPin className="h-2 w-2 text-violet-500" />}
-                      <ChevronDown className="h-2.5 w-2.5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-52">
-                    <DropdownMenuLabel className="text-[10px]">Scénarios</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {data?.scenarios?.map((s) => (
-                      <DropdownMenuItem
-                        key={s.id}
-                        className="text-xs gap-2 justify-between group"
-                        onClick={() => { setSelectedScenarioId(s.isBase ? null : s.id); setRenameScenarioId(null); }}
-                      >
-                        {renameScenarioId === s.id && !s.isBase ? (
-                          <div className="flex items-center gap-1 w-full" onClick={(e) => e.stopPropagation()}>
-                            <Input
-                              value={renameScenarioName}
-                              onChange={(e) => setRenameScenarioName(e.target.value)}
-                              className="h-5 text-[10px] flex-1 px-1"
-                              autoFocus
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" && renameScenarioName.trim()) renameScenarioMutation.mutate({ id: s.id, name: renameScenarioName.trim() });
-                                if (e.key === "Escape") { setRenameScenarioId(null); setRenameScenarioName(""); }
-                              }}
-                            />
-                            <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => { if (renameScenarioName.trim()) renameScenarioMutation.mutate({ id: s.id, name: renameScenarioName.trim() }); }}>
-                              <Check className="h-2.5 w-2.5" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <>
-                            <span className="flex items-center gap-2 flex-1 min-w-0">
-                              {s.color && <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />}
-                              <span className={`truncate ${(s.isBase ? !selectedScenarioId : selectedScenarioId === s.id) ? "font-medium" : ""}`}>{s.name}</span>
-                              {(s.isBase ? !selectedScenarioId : selectedScenarioId === s.id) && (
-                                <MapPin className="h-2.5 w-2.5 text-violet-500 shrink-0" />
-                              )}
-                            </span>
-                            {!s.isBase && (
-                              <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
-                                <Button size="icon" variant="ghost" className="h-4 w-4"
-                                  onClick={(e) => { e.stopPropagation(); setRenameScenarioId(s.id); setRenameScenarioName(s.name); }}
-                                >
-                                  <Pencil className="h-2.5 w-2.5" />
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-4 w-4"
-                                  onClick={(e) => { e.stopPropagation(); setDeleteScenarioConfirm({ id: s.id, name: s.name }); }}
-                                >
-                                  <X className="h-2.5 w-2.5" />
-                                </Button>
-                              </span>
+                {(data?.scenarios?.length ?? 0) > 0 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 px-2" data-testid="button-scenario-select">
+                        <GitBranch className="h-2.5 w-2.5" />
+                        {selectedScenarioId
+                          ? data?.scenarios?.find((s) => s.id === selectedScenarioId)?.name ?? "Scénario"
+                          : "Base"}
+                        {selectedScenarioId && <MapPin className="h-2 w-2 text-violet-500" />}
+                        <ChevronDown className="h-2.5 w-2.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-52">
+                      <DropdownMenuLabel className="text-[10px]">Scénarios</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {data?.scenarios?.map((s) => (
+                        <DropdownMenuItem
+                          key={s.id}
+                          className="text-xs gap-2 justify-between group"
+                          onClick={() => setSelectedScenarioId(s.isBase ? null : s.id)}
+                        >
+                          <span className="flex items-center gap-2 flex-1 min-w-0">
+                            {s.color && <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />}
+                            <span className={`truncate ${(s.isBase ? !selectedScenarioId : selectedScenarioId === s.id) ? "font-medium" : ""}`}>{s.name}</span>
+                            {(s.isBase ? !selectedScenarioId : selectedScenarioId === s.id) && (
+                              <MapPin className="h-2.5 w-2.5 text-violet-500 shrink-0" />
                             )}
-                          </>
-                        )}
-                      </DropdownMenuItem>
-                    ))}
-                    <DropdownMenuSeparator />
-                    {showScenarioCreate ? (
-                      <div className="flex items-center gap-1 p-1" onClick={(e) => e.stopPropagation()}>
-                        <Input
-                          autoFocus
-                          value={newScenarioName}
-                          onChange={(e) => setNewScenarioName(e.target.value)}
-                          placeholder="Nom du scénario"
-                          className="h-6 text-[10px]"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && newScenarioName.trim()) createScenarioMutation.mutate(newScenarioName.trim());
-                            if (e.key === "Escape") setShowScenarioCreate(false);
-                          }}
-                        />
-                        <Button size="icon" variant="ghost" className="shrink-0" onClick={() => { if (newScenarioName.trim()) createScenarioMutation.mutate(newScenarioName.trim()); }}>
-                          <Check className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <DropdownMenuItem className="text-xs" onClick={() => setShowScenarioCreate(true)}>
-                        <Plus className="h-3 w-3 mr-1" /> Nouveau scénario
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                          </span>
+                          {!s.isBase && (
+                            <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
+                              <span
+                                role="button"
+                                className="p-0.5 rounded hover:bg-muted"
+                                onClick={(e) => { e.stopPropagation(); setRenameScenarioId(s.id); setRenameScenarioName(s.name); }}
+                              >
+                                <Pencil className="h-2.5 w-2.5" />
+                              </span>
+                              <span
+                                role="button"
+                                className="p-0.5 rounded hover:bg-muted"
+                                onClick={(e) => { e.stopPropagation(); setDeleteScenarioConfirm({ id: s.id, name: s.name }); }}
+                              >
+                                <X className="h-2.5 w-2.5" />
+                              </span>
+                            </span>
+                          )}
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuSeparator />
+                      {showScenarioCreate ? (
+                        <div className="flex items-center gap-1 p-1" onClick={(e) => e.stopPropagation()}>
+                          <Input
+                            autoFocus
+                            value={newScenarioName}
+                            onChange={(e) => setNewScenarioName(e.target.value)}
+                            placeholder="Nom du scénario"
+                            className="h-6 text-[10px]"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && newScenarioName.trim()) createScenarioMutation.mutate(newScenarioName.trim());
+                              if (e.key === "Escape") setShowScenarioCreate(false);
+                            }}
+                          />
+                          <Button size="icon" variant="ghost" className="shrink-0" onClick={() => { if (newScenarioName.trim()) createScenarioMutation.mutate(newScenarioName.trim()); }}>
+                            <Check className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <DropdownMenuItem className="text-xs" onClick={() => setShowScenarioCreate(true)}>
+                          <Plus className="h-3 w-3 mr-1" /> Nouveau scénario
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
 
                 {/* Period tabs */}
                 <Tabs value={periodTab} onValueChange={(v) => setPeriodTab(v as typeof periodTab)}>
@@ -2398,6 +2384,31 @@ function TreasuryPageInner() {
                 <Button variant="outline" size="sm" onClick={() => setDeleteScenarioConfirm(null)}>Annuler</Button>
                 <Button variant="destructive" size="sm" onClick={() => { if (deleteScenarioConfirm) deleteScenarioMutation.mutate(deleteScenarioConfirm.id); }} disabled={deleteScenarioMutation.isPending}>
                   {deleteScenarioMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Supprimer"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Rename scenario dialog */}
+          <Dialog open={!!renameScenarioId} onOpenChange={(open) => { if (!open) { setRenameScenarioId(null); setRenameScenarioName(""); } }}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="text-sm">Renommer le scénario</DialogTitle>
+              </DialogHeader>
+              <Input
+                value={renameScenarioName}
+                onChange={(e) => setRenameScenarioName(e.target.value)}
+                className="h-8 text-sm"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && renameScenarioName.trim() && renameScenarioId) renameScenarioMutation.mutate({ id: renameScenarioId, name: renameScenarioName.trim() });
+                  if (e.key === "Escape") { setRenameScenarioId(null); setRenameScenarioName(""); }
+                }}
+              />
+              <DialogFooter>
+                <Button variant="outline" size="sm" onClick={() => { setRenameScenarioId(null); setRenameScenarioName(""); }}>Annuler</Button>
+                <Button size="sm" onClick={() => { if (renameScenarioName.trim() && renameScenarioId) renameScenarioMutation.mutate({ id: renameScenarioId, name: renameScenarioName.trim() }); }} disabled={renameScenarioMutation.isPending || !renameScenarioName.trim()}>
+                  {renameScenarioMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Renommer"}
                 </Button>
               </DialogFooter>
             </DialogContent>
