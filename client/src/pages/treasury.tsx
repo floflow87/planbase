@@ -45,7 +45,18 @@ import {
   Info,
   Copy,
   Tag,
+  Sparkles,
+  FolderKanban,
+  Loader2,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -161,10 +172,18 @@ type PlanSettings = {
   granularity: "week" | "month";
 };
 
+type PlanScenario = {
+  id: string;
+  name: string;
+  initial_balance: number;
+  granularity: string;
+};
+
 type PlanData = {
   lines: PlanLine[];
   cells: PlanCell[];
   settings: PlanSettings;
+  planScenarios: PlanScenario[];
 };
 
 const RUBRIQUES: Array<{ key: string; label: string; type: "income" | "expense" }> = [
@@ -681,7 +700,7 @@ function TxPanel({
 
 // ── Plan de trésorerie View ────────────────────────────────────────────────────
 
-function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: string }> }) {
+function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; name: string }>; flows: TreasuryFlow[] }) {
   const { toast } = useToast();
   const [expandedRubriques, setExpandedRubriques] = useState<Set<string>>(
     new Set(RUBRIQUES.map((r) => r.key))
@@ -699,8 +718,26 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
   const [fillDrag, setFillDrag] = useState<{ lineId: string; startIdx: number; value: number } | null>(null);
   const [fillEndIdx, setFillEndIdx] = useState<number | null>(null);
 
+  // Plan scenarios
+  const [activePlanScenarioId, setActivePlanScenarioId] = useState<string | null>(null);
+  const [showCreatePlanScenario, setShowCreatePlanScenario] = useState(false);
+  const [newPlanScenarioName, setNewPlanScenarioName] = useState("");
+
+  // Sync entrées dialog
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const [syncSelectedProjects, setSyncSelectedProjects] = useState<Set<string>>(new Set());
+
+  const planQueryKey = activePlanScenarioId
+    ? ["/api/treasury/plan", activePlanScenarioId]
+    : ["/api/treasury/plan"];
+
+  const planQueryUrl = activePlanScenarioId
+    ? `/api/treasury/plan?planScenarioId=${activePlanScenarioId}`
+    : "/api/treasury/plan";
+
   const { data: planData, isLoading } = useQuery<PlanData>({
-    queryKey: ["/api/treasury/plan"],
+    queryKey: planQueryKey,
+    queryFn: () => apiRequest(planQueryUrl, "GET").then((r) => r.json()),
     refetchOnMount: true,
     staleTime: 0,
   });
@@ -716,11 +753,31 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
     setLocalSettings(planData.settings);
   }, [planData]);
 
-  const createLineMutation = useMutation({
-    mutationFn: (body: { rubrique: string; label: string }) =>
-      apiRequest("/api/treasury/plan/lines", "POST", body),
+  const createPlanScenarioMutation = useMutation({
+    mutationFn: (name: string) => apiRequest("/api/treasury/plan/scenarios", "POST", { name }),
+    onSuccess: (res: any) => res.json().then((s: PlanScenario) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] });
+      setActivePlanScenarioId(s.id);
+      setNewPlanScenarioName("");
+      setShowCreatePlanScenario(false);
+      toast({ title: `Scénario "${s.name}" créé`, className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100" });
+    }),
+    onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+  });
+
+  const deletePlanScenarioMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/treasury/plan/scenarios/${id}`, "DELETE"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] });
+      setActivePlanScenarioId(null);
+    },
+  });
+
+  const createLineMutation = useMutation({
+    mutationFn: (body: { rubrique: string; label: string; planScenarioId?: string | null }) =>
+      apiRequest("/api/treasury/plan/lines", "POST", body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: planQueryKey });
       toast({ title: "Ligne ajoutée", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600" });
       setAddingToRubrique(null);
       setNewLineLabel("");
@@ -729,37 +786,38 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
 
   const deleteLineMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/treasury/plan/lines/${id}`, "DELETE"),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: planQueryKey }),
   });
 
   const saveCellMutation = useMutation({
     mutationFn: (cells: Array<{ lineId: string; periodKey: string; amount: number }>) =>
       apiRequest("/api/treasury/plan/cells", "PUT", { cells }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: planQueryKey }),
   });
 
   const saveSettingsMutation = useMutation({
-    mutationFn: (s: PlanSettings) => apiRequest("/api/treasury/plan/settings", "PUT", s),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] }),
+    mutationFn: (s: PlanSettings) =>
+      apiRequest("/api/treasury/plan/settings", "PUT", { ...s, planScenarioId: activePlanScenarioId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: planQueryKey }),
   });
 
   const updateLineLabelMutation = useMutation({
     mutationFn: ({ id, label }: { id: string; label: string }) =>
       apiRequest(`/api/treasury/plan/lines/${id}`, "PATCH", { label }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: planQueryKey }),
   });
 
   const duplicateLineMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/treasury/plan/lines/${id}/duplicate`, "POST", {}),
     onMutate: async (id: string) => {
-      await queryClient.cancelQueries({ queryKey: ["/api/treasury/plan"] });
-      const prev = queryClient.getQueryData<PlanData>(["/api/treasury/plan"]);
+      await queryClient.cancelQueries({ queryKey: planQueryKey });
+      const prev = queryClient.getQueryData<PlanData>(planQueryKey);
       const srcLine = prev?.lines?.find((l) => l.id === id);
       if (srcLine && prev) {
         const tempId = `temp-dup-${Date.now()}`;
         const srcCells = localCells[id] ?? {};
         setLocalCells((lc) => ({ ...lc, [tempId]: { ...srcCells } }));
-        queryClient.setQueryData<PlanData>(["/api/treasury/plan"], {
+        queryClient.setQueryData<PlanData>(planQueryKey, {
           ...prev,
           lines: [...(prev.lines ?? []), { ...srcLine, id: tempId, label: `${srcLine.label} (copie)` }],
         });
@@ -767,12 +825,49 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
       return { prev };
     },
     onError: (_err, _id, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(["/api/treasury/plan"], ctx.prev);
+      if (ctx?.prev) queryClient.setQueryData(planQueryKey, ctx.prev);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] });
+      queryClient.invalidateQueries({ queryKey: planQueryKey });
       toast({ title: "Ligne dupliquée", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600" });
     },
+  });
+
+  const syncEntriesMutation = useMutation({
+    mutationFn: async (projectIds: string[]) => {
+      const now = new Date();
+      const periodKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "00")}`;
+      const incomeFlows = flows.filter((f) => f.type === "income" && f.projectId && projectIds.includes(f.projectId));
+      const grouped: Record<string, { name: string; total: number }> = {};
+      for (const f of incomeFlows) {
+        if (!grouped[f.projectId!]) grouped[f.projectId!] = { name: f.projectName ?? f.projectId!, total: 0 };
+        grouped[f.projectId!].total += f.amount;
+      }
+      const entries = Object.entries(grouped);
+      for (const [, { name, total }] of entries) {
+        const created = await apiRequest("/api/treasury/plan/lines", "POST", {
+          rubrique: "entrees_clients",
+          label: name,
+          planScenarioId: activePlanScenarioId,
+        });
+        if (created?.id && total > 0) {
+          await apiRequest("/api/treasury/plan/cells", "PUT", {
+            cells: [{ lineId: created.id, periodKey, amount: total }],
+          });
+        }
+      }
+      return entries.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: planQueryKey });
+      setSyncDialogOpen(false);
+      toast({
+        title: `${count} ligne${count > 1 ? "s" : ""} importée${count > 1 ? "s" : ""}`,
+        description: "Les entrées clients ont été synchronisées avec le plan.",
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+      });
+    },
+    onError: (e: any) => toast({ title: "Erreur sync", description: e.message, variant: "destructive" }),
   });
 
   const periods = useMemo(() => {
@@ -980,6 +1075,74 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
             </button>
           ))}
         </div>
+
+        {/* Plan scenario selector */}
+        <div className="flex items-center gap-1.5">
+          <FolderKanban className="h-3.5 w-3.5 text-muted-foreground" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1 px-2" data-testid="btn-plan-scenario-select">
+                {activePlanScenarioId
+                  ? (planData?.planScenarios?.find((s) => s.id === activePlanScenarioId)?.name ?? "Scénario")
+                  : "Plan de base"}
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-52">
+              <DropdownMenuLabel className="text-[10px]">Scénarios du plan</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => setActivePlanScenarioId(null)}
+                className="text-xs gap-2"
+              >
+                {!activePlanScenarioId && <Check className="h-3 w-3" />}
+                <span className={!activePlanScenarioId ? "font-medium" : ""}>Plan de base</span>
+              </DropdownMenuItem>
+              {(planData?.planScenarios ?? []).map((s) => (
+                <DropdownMenuItem key={s.id} className="text-xs gap-2 justify-between group" onClick={() => setActivePlanScenarioId(s.id)}>
+                  <span className="flex items-center gap-2">
+                    {activePlanScenarioId === s.id && <Check className="h-3 w-3" />}
+                    <span className={activePlanScenarioId === s.id ? "font-medium" : ""}>{s.name}</span>
+                  </span>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-4 w-4 opacity-0 group-hover:opacity-100"
+                    onClick={(e) => { e.stopPropagation(); if (confirm(`Supprimer le scénario "${s.name}" ?`)) deletePlanScenarioMutation.mutate(s.id); }}
+                    data-testid={`btn-delete-plan-scenario-${s.id}`}
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </Button>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              {showCreatePlanScenario ? (
+                <div className="px-2 py-1.5 flex gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Input
+                    value={newPlanScenarioName}
+                    onChange={(e) => setNewPlanScenarioName(e.target.value)}
+                    placeholder="Nom du scénario…"
+                    className="h-6 text-[11px] flex-1"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newPlanScenarioName.trim()) createPlanScenarioMutation.mutate(newPlanScenarioName.trim());
+                      if (e.key === "Escape") setShowCreatePlanScenario(false);
+                    }}
+                    data-testid="input-new-plan-scenario"
+                  />
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { if (newPlanScenarioName.trim()) createPlanScenarioMutation.mutate(newPlanScenarioName.trim()); }} disabled={createPlanScenarioMutation.isPending}>
+                    <Check className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <DropdownMenuItem className="text-xs gap-1.5" onClick={(e) => { e.preventDefault(); setShowCreatePlanScenario(true); }} data-testid="btn-create-plan-scenario">
+                  <Plus className="h-3 w-3" />
+                  Nouveau scénario
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
         {/* Initial balance */}
         <div className="flex items-center gap-2 ml-auto">
           <span className="text-[11px] text-muted-foreground shrink-0">Solde initial :</span>
@@ -1076,6 +1239,28 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                           )}
                           <span className="text-[11px] font-semibold text-foreground">{rubrique.label}</span>
                           <Badge variant="secondary" className="text-[9px] ml-1 px-1.5 h-4">{lines.length}</Badge>
+                          {rubrique.key === "entrees_clients" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-5 px-1.5 text-[10px] gap-1 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 ml-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const incomeFlows = flows.filter((f) => f.type === "income" && f.projectId);
+                                const grouped: Record<string, { name: string; total: number }> = {};
+                                for (const f of incomeFlows) {
+                                  if (!grouped[f.projectId!]) grouped[f.projectId!] = { name: f.projectName ?? f.projectId!, total: 0 };
+                                  grouped[f.projectId!].total += f.amount;
+                                }
+                                setSyncSelectedProjects(new Set(Object.keys(grouped)));
+                                setSyncDialogOpen(true);
+                              }}
+                              data-testid="btn-sync-entrees"
+                            >
+                              <Sparkles className="h-3 w-3" />
+                              Synchroniser les entrées
+                            </Button>
+                          )}
                         </div>
                       </td>
                       {periods.map((p) => {
@@ -1243,7 +1428,7 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                                   autoFocus
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter" && newLineLabel.trim()) {
-                                      createLineMutation.mutate({ rubrique: rubrique.key, label: newLineLabel.trim() });
+                                      createLineMutation.mutate({ rubrique: rubrique.key, label: newLineLabel.trim(), planScenarioId: activePlanScenarioId });
                                     }
                                     if (e.key === "Escape") { setAddingToRubrique(null); setNewLineLabel(""); }
                                   }}
@@ -1252,7 +1437,7 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
                                 <Button
                                   size="sm"
                                   className="h-6 px-2 text-[10px]"
-                                  onClick={() => { if (newLineLabel.trim()) createLineMutation.mutate({ rubrique: rubrique.key, label: newLineLabel.trim() }); }}
+                                  onClick={() => { if (newLineLabel.trim()) createLineMutation.mutate({ rubrique: rubrique.key, label: newLineLabel.trim(), planScenarioId: activePlanScenarioId }); }}
                                   disabled={!newLineLabel.trim()}
                                 >OK</Button>
                                 <Button
@@ -1365,6 +1550,64 @@ function TreasuryPlanView({ projects }: { projects: Array<{ id: string; name: st
           </table>
         </div>
       </Card>
+
+      {/* Sync dialog */}
+      <Dialog open={syncDialogOpen} onOpenChange={setSyncDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-violet-500" />
+              Synchroniser les entrées clients
+            </DialogTitle>
+            <DialogDescription>
+              Sélectionnez les projets dont vous souhaitez importer les flux de revenus comme lignes de plan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2 max-h-64 overflow-y-auto">
+            {(() => {
+              const incomeFlows = flows.filter((f) => f.type === "income" && f.projectId);
+              const grouped: Record<string, { name: string; total: number }> = {};
+              for (const f of incomeFlows) {
+                if (!grouped[f.projectId!]) grouped[f.projectId!] = { name: f.projectName ?? f.projectId!, total: 0 };
+                grouped[f.projectId!].total += f.amount;
+              }
+              const entries = Object.entries(grouped);
+              if (entries.length === 0) {
+                return <p className="text-sm text-muted-foreground text-center py-4">Aucun flux de revenus avec projet trouvé.</p>;
+              }
+              return entries.map(([projectId, { name, total }]) => (
+                <div key={projectId} className="flex items-center gap-3 px-2 py-1.5 rounded-md hover-elevate cursor-pointer" onClick={() => {
+                  setSyncSelectedProjects((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(projectId)) next.delete(projectId);
+                    else next.add(projectId);
+                    return next;
+                  });
+                }}>
+                  <input type="checkbox" checked={syncSelectedProjects.has(projectId)} readOnly className="accent-violet-600 h-4 w-4" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium truncate block">{name}</span>
+                    <span className="text-[11px] text-muted-foreground">{fmt(total)} de flux de revenus</span>
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+          <DialogFooter className="gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={() => setSyncDialogOpen(false)}>Annuler</Button>
+            <Button
+              size="sm"
+              className="gap-1.5"
+              disabled={syncSelectedProjects.size === 0 || syncEntriesMutation.isPending}
+              onClick={() => syncEntriesMutation.mutate(Array.from(syncSelectedProjects))}
+              data-testid="btn-confirm-sync-entrees"
+            >
+              {syncEntriesMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              Importer {syncSelectedProjects.size > 0 ? `(${syncSelectedProjects.size})` : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1724,7 +1967,7 @@ function TreasuryPageInner() {
 
       {/* ── Body: conditional on tab ── */}
       {mainTab === "plan" ? (
-        <TreasuryPlanView projects={projects ?? []} />
+        <TreasuryPlanView projects={projects ?? []} flows={data?.flows ?? []} />
       ) : (
       <div className="flex flex-1 overflow-hidden">
         {/* ── Main content ── */}

@@ -14151,9 +14151,48 @@ app.get("/config/feature-flags", async (_req, res) => {
 
   // ── TREASURY PLAN ──────────────────────────────────────────────────────────
 
+  // ── TREASURY PLAN SCENARIOS ──
+  app.get("/api/treasury/plan/scenarios", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const result = await db.execute(sql`
+        SELECT id, name, initial_balance, granularity, created_at
+        FROM treasury_plan_scenarios
+        WHERE account_id = ${accountId}
+        ORDER BY created_at ASC
+      `);
+      const rows = Array.isArray(result) ? result : (result as any).rows ?? [];
+      res.json(rows);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/treasury/plan/scenarios", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { name, initialBalance = 0, granularity = "month" } = req.body;
+      const result = await db.execute(sql`
+        INSERT INTO treasury_plan_scenarios (account_id, name, initial_balance, granularity)
+        VALUES (${accountId}, ${name}, ${initialBalance}, ${granularity})
+        RETURNING *
+      `);
+      const row = Array.isArray(result) ? result[0] : (result as any).rows?.[0];
+      res.json(row);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.delete("/api/treasury/plan/scenarios/:id", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      await db.execute(sql`
+        DELETE FROM treasury_plan_scenarios WHERE id = ${req.params.id} AND account_id = ${req.accountId!}
+      `);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   app.get("/api/treasury/plan", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const accountId = req.accountId!;
+      const planScenarioId = req.query.planScenarioId as string | undefined;
 
       const toRows = (r: any): any[] => {
         if (!r) return [];
@@ -14162,37 +14201,61 @@ app.get("/config/feature-flags", async (_req, res) => {
         return [];
       };
 
-      const linesResult = await db.execute(sql`
-        SELECT id, rubrique, label, position, source_type, source_id
-        FROM treasury_plan_lines
-        WHERE account_id = ${accountId}
-        ORDER BY rubrique, position, created_at
-      `);
+      // Filter lines by scenario (NULL = default)
+      const linesResult = planScenarioId
+        ? await db.execute(sql`
+            SELECT id, rubrique, label, position, source_type, source_id, plan_scenario_id
+            FROM treasury_plan_lines
+            WHERE account_id = ${accountId} AND plan_scenario_id = ${planScenarioId}
+            ORDER BY rubrique, position, created_at
+          `)
+        : await db.execute(sql`
+            SELECT id, rubrique, label, position, source_type, source_id, plan_scenario_id
+            FROM treasury_plan_lines
+            WHERE account_id = ${accountId} AND plan_scenario_id IS NULL
+            ORDER BY rubrique, position, created_at
+          `);
+
       const cellsResult = await db.execute(sql`
         SELECT c.id, c.line_id, c.period_key, c.amount
         FROM treasury_plan_cells c
         JOIN treasury_plan_lines l ON l.id = c.line_id
         WHERE l.account_id = ${accountId}
-      `);
-      const settingsResult = await db.execute(sql`
-        SELECT plan_initial_balance, plan_granularity
-        FROM treasury_settings
-        WHERE account_id = ${accountId}
-        LIMIT 1
+          AND (${planScenarioId ?? null}::uuid IS NULL AND l.plan_scenario_id IS NULL
+               OR l.plan_scenario_id = ${planScenarioId ?? null}::uuid)
       `);
 
-      const lines = toRows(linesResult);
-      const cells = toRows(cellsResult);
-      const settingRows = toRows(settingsResult);
-      const s = settingRows[0] as any;
+      // Get settings: from scenario if scenarioId given, else from treasury_settings
+      let settingsData = { initialBalance: 0, granularity: "month" };
+      if (planScenarioId) {
+        const scResult = await db.execute(sql`
+          SELECT initial_balance, granularity FROM treasury_plan_scenarios
+          WHERE id = ${planScenarioId} AND account_id = ${accountId}
+        `);
+        const sc = toRows(scResult)[0] as any;
+        if (sc) settingsData = { initialBalance: Number(sc.initial_balance ?? 0), granularity: sc.granularity ?? "month" };
+      } else {
+        const settingsResult = await db.execute(sql`
+          SELECT plan_initial_balance, plan_granularity
+          FROM treasury_settings
+          WHERE account_id = ${accountId}
+          LIMIT 1
+        `);
+        const s = toRows(settingsResult)[0] as any;
+        if (s) settingsData = { initialBalance: Number(s.plan_initial_balance ?? 0), granularity: s.plan_granularity ?? "month" };
+      }
+
+      // Return plan scenarios list too
+      const scenariosResult = await db.execute(sql`
+        SELECT id, name, initial_balance, granularity FROM treasury_plan_scenarios
+        WHERE account_id = ${accountId} ORDER BY created_at ASC
+      `);
 
       res.json({
-        lines,
-        cells,
-        settings: {
-          initialBalance: s ? Number(s.plan_initial_balance ?? 0) : 0,
-          granularity: s?.plan_granularity ?? "month",
-        },
+        lines: toRows(linesResult),
+        cells: toRows(cellsResult),
+        settings: settingsData,
+        planScenarios: toRows(scenariosResult),
       });
     } catch (e: any) {
       console.error("❌ GET /api/treasury/plan error:", e.message, e.stack?.split?.("\n")?.[1]);
@@ -14203,10 +14266,10 @@ app.get("/config/feature-flags", async (_req, res) => {
   app.post("/api/treasury/plan/lines", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const accountId = req.accountId!;
-      const { rubrique, label, position = 0, source_type = "manual", source_id = null } = req.body;
+      const { rubrique, label, position = 0, source_type = "manual", source_id = null, planScenarioId = null } = req.body;
       const result = await db.execute(sql`
-        INSERT INTO treasury_plan_lines (account_id, rubrique, label, position, source_type, source_id)
-        VALUES (${accountId}, ${rubrique}, ${label}, ${position}, ${source_type}, ${source_id})
+        INSERT INTO treasury_plan_lines (account_id, rubrique, label, position, source_type, source_id, plan_scenario_id)
+        VALUES (${accountId}, ${rubrique}, ${label}, ${position}, ${source_type}, ${source_id}, ${planScenarioId})
         RETURNING *
       `);
       const row = Array.isArray(result) ? result[0] : (result as any).rows?.[0];
@@ -14282,15 +14345,23 @@ app.get("/config/feature-flags", async (_req, res) => {
   app.put("/api/treasury/plan/settings", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const accountId = req.accountId!;
-      const { initialBalance, granularity } = req.body;
-      await db.execute(sql`
-        INSERT INTO treasury_settings (account_id, plan_initial_balance, plan_granularity)
-        VALUES (${accountId}, ${initialBalance ?? 0}, ${granularity ?? "month"})
-        ON CONFLICT (account_id) DO UPDATE
-        SET plan_initial_balance = EXCLUDED.plan_initial_balance,
-            plan_granularity = EXCLUDED.plan_granularity,
-            updated_at = NOW()
-      `);
+      const { initialBalance, granularity, planScenarioId } = req.body;
+      if (planScenarioId) {
+        await db.execute(sql`
+          UPDATE treasury_plan_scenarios
+          SET initial_balance = ${initialBalance ?? 0}, granularity = ${granularity ?? "month"}
+          WHERE id = ${planScenarioId} AND account_id = ${accountId}
+        `);
+      } else {
+        await db.execute(sql`
+          INSERT INTO treasury_settings (account_id, plan_initial_balance, plan_granularity)
+          VALUES (${accountId}, ${initialBalance ?? 0}, ${granularity ?? "month"})
+          ON CONFLICT (account_id) DO UPDATE
+          SET plan_initial_balance = EXCLUDED.plan_initial_balance,
+              plan_granularity = EXCLUDED.plan_granularity,
+              updated_at = NOW()
+        `);
+      }
       res.json({ ok: true });
     } catch (e: any) {
       console.error("❌ PUT /api/treasury/plan/settings error:", e.message);

@@ -2543,6 +2543,24 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Stripe billing columns added to accounts");
 
+    // ── TREASURY PLAN SCENARIOS ──
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS treasury_plan_scenarios (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        initial_balance NUMERIC DEFAULT 0,
+        granularity TEXT DEFAULT 'month',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS treasury_plan_scenarios_account_idx ON treasury_plan_scenarios(account_id);
+    `);
+    await db.execute(sql`
+      ALTER TABLE treasury_plan_lines
+        ADD COLUMN IF NOT EXISTS plan_scenario_id UUID REFERENCES treasury_plan_scenarios(id) ON DELETE CASCADE;
+    `);
+    console.log("✅ Treasury plan scenarios table created");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

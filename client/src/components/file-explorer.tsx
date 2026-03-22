@@ -67,6 +67,8 @@ import {
   Download,
   Loader2,
   FolderInput,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -191,6 +193,12 @@ export function FileExplorer({ clientId, projectId }: Props) {
 
   // Track virtual entries being optimistically "linked" to a folder (so they hide instantly at root)
   const [pendingLinkedEntityIds, setPendingLinkedEntityIds] = useState(new Set<string>());
+
+  // View mode
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  // Keyboard-focused id (for arrow key navigation)
+  const [focusedId, setFocusedId] = useState<string | null>(null);
 
   // Forms
   const noteForm = useForm({ resolver: zodResolver(noteSchema), defaultValues: { title: "" } });
@@ -691,6 +699,74 @@ export function FileExplorer({ clientId, projectId }: Props) {
     };
   }, [rubberBandStart]);
 
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      // Don't hijack typing inside inputs/textareas
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
+
+      // All orderly entries for arrow navigation
+      const allIds = [...filteredFolders.map(f => f.id), ...filteredEntries.map(en => en.id)];
+
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === "a" || e.key === "A") {
+          e.preventDefault();
+          setSelectedIds(new Set(allIds));
+          return;
+        }
+        if (e.key === "n" || e.key === "N") {
+          e.preventDefault();
+          setFolderSheetOpen(true);
+          return;
+        }
+      }
+
+      if (e.key === "Delete" || e.key === "Backspace" && (e.ctrlKey || e.metaKey)) {
+        if (selectedIds.size > 0) {
+          e.preventDefault();
+          setDeleteSelectedOpen(true);
+        }
+        return;
+      }
+
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        if (allIds.length === 0) return;
+        const idx = focusedId ? allIds.indexOf(focusedId) : -1;
+        const next = allIds[Math.min(idx + 1, allIds.length - 1)];
+        setFocusedId(next);
+        document.querySelector<HTMLElement>(`[data-explorer-id="${next}"]`)?.focus();
+        return;
+      }
+
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (allIds.length === 0) return;
+        const idx = focusedId ? allIds.indexOf(focusedId) : allIds.length;
+        const prev = allIds[Math.max(idx - 1, 0)];
+        setFocusedId(prev);
+        document.querySelector<HTMLElement>(`[data-explorer-id="${prev}"]`)?.focus();
+        return;
+      }
+
+      if (e.key === "Enter" && focusedId) {
+        e.preventDefault();
+        const folder = filteredFolders.find(f => f.id === focusedId);
+        if (folder) { openFolder(folder); return; }
+        const entry = filteredEntries.find(en => en.id === focusedId);
+        if (entry) { openFile(entry); return; }
+      }
+
+      if (e.key === "Escape") {
+        setSelectedIds(new Set());
+        setFocusedId(null);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [filteredFolders, filteredEntries, selectedIds, focusedId]);
+
   const handleContentMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
     if (target.closest("[data-explorer-id]")) return;
@@ -996,6 +1072,26 @@ export function FileExplorer({ clientId, projectId }: Props) {
             </SelectContent>
           </Select>
 
+          {/* View mode toggle */}
+          <div className="flex items-center rounded border overflow-hidden shrink-0">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={["px-1.5 py-1 transition-colors", viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"].join(" ")}
+              data-testid="btn-view-grid"
+              title="Vue grille"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={["px-1.5 py-1 transition-colors", viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"].join(" ")}
+              data-testid="btn-view-list"
+              title="Vue liste"
+            >
+              <List className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           {/* Type filter toggles */}
           <div className="flex items-center gap-1 flex-1 overflow-x-auto" data-testid="filter-type-group">
             {(["folder", "note", "document", "pdf", "image"] as FilterKind[]).map(kind => (
@@ -1053,7 +1149,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
               <p className="text-xs opacity-70">Créez un dossier, une note ou importez un document</p>
             )}
           </div>
-        ) : (
+        ) : viewMode === "grid" ? (
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2">
             {filteredFolders.map(folder => (
               <ExplorerItem
@@ -1083,6 +1179,56 @@ export function FileExplorer({ clientId, projectId }: Props) {
                 kind={entry.kind}
                 name={entry.name}
                 mimeType={entry.mimeType}
+                isSelected={selectedIds.has(entry.id)}
+                isDragOver={false}
+                onSingleClick={e => toggleSelect(entry.id, e)}
+                onDoubleClick={e => { e.stopPropagation(); openFile(entry); }}
+                onRename={() => {
+                  if (entry.isFileEntry) {
+                    setRenameTarget({ id: entry.id, kind: "file", name: entry.name });
+                    setRenameName(entry.name);
+                  }
+                }}
+                onDelete={() => { if (entry.isFileEntry) setDeleteTarget({ id: entry.id, kind: "file", name: entry.name }); }}
+                onDuplicate={entry.isFileEntry ? () => duplicateSelectedMutation.mutate([entry.id]) : undefined}
+                onMove={(entry.kind === "upload" || entry.kind === "folder") && entry.isFileEntry ? () => { setMovingEntry({ id: entry.id, kind: "file", name: entry.name }); setMoveDialogFolder(null); setMoveDialogBreadcrumb([{ id: null, name: "Fichiers" }]); } : undefined}
+                canEdit={!!entry.isFileEntry}
+                onDragStart={e => handleDragStart(e, entry.id)}
+                onDragEnd={handleDragEnd}
+                onDownload={entry.kind === "upload" ? () => openFile(entry) : undefined}
+              />
+            ))}
+          </div>
+        ) : (
+          /* List view */
+          <div className="flex flex-col divide-y divide-border/50" data-testid="explorer-list-view">
+            {filteredFolders.map(folder => (
+              <ExplorerListRow
+                key={folder.id}
+                id={folder.id}
+                kind="folder"
+                name={folder.name}
+                isSelected={selectedIds.has(folder.id)}
+                isDragOver={dragOverFolderId === folder.id}
+                onSingleClick={e => toggleSelect(folder.id, e)}
+                onDoubleClick={e => { e.stopPropagation(); openFolder(folder); }}
+                onRename={() => { setRenameTarget({ id: folder.id, kind: "folder", name: folder.name }); setRenameName(folder.name); }}
+                onDelete={() => setDeleteTarget({ id: folder.id, kind: "folder", name: folder.name })}
+                onDuplicate={() => duplicateSelectedMutation.mutate([folder.id])}
+                onMove={() => { setMovingEntry({ id: folder.id, kind: "folder", name: folder.name }); setMoveDialogFolder(null); setMoveDialogBreadcrumb([{ id: null, name: "Fichiers" }]); }}
+                canEdit
+                onDragStart={e => handleDragStart(e, folder.id)}
+                onDragEnd={handleDragEnd}
+              />
+            ))}
+            {filteredEntries.map(entry => (
+              <ExplorerListRow
+                key={entry.isFileEntry ? `file-${entry.id}` : `raw-${entry.id}`}
+                id={entry.id}
+                kind={entry.kind}
+                name={entry.name}
+                mimeType={entry.mimeType}
+                updatedAt={entry.updatedAt}
                 isSelected={selectedIds.has(entry.id)}
                 isDragOver={false}
                 onSingleClick={e => toggleSelect(entry.id, e)}
@@ -1421,6 +1567,100 @@ function kindIcon(kind: string, mimeType?: string | null): { icon: React.ReactNo
     return { icon: <FileIcon className="w-8 h-8" />, color: "text-orange-400" };
   }
   return { icon: <FileIcon className="w-8 h-8" />, color: "text-muted-foreground" };
+}
+
+interface ExplorerListRowProps {
+  id: string;
+  kind: "folder" | "note" | "document" | "upload";
+  name: string;
+  mimeType?: string | null;
+  updatedAt?: string | Date | null;
+  isSelected: boolean;
+  isDragOver: boolean;
+  onSingleClick: (e: React.MouseEvent) => void;
+  onDoubleClick: (e: React.MouseEvent) => void;
+  onRename: () => void;
+  onDelete: () => void;
+  onDuplicate?: () => void;
+  onMove?: () => void;
+  canEdit?: boolean;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragEnd?: () => void;
+  onDownload?: () => void;
+}
+
+function ExplorerListRow({
+  id, kind, name, mimeType, updatedAt, isSelected, isDragOver,
+  onSingleClick, onDoubleClick, onRename, onDelete, onDuplicate, onMove, canEdit = true,
+  onDragStart, onDragEnd, onDownload,
+}: ExplorerListRowProps) {
+  const isFolder = kind === "folder";
+  const { color } = isFolder
+    ? { color: "text-amber-300" }
+    : kindIcon(kind, mimeType);
+
+  const kindLabel = () => {
+    if (isFolder) return { label: "Dossier", cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" };
+    if (kind === "note") return { label: "Note", cls: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300" };
+    if (kind === "document") return { label: "Doc", cls: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300" };
+    if (mimeType === "application/pdf") return { label: "PDF", cls: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300" };
+    if (mimeType?.startsWith("image/")) return { label: (mimeType.split("/")[1] || "img").toUpperCase().slice(0, 4), cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" };
+    return { label: "Fichier", cls: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" };
+  };
+  const { label, cls } = kindLabel();
+  const dateStr = updatedAt ? new Date(updatedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "2-digit" }) : "—";
+
+  return (
+    <div
+      data-explorer-id={id}
+      draggable
+      className={[
+        "group flex items-center gap-3 px-2 py-1.5 cursor-pointer transition-colors",
+        isSelected ? "bg-primary/10 ring-1 ring-inset ring-primary/30" : "hover-elevate",
+        isDragOver ? "bg-primary/20" : "",
+      ].join(" ")}
+      onClick={onSingleClick}
+      onDoubleClick={onDoubleClick}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      data-testid={`explorer-list-item-${id}`}
+    >
+      <div className={`shrink-0 ${color}`}>
+        {isFolder ? <FilledFolderIcon className="w-4 h-4" /> : <FileIcon className="w-4 h-4" />}
+      </div>
+      <span className="flex-1 text-xs font-medium truncate">{name}</span>
+      <span className={`text-[9px] px-1.5 py-0.5 rounded-sm font-medium shrink-0 ${cls}`}>{label}</span>
+      <span className="text-[10px] text-muted-foreground w-20 text-right shrink-0">{dateStr}</span>
+
+      {/* Context menu */}
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={e => e.stopPropagation()}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="icon" variant="ghost" className="h-5 w-5" data-testid={`button-list-item-menu-${id}`}>
+              <MoreVertical className="w-3 h-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onClick={onDoubleClick as any}>
+              {isFolder ? <FolderOpen className="w-3.5 h-3.5" /> : kind === "upload" ? <Download className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+              {isFolder ? "Ouvrir" : kind === "upload" ? "Télécharger" : "Ouvrir"}
+            </DropdownMenuItem>
+            {(canEdit || onDuplicate) && (
+              <>
+                <DropdownMenuSeparator />
+                {canEdit && <DropdownMenuItem onClick={onRename}><Pencil className="w-3.5 h-3.5" />Renommer</DropdownMenuItem>}
+                {onDuplicate && <DropdownMenuItem onClick={onDuplicate}><Copy className="w-3.5 h-3.5" />Dupliquer</DropdownMenuItem>}
+                {onMove && <DropdownMenuItem onClick={onMove}><FolderInput className="w-3.5 h-3.5" />Déplacer</DropdownMenuItem>}
+                {onDownload && <DropdownMenuItem onClick={onDownload}><Download className="w-3.5 h-3.5" />Télécharger</DropdownMenuItem>}
+                <DropdownMenuSeparator />
+                {canEdit && <DropdownMenuItem className="text-destructive" onClick={onDelete}><Trash2 className="w-3.5 h-3.5" />Supprimer</DropdownMenuItem>}
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
 }
 
 function ExplorerItem({
