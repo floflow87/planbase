@@ -62,8 +62,9 @@ export function AppSidebar() {
   const { state, setOpenMobile, isMobile, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const { billing } = useBilling();
-  const showUpgradeCTA = billing?.subscriptionStatus !== "active";
+  const { billingState } = useBilling();
+  // Show upgrade CTA only for non-admin users who don't have an active paid subscription
+  const showUpgradeCTA = billingState !== "loading" && billingState !== "admin" && billingState !== "active" && billingState !== "past_due";
 
   const moduleId = getModuleIdFromPath(location);
   const moduleHelp = moduleId ? getModuleHelp(moduleId) : MODULE_HELP.dashboard;

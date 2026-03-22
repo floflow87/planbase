@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 import { useBilling, type PremiumFeature } from "@/hooks/useBilling";
 
+// ─── Feature labels ───────────────────────────────────────────────────────────
+
 const FEATURE_LABELS: Record<PremiumFeature, string> = {
   treasury: "Trésorerie",
   finance: "Rentabilité & Finance",
@@ -25,40 +27,35 @@ interface PremiumGateProps {
   children: React.ReactNode;
 }
 
+// ─── Premium Feature Gate (Agence-only features) ──────────────────────────────
+
 export function PremiumGate({ feature, children }: PremiumGateProps) {
-  const { hasFeature, billing, isLoading, startCheckout, isCheckingOut } = useBilling();
+  const { hasFeature, billingState, startCheckout, isCheckingOut, isLoading } = useBilling();
   const [, setLocation] = useLocation();
 
   if (isLoading) return <>{children}</>;
 
-  // Active agency plan → show content
+  // Active agency plan or admin → show content
   if (hasFeature(feature)) return <>{children}</>;
 
-  const isExpiredTrial = billing?.subscriptionStatus === "expired" || billing?.subscriptionStatus === "canceled";
-  const isFreelance = (billing?.plan === "freelance" || billing?.plan === "starter") && billing?.subscriptionStatus !== null;
+  // Freelance active subscriber → show paywall (not a trial/access issue)
+  const isActiveFreelance = (billingState === "active" || billingState === "past_due") && !hasFeature(feature);
 
   return (
     <div className="flex items-start justify-center min-h-[400px] p-8" data-testid={`paywall-${feature}`}>
       <div className="max-w-md w-full text-center space-y-6">
-        {/* Icon */}
         <div className="flex justify-center">
           <div className="rounded-full bg-violet-100 dark:bg-violet-900/30 p-5">
             <Crown className="w-8 h-8 text-violet-600 dark:text-violet-400" />
           </div>
         </div>
 
-        {/* Title */}
         <div className="space-y-2">
           <Badge variant="secondary" className="text-[10px] px-2 py-0.5">Plan Agence</Badge>
-          <h2 className="text-xl font-semibold">
-            {FEATURE_LABELS[feature]}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {FEATURE_DESCRIPTIONS[feature]}
-          </p>
+          <h2 className="text-xl font-semibold">{FEATURE_LABELS[feature]}</h2>
+          <p className="text-sm text-muted-foreground">{FEATURE_DESCRIPTIONS[feature]}</p>
         </div>
 
-        {/* What they need */}
         <Card className="text-left">
           <CardContent className="pt-4 pb-4 space-y-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
@@ -73,7 +70,6 @@ export function PremiumGate({ feature, children }: PremiumGateProps) {
           </CardContent>
         </Card>
 
-        {/* CTAs */}
         <div className="flex flex-col gap-2">
           <Button
             className="w-full"
@@ -99,24 +95,30 @@ export function PremiumGate({ feature, children }: PremiumGateProps) {
   );
 }
 
-// ─── Trial / expired banner ──────────────────────────────────────────────────
+// ─── Trial / Subscription Banner ──────────────────────────────────────────────
+// Shown at the top of the main content area (App.tsx)
+
 export function TrialBanner() {
-  const { billing, trialDaysLeft, isTrialing, isTrialExpired, hasNoTrial, isLoading } = useBilling();
+  const { billingState, trialDaysLeft } = useBilling();
   const [, setLocation] = useLocation();
 
-  if (isLoading) return null;
-  if (billing?.subscriptionStatus === "active") return null;
-  if (hasNoTrial) return null;
+  // Never show banner for: loading, admin, no_trial (redirect handles it), active
+  if (billingState === "loading" || billingState === "admin" || billingState === "no_trial" || billingState === "active") {
+    return null;
+  }
 
-  if (isTrialExpired) {
+  if (billingState === "expired" || billingState === "canceled") {
     return (
-      <div className="mx-4 mt-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md px-4 py-3 flex items-center justify-between gap-4 shrink-0"
+      <div
+        className="mx-4 mt-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md px-4 py-3 flex items-center justify-between gap-4 shrink-0"
         data-testid="banner-trial-expired"
       >
         <div className="flex items-center gap-2">
           <Lock className="w-4 h-4 text-red-500 shrink-0" />
           <span className="text-xs text-red-700 dark:text-red-300">
-            Votre période d'essai est terminée — choisissez un plan pour continuer.
+            {billingState === "canceled"
+              ? "Votre abonnement est annulé — souscrivez à nouveau pour continuer."
+              : "Votre période d'essai est terminée — choisissez un plan pour continuer."}
           </span>
         </div>
         <Button size="sm" onClick={() => setLocation("/pricing")} data-testid="button-choose-plan">
@@ -126,9 +128,10 @@ export function TrialBanner() {
     );
   }
 
-  if (isTrialing && trialDaysLeft !== null) {
+  if (billingState === "trialing" && trialDaysLeft !== null) {
     return (
-      <div className="mx-4 mt-3 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-md px-4 py-3 flex items-center justify-between gap-4 shrink-0"
+      <div
+        className="mx-4 mt-3 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-md px-4 py-3 flex items-center justify-between gap-4 shrink-0"
         data-testid="banner-trial-active"
       >
         <div className="flex items-center gap-2">
@@ -144,32 +147,58 @@ export function TrialBanner() {
     );
   }
 
+  if (billingState === "past_due") {
+    return (
+      <div
+        className="mx-4 mt-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-md px-4 py-3 flex items-center justify-between gap-4 shrink-0"
+        data-testid="banner-past-due"
+      >
+        <div className="flex items-center gap-2">
+          <Lock className="w-4 h-4 text-orange-500 shrink-0" />
+          <span className="text-xs text-orange-700 dark:text-orange-300">
+            Paiement en retard — mettez à jour vos informations de paiement.
+          </span>
+        </div>
+        <Button size="sm" onClick={() => setLocation("/settings?tab=subscription")} data-testid="button-update-payment">
+          Mettre à jour
+        </Button>
+      </div>
+    );
+  }
+
   return null;
 }
 
-// ─── Global Trial / Access Gate ──────────────────────────────────────────────
+// ─── Global Access Gate ───────────────────────────────────────────────────────
+// Wraps Router in App.tsx. Handles two cases:
+//  1. no_trial → redirect to /pricing (to start trial or subscribe)
+//  2. expired / canceled → show block screen (must subscribe to continue)
+
 export function TrialExpiredGate({ children }: { children: React.ReactNode }) {
-  const { isLoading, isTrialExpired, hasNoTrial } = useBilling();
+  const { billingState } = useBilling();
   const [location, setLocation] = useLocation();
 
-  const freePages = ["/pricing", "/settings", "/login", "/signup", "/accept-invitation"];
-  const isAllowed = freePages.some((p) => location === p || location.startsWith(p + "/") || location.startsWith(p + "?"));
+  // Pages accessible regardless of billing state
+  const freePaths = ["/pricing", "/settings", "/login", "/signup", "/accept-invitation"];
+  const isFreePage = freePaths.some(
+    (p) => location === p || location.startsWith(p + "/") || location.startsWith(p + "?")
+  );
 
+  // Redirect no_trial users to /pricing (via useEffect to avoid render-side-effect)
   useEffect(() => {
-    if (!isLoading && hasNoTrial && !isAllowed) {
+    if (billingState === "no_trial" && !isFreePage) {
       setLocation("/pricing");
     }
-  }, [isLoading, hasNoTrial, isAllowed, setLocation]);
+  }, [billingState, isFreePage, setLocation]);
 
-  if (isLoading) return <>{children}</>;
+  // While loading → optimistic, show content
+  if (billingState === "loading") return <>{children}</>;
 
-  // No trial started yet → redirect to pricing to start trial
-  if (hasNoTrial && !isAllowed) {
-    return null;
-  }
+  // No trial started yet → show nothing until redirect fires
+  if (billingState === "no_trial" && !isFreePage) return null;
 
-  // Trial expired → block access, show expired screen
-  if (isTrialExpired && !isAllowed) {
+  // Trial/subscription expired → block access with CTA
+  if ((billingState === "expired" || billingState === "canceled") && !isFreePage) {
     return (
       <div className="flex-1 flex items-center justify-center p-8" data-testid="trial-expired-gate">
         <div className="max-w-md w-full text-center space-y-6">
@@ -179,9 +208,13 @@ export function TrialExpiredGate({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="space-y-2">
-            <h2 className="text-xl font-semibold">Période d'essai terminée</h2>
+            <h2 className="text-xl font-semibold">
+              {billingState === "canceled" ? "Abonnement annulé" : "Période d'essai terminée"}
+            </h2>
             <p className="text-sm text-muted-foreground">
-              Votre essai gratuit de 7 jours est arrivé à expiration. Choisissez un plan pour accéder à toutes les fonctionnalités.
+              {billingState === "canceled"
+                ? "Votre abonnement a été annulé. Souscrivez à nouveau pour accéder à toutes les fonctionnalités."
+                : "Votre essai gratuit de 7 jours est arrivé à expiration. Choisissez un plan pour continuer."}
             </p>
           </div>
           <div className="flex flex-col gap-2">

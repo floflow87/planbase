@@ -114,7 +114,7 @@ const FAQ_ITEMS = [
 ];
 
 export function SubscriptionTab() {
-  const { billing, isLoading, isActive, isAdmin, isTrialing, isTrialExpired, trialDaysLeft, startCheckout, isCheckingOut, openPortal, isOpeningPortal } = useBilling();
+  const { billing, isLoading, isActive, isAdmin, isTrialing, isTrialExpired, hasNoTrial, billingState, trialDaysLeft, startCheckout, isCheckingOut, openPortal, isOpeningPortal } = useBilling();
   const [, setLocation] = useLocation();
   const [selectedPlan, setSelectedPlan] = useState<Plan>("agency");
   const [selectedInterval, setSelectedInterval] = useState<"monthly" | "yearly">("monthly");
@@ -168,7 +168,8 @@ export function SubscriptionTab() {
 
   const plan = billing?.plan ?? null;
   const status = billing?.subscriptionStatus ?? null;
-  const noSubscription = !status || status === "canceled" || status === "expired";
+  // noSubscription: no active paid subscription (trial, no_trial, expired, canceled are all "no subscription")
+  const noSubscription = billingState !== "active" && billingState !== "past_due";
   const showTrialCard = isTrialing || isTrialExpired;
 
   return (
@@ -183,6 +184,26 @@ export function SubscriptionTab() {
           Gérez votre plan et vos informations de facturation.
         </p>
       </div>
+
+      {/* No trial yet — start trial CTA */}
+      {hasNoTrial && (
+        <Card className="border-violet-200 dark:border-violet-800 bg-violet-50/40 dark:bg-violet-900/10" data-testid="card-no-trial">
+          <CardContent className="pt-5 pb-5">
+            <div className="space-y-3">
+              <div>
+                <p className="font-semibold text-foreground">Démarrez votre essai gratuit</p>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Accédez à tous les modules de PlanBase pendant 7 jours, sans carte bancaire.
+                </p>
+              </div>
+              <Button onClick={() => setLocation("/pricing")} data-testid="button-start-trial-from-settings">
+                <Crown className="w-4 h-4 mr-2" />
+                Démarrer l'essai gratuit
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Trial progress card */}
       {showTrialCard && (

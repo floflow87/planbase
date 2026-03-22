@@ -1,0 +1,241 @@
+Le correctif sur le système d’essai / billing / gating a été implémenté. Je veux maintenant une phase de vérification complète, de correction si nécessaire, et de durcissement de la logique.
+
+IMPORTANT :
+- ne pas repartir de zéro
+- partir de l’existant
+- vérifier que la logique fonctionne réellement de bout en bout
+- corriger les incohérences éventuelles
+- renforcer la robustesse
+- éviter les régressions
+
+## État actuel à partir duquel tu dois travailler
+
+### Bugs déjà corrigés
+1. Bug "trial expiré" pour les anciens comptes
+- suppression de la logique implicite basée sur created_at
+- trial_ends_at remis à NULL pour les comptes dont l’essai n’a jamais été démarré explicitement
+- ajout de trial_started_explicitly
+- billing/status ne retourne "expired" que si :
+  - trial_started_explicitly = true
+  - ET trial_ends_at < NOW()
+
+2. Bug sidebar vide pendant le chargement
+- usePermissions.can() retourne true tant que isLoading = true
+- accès optimiste côté UI, serveur toujours source de vérité
+
+3. Bug PremiumGate
+- null n’est plus traité comme "expired"
+- isExpiredTrial = status === "expired" || status === "canceled"
+
+### Machine d’état actuelle
+- subscription_status IS NULL + trial_started_explicitly = false
+  => hasNoTrial
+- trial_ends_at > NOW + trial_started_explicitly = true
+  => isTrialing
+- trial_ends_at < NOW + trial_started_explicitly = true
+  => isTrialExpired
+- subscription_status = 'active'
+  => active
+- admin bypass
+  => accès admin
+
+## Ce que je veux maintenant
+
+Je veux que tu AUDITES et SOLIDIFIES toute cette logique.
+
+---
+
+## 1. Vérification complète de la machine d’état
+
+Je veux que tu vérifies que toute l’application repose sur une logique unique et cohérente.
+
+Objectif :
+éviter que plusieurs composants réinterprètent eux-mêmes :
+- subscription_status
+- trial_ends_at
+- trial_started_explicitly
+
+Je veux idéalement une fonction centralisée du type :
+- getBillingState(...)
+ou
+- resolveBillingState(...)
+
+qui retourne explicitement un état métier unique parmi :
+- no_trial
+- trialing
+- expired
+- active
+- canceled
+- admin
+
+Puis que toute l’UI consomme cet état dérivé, au lieu de recalculer localement des conditions.
+
+---
+
+## 2. Audit des composants qui dépendent du billing
+
+Je veux que tu vérifies tous les composants / hooks / guards qui dépendent du billing, notamment :
+
+- TrialExpiredGate
+- PremiumGate
+- useBilling
+- sidebar / navigation
+- banners billing / trial
+- page pricing
+- page billing
+- redirections post-signup
+- redirections post-trial
+- gating des modules premium
+
+Objectif :
+s’assurer qu’ils utilisent tous la même logique métier.
+
+---
+
+## 3. Vérification des scénarios critiques
+
+Je veux que tu testes et, si nécessaire, corriges les scénarios suivants :
+
+### Scénario A — nouvel utilisateur
+- signup
+- completion profil
+- redirection vers /pricing
+- aucun message "trial expired"
+- pas de dashboard incohérent
+
+### Scénario B — démarrage de l’essai
+- clic "démarrer mon essai gratuit"
+- start-trial appelé
+- refetch billing
+- redirection dashboard
+- sidebar complète
+- bannière violette
+- accès complet aux modules
+
+### Scénario C — essai expiré sans abonnement
+- message rouge correct
+- blocage propre
+- pas d’ambiguïté avec no_trial
+- pas de sidebar vide ou incohérente
+
+### Scénario D — abonnement actif
+- disparition correcte de la logique d’essai
+- accès selon plan
+- pas de bannière trial incorrecte
+- pas de conflit avec PremiumGate
+
+### Scénario E — compte Freelance actif
+- accès normal aux modules core
+- accès refusé proprement aux modules Agence
+- paywall / CTA cohérents
+
+### Scénario F — admin
+- bypass correct
+- pas de faux blocage
+
+### Scénario G — refresh / reconnexion
+- hard refresh
+- logout / login
+- navigation directe par URL
+- état billing cohérent partout
+
+---
+
+## 4. Vérification des cas limites
+
+Je veux que tu vérifies aussi les edge cases suivants :
+
+### Edge case 1
+trial_started_explicitly = true mais trial_ends_at = NULL
+→ comportement attendu explicite à définir et sécuriser
+
+### Edge case 2
+subscription_status = active mais ancien trial_ends_at expiré
+→ active doit toujours primer
+
+### Edge case 3
+subscription_status = canceled
+→ comportement clair :
+- accès coupé ou limité selon règle choisie
+- pas de retour en no_trial
+
+### Edge case 4
+utilisateur ayant démarré un essai puis souscrit puis résilié
+→ ne doit pas pouvoir relancer un essai
+
+### Edge case 5
+latence / loading du billing
+→ pas de sidebar vide
+→ pas de flicker incohérent
+→ pas de redirection parasite
+
+---
+
+## 5. Vérification du tunnel onboarding complet
+
+Je veux que tu revérifies le flow complet :
+
+- signup
+- completion du profil
+- pricing
+- démarrage essai ou souscription
+- dashboard
+- accès modules
+- upgrade éventuel
+
+Objectif :
+garantir un tunnel cohérent et sans ambiguïté.
+
+---
+
+## 6. Vérification UX / messages
+
+Je veux que tu vérifies tous les wording et états visuels :
+
+### no_trial
+- aucun wording “trial terminé”
+- CTA clair vers pricing / démarrer essai / souscrire
+
+### trialing
+- bannière violette
+- jours restants corrects
+- CTA plan cohérent
+
+### expired
+- bannière rouge
+- CTA souscription
+- pas d’ambiguïté avec no_trial
+
+### active
+- pas de bandeau d’essai incohérent
+
+---
+
+## 7. Robustesse technique
+
+Je veux que tu vérifies :
+- absence de boucles de redirection
+- absence de logique contradictoire entre frontend et backend
+- absence de duplication inutile des conditions billing
+- cohérence entre cache query / refetch / render UI
+- comportement propre au chargement initial
+
+---
+
+## 8. Attendu en sortie
+
+Avant de modifier le code, je veux que tu me donnes :
+
+1. la liste précise des points vérifiés
+2. les incohérences restantes trouvées, s’il y en a
+3. les risques potentiels encore présents
+4. la proposition d’amélioration de la logique centrale de billing state
+
+Puis :
+5. tu corriges ce qui doit l’être
+6. tu simplifies ce qui peut l’être
+7. tu centralises la logique si ce n’est pas encore le cas
+
+## Règle importante
+Je ne veux pas un patch rapide.
+Je veux un système propre, robuste, lisible et stable, car ce tunnel conditionne directement la conversion et la commercialisation de PlanBase.

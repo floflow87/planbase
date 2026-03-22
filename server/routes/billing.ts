@@ -38,12 +38,18 @@ router.get("/status", requireAuth, async (req: Request, res: Response) => {
     // Derive subscription status from local trial when no Stripe subscription exists
     let effectiveStatus = account.subscription_status ?? null;
     if (!effectiveStatus && !account.stripe_subscription_id) {
-      if (account.trial_ends_at && account.trial_started_explicitly) {
-        // Only derive trial status if the trial was explicitly started by the user
-        const trialEnd = new Date(account.trial_ends_at);
-        effectiveStatus = trialEnd > new Date() ? "trialing" : "expired";
+      if (account.trial_started_explicitly) {
+        if (account.trial_ends_at) {
+          // Trial was explicitly started: check if still active
+          const trialEnd = new Date(account.trial_ends_at);
+          effectiveStatus = trialEnd > new Date() ? "trialing" : "expired";
+        } else {
+          // Edge case: trial_started_explicitly=true but trial_ends_at=NULL
+          // (e.g. DB inconsistency). Treat as expired to avoid redirect loop.
+          effectiveStatus = "expired";
+        }
       }
-      // else: trial_ends_at IS NULL or not explicitly started → status stays null (hasNoTrial)
+      // else: trial never explicitly started → stays null → "no_trial" on frontend
     }
 
     res.json({
