@@ -21,7 +21,8 @@ async function getAccountBilling(accountId: string) {
     SELECT
       id, name, plan, subscription_status, billing_interval,
       stripe_customer_id, stripe_subscription_id, stripe_price_id,
-      trial_ends_at, current_period_end, cancel_at_period_end
+      trial_ends_at, current_period_end, cancel_at_period_end,
+      trial_started_explicitly
     FROM accounts WHERE id = ${accountId}
   `);
   return result[0] as any ?? null;
@@ -37,11 +38,12 @@ router.get("/status", requireAuth, async (req: Request, res: Response) => {
     // Derive subscription status from local trial when no Stripe subscription exists
     let effectiveStatus = account.subscription_status ?? null;
     if (!effectiveStatus && !account.stripe_subscription_id) {
-      if (account.trial_ends_at) {
+      if (account.trial_ends_at && account.trial_started_explicitly) {
+        // Only derive trial status if the trial was explicitly started by the user
         const trialEnd = new Date(account.trial_ends_at);
         effectiveStatus = trialEnd > new Date() ? "trialing" : "expired";
       }
-      // else: trial_ends_at IS NULL → status stays null (trial not started yet)
+      // else: trial_ends_at IS NULL or not explicitly started → status stays null (hasNoTrial)
     }
 
     res.json({
@@ -128,16 +130,17 @@ router.post("/start-trial", requireAuth, async (req: Request, res: Response) => 
     const account = await getAccountBilling(accountId);
     if (!account) return res.status(404).json({ error: "Account not found" });
 
-    // Only allow starting trial if no trial/subscription already exists
-    if (account.trial_ends_at || account.subscription_status) {
+    // Prevent re-starting trial if explicitly already started or if subscription exists
+    if (account.trial_started_explicitly || account.subscription_status) {
       return res.status(400).json({ error: "Trial or subscription already exists" });
     }
 
     await db.execute(sql`
       UPDATE accounts
-      SET trial_ends_at = NOW() + INTERVAL '7 days'
+      SET trial_ends_at = NOW() + INTERVAL '7 days',
+          trial_started_explicitly = true
       WHERE id = ${accountId}
-        AND trial_ends_at IS NULL
+        AND (trial_started_explicitly IS NULL OR trial_started_explicitly = false)
         AND subscription_status IS NULL
     `);
 

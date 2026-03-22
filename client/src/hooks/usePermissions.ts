@@ -35,6 +35,9 @@ export function usePermissions() {
   });
 
   const can = (module: RbacModule, action: RbacAction): boolean => {
+    // While RBAC is loading, be optimistic and allow access
+    // (server-side auth still protects actual data)
+    if (isLoading) return true;
     if (!data) return false;
     
     // Owner and Admin have full access to everything

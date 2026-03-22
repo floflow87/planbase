@@ -2532,14 +2532,15 @@ export async function runStartupMigrations() {
     // ── Stripe / Billing columns on accounts ──────────────────────────────
     await db.execute(sql`
       ALTER TABLE accounts
-        ADD COLUMN IF NOT EXISTS stripe_customer_id      text,
-        ADD COLUMN IF NOT EXISTS stripe_subscription_id  text,
-        ADD COLUMN IF NOT EXISTS stripe_price_id         text,
-        ADD COLUMN IF NOT EXISTS billing_interval        text,
-        ADD COLUMN IF NOT EXISTS subscription_status     text,
-        ADD COLUMN IF NOT EXISTS trial_ends_at           timestamptz,
-        ADD COLUMN IF NOT EXISTS current_period_end      timestamptz,
-        ADD COLUMN IF NOT EXISTS cancel_at_period_end    boolean DEFAULT false
+        ADD COLUMN IF NOT EXISTS stripe_customer_id        text,
+        ADD COLUMN IF NOT EXISTS stripe_subscription_id    text,
+        ADD COLUMN IF NOT EXISTS stripe_price_id           text,
+        ADD COLUMN IF NOT EXISTS billing_interval          text,
+        ADD COLUMN IF NOT EXISTS subscription_status       text,
+        ADD COLUMN IF NOT EXISTS trial_ends_at             timestamptz,
+        ADD COLUMN IF NOT EXISTS current_period_end        timestamptz,
+        ADD COLUMN IF NOT EXISTS cancel_at_period_end      boolean DEFAULT false,
+        ADD COLUMN IF NOT EXISTS trial_started_explicitly  boolean DEFAULT false
     `);
     console.log("✅ Stripe billing columns added to accounts");
 
@@ -2561,15 +2562,21 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Treasury plan scenarios table created");
 
-    // ── AUTO TRIAL: set trial_ends_at = created_at + 7 days for accounts without subscription ──
+    // ── TRIAL CLEANUP: reset auto-migration trials that were never explicitly started ──
+    // Old auto-migration set trial_ends_at = created_at + 7 days for ALL accounts.
+    // Those trials are now expired (created_at is in the past) and were never started by the user.
+    // We reset them so these accounts become "hasNoTrial" and are redirected to /pricing.
+    // Accounts that explicitly started their trial (trial_started_explicitly = true) are NOT reset.
     await db.execute(sql`
       UPDATE accounts
-      SET trial_ends_at = created_at + INTERVAL '7 days'
-      WHERE trial_ends_at IS NULL
+      SET trial_ends_at = NULL
+      WHERE trial_ends_at IS NOT NULL
+        AND trial_ends_at < NOW()
         AND subscription_status IS NULL
         AND stripe_subscription_id IS NULL
+        AND (trial_started_explicitly IS NULL OR trial_started_explicitly = false)
     `);
-    console.log("✅ Auto-trial: trial_ends_at set for accounts without subscription");
+    console.log("✅ Trial cleanup: reset auto-migration trial_ends_at (not explicitly started)");
 
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {

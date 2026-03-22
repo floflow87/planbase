@@ -1,0 +1,250 @@
+Le système de trial 7 jours et le flux de pricing ont été implémentés. Je veux maintenant auditer et corriger les incohérences restantes dans le tunnel d’inscription, d’onboarding et de billing.
+
+IMPORTANT :
+- ne pas reconstruire from scratch
+- partir de l’existant
+- corriger les bugs de logique et d’état
+- stabiliser le flow de bout en bout
+- éviter toute régression
+
+---
+
+## État actuel (implémenté)
+
+### 1. Flux de trial
+- nouveaux comptes : subscriptionStatus = null
+- TrialExpiredGate détecte hasNoTrial
+- redirection vers /pricing via useEffect (anti boucle)
+- bouton "Démarrer mon essai gratuit 7 jours"
+- POST /api/billing/start-trial
+- trial_ends_at = NOW() + 7 jours
+- refetch billing
+- redirection vers /
+
+---
+
+### 2. Page pricing — 3 états
+
+- hasNoTrial
+  → bloc héro avec CTA essai
+  → cartes plans
+
+- isTrialing
+  → bannière violette (jours restants)
+  → CTA souscription
+
+- isTrialExpired
+  → bannière rouge
+  → cartes plans
+
+---
+
+### 3. Checkout Stripe sécurisé
+
+- dialog de confirmation
+- affichage :
+  - plan
+  - fréquence
+  - montant
+- checkbox obligatoire de consentement
+- bouton activé seulement après validation
+
+---
+
+### 4. Anti-boucle redirection
+
+- startTrial attend refetch billing
+- pas de loop vers /pricing
+
+---
+
+## Problèmes encore observés
+
+### 1. Mauvaise expérience après inscription
+Après création de compte + profil :
+- je suis parfois redirigé vers le dashboard
+- avec un bandeau "Votre essai est terminé"
+- alors que je n’ai jamais lancé d’essai
+
+👉 Ce comportement est incorrect
+
+---
+
+### 2. Sidebar incohérente
+- parfois la sidebar est vide
+- parfois elle réapparaît après passage par "gérer mon abonnement"
+
+👉 indique un problème de synchronisation du state billing côté frontend
+
+---
+
+### 3. États mal interprétés
+Le système semble confondre :
+- hasNoTrial
+- isTrialExpired
+- absence d’abonnement
+
+👉 l’absence de trial ne doit PAS être interprétée comme trial expiré
+
+---
+
+## Objectif
+
+Stabiliser complètement le flow :
+
+inscription → profil → pricing → trial → dashboard → abonnement
+
+---
+
+## Ce que je veux que tu fasses
+
+### 1. Audit complet de la logique billing
+
+Analyser :
+
+- comment est déterminé :
+  - hasNoTrial
+  - isTrialing
+  - isTrialExpired
+- comment sont utilisés :
+  - subscriptionStatus
+  - trial_ends_at
+- comportement si trial_ends_at = null
+- comportement si subscriptionStatus = null
+
+👉 identifier clairement la condition qui déclenche à tort "trial expired"
+
+---
+
+### 2. Correction des états
+
+Je veux une logique claire :
+
+#### Cas 1 — nouvel utilisateur
+(subscriptionStatus = null et trial_ends_at = null)
+
+→ état : hasNoTrial
+→ redirection vers /pricing
+→ ne jamais afficher "trial expired"
+
+---
+
+#### Cas 2 — trial actif
+(trial_ends_at > now)
+
+→ état : isTrialing
+→ accès complet
+→ sidebar complète
+→ bannière violette
+
+---
+
+#### Cas 3 — trial expiré
+(trial_ends_at < now ET pas d’abonnement actif)
+
+→ état : isTrialExpired
+→ accès restreint
+→ bannière rouge
+
+---
+
+#### Cas 4 — abonnement actif
+(subscriptionStatus = active)
+
+→ accès complet selon plan
+→ pas de logique trial
+
+---
+
+### 3. Correction du TrialExpiredGate
+
+Vérifier :
+
+- qu’il ne s’active pas pour hasNoTrial
+- qu’il ne bloque pas le dashboard pendant le trial
+- qu’il ne déclenche pas de redirections incohérentes
+
+---
+
+### 4. Correction sidebar
+
+La sidebar doit dépendre de :
+
+- isTrialing OU active → accès complet
+- hasNoTrial → accès limité OU redirection pricing
+- isTrialExpired → accès restreint
+
+👉 jamais de sidebar vide
+
+---
+
+### 5. Synchronisation frontend
+
+Vérifier :
+
+- useBilling hook
+- refetch après startTrial
+- cohérence entre :
+  - cache
+  - state
+  - UI
+
+👉 éliminer les états où :
+- UI ≠ backend
+
+---
+
+### 6. Redirections propres
+
+Après :
+
+- signup + profil → /pricing si pas de trial
+- startTrial → dashboard
+- abonnement → dashboard
+
+👉 pas de comportements aléatoires
+
+---
+
+### 7. UX / messages
+
+Corriger les messages :
+
+- hasNoTrial → aucun message “trial terminé”
+- isTrialing → “Il vous reste X jours”
+- isTrialExpired → “Votre essai est terminé”
+
+---
+
+## Contraintes
+
+- ne pas casser Stripe
+- ne pas casser startTrial
+- ne pas casser checkout
+- corriger de manière centralisée
+- éviter les conditions contradictoires
+
+---
+
+## Livrable attendu
+
+Avant modification :
+1. identifier précisément les conditions incorrectes
+2. expliquer pourquoi un nouvel utilisateur est considéré comme trial expired
+3. expliquer pourquoi la sidebar est incohérente
+
+Puis :
+
+4. proposer une logique d’état propre et unique
+5. corriger TrialExpiredGate
+6. corriger useBilling si nécessaire
+7. corriger les redirections
+8. corriger la sidebar
+
+Objectif final :
+
+Un flow parfaitement stable, cohérent et sans ambiguïté entre :
+- pas encore de trial
+- trial actif
+- trial expiré
+- abonnement actif

@@ -34,7 +34,7 @@ export function PremiumGate({ feature, children }: PremiumGateProps) {
   // Active agency plan → show content
   if (hasFeature(feature)) return <>{children}</>;
 
-  const isExpiredTrial = billing?.subscriptionStatus === null || billing?.subscriptionStatus === "canceled";
+  const isExpiredTrial = billing?.subscriptionStatus === "expired" || billing?.subscriptionStatus === "canceled";
   const isFreelance = (billing?.plan === "freelance" || billing?.plan === "starter") && billing?.subscriptionStatus !== null;
 
   return (
