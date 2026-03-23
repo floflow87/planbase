@@ -93,6 +93,7 @@ export default function NoteDetail() {
   const [editCommentInput, setEditCommentInput] = useState("");
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyInput, setReplyInput] = useState("");
+  const [sharePopoverOpen, setSharePopoverOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entitySelectorOpen, setEntitySelectorOpen] = useState(false);
   const [entitySelectorTab, setEntitySelectorTab] = useState<"project" | "client" | "ticket">("project");
@@ -1282,6 +1283,86 @@ export default function NoteDetail() {
                       <span className="text-xs text-red-500">Erreur de sync</span>
                     ) : null}
               </div>
+
+              {/* Share Popover */}
+              <Popover open={sharePopoverOpen} onOpenChange={setSharePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    data-testid="button-share"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    Partager
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-72 p-4 bg-white dark:bg-gray-900 shadow-lg">
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm font-medium mb-0.5">Partager cette note</p>
+                      <p className="text-xs text-muted-foreground">Définissez qui peut consulter ce document.</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      {/* Private */}
+                      <button
+                        type="button"
+                        className={`w-full flex items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs transition-colors ${visibility === 'private' ? 'bg-violet-50 dark:bg-violet-900/30 ring-1 ring-violet-300 dark:ring-violet-700' : 'hover:bg-muted/50'}`}
+                        onClick={() => {
+                          setVisibility('private');
+                          updateMutation.mutate({ visibility: 'private' });
+                          toast({ title: "Visibilité : Privée", variant: "default" });
+                        }}
+                        data-testid="share-option-private"
+                      >
+                        <EyeOff className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                        <div>
+                          <div className="font-medium">Privée</div>
+                          <div className="text-muted-foreground text-[11px]">Visible uniquement par vous</div>
+                        </div>
+                        {visibility === 'private' && <Check className="w-3.5 h-3.5 ml-auto text-violet-600 flex-shrink-0" />}
+                      </button>
+                      {/* Team */}
+                      <button
+                        type="button"
+                        className={`w-full flex items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs transition-colors ${visibility === 'account' ? 'bg-violet-50 dark:bg-violet-900/30 ring-1 ring-violet-300 dark:ring-violet-700' : 'hover:bg-muted/50'}`}
+                        onClick={() => {
+                          setVisibility('account');
+                          updateMutation.mutate({ visibility: 'account' });
+                          toast({ title: "Visibilité : Équipe", variant: "default" });
+                        }}
+                        data-testid="share-option-team"
+                      >
+                        <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                        <div>
+                          <div className="font-medium">Équipe</div>
+                          <div className="text-muted-foreground text-[11px]">Tous les membres de votre espace</div>
+                        </div>
+                        {visibility === 'account' && <Check className="w-3.5 h-3.5 ml-auto text-violet-600 flex-shrink-0" />}
+                      </button>
+                    </div>
+                    <div className="border-t pt-3">
+                      <p className="text-[11px] text-muted-foreground mb-2">Lien direct vers ce document</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-2 text-xs"
+                        onClick={() => {
+                          const url = window.location.href;
+                          navigator.clipboard.writeText(url).then(() => {
+                            toast({ title: "Lien copié dans le presse-papier", variant: "default" });
+                            setSharePopoverOpen(false);
+                          });
+                        }}
+                        data-testid="button-copy-link"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Copier le lien
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
 
               {/* Collab Panel Toggle */}
               <Tooltip>
