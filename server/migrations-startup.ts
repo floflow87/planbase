@@ -2635,6 +2635,52 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Treasury plan scenarios table created");
 
+    // ── NOTE COLLABORATION: access_level, comments, suggestions ──────────────────────
+    await db.execute(sql`
+      ALTER TABLE notes
+        ADD COLUMN IF NOT EXISTS access_level text NOT NULL DEFAULT 'comment'
+          CHECK (access_level IN ('read', 'comment'));
+    `);
+    console.log("✅ Notes access_level column added");
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS note_comments (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        note_id UUID NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+        account_id UUID NOT NULL,
+        author_user_id UUID NOT NULL,
+        selected_text text NOT NULL DEFAULT '',
+        selection_from integer,
+        selection_to integer,
+        comment_text text NOT NULL,
+        status text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved')),
+        resolved_by UUID,
+        resolved_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS note_comments_note_idx ON note_comments(note_id);
+    `);
+    console.log("✅ Note comments table created");
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS note_suggestions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        note_id UUID NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+        account_id UUID NOT NULL,
+        author_user_id UUID NOT NULL,
+        selected_text text NOT NULL,
+        replacement_text text NOT NULL,
+        selection_from integer,
+        selection_to integer,
+        status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+        resolved_by UUID,
+        resolved_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS note_suggestions_note_idx ON note_suggestions(note_id);
+    `);
+    console.log("✅ Note suggestions table created");
+
     // ── TRIAL CLEANUP: reset auto-migration trials that were never explicitly started ──
     // Old auto-migration set trial_ends_at = created_at + 7 days for ALL accounts.
     // Those trials are now expired (created_at is in the past) and were never started by the user.

@@ -1,0 +1,181 @@
+Je souhaite faire évoluer le module Notes de PlanBase vers un système de collaboration inspiré de Google Docs / Figma comments.
+
+IMPORTANT :
+- ne pas casser l’éditeur actuel
+- construire une V1 simple mais propre
+- privilégier un système robuste de visibilité, permissions, commentaires et suggestions
+- ne pas essayer de reproduire tout Google Docs
+- concevoir une architecture évolutive
+
+## Objectif produit
+
+Permettre la collaboration sur les notes dans une organisation avec :
+- notes privées
+- notes publiques
+- permissions simples
+- commentaires sur sélection
+- suggestions de modification sur sélection
+- validation / refus des suggestions
+
+## Règles de visibilité
+
+### Note privée
+- visible uniquement par son auteur
+- non visible par les autres membres de l’organisation
+
+### Note publique
+- visible par tous les membres de l’organisation
+
+## Permissions sur les notes publiques
+
+Je veux au minimum 2 niveaux d’accès :
+- lecture
+- commentaire
+
+### Lecture
+- l’utilisateur peut voir la note uniquement
+
+### Commentaire
+- l’utilisateur peut voir la note
+- commenter un texte ou un paragraphe
+- suggérer une modification de texte
+- mais ne pas modifier directement le contenu final
+
+L’auteur de la note (ou owner) garde le contrôle final sur le contenu.
+
+## Collaboration sur sélection
+
+Quand un utilisateur avec accès commentaire sélectionne un texte ou un paragraphe :
+- afficher une tooltip / popover de saisie comme sur Figma / Google Docs
+- proposer 2 actions :
+  1. commenter
+  2. suggérer une modification
+
+### Commentaire
+L’utilisateur écrit un commentaire attaché à la sélection.
+
+### Suggestion
+L’utilisateur propose un nouveau texte pour remplacer le texte sélectionné.
+
+## Workflow de suggestion
+
+Une suggestion doit contenir :
+- texte original
+- texte proposé
+- auteur
+- date
+- statut :
+  - pending
+  - accepted
+  - rejected
+
+L’auteur de la note (ou un utilisateur autorisé) doit pouvoir :
+- accepter la suggestion
+- refuser la suggestion
+
+### Si la suggestion est acceptée
+- le texte sélectionné est remplacé par le nouveau texte proposé
+- la suggestion passe en statut accepted
+- l’action est historisée
+
+### Si la suggestion est refusée
+- aucun changement sur le texte
+- la suggestion passe en statut rejected
+
+## UX attendue
+
+### Dans l’éditeur de note
+- badge ou réglage de visibilité :
+  - Privée
+  - Publique
+
+### Si note publique
+- option de permission :
+  - Lecture
+  - Commentaire
+
+### Sur sélection de texte
+Afficher une petite tooltip / popover avec :
+- Commenter
+- Suggérer une modification
+
+### Sidebar droite ou panneau latéral
+Afficher :
+- commentaires ouverts
+- suggestions en attente
+- historique des suggestions
+
+Je veux une UX propre, légère, proche de Google Docs / Figma comments.
+
+## Modèle de données recommandé
+
+### Notes
+- id
+- organization_id
+- owner_user_id
+- title
+- content
+- visibility (private / public)
+- access_level (read / comment)
+- created_at
+- updated_at
+
+### NoteComment
+- id
+- note_id
+- author_user_id
+- selected_text
+- selection_start
+- selection_end
+- comment_text
+- status (open / resolved)
+- created_at
+
+### NoteSuggestion
+- id
+- note_id
+- author_user_id
+- selected_text
+- replacement_text
+- selection_start
+- selection_end
+- status (pending / accepted / rejected)
+- accepted_by nullable
+- accepted_at nullable
+- created_at
+
+## Contraintes techniques
+- s’appuyer sur l’éditeur existant
+- gérer proprement les sélections
+- éviter une implémentation fragile basée uniquement sur recherche texte brute
+- prévoir que le document puisse évoluer
+- faire une V1 stable avant toute collaboration temps réel avancée
+
+## Hors scope pour cette V1
+Ne pas implémenter pour l’instant :
+- édition collaborative temps réel complexe
+- curseurs live multi-users
+- versioning complet façon Google Docs
+- permissions ultra fines par utilisateur
+- mentions avancées
+- mode suggest global complet
+
+## V1 prioritaire
+Je veux prioriser :
+1. visibilité privée / publique
+2. permission lecture / commentaire
+3. commentaire sur sélection
+4. suggestion sur sélection
+5. acceptation / refus de suggestion
+6. remplacement du texte si suggestion acceptée
+7. panneau listant commentaires et suggestions
+
+## Livrable attendu
+Avant de coder :
+1. analyser l’éditeur actuel de Notes
+2. proposer comment gérer proprement les sélections
+3. proposer la structure des données
+4. proposer l’UX de la tooltip et du panneau latéral
+5. proposer le plan d’implémentation
+
+Puis implémente la V1.

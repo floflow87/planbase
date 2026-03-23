@@ -4489,6 +4489,119 @@ app.get("/config/feature-flags", async (_req, res) => {
   });
 
   // ============================================
+  // NOTE COMMENTS - Collaboration
+  // ============================================
+
+  app.get("/api/notes/:id/comments", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT nc.*, u.first_name, u.last_name, u.email
+        FROM note_comments nc
+        LEFT JOIN users u ON u.id = nc.author_user_id
+        WHERE nc.note_id = ${req.params.id}
+          AND nc.account_id = ${req.accountId}
+        ORDER BY nc.created_at ASC
+      `);
+      res.json(result as any[]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/notes/:id/comments", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { selected_text, selection_from, selection_to, comment_text } = req.body;
+      if (!comment_text?.trim()) return res.status(400).json({ error: "comment_text required" });
+      const result = await db.execute(sql`
+        INSERT INTO note_comments (note_id, account_id, author_user_id, selected_text, selection_from, selection_to, comment_text)
+        VALUES (${req.params.id}, ${req.accountId}, ${req.userId}, ${selected_text || ''}, ${selection_from ?? null}, ${selection_to ?? null}, ${comment_text.trim()})
+        RETURNING *
+      `);
+      res.json((result as any[])[0]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/notes/:id/comments/:cid", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { status } = req.body;
+      if (!['open', 'resolved'].includes(status)) return res.status(400).json({ error: "Invalid status" });
+      const result = await db.execute(sql`
+        UPDATE note_comments
+        SET status = ${status}, resolved_by = ${status === 'resolved' ? req.userId : null}, resolved_at = ${status === 'resolved' ? sql`NOW()` : null}
+        WHERE id = ${req.params.cid} AND note_id = ${req.params.id} AND account_id = ${req.accountId}
+        RETURNING *
+      `);
+      res.json((result as any[])[0]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/notes/:id/comments/:cid", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      await db.execute(sql`
+        DELETE FROM note_comments WHERE id = ${req.params.cid} AND note_id = ${req.params.id} AND account_id = ${req.accountId}
+      `);
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // NOTE SUGGESTIONS - Collaboration
+  // ============================================
+
+  app.get("/api/notes/:id/suggestions", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT ns.*, u.first_name, u.last_name, u.email
+        FROM note_suggestions ns
+        LEFT JOIN users u ON u.id = ns.author_user_id
+        WHERE ns.note_id = ${req.params.id}
+          AND ns.account_id = ${req.accountId}
+        ORDER BY ns.created_at ASC
+      `);
+      res.json(result as any[]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/notes/:id/suggestions", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { selected_text, replacement_text, selection_from, selection_to } = req.body;
+      if (!selected_text?.trim() || !replacement_text?.trim()) return res.status(400).json({ error: "selected_text and replacement_text required" });
+      const result = await db.execute(sql`
+        INSERT INTO note_suggestions (note_id, account_id, author_user_id, selected_text, replacement_text, selection_from, selection_to)
+        VALUES (${req.params.id}, ${req.accountId}, ${req.userId}, ${selected_text.trim()}, ${replacement_text.trim()}, ${selection_from ?? null}, ${selection_to ?? null})
+        RETURNING *
+      `);
+      res.json((result as any[])[0]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/notes/:id/suggestions/:sid", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { status } = req.body;
+      if (!['pending', 'accepted', 'rejected'].includes(status)) return res.status(400).json({ error: "Invalid status" });
+      const result = await db.execute(sql`
+        UPDATE note_suggestions
+        SET status = ${status}, resolved_by = ${req.userId}, resolved_at = NOW()
+        WHERE id = ${req.params.sid} AND note_id = ${req.params.id} AND account_id = ${req.accountId}
+        RETURNING *
+      `);
+      res.json((result as any[])[0]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // DOCUMENT TEMPLATES - Protected Routes
   // ============================================
 

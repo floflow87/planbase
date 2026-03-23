@@ -129,6 +129,13 @@ export interface NoteEditorRef {
   insertText: (text: string) => void;
   deleteLastCharacters: (count: number) => void;
   getEditor: () => Editor | null;
+  replaceText: (from: string, to: string) => boolean;
+}
+
+export interface NoteSelectionInfo {
+  selectedText: string;
+  from: number;
+  to: number;
 }
 
 interface NoteEditorProps {
@@ -140,6 +147,7 @@ interface NoteEditorProps {
   onTitleChange?: (title: string) => void;
   title?: string;
   borderless?: boolean;
+  onSelectionChange?: (info: NoteSelectionInfo | null) => void;
 }
 
 // Color palette for text - 18 colors
@@ -720,6 +728,26 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     };
   }, [editor, borderless]);
 
+  // Notify parent of selection changes (for collaboration popover)
+  useEffect(() => {
+    if (!editor || !props.onSelectionChange) return;
+    const handleSel = () => {
+      const { from, to } = editor.state.selection;
+      if (from === to) {
+        props.onSelectionChange!(null);
+      } else {
+        const selectedText = editor.state.doc.textBetween(from, to, ' ');
+        if (selectedText.trim()) {
+          props.onSelectionChange!({ selectedText, from, to });
+        } else {
+          props.onSelectionChange!(null);
+        }
+      }
+    };
+    editor.on('selectionUpdate', handleSel);
+    return () => { editor.off('selectionUpdate', handleSel); };
+  }, [editor, props.onSelectionChange]);
+
   // Expose imperative methods for external control
   useImperativeHandle(ref, () => ({
     insertText: (text: string) => {
@@ -735,6 +763,14 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       }
     },
     getEditor: () => editor,
+    replaceText: (fromText: string, toText: string): boolean => {
+      if (!editor) return false;
+      const content = editor.state.doc.textContent;
+      const idx = content.indexOf(fromText);
+      if (idx === -1) return false;
+      editor.chain().focus().setTextSelection({ from: idx + 1, to: idx + 1 + fromText.length }).deleteSelection().insertContent(toText).run();
+      return true;
+    },
   }), [editor]);
 
   // New dialog-based link handler

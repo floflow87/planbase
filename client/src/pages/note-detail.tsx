@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation, Link } from "wouter";
-import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink, MessageSquare, GitPullRequest, CheckCircle2, XCircle, CornerDownRight } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import NoteEditor, { type NoteEditorRef } from "@/components/NoteEditor";
+import NoteEditor, { type NoteEditorRef, type NoteSelectionInfo } from "@/components/NoteEditor";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, optimisticUpdate, optimisticUpdateSingle, rollbackOptimistic, queryClient as qc } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -79,6 +79,13 @@ export default function NoteDetail() {
   const [content, setContent] = useState<any>({ type: 'doc', content: [] });
   const [status, setStatus] = useState<"draft" | "active" | "archived">("draft");
   const [visibility, setVisibility] = useState<"private" | "account" | "client_ro">("private");
+  const [accessLevel, setAccessLevel] = useState<"read" | "comment">("comment");
+  const [collabPanelOpen, setCollabPanelOpen] = useState(false);
+  const [activeSelection, setActiveSelection] = useState<NoteSelectionInfo | null>(null);
+  const [selectionPopoverOpen, setSelectionPopoverOpen] = useState(false);
+  const [collabMode, setCollabMode] = useState<"comment" | "suggest" | null>(null);
+  const [collabInput, setCollabInput] = useState("");
+  const [suggestionInput, setSuggestionInput] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entitySelectorOpen, setEntitySelectorOpen] = useState(false);
   const [entitySelectorTab, setEntitySelectorTab] = useState<"project" | "client" | "ticket">("project");
@@ -250,6 +257,7 @@ export default function NoteDetail() {
     setContent(resolvedContent);
     setStatus(note.status as any);
     setVisibility(note.visibility as any);
+    setAccessLevel(((note as any).accessLevel || (note as any).access_level || "comment") as "read" | "comment");
     setIsFavorite(note.isFavorite || false);
     // Signal that the correct content is now in state — NoteEditor can mount
     setContentReady(true);
@@ -381,6 +389,86 @@ export default function NoteDetail() {
       variant: "success",
     });
   }, [title, content, visibility, status, updateMutation, toast, flushImmediate]);
+
+  // ─── Collaboration: Comments & Suggestions ──────────────────────────────────
+
+  const { data: noteComments = [], refetch: refetchComments } = useQuery<any[]>({
+    queryKey: ["/api/notes", id, "comments"],
+    queryFn: async () => { const r = await apiRequest(`/api/notes/${id}/comments`, "GET"); return r.json(); },
+    enabled: !!id && collabPanelOpen,
+  });
+
+  const { data: noteSuggestions = [], refetch: refetchSuggestions } = useQuery<any[]>({
+    queryKey: ["/api/notes", id, "suggestions"],
+    queryFn: async () => { const r = await apiRequest(`/api/notes/${id}/suggestions`, "GET"); return r.json(); },
+    enabled: !!id && collabPanelOpen,
+  });
+
+  const createCommentMutation = useMutation({
+    mutationFn: async (data: { selected_text: string; selection_from?: number; selection_to?: number; comment_text: string }) => {
+      const r = await apiRequest(`/api/notes/${id}/comments`, "POST", data);
+      return r.json();
+    },
+    onSuccess: () => { refetchComments(); setCollabInput(""); setCollabMode(null); setSelectionPopoverOpen(false); toast({ title: "Commentaire ajouté", variant: "success" }); },
+  });
+
+  const resolveCommentMutation = useMutation({
+    mutationFn: async ({ cid, status }: { cid: string; status: string }) => {
+      const r = await apiRequest(`/api/notes/${id}/comments/${cid}`, "PATCH", { status });
+      return r.json();
+    },
+    onSuccess: () => refetchComments(),
+  });
+
+  const deleteCommentMutation = useMutation({
+    mutationFn: async (cid: string) => {
+      const r = await apiRequest(`/api/notes/${id}/comments/${cid}`, "DELETE");
+      return r.json();
+    },
+    onSuccess: () => refetchComments(),
+  });
+
+  const createSuggestionMutation = useMutation({
+    mutationFn: async (data: { selected_text: string; replacement_text: string; selection_from?: number; selection_to?: number }) => {
+      const r = await apiRequest(`/api/notes/${id}/suggestions`, "POST", data);
+      return r.json();
+    },
+    onSuccess: () => { refetchSuggestions(); setSuggestionInput(""); setCollabMode(null); setSelectionPopoverOpen(false); toast({ title: "Suggestion envoyée", variant: "success" }); },
+  });
+
+  const resolveSuggestionMutation = useMutation({
+    mutationFn: async ({ sid, status }: { sid: string; status: string }) => {
+      const r = await apiRequest(`/api/notes/${id}/suggestions/${sid}`, "PATCH", { status });
+      return r.json();
+    },
+    onSuccess: (_, vars) => {
+      refetchSuggestions();
+      if (vars.status === 'accepted') {
+        const sugg = noteSuggestions.find((s: any) => s.id === vars.sid);
+        if (sugg && editorRef.current) {
+          const replaced = editorRef.current.replaceText(sugg.selected_text, sugg.replacement_text);
+          if (replaced) toast({ title: "Suggestion appliquée", variant: "success" });
+          else toast({ title: "Texte non trouvé dans l'éditeur", variant: "default" });
+        }
+      }
+    },
+  });
+
+  const openCollabPanel = useCallback(() => {
+    setCollabPanelOpen(true);
+    refetchComments();
+    refetchSuggestions();
+  }, [refetchComments, refetchSuggestions]);
+
+  const handleSelectionChange = useCallback((info: NoteSelectionInfo | null) => {
+    setActiveSelection(info);
+    if (info) {
+      setSelectionPopoverOpen(true);
+    } else {
+      setSelectionPopoverOpen(false);
+      setCollabMode(null);
+    }
+  }, []);
 
   // Project link mutation
   const linkProjectMutation = useMutation({
@@ -1172,6 +1260,21 @@ export default function NoteDetail() {
                     ) : null}
               </div>
 
+              {/* Collab Panel Toggle */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={collabPanelOpen ? "default" : "outline"}
+                    size="icon"
+                    onClick={() => collabPanelOpen ? setCollabPanelOpen(false) : openCollabPanel()}
+                    data-testid="button-collab-panel"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Commentaires & suggestions</TooltipContent>
+              </Tooltip>
+
               {/* Actions dropdown — Save + Delete at top */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1517,45 +1620,270 @@ export default function NoteDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Scrollable Content - maximize height on mobile */}
-      <div className="flex-1 overflow-auto">
-        <div className={isMobile ? "px-1 py-0" : ""}>
-          {/* Editor — only mounted after resolved content is ready in state.
-               key={id} forces a full remount when navigating between notes, so
-               useEditor() always initialises with the correct content directly. */}
-          {contentReady ? (
-            <NoteEditor
-              key={id}
-              ref={editorRef}
-              content={content}
-              onChange={(c) => { setContent(c); queueUpdate({ content: c }); }}
-              onBlur={flushImmediate}
-              editable={isEditMode}
-              placeholder="Commencez à écrire votre note..."
-              borderless={!isMobile}
-              {...(!isMobile ? {
-                title,
-                onTitleChange: (newTitle: string) => { setTitle(newTitle); queueUpdate({ title: newTitle }); },
-              } : {})}
-            />
-          ) : (
-            <div className="min-h-[400px] flex items-center justify-center text-muted-foreground text-sm">
-              Chargement de l'éditeur...
+      {/* Main content row: editor + optional collab panel */}
+      <div className="flex-1 overflow-hidden flex">
+        {/* Scrollable editor area */}
+        <div className="flex-1 overflow-auto relative">
+
+          {/* Selection Popover — floating toolbar on text selection */}
+          {activeSelection && selectionPopoverOpen && isEditMode && !isMobile && (
+            <div
+              className="fixed z-50"
+              style={{ bottom: 80, left: '50%', transform: 'translateX(-50%)' }}
+              data-testid="selection-popover"
+            >
+              <Card className="shadow-lg border border-border/60">
+                <CardContent className="p-2 flex flex-col gap-2">
+                  {collabMode === null && (
+                    <div className="flex gap-1 items-center">
+                      <span className="text-xs text-muted-foreground max-w-[160px] truncate mr-1">
+                        « {activeSelection.selectedText.slice(0, 40)}{activeSelection.selectedText.length > 40 ? '…' : ''} »
+                      </span>
+                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setCollabMode("comment")} data-testid="btn-add-comment">
+                        <MessageSquare className="w-3 h-3" />Commenter
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setCollabMode("suggest")} data-testid="btn-add-suggestion">
+                        <GitPullRequest className="w-3 h-3" />Suggérer
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setSelectionPopoverOpen(false); setCollabMode(null); }}>
+                        <XCircle className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
+                  {collabMode === "comment" && (
+                    <div className="flex flex-col gap-2 w-72">
+                      <div className="text-xs font-medium flex items-center gap-1"><MessageSquare className="w-3 h-3" />Ajouter un commentaire</div>
+                      <div className="text-[11px] text-muted-foreground bg-muted/50 rounded px-2 py-1 truncate">« {activeSelection.selectedText.slice(0, 60)} »</div>
+                      <textarea
+                        autoFocus
+                        value={collabInput}
+                        onChange={e => setCollabInput(e.target.value)}
+                        placeholder="Votre commentaire..."
+                        className="w-full text-sm border rounded-md px-2 py-1.5 resize-none bg-background focus:outline-none focus:ring-1 focus:ring-primary min-h-[60px]"
+                        data-testid="textarea-comment"
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setCollabMode(null)}>Annuler</Button>
+                        <Button size="sm" className="h-7 text-xs" disabled={!collabInput.trim() || createCommentMutation.isPending}
+                          onClick={() => {
+                            if (!collabInput.trim()) return;
+                            createCommentMutation.mutate({ selected_text: activeSelection.selectedText, selection_from: activeSelection.from, selection_to: activeSelection.to, comment_text: collabInput });
+                            if (!collabPanelOpen) openCollabPanel();
+                          }}
+                          data-testid="btn-submit-comment"
+                        >Envoyer</Button>
+                      </div>
+                    </div>
+                  )}
+                  {collabMode === "suggest" && (
+                    <div className="flex flex-col gap-2 w-72">
+                      <div className="text-xs font-medium flex items-center gap-1"><GitPullRequest className="w-3 h-3" />Suggérer une modification</div>
+                      <div className="text-[11px] text-muted-foreground bg-red-50 dark:bg-red-950/30 rounded px-2 py-1 line-through">« {activeSelection.selectedText.slice(0, 60)} »</div>
+                      <textarea
+                        autoFocus
+                        value={suggestionInput}
+                        onChange={e => setSuggestionInput(e.target.value)}
+                        placeholder="Nouveau texte proposé..."
+                        className="w-full text-sm border rounded-md px-2 py-1.5 resize-none bg-background focus:outline-none focus:ring-1 focus:ring-primary min-h-[60px]"
+                        data-testid="textarea-suggestion"
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setCollabMode(null)}>Annuler</Button>
+                        <Button size="sm" className="h-7 text-xs" disabled={!suggestionInput.trim() || createSuggestionMutation.isPending}
+                          onClick={() => {
+                            if (!suggestionInput.trim()) return;
+                            createSuggestionMutation.mutate({ selected_text: activeSelection.selectedText, replacement_text: suggestionInput, selection_from: activeSelection.from, selection_to: activeSelection.to });
+                            if (!collabPanelOpen) openCollabPanel();
+                          }}
+                          data-testid="btn-submit-suggestion"
+                        >Soumettre</Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          <div className={isMobile ? "px-1 py-0" : ""}>
+            {contentReady ? (
+              <NoteEditor
+                key={id}
+                ref={editorRef}
+                content={content}
+                onChange={(c) => { setContent(c); queueUpdate({ content: c }); }}
+                onBlur={flushImmediate}
+                editable={isEditMode}
+                placeholder="Commencez à écrire votre note..."
+                borderless={!isMobile}
+                onSelectionChange={!isMobile ? handleSelectionChange : undefined}
+                {...(!isMobile ? {
+                  title,
+                  onTitleChange: (newTitle: string) => { setTitle(newTitle); queueUpdate({ title: newTitle }); },
+                } : {})}
+              />
+            ) : (
+              <div className="min-h-[400px] flex items-center justify-center text-muted-foreground text-sm">
+                Chargement de l'éditeur...
+              </div>
+            )}
+          </div>
+
+          {/* AI Summary */}
+          {note.summary && !isMobile && (
+            <div className="px-6 pb-6">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-2">
+                    <Badge variant="secondary" className="text-[10px]">Résumé IA</Badge>
+                    <p className="text-sm text-muted-foreground flex-1">{note.summary}</p>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
         </div>
 
-        {/* AI Summary - hidden on mobile to maximize text zone */}
-        {note.summary && !isMobile && (
-          <div className="px-6 pb-6">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-start gap-2">
-                  <Badge variant="secondary" className="text-[10px]">Résumé IA</Badge>
-                  <p className="text-sm text-muted-foreground flex-1">{note.summary}</p>
+        {/* Collab Panel — right sidebar */}
+        {collabPanelOpen && !isMobile && (
+          <div className="w-80 border-l border-border/60 flex flex-col overflow-hidden bg-muted/20" data-testid="collab-panel">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-background">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium">Collaboration</span>
+                {(() => {
+                  const openCount = noteComments.filter((c: any) => c.status === 'open').length + noteSuggestions.filter((s: any) => s.status === 'pending').length;
+                  return openCount > 0 ? <Badge className="h-4 px-1 text-[10px]">{openCount}</Badge> : null;
+                })()}
+              </div>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setCollabPanelOpen(false)}>
+                <XCircle className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 space-y-4">
+              {/* Comments Section */}
+              <div>
+                <div className="flex items-center gap-1 mb-2">
+                  <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Commentaires ({noteComments.filter((c: any) => c.status === 'open').length} ouverts)
+                  </span>
                 </div>
-              </CardContent>
-            </Card>
+                {noteComments.length === 0 && (
+                  <p className="text-xs text-muted-foreground italic px-1">Aucun commentaire</p>
+                )}
+                {noteComments.map((comment: any) => (
+                  <div key={comment.id} className={`rounded-md p-3 mb-2 text-xs border ${comment.status === 'resolved' ? 'bg-muted/30 opacity-60' : 'bg-background'}`} data-testid={`comment-${comment.id}`}>
+                    <div className="flex items-start justify-between gap-1 mb-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-[9px] font-bold text-primary flex-shrink-0">
+                          {(comment.first_name?.[0] || comment.email?.[0] || '?').toUpperCase()}
+                        </div>
+                        <span className="font-medium truncate">{comment.first_name || comment.email?.split('@')[0] || 'Inconnu'}</span>
+                      </div>
+                      <Badge variant={comment.status === 'resolved' ? 'secondary' : 'outline'} className="text-[9px] h-4 px-1 flex-shrink-0">
+                        {comment.status === 'resolved' ? 'Résolu' : 'Ouvert'}
+                      </Badge>
+                    </div>
+                    {comment.selected_text && (
+                      <div className="text-[10px] text-muted-foreground bg-muted/50 rounded px-1.5 py-0.5 mb-1.5 truncate flex items-center gap-1">
+                        <CornerDownRight className="w-2.5 h-2.5 flex-shrink-0" />
+                        « {comment.selected_text.slice(0, 50)} »
+                      </div>
+                    )}
+                    <p className="text-foreground leading-relaxed">{comment.comment_text}</p>
+                    {comment.status === 'open' && (
+                      <div className="flex gap-1 mt-2">
+                        <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 text-green-600"
+                          onClick={() => resolveCommentMutation.mutate({ cid: comment.id, status: 'resolved' })}
+                          data-testid={`btn-resolve-comment-${comment.id}`}
+                        ><CheckCircle2 className="w-3 h-3 mr-0.5" />Résoudre</Button>
+                        <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 text-red-500"
+                          onClick={() => deleteCommentMutation.mutate(comment.id)}
+                          data-testid={`btn-delete-comment-${comment.id}`}
+                        ><XCircle className="w-3 h-3 mr-0.5" />Supprimer</Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Suggestions Section */}
+              <div>
+                <div className="flex items-center gap-1 mb-2">
+                  <GitPullRequest className="w-3.5 h-3.5 text-violet-500" />
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Suggestions ({noteSuggestions.filter((s: any) => s.status === 'pending').length} en attente)
+                  </span>
+                </div>
+                {noteSuggestions.length === 0 && (
+                  <p className="text-xs text-muted-foreground italic px-1">Aucune suggestion</p>
+                )}
+                {noteSuggestions.map((sugg: any) => (
+                  <div key={sugg.id} className={`rounded-md p-3 mb-2 text-xs border ${sugg.status !== 'pending' ? 'bg-muted/30 opacity-60' : 'bg-background'}`} data-testid={`suggestion-${sugg.id}`}>
+                    <div className="flex items-start justify-between gap-1 mb-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-[9px] font-bold text-violet-600 flex-shrink-0">
+                          {(sugg.first_name?.[0] || sugg.email?.[0] || '?').toUpperCase()}
+                        </div>
+                        <span className="font-medium truncate">{sugg.first_name || sugg.email?.split('@')[0] || 'Inconnu'}</span>
+                      </div>
+                      <Badge
+                        variant={sugg.status === 'accepted' ? 'default' : sugg.status === 'rejected' ? 'destructive' : 'outline'}
+                        className="text-[9px] h-4 px-1 flex-shrink-0"
+                      >
+                        {sugg.status === 'accepted' ? 'Acceptée' : sugg.status === 'rejected' ? 'Refusée' : 'En attente'}
+                      </Badge>
+                    </div>
+                    <div className="space-y-1 mb-1.5">
+                      <div className="text-[10px] text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 rounded px-1.5 py-0.5 line-through truncate">
+                        « {sugg.selected_text.slice(0, 50)} »
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px] text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30 rounded px-1.5 py-0.5">
+                        <CornerDownRight className="w-2.5 h-2.5 flex-shrink-0" />
+                        <span className="truncate">{sugg.replacement_text.slice(0, 50)}</span>
+                      </div>
+                    </div>
+                    {sugg.status === 'pending' && (
+                      <div className="flex gap-1 mt-2">
+                        <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 text-green-600"
+                          onClick={() => resolveSuggestionMutation.mutate({ sid: sugg.id, status: 'accepted' })}
+                          data-testid={`btn-accept-suggestion-${sugg.id}`}
+                        ><CheckCircle2 className="w-3 h-3 mr-0.5" />Accepter</Button>
+                        <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 text-red-500"
+                          onClick={() => resolveSuggestionMutation.mutate({ sid: sugg.id, status: 'rejected' })}
+                          data-testid={`btn-reject-suggestion-${sugg.id}`}
+                        ><XCircle className="w-3 h-3 mr-0.5" />Refuser</Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Access level control (for public notes) */}
+            {visibility === 'account' && (
+              <div className="border-t border-border/60 px-4 py-3 bg-background">
+                <div className="text-xs text-muted-foreground mb-2">Accès note publique</div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant={accessLevel === 'read' ? 'default' : 'outline'}
+                    className="h-7 text-xs flex-1"
+                    onClick={() => { setAccessLevel('read'); updateMutation.mutate({ access_level: 'read' } as any); }}
+                    data-testid="btn-access-read"
+                  ><Eye className="w-3 h-3 mr-1" />Lecture</Button>
+                  <Button
+                    size="sm"
+                    variant={accessLevel === 'comment' ? 'default' : 'outline'}
+                    className="h-7 text-xs flex-1"
+                    onClick={() => { setAccessLevel('comment'); updateMutation.mutate({ access_level: 'comment' } as any); }}
+                    data-testid="btn-access-comment"
+                  ><MessageSquare className="w-3 h-3 mr-1" />Commentaire</Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
