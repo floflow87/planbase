@@ -1818,10 +1818,29 @@ export default function NoteDetail() {
                     {!isReply && commentBadge(comment.status)}
                   </div>
                   {comment.selected_text && (
-                    <div className="text-[10px] text-muted-foreground bg-muted/40 rounded px-1.5 py-0.5 mb-1.5 truncate flex items-center gap-1">
+                    <button
+                      type="button"
+                      className="w-full text-left text-[10px] text-muted-foreground bg-muted/40 hover:bg-primary/10 hover:text-primary rounded px-1.5 py-0.5 mb-1.5 truncate flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Cliquer pour localiser dans le document"
+                      onClick={() => {
+                        if (comment.selection_from != null && comment.selection_to != null) {
+                          editorRef.current?.scrollToPosition(comment.selection_from, comment.selection_to);
+                        } else if (comment.selected_text) {
+                          // Fallback: find by text content
+                          const editor = editorRef.current?.getEditor();
+                          if (editor) {
+                            const content = editor.state.doc.textContent;
+                            const idx = content.indexOf(comment.selected_text);
+                            if (idx !== -1) {
+                              editorRef.current?.scrollToPosition(idx + 1, idx + 1 + comment.selected_text.length);
+                            }
+                          }
+                        }
+                      }}
+                    >
                       <CornerDownRight className="w-2.5 h-2.5 flex-shrink-0" />
                       « {comment.selected_text.slice(0, 50)} »
-                    </div>
+                    </button>
                   )}
                   {isEditing ? (
                     <div className="mt-1.5 space-y-1.5">

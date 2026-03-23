@@ -130,6 +130,7 @@ export interface NoteEditorRef {
   deleteLastCharacters: (count: number) => void;
   getEditor: () => Editor | null;
   replaceText: (from: string, to: string) => boolean;
+  scrollToPosition: (from: number, to: number) => void;
 }
 
 export interface NoteSelectionInfo {
@@ -770,6 +771,15 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       if (idx === -1) return false;
       editor.chain().focus().setTextSelection({ from: idx + 1, to: idx + 1 + fromText.length }).deleteSelection().insertContent(toText).run();
       return true;
+    },
+    scrollToPosition: (from: number, to: number): void => {
+      if (!editor) return;
+      // Clamp positions within valid range
+      const docSize = editor.state.doc.content.size;
+      const clampedFrom = Math.max(1, Math.min(from, docSize - 1));
+      const clampedTo = Math.max(clampedFrom, Math.min(to, docSize));
+      // Set selection which scrolls the editor to that position, then scroll into view
+      editor.chain().focus().setTextSelection({ from: clampedFrom, to: clampedTo }).scrollIntoView().run();
     },
   }), [editor]);
 
