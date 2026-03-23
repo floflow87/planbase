@@ -177,6 +177,7 @@ export function FileExplorer({ clientId, projectId }: Props) {
   // Upload
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFiles, setUploadingFiles] = useState<string[]>([]); // names being uploaded
+  const [isExternalDragOver, setIsExternalDragOver] = useState(false);
 
   // File preview dialog (images / PDFs)
   const [previewFile, setPreviewFile] = useState<{ url: string; mimeType: string; name: string } | null>(null);
@@ -823,14 +824,23 @@ export function FileExplorer({ clientId, projectId }: Props) {
   };
 
   const handleContentDragOver = (e: React.DragEvent) => {
-    if (draggedIdsRef.current.length === 0) return;
-    const folderId = getFolderIdFromTarget(e);
-    if (folderId) {
+    // Internal drag (moving items within the explorer)
+    if (draggedIdsRef.current.length > 0) {
+      const folderId = getFolderIdFromTarget(e);
+      if (folderId) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        setDragOverFolderId(prev => prev !== folderId ? folderId : prev);
+      } else {
+        setDragOverFolderId(null);
+      }
+      return;
+    }
+    // External drag: files coming from the OS/desktop
+    if (e.dataTransfer.types.includes("Files")) {
       e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-      setDragOverFolderId(prev => prev !== folderId ? folderId : prev);
-    } else {
-      setDragOverFolderId(null);
+      e.dataTransfer.dropEffect = "copy";
+      setIsExternalDragOver(true);
     }
   };
 
@@ -838,13 +848,22 @@ export function FileExplorer({ clientId, projectId }: Props) {
     // Clear highlight only when truly leaving the content container
     if (!contentRef.current?.contains(e.relatedTarget as Node)) {
       setDragOverFolderId(null);
+      setIsExternalDragOver(false);
     }
   };
 
   const handleContentDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOverFolderId(null);
+    setIsExternalDragOver(false);
 
+    // External file drop: upload files from OS
+    if (draggedIdsRef.current.length === 0 && e.dataTransfer.files.length > 0) {
+      uploadFiles(Array.from(e.dataTransfer.files));
+      return;
+    }
+
+    // Internal drop: move items between folders
     const targetFolderId = getFolderIdFromTarget(e);
     if (!targetFolderId) return;
 
@@ -882,11 +901,8 @@ export function FileExplorer({ clientId, projectId }: Props) {
   };
 
   // ---------- File upload ----------
-  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const fileList = e.target.files;
-    if (!fileList || fileList.length === 0) return;
-
-    const filesToUpload = Array.from(fileList);
+  const uploadFiles = async (filesToUpload: globalThis.File[]) => {
+    if (filesToUpload.length === 0) return;
     setUploadingFiles(filesToUpload.map(f => f.name));
 
     let successCount = 0;
@@ -912,7 +928,6 @@ export function FileExplorer({ clientId, projectId }: Props) {
           throw new Error(`${uploadRes.status}: ${errText}`);
         }
         await uploadRes.json();
-
         successCount++;
       } catch {
         errorCount++;
@@ -921,10 +936,16 @@ export function FileExplorer({ clientId, projectId }: Props) {
 
     setUploadingFiles([]);
     invalidate();
-    if (e.target) e.target.value = "";
 
     if (successCount > 0) toast({ title: `${successCount} fichier${successCount > 1 ? "s" : ""} uploadé${successCount > 1 ? "s" : ""}`, variant: "success" });
     if (errorCount > 0) toast({ title: "Erreur", description: `${errorCount} fichier(s) n'ont pas pu être uploadés`, variant: "destructive" });
+  };
+
+  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+    await uploadFiles(Array.from(fileList));
+    if (e.target) e.target.value = "";
   };
 
   // ---------- Misc handlers ----------
@@ -1138,6 +1159,17 @@ export function FileExplorer({ clientId, projectId }: Props) {
         onDrop={handleContentDrop}
         data-testid="explorer-content"
       >
+        {/* External file drop overlay */}
+        {isExternalDragOver && (
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center rounded-md pointer-events-none"
+            style={{ background: "hsl(var(--primary) / 0.06)", border: "2px dashed hsl(var(--primary) / 0.5)" }}>
+            <Upload className="w-10 h-10 mb-2" style={{ color: "hsl(var(--primary))" }} />
+            <p className="text-sm font-semibold" style={{ color: "hsl(var(--primary))" }}>Déposer pour importer</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {currentFolderId ? "Dans ce dossier" : "À la racine"}
+            </p>
+          </div>
+        )}
         {isLoading ? (
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2">
             {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-md" />)}
