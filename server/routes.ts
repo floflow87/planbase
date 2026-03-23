@@ -4495,15 +4495,16 @@ app.get("/config/feature-flags", async (_req, res) => {
   app.get("/api/notes/:id/comments", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const result = await db.execute(sql`
-        SELECT nc.*, u.first_name, u.last_name, u.email
+        SELECT nc.*, au.email, au.first_name, au.last_name
         FROM note_comments nc
-        LEFT JOIN users u ON u.id = nc.author_user_id
+        LEFT JOIN app_users au ON au.id = nc.author_user_id
         WHERE nc.note_id = ${req.params.id}
           AND nc.account_id = ${req.accountId}
         ORDER BY nc.created_at ASC
       `);
       res.json(result as any[]);
     } catch (error: any) {
+      console.error("[note_comments GET error]", error);
       res.status(400).json({ error: error.message });
     }
   });
@@ -4557,15 +4558,16 @@ app.get("/config/feature-flags", async (_req, res) => {
   app.get("/api/notes/:id/suggestions", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const result = await db.execute(sql`
-        SELECT ns.*, u.first_name, u.last_name, u.email
+        SELECT ns.*, au.email, au.first_name, au.last_name
         FROM note_suggestions ns
-        LEFT JOIN users u ON u.id = ns.author_user_id
+        LEFT JOIN app_users au ON au.id = ns.author_user_id
         WHERE ns.note_id = ${req.params.id}
           AND ns.account_id = ${req.accountId}
         ORDER BY ns.created_at ASC
       `);
       res.json(result as any[]);
     } catch (error: any) {
+      console.error("[note_suggestions GET error]", error);
       res.status(400).json({ error: error.message });
     }
   });
