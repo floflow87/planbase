@@ -569,6 +569,136 @@ export default function DocumentDetail() {
 
               <div className="flex-1" />
 
+              {/* Selectors — moved here, left of Share */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Client selector */}
+                <div className="flex items-center">
+                  <Popover open={clientSelectorOpen} onOpenChange={setClientSelectorOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={`h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900 ${currentClient ? 'rounded-r-none border-r-0' : ''}`}
+                        data-testid="button-client-selector"
+                      >
+                        <Users className="w-3 h-3 text-cyan-500" />
+                        <span className="truncate max-w-[100px]">{currentClient ? currentClient.name : "Client"}</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[280px] p-0 bg-popover" align="start">
+                      <Command>
+                        <CommandInput placeholder="Rechercher un client..." />
+                        <CommandList className="max-h-[300px]">
+                          <CommandEmpty>Aucun client trouvé.</CommandEmpty>
+                          <CommandGroup>
+                            {currentClient && (
+                              <CommandItem onSelect={() => { handleUnlinkClient(); setClientSelectorOpen(false); }} className="text-destructive" data-testid="option-unlink-client">
+                                <X className="mr-2 h-4 w-4" />Délier du client
+                              </CommandItem>
+                            )}
+                            {clients.map((client) => (
+                              <CommandItem key={client.id} onSelect={() => handleSelectClient(client.id)} data-testid={`option-client-${client.id}`}>
+                                <Check className={`mr-2 h-4 w-4 ${currentClient?.id === client.id ? "opacity-100" : "opacity-0"}`} />
+                                {client.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {currentClient && (
+                    <Button variant="outline" size="sm" className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+                      onClick={(e) => { e.stopPropagation(); unlinkClientMutation.mutate(); }} data-testid="button-unlink-client-x">
+                      <X className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+
+                {/* Project selector */}
+                <div className="flex items-center">
+                  <Popover open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={`h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900 ${currentProject ? 'rounded-none border-r-0' : ''}`}
+                        data-testid="button-project-selector"
+                      >
+                        <FolderKanban className="w-3 h-3 text-violet-500" />
+                        <span className="truncate max-w-[100px]">{currentProject ? currentProject.name : "Projet"}</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[280px] p-0 bg-popover" align="start">
+                      <Command>
+                        <CommandInput placeholder="Rechercher un projet..." />
+                        <CommandList className="max-h-[300px]">
+                          <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                          <CommandGroup>
+                            {currentProject && (
+                              <CommandItem onSelect={() => { handleUnlinkProject(); setProjectSelectorOpen(false); }} className="text-destructive" data-testid="option-unlink-project">
+                                <X className="mr-2 h-4 w-4" />Délier du projet
+                              </CommandItem>
+                            )}
+                            {projects.map((project) => (
+                              <CommandItem key={project.id} onSelect={() => handleSelectProject(project.id)} data-testid={`option-project-${project.id}`}>
+                                <Check className={`mr-2 h-4 w-4 ${currentProject?.id === project.id ? "opacity-100" : "opacity-0"}`} />
+                                {project.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {currentProject && linkedProject && (
+                    <>
+                      <Link href={`/projects/${currentProject.id}`}>
+                        <Button variant="outline" size="sm" className="h-6 w-6 p-0 rounded-none border-r-0 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-200 dark:hover:bg-violet-950" data-testid="button-go-to-project">
+                          <ExternalLink className="w-3 h-3" />
+                        </Button>
+                      </Link>
+                      <Button variant="outline" size="sm" className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+                        onClick={(e) => { e.stopPropagation(); handleUnlinkProject(); }} data-testid="button-unlink-project-x">
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+
+                {/* Date selector */}
+                <Popover open={dateSelectorOpen} onOpenChange={setDateSelectorOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900" data-testid="button-date-selector">
+                      <CalendarDays className="w-3 h-3 text-muted-foreground" />
+                      <span className="truncate max-w-[100px]">
+                        {documentDate ? formatDate(documentDate, "dd MMM yyyy", { locale: fr }) : "Date"}
+                      </span>
+                      {documentDate && (
+                        <span className="ml-0.5 hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleSelectDate(undefined); }}>
+                          <X className="w-2.5 h-2.5" />
+                        </span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarWidget mode="single" selected={documentDate ?? undefined} onSelect={handleSelectDate} locale={fr} initialFocus />
+                  </PopoverContent>
+                </Popover>
+
+                {/* Status badge */}
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] ${status === "draft"
+                    ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
+                    : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+                  }`}
+                  data-testid="badge-status"
+                >
+                  {status === "draft" ? "Brouillon" : "Publié"}
+                </Badge>
+              </div>
+
               {/* Share button — identical to note-detail */}
               <Button
                 variant="outline"
@@ -602,155 +732,6 @@ export default function DocumentDetail() {
               <ActionsDropdown align="end" />
             </div>
 
-            {/* Row 2: selectors + status badge — UNCHANGED from original */}
-            <div className="mt-2 flex items-center gap-2 flex-wrap">
-              {/* Client selector */}
-              <div className="flex items-center">
-                <Popover open={clientSelectorOpen} onOpenChange={setClientSelectorOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={`h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900 ${currentClient ? 'rounded-r-none border-r-0' : ''}`}
-                      data-testid="button-client-selector"
-                    >
-                      <Users className="w-3 h-3 text-cyan-500" />
-                      <span className="truncate max-w-[100px]">{currentClient ? currentClient.name : "Client"}</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[280px] p-0 bg-popover" align="start">
-                    <Command>
-                      <CommandInput placeholder="Rechercher un client..." />
-                      <CommandList className="max-h-[300px]">
-                        <CommandEmpty>Aucun client trouvé.</CommandEmpty>
-                        <CommandGroup>
-                          {currentClient && (
-                            <CommandItem onSelect={() => { handleUnlinkClient(); setClientSelectorOpen(false); }} className="text-destructive" data-testid="option-unlink-client">
-                              <X className="mr-2 h-4 w-4" />Délier du client
-                            </CommandItem>
-                          )}
-                          {clients.map((client) => (
-                            <CommandItem key={client.id} onSelect={() => handleSelectClient(client.id)} data-testid={`option-client-${client.id}`}>
-                              <Check className={`mr-2 h-4 w-4 ${currentClient?.id === client.id ? "opacity-100" : "opacity-0"}`} />
-                              {client.name}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                {currentClient && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
-                    onClick={(e) => { e.stopPropagation(); unlinkClientMutation.mutate(); }}
-                    data-testid="button-unlink-client-x"
-                  >
-                    <X className="w-3 h-3" />
-                  </Button>
-                )}
-              </div>
-
-              {/* Project selector */}
-              <div className="flex items-center">
-                <Popover open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={`h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900 ${currentProject ? 'rounded-r-none border-r-0' : ''}`}
-                      data-testid="button-project-selector"
-                    >
-                      <FolderKanban className="w-3 h-3 text-violet-500" />
-                      <span className="truncate max-w-[100px]">{currentProject ? currentProject.name : "Projet"}</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[280px] p-0 bg-popover" align="start">
-                    <Command>
-                      <CommandInput placeholder="Rechercher un projet..." />
-                      <CommandList className="max-h-[300px]">
-                        <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
-                        <CommandGroup>
-                          {currentProject && (
-                            <CommandItem onSelect={() => { handleUnlinkProject(); setProjectSelectorOpen(false); }} className="text-destructive" data-testid="option-unlink-project">
-                              <X className="mr-2 h-4 w-4" />Délier du projet
-                            </CommandItem>
-                          )}
-                          {projects.map((project) => (
-                            <CommandItem key={project.id} onSelect={() => handleSelectProject(project.id)} data-testid={`option-project-${project.id}`}>
-                              <Check className={`mr-2 h-4 w-4 ${currentProject?.id === project.id ? "opacity-100" : "opacity-0"}`} />
-                              {project.name}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                {currentProject && linkedProject && (
-                  <>
-                    <Link href={`/projects/${currentProject.id}`}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-6 w-6 p-0 rounded-none border-r-0 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-200 dark:hover:bg-violet-950"
-                        data-testid="button-go-to-project"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                      </Button>
-                    </Link>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
-                      onClick={(e) => { e.stopPropagation(); handleUnlinkProject(); }}
-                      data-testid="button-unlink-project-x"
-                    >
-                      <X className="w-3 h-3" />
-                    </Button>
-                  </>
-                )}
-              </div>
-
-              {/* Date selector */}
-              <Popover open={dateSelectorOpen} onOpenChange={setDateSelectorOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900"
-                    data-testid="button-date-selector"
-                  >
-                    <CalendarDays className="w-3 h-3 text-muted-foreground" />
-                    <span className="truncate max-w-[100px]">
-                      {documentDate ? formatDate(documentDate, "dd MMM yyyy", { locale: fr }) : "Date"}
-                    </span>
-                    {documentDate && (
-                      <span className="ml-0.5 hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleSelectDate(undefined); }}>
-                        <X className="w-2.5 h-2.5" />
-                      </span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarWidget mode="single" selected={documentDate ?? undefined} onSelect={handleSelectDate} locale={fr} initialFocus />
-                </PopoverContent>
-              </Popover>
-
-              {/* Status badge */}
-              <Badge
-                variant="outline"
-                className={`text-[10px] ${status === "draft"
-                  ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
-                  : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
-                }`}
-                data-testid="badge-status"
-              >
-                {status === "draft" ? "Brouillon" : "Publié"}
-              </Badge>
-            </div>
           </div>
         )}
       </div>
