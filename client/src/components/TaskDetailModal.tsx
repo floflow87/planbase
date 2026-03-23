@@ -629,82 +629,114 @@ export function TaskDetailModal({
                 <Package className="h-3 w-3" />
                 Progression du livrable
               </Label>
-              <span className="text-xs text-muted-foreground">
-                {deliverableTimeline.completedCount}/{deliverableTimeline.siblings.length} tâches
-              </span>
+              {deliverableTimeline.siblings.length > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {deliverableTimeline.completedCount}/{deliverableTimeline.siblings.length} tâches
+                </span>
+              )}
             </div>
             <div className="flex flex-col pl-1 pt-1">
-              {/* Scope item header */}
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
-                <span className="text-xs font-medium truncate">{deliverableTimeline.scopeItem.label}</span>
-                {deliverableTimeline.scopeItem.completedAt && (
-                  <span className="text-[10px] text-green-600 dark:text-green-400 ml-auto flex-shrink-0">Livré</span>
-                )}
-              </div>
-              {/* Tasks in order */}
-              {deliverableTimeline.siblings.map((sibling: any, idx: number) => {
-                const isLast = idx === deliverableTimeline.siblings.length - 1;
-                const isCurrent = sibling.id === task?.id;
-                const done = deliverableTimeline.isDone(sibling);
+              {/* Scope item header — with status + owner + due date */}
+              {(() => {
+                const si = deliverableTimeline.scopeItem as any;
+                const statusColor = si.status === "delivered" ? "text-green-600 dark:text-green-400"
+                  : si.status === "in_review" ? "text-amber-600 dark:text-amber-400"
+                  : si.status === "in_progress" ? "text-blue-600 dark:text-blue-400"
+                  : "text-muted-foreground";
+                const statusLabel = si.status === "delivered" ? "Livré"
+                  : si.status === "in_review" ? "À réviser"
+                  : si.status === "in_progress" ? "En cours"
+                  : "Planifié";
+                const owner = si.owner;
+                const ownerName = owner ? (owner.firstName ? `${owner.firstName} ${owner.lastName || ""}`.trim() : owner.email) : null;
                 return (
-                  <div key={sibling.id} className="flex gap-2">
-                    {/* Vertical line */}
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                    <span className="text-xs font-medium">{si.label}</span>
+                    <span className={`text-[10px] font-medium ${statusColor}`}>{statusLabel}</span>
+                    {ownerName && (
+                      <span className="text-[10px] text-muted-foreground">· {ownerName}</span>
+                    )}
+                    {si.dueDate && (
+                      <span className="text-[10px] text-muted-foreground ml-auto flex-shrink-0">
+                        Échéance : {new Date(si.dueDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
+              {/* Fallback when no tasks linked */}
+              {deliverableTimeline.siblings.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic pl-4 py-1">
+                  Aucune tâche liée à ce livrable.
+                </p>
+              ) : (
+                <>
+                  {/* Tasks in order */}
+                  {deliverableTimeline.siblings.map((sibling: any, idx: number) => {
+                    const isLast = idx === deliverableTimeline.siblings.length - 1;
+                    const isCurrent = sibling.id === task?.id;
+                    const done = deliverableTimeline.isDone(sibling);
+                    return (
+                      <div key={sibling.id} className="flex gap-2">
+                        {/* Vertical line */}
+                        <div className="flex flex-col items-center w-4 flex-shrink-0">
+                          <div className={cn(
+                            "w-px flex-1 mt-0",
+                            idx === 0 ? "bg-transparent" : done ? "bg-green-400 dark:bg-green-600" : "bg-border"
+                          )} style={{ minHeight: "8px" }} />
+                          <div className="flex-shrink-0">
+                            {done ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-green-500 dark:text-green-400" />
+                            ) : isCurrent ? (
+                              <div className="h-3.5 w-3.5 rounded-full border-2 border-primary bg-primary/20 flex-shrink-0" />
+                            ) : (
+                              <Circle className="h-3.5 w-3.5 text-muted-foreground/40" />
+                            )}
+                          </div>
+                          {!isLast && (
+                            <div className={cn(
+                              "w-px flex-1",
+                              done ? "bg-green-400 dark:bg-green-600" : "bg-border"
+                            )} style={{ minHeight: "8px" }} />
+                          )}
+                        </div>
+                        {/* Task label */}
+                        <div className={cn(
+                          "py-1 text-xs leading-tight",
+                          isCurrent ? "font-medium text-foreground bg-primary/5 px-1.5 rounded" : done ? "text-muted-foreground line-through" : "text-muted-foreground"
+                        )}>
+                          {sibling.title}
+                          {isCurrent && <span className="ml-1.5 text-[10px] text-primary font-normal">← ici</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {/* Final delivery point */}
+                  <div className="flex gap-2">
                     <div className="flex flex-col items-center w-4 flex-shrink-0">
                       <div className={cn(
                         "w-px flex-1 mt-0",
-                        idx === 0 ? "bg-transparent" : done ? "bg-green-400 dark:bg-green-600" : "bg-border"
+                        deliverableTimeline.completedCount === deliverableTimeline.siblings.length
+                          ? "bg-green-400 dark:bg-green-600"
+                          : "bg-border"
                       )} style={{ minHeight: "8px" }} />
-                      <div className="flex-shrink-0">
-                        {done ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-green-500 dark:text-green-400" />
-                        ) : isCurrent ? (
-                          <div className="h-3.5 w-3.5 rounded-full border-2 border-primary bg-primary/20 flex-shrink-0" />
-                        ) : (
-                          <Circle className="h-3.5 w-3.5 text-muted-foreground/40" />
-                        )}
-                      </div>
-                      {!isLast && (
-                        <div className={cn(
-                          "w-px flex-1",
-                          done ? "bg-green-400 dark:bg-green-600" : "bg-border"
-                        )} style={{ minHeight: "8px" }} />
-                      )}
+                      <div className={cn(
+                        "h-3 w-3 rounded-full border-2 flex-shrink-0",
+                        (deliverableTimeline.scopeItem as any).completedAt
+                          ? "border-green-500 bg-green-500"
+                          : "border-muted-foreground/30 bg-transparent"
+                      )} />
                     </div>
-                    {/* Task label */}
                     <div className={cn(
-                      "py-1 text-xs leading-tight",
-                      isCurrent ? "font-medium text-foreground" : done ? "text-muted-foreground line-through" : "text-muted-foreground"
+                      "py-1 text-xs",
+                      (deliverableTimeline.scopeItem as any).completedAt ? "text-green-600 dark:text-green-400 font-medium" : "text-muted-foreground/50 italic"
                     )}>
-                      {sibling.title}
-                      {isCurrent && <span className="ml-1.5 text-[10px] text-primary font-normal no-underline">← ici</span>}
+                      Livraison du livrable
                     </div>
                   </div>
-                );
-              })}
-              {/* Final delivery point */}
-              <div className="flex gap-2">
-                <div className="flex flex-col items-center w-4 flex-shrink-0">
-                  <div className={cn(
-                    "w-px flex-1 mt-0",
-                    deliverableTimeline.completedCount === deliverableTimeline.siblings.length
-                      ? "bg-green-400 dark:bg-green-600"
-                      : "bg-border"
-                  )} style={{ minHeight: "8px" }} />
-                  <div className={cn(
-                    "h-3 w-3 rounded-full border-2 flex-shrink-0",
-                    deliverableTimeline.scopeItem.completedAt
-                      ? "border-green-500 bg-green-500"
-                      : "border-muted-foreground/30 bg-transparent"
-                  )} />
-                </div>
-                <div className={cn(
-                  "py-1 text-xs",
-                  deliverableTimeline.scopeItem.completedAt ? "text-green-600 dark:text-green-400 font-medium" : "text-muted-foreground/50 italic"
-                )}>
-                  Livraison du livrable
-                </div>
-              </div>
+                </>
+              )}
             </div>
           </div>
         )}

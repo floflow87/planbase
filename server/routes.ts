@@ -2177,7 +2177,19 @@ app.get("/config/feature-flags", async (_req, res) => {
         return res.status(403).json({ error: "Access denied" });
       }
       const scopeItems = await storage.getScopeItemsByProjectId(req.params.projectId);
-      
+
+      // Attach owner info for items that have ownerId
+      const ownerIds = [...new Set(scopeItems.map(i => (i as any).ownerId).filter(Boolean))];
+      let ownersMap: Record<string, any> = {};
+      if (ownerIds.length > 0) {
+        const owners = await Promise.all(ownerIds.map(id => storage.getUser(id)));
+        owners.forEach(u => { if (u) ownersMap[u.id] = u; });
+      }
+      const scopeItemsWithOwner = scopeItems.map(item => ({
+        ...item,
+        owner: (item as any).ownerId ? ownersMap[(item as any).ownerId] ?? null : null,
+      }));
+
       // Calculate totals
       const mandatoryItems = scopeItems.filter(item => item.isOptional === 0);
       const optionalItems = scopeItems.filter(item => item.isOptional === 1);
@@ -2196,7 +2208,7 @@ app.get("/config/feature-flags", async (_req, res) => {
       const marginPercent = recommendedPrice > 0 ? (estimatedMargin / recommendedPrice) * 100 : 0;
       
       res.json({
-        scopeItems,
+        scopeItems: scopeItemsWithOwner,
         totals: {
           mandatoryDays: totalMandatoryDays,
           optionalDays: totalOptionalDays,
@@ -2251,7 +2263,15 @@ app.get("/config/feature-flags", async (_req, res) => {
         return res.status(403).json({ error: "Access denied" });
       }
 
-      const updatedItem = await storage.updateScopeItem(req.params.itemId, req.body);
+      const updateData = { ...req.body };
+      // Sync completedAt with status changes
+      if (updateData.status === "delivered") {
+        updateData.completedAt = new Date();
+      } else if (updateData.status && updateData.status !== "delivered") {
+        updateData.completedAt = null;
+      }
+
+      const updatedItem = await storage.updateScopeItem(req.params.itemId, updateData);
       res.json(updatedItem);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -2312,6 +2332,7 @@ app.get("/config/feature-flags", async (_req, res) => {
 
       const updatedItem = await storage.updateScopeItem(req.params.itemId, {
         completedAt: new Date(),
+        status: "delivered",
       });
       res.json(updatedItem);
     } catch (error: any) {
@@ -2332,6 +2353,7 @@ app.get("/config/feature-flags", async (_req, res) => {
 
       const updatedItem = await storage.updateScopeItem(req.params.itemId, {
         completedAt: null,
+        status: "planned",
       });
       res.json(updatedItem);
     } catch (error: any) {

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Plus, 
@@ -26,7 +27,9 @@ import {
   Copy,
   Check,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  User,
+  CalendarIcon,
 } from "lucide-react";
 import {
   Select,
@@ -106,17 +109,32 @@ const PHASES = [
   { value: 'LT', label: 'LT' },
 ];
 
-interface ScopeItemRowProps {
-  item: ProjectScopeItem;
-  onUpdate: (id: string, data: Partial<ProjectScopeItem>) => void;
-  onDelete: (id: string) => void;
+export const DELIVERABLE_STATUSES = [
+  { value: 'planned',     label: 'Planifié',   color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' },
+  { value: 'in_progress', label: 'En cours',   color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
+  { value: 'in_review',   label: 'À réviser',  color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
+  { value: 'delivered',   label: 'Livré',      color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' },
+] as const;
+
+export function getDeliverableStatusInfo(status?: string | null) {
+  return DELIVERABLE_STATUSES.find(s => s.value === status) ?? DELIVERABLE_STATUSES[0];
 }
 
-function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
+interface ScopeItemRowProps {
+  item: ProjectScopeItem & { owner?: any };
+  onUpdate: (id: string, data: Partial<ProjectScopeItem>) => void;
+  onDelete: (id: string) => void;
+  users: any[];
+}
+
+function SortableScopeItem({ item, onUpdate, onDelete, users }: ScopeItemRowProps) {
   const [isEnriching, setIsEnriching] = useState(false);
   const [label, setLabel] = useState(item.label);
   const [estimatedDays, setEstimatedDays] = useState(item.estimatedDays?.toString() || "0");
   const [description, setDescription] = useState(item.description || "");
+  const [ownerId, setOwnerId] = useState<string>((item as any).ownerId || "none");
+  const [status, setStatus] = useState<string>((item as any).status || "planned");
+  const [dueDate, setDueDate] = useState<string>((item as any).dueDate || "");
 
   const {
     attributes,
@@ -141,12 +159,18 @@ function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
       label: label.trim(),
       estimatedDays: days.toString(),
       description: description || null,
-    });
+      ownerId: ownerId === "none" ? null : ownerId,
+      status,
+      dueDate: dueDate || null,
+    } as any);
     setIsEnriching(false);
   };
 
   const scopeTypeInfo = SCOPE_TYPES.find(t => t.value === item.scopeType);
   const hasEnrichment = item.scopeType || item.phase || (item.isBillable !== null && item.isBillable !== 1);
+  const statusInfo = getDeliverableStatusInfo((item as any).status);
+  const owner = item.owner || users.find(u => u.id === (item as any).ownerId);
+  const ownerInitials = owner ? (owner.firstName ? owner.firstName[0] + (owner.lastName?.[0] || "") : owner.email[0]).toUpperCase() : null;
 
   return (
     <div
@@ -166,10 +190,24 @@ function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
 
         <div
           className="flex-1 min-w-0 cursor-pointer"
-          onClick={() => { setIsEnriching(true); setLabel(item.label); setEstimatedDays(item.estimatedDays?.toString() || "0"); setDescription(item.description || ""); }}
+          onClick={() => {
+            setIsEnriching(true);
+            setLabel(item.label);
+            setEstimatedDays(item.estimatedDays?.toString() || "0");
+            setDescription(item.description || "");
+            setOwnerId((item as any).ownerId || "none");
+            setStatus((item as any).status || "planned");
+            setDueDate((item as any).dueDate || "");
+          }}
         >
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm truncate">{item.label}</span>
+            {/* Status badge */}
+            {(item as any).status && (item as any).status !== "planned" && (
+              <Badge className={`text-[10px] px-1.5 py-0 shrink-0 ${statusInfo.color}`}>
+                {statusInfo.label}
+              </Badge>
+            )}
             {item.isOptional === 1 && (
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">Opt.</Badge>
             )}
@@ -189,9 +227,18 @@ function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
               </Badge>
             )}
           </div>
-          {item.description && (
-            <p className="text-[11px] text-muted-foreground truncate">{item.description}</p>
-          )}
+          <div className="flex items-center gap-2">
+            {item.description && (
+              <p className="text-[11px] text-muted-foreground truncate">{item.description}</p>
+            )}
+            {ownerInitials && (
+              <Avatar className="h-4 w-4 shrink-0">
+                <AvatarFallback className="text-[8px] bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                  {ownerInitials}
+                </AvatarFallback>
+              </Avatar>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
@@ -254,6 +301,52 @@ function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
                 placeholder="Description (optionnel)"
                 className="h-7 text-xs placeholder:text-[10px]"
                 data-testid={`input-scope-description-${item.id}`}
+              />
+            </div>
+          </div>
+
+          {/* Status / Owner / Due date */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <Label className="text-[10px] text-muted-foreground">Statut :</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger className="h-7 w-32 text-xs" data-testid={`select-deliverable-status-${item.id}`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DELIVERABLE_STATUSES.map(s => (
+                    <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Label className="text-[10px] text-muted-foreground">Responsable :</Label>
+              <Select value={ownerId} onValueChange={setOwnerId}>
+                <SelectTrigger className="h-7 w-36 text-xs" data-testid={`select-deliverable-owner-${item.id}`}>
+                  <SelectValue placeholder="Non assigné" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none" className="text-xs">Non assigné</SelectItem>
+                  {users.map(u => (
+                    <SelectItem key={u.id} value={u.id} className="text-xs">
+                      {u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Label className="text-[10px] text-muted-foreground">
+                <CalendarIcon className="h-3 w-3 inline mr-0.5" />
+                Échéance :
+              </Label>
+              <Input
+                type="date"
+                value={dueDate}
+                onChange={e => setDueDate(e.target.value)}
+                className="h-7 w-36 text-xs"
+                data-testid={`input-deliverable-due-${item.id}`}
               />
             </div>
           </div>
@@ -388,7 +481,7 @@ export function ProjectScopeSection({
   );
 
   const { data: scopeData, isLoading } = useQuery<{
-    scopeItems: ProjectScopeItem[];
+    scopeItems: (ProjectScopeItem & { owner?: any })[];
     totals: {
       mandatoryDays: number;
       optionalDays: number;
@@ -400,6 +493,10 @@ export function ProjectScopeSection({
     };
   }>({
     queryKey: ['/api/projects', projectId, 'scope-items'],
+  });
+
+  const { data: usersData = [] } = useQuery<any[]>({
+    queryKey: ["/api/users"],
   });
 
   const createMutation = useMutation({
@@ -902,6 +999,7 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
                       item={item}
                       onUpdate={handleUpdate}
                       onDelete={handleDelete}
+                      users={usersData}
                     />
                   ))}
                 </div>

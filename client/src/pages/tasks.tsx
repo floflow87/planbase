@@ -97,6 +97,7 @@ import type {
 type BacklogWithSprints = Backlog & { sprints?: Sprint[] };
 import { TaskCardMenu } from "@/components/TaskCardMenu";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
+import { getDeliverableStatusInfo } from "@/components/ProjectScopeSection";
 import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
 import { ColorPicker } from "@/components/ColorPicker";
 import { ListView } from "@/components/ListView";
@@ -2110,16 +2111,40 @@ export default function Tasks() {
                             <span className="font-medium text-sm truncate">
                               {scopeItem ? scopeItem.label : "Sans livrable"}
                             </span>
+                            {scopeItem && (() => {
+                              const si = getDeliverableStatusInfo(scopeItem.status);
+                              return (
+                                <Badge className={`text-[10px] px-1.5 py-0 shrink-0 ${si.color}`}>
+                                  {si.label}
+                                </Badge>
+                              );
+                            })()}
                           </div>
                           <div className="flex items-center gap-3 flex-shrink-0">
+                            {/* Owner avatar */}
+                            {scopeItem?.owner && (() => {
+                              const o = scopeItem.owner;
+                              const initials = (o.firstName ? o.firstName[0] + (o.lastName?.[0] || "") : o.email[0]).toUpperCase();
+                              return (
+                                <Avatar className="h-5 w-5">
+                                  <AvatarFallback className="text-[9px] bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                                    {initials}
+                                  </AvatarFallback>
+                                </Avatar>
+                              );
+                            })()}
+                            {/* Task progress */}
                             <div className="flex items-center gap-1.5">
                               <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
                                 <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
                               </div>
                               <span className="text-xs text-muted-foreground whitespace-nowrap">{completedCount}/{total}</span>
                             </div>
-                            {scopeItem?.completedAt && (
-                              <Badge variant="outline" className="text-[10px] text-green-600 border-green-300 px-1.5">Livré</Badge>
+                            {/* Due date if any */}
+                            {scopeItem?.dueDate && (
+                              <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                                {new Date(scopeItem.dueDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                              </span>
                             )}
                           </div>
                         </div>

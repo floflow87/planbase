@@ -2785,6 +2785,15 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Tasks scope_item_id column added");
 
+    // ── Add owner_id, status, due_date to project_scope_items (deliverable enrichment) ──
+    await db.execute(sql`
+      ALTER TABLE project_scope_items
+      ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES app_users(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'planned',
+      ADD COLUMN IF NOT EXISTS due_date TEXT
+    `);
+    console.log("✅ Scope items owner_id, status, due_date columns added");
+
     // ── TRIAL CLEANUP: reset auto-migration trials that were never explicitly started ──
     // Old auto-migration set trial_ends_at = created_at + 7 days for ALL accounts.
     // Those trials are now expired (created_at is in the past) and were never started by the user.

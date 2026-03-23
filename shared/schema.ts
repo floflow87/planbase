@@ -575,12 +575,18 @@ export const projectScopeItems = pgTable("project_scope_items", {
   phase: text("phase"), // 'T1', 'T2', 'T3', 'T4', 'LT' - temporal phase
   isOptional: integer("is_optional").notNull().default(0), // 0 = obligatoire, 1 = optionnel
   order: integer("order").notNull().default(0), // Pour le tri
+  // Owner / Responsible
+  ownerId: uuid("owner_id").references(() => appUsers.id, { onDelete: "set null" }), // Responsible for this deliverable
+  // Workflow status: planned | in_progress | in_review | delivered
+  status: text("status").notNull().default("planned"),
+  // Due date for the deliverable
+  dueDate: text("due_date"), // YYYY-MM-DD format
   // Generated entity tracking
   generatedEpicId: uuid("generated_epic_id"), // If generated as an Epic
   generatedUserStoryId: uuid("generated_user_story_id"), // If generated as a User Story
   generatedRoadmapItemId: uuid("generated_roadmap_item_id"), // If generated as a Roadmap item
   // Completion tracking - when set, the scope item is "closed" and projections stop
-  completedAt: timestamp("completed_at", { withTimezone: true }), // null = open, timestamp = completed
+  completedAt: timestamp("completed_at", { withTimezone: true }), // null = open, timestamp = completed (synced with status=delivered)
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
