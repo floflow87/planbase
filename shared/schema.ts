@@ -634,6 +634,7 @@ export const tasks = pgTable("tasks", {
   order: integer("order").notNull().default(0), // For ordering within columns (legacy)
   dueDate: date("due_date"), // Date-only field (YYYY-MM-DD) to avoid timezone issues
   effort: integer("effort"), // 1-5 stars rating for task effort/complexity
+  scopeItemId: uuid("scope_item_id").references(() => projectScopeItems.id, { onDelete: "set null" }), // Link to project scope item / livrable
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

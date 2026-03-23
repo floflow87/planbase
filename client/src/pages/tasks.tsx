@@ -1,6 +1,6 @@
 // Tasks page - Complete duplicate of tasks tab from projects page
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight, Eye, EyeOff, Search, X, Play } from "lucide-react";
+import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight, Eye, EyeOff, Search, X, Play, Layers, Package, CheckCircle2, Circle } from "lucide-react";
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -767,11 +767,18 @@ export default function Tasks() {
     const saved = localStorage.getItem("tasks_view_mode");
     return (saved === "kanban" || saved === "list" || saved === "calendar") ? saved : "list";
   });
+  const [groupBy, setGroupBy] = useState<"status" | "deliverable" | "none">(() => {
+    const saved = localStorage.getItem("tasks_group_by");
+    return (saved === "status" || saved === "deliverable" || saved === "none") ? saved as any : "status";
+  });
   
   // Persist view mode
   useEffect(() => {
     localStorage.setItem("tasks_view_mode", viewMode);
   }, [viewMode]);
+  useEffect(() => {
+    localStorage.setItem("tasks_group_by", groupBy);
+  }, [groupBy]);
   const [statusFilter, setStatusFilter] = useState<string[]>(() => {
     const saved = localStorage.getItem("tasks_status_filter");
     return saved ? JSON.parse(saved) : ["all"];
@@ -859,6 +866,19 @@ export default function Tasks() {
   const { data: backlogs = [] } = useQuery<BacklogWithSprints[]>({
     queryKey: ["/api/backlogs"],
     enabled: !!accountId,
+  });
+
+  // Fetch scope items for "group by deliverable" — only when a single project is selected in list mode
+  const singleProjectId = (!selectedProjectIds.includes("all") && selectedProjectIds.length === 1) ? selectedProjectIds[0] : null;
+  const { data: scopeItemsForGrouping = [] } = useQuery<any[]>({
+    queryKey: ["/api/projects", singleProjectId, "scope-items"],
+    queryFn: async () => {
+      if (!singleProjectId) return [];
+      const res = await apiRequest(`/api/projects/${singleProjectId}/scope-items`, "GET");
+      const data = await res.json();
+      return data?.scopeItems ?? data ?? [];
+    },
+    enabled: !!singleProjectId && viewMode === "list" && groupBy === "deliverable",
   });
 
   // Get columns for the project selected in the form
@@ -1759,6 +1779,25 @@ export default function Tasks() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+            {/* Group by dropdown — only in list view */}
+            {viewMode === "list" && (
+              <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
+                <SelectTrigger
+                  className="w-44 h-9 bg-white dark:bg-white text-sm font-normal"
+                  data-testid="select-group-by"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+                    <SelectValue />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="status">Groupé par Statut</SelectItem>
+                  <SelectItem value="deliverable">Groupé par Livrable</SelectItem>
+                  <SelectItem value="none">Aucun groupement</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
             {viewMode !== "kanban" && (
               <Popover open={statusSelectorOpen} onOpenChange={setStatusSelectorOpen}>
                 <PopoverTrigger asChild>
@@ -1997,7 +2036,7 @@ export default function Tasks() {
         ) : (
           <>
             {/* List View */}
-            {viewMode === "list" && (
+            {viewMode === "list" && groupBy !== "deliverable" && (
               <ListView
                 tasks={filteredTasks}
                 columns={taskColumns}
@@ -2018,6 +2057,116 @@ export default function Tasks() {
                 accountId={accountId || undefined}
                 userId={userId || undefined}
               />
+            )}
+
+            {/* Deliverable Grouped View */}
+            {viewMode === "list" && groupBy === "deliverable" && (
+              <div className="space-y-2">
+                {!singleProjectId ? (
+                  <Card>
+                    <CardContent className="p-6 text-center py-10">
+                      <Package className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+                      <p className="text-muted-foreground text-sm">Sélectionnez un projet pour grouper par livrable</p>
+                    </CardContent>
+                  </Card>
+                ) : (() => {
+                  const doneNames = ["terminé", "done", "complété", "termine", "finished", "closed"];
+                  const isDone = (t: Task) => {
+                    if (t.status === "done") return true;
+                    const col = taskColumns.find(c => c.id === t.columnId);
+                    return col ? doneNames.some(n => col.name.toLowerCase().includes(n)) : false;
+                  };
+                  const tasksWithDeliverable = filteredTasks.filter(t => t.scopeItemId);
+                  const tasksWithoutDeliverable = filteredTasks.filter(t => !t.scopeItemId);
+                  const groups: { scopeItem: any | null; tasks: Task[] }[] = scopeItemsForGrouping
+                    .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+                    .map((s: any) => ({
+                      scopeItem: s,
+                      tasks: tasksWithDeliverable.filter(t => t.scopeItemId === s.id),
+                    }))
+                    .filter(g => g.tasks.length > 0);
+                  if (tasksWithoutDeliverable.length > 0) {
+                    groups.push({ scopeItem: null, tasks: tasksWithoutDeliverable });
+                  }
+                  if (groups.length === 0) {
+                    return (
+                      <Card>
+                        <CardContent className="p-6 text-center py-10">
+                          <Package className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+                          <p className="text-muted-foreground text-sm">Aucune tâche à afficher</p>
+                        </CardContent>
+                      </Card>
+                    );
+                  }
+                  return groups.map(({ scopeItem, tasks: groupTasks }) => {
+                    const completedCount = groupTasks.filter(isDone).length;
+                    const total = groupTasks.length;
+                    const pct = Math.round((completedCount / Math.max(total, 1)) * 100);
+                    return (
+                      <Card key={scopeItem?.id ?? "no-deliverable"} className="overflow-hidden">
+                        <div className="px-4 py-2.5 border-b flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Package className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <span className="font-medium text-sm truncate">
+                              {scopeItem ? scopeItem.label : "Sans livrable"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">{completedCount}/{total}</span>
+                            </div>
+                            {scopeItem?.completedAt && (
+                              <Badge variant="outline" className="text-[10px] text-green-600 border-green-300 px-1.5">Livré</Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="divide-y">
+                          {groupTasks.map(t => {
+                            const done = isDone(t);
+                            const assignee = users.find(u => u.id === t.assignedToId);
+                            const col = taskColumns.find(c => c.id === t.columnId);
+                            return (
+                              <div
+                                key={t.id}
+                                className="flex items-center gap-3 px-4 py-2.5 hover-elevate cursor-pointer"
+                                onClick={() => handleTaskClick(t)}
+                                data-testid={`task-deliverable-row-${t.id}`}
+                              >
+                                <div className="flex-shrink-0">
+                                  {done ? (
+                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                  ) : (
+                                    <Circle className="h-4 w-4 text-muted-foreground/40" />
+                                  )}
+                                </div>
+                                <span className={cn("text-sm flex-1 truncate", done && "line-through text-muted-foreground")}>
+                                  {t.title}
+                                </span>
+                                {col && (
+                                  <Badge variant="outline" className="text-[10px] hidden sm:flex">
+                                    {col.name}
+                                  </Badge>
+                                )}
+                                {assignee && (
+                                  <Avatar className="h-5 w-5 flex-shrink-0">
+                                    <AvatarImage src={assignee.avatarUrl || ""} />
+                                    <AvatarFallback className="text-[10px]">
+                                      {(assignee.fullName || assignee.email || "?").slice(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </Card>
+                    );
+                  });
+                })()}
+              </div>
             )}
 
             {/* Calendar View */}

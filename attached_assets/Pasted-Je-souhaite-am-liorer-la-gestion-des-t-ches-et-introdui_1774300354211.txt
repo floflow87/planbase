@@ -1,0 +1,106 @@
+Je souhaite améliorer la gestion des tâches et introduire une meilleure lecture des livrables dans PlanBase.
+
+IMPORTANT :
+- ne pas complexifier
+- améliorer la lisibilité et la compréhension du projet
+- ajouter des vues intelligentes, pas des modules
+
+## 1. Groupement des tâches via dropdown
+
+Remplacer les toggles actuels par un dropdown :
+
+“Groupé par ▾”
+
+Options :
+- Statut (par défaut)
+- Livrable
+- Aucun
+
+### Comportement
+
+#### Groupé par statut
+→ vue actuelle (kanban)
+
+#### Groupé par livrable
+→ afficher les tâches groupées sous chaque livrable avec indentation
+
+Exemple :
+
+Audit UX
+  - Faire interviews
+  - Synthèse
+  - Recommandations
+
+Roadmap
+  - Structuration
+  - Priorisation
+
+Chaque groupe = un livrable
+
+## 2. Timeline verticale dans le drawer de tâche
+
+Ajouter dans le panneau droit d’une tâche une timeline verticale représentant la progression du livrable.
+
+### Objectif
+Donner du contexte à la tâche :
+- où elle se situe
+- ce qui a été fait
+- ce qui reste
+
+### Comportement
+
+Si la tâche a un deliverable_id :
+
+Afficher :
+
+- le livrable (titre)
+- toutes les tâches liées à ce livrable (ordre logique)
+- la tâche actuelle mise en avant
+- une étape finale “Livraison du livrable”
+
+### États visuels
+
+- tâche terminée → check vert
+- tâche actuelle → highlight
+- tâche future → gris
+- livraison → dernier point
+
+### Exemple
+
+● Audit UX
+│
+● Interviews ✔
+│
+● Synthèse ✔
+│
+● Recommandations (current)
+│
+○ Livraison du livrable
+
+### Bonus
+
+Afficher :
+- progression (ex : 3/5 tâches)
+- statut du livrable
+
+## 3. Fallback
+
+Si la tâche n’a pas de livrable :
+- afficher une timeline simple basée sur les activités (comments, updates)
+
+## Contraintes
+
+- ne pas rendre la timeline éditable
+- garder une UX simple et lisible
+- ne pas charger toute la roadmap
+- limiter au livrable lié
+
+## Livrable attendu
+
+Avant implémentation :
+1. proposer UX du dropdown groupement
+2. proposer UI de la timeline verticale
+3. proposer logique de tri des tâches dans un livrable
+4. proposer fallback sans livrable
+
+Puis implémenter.

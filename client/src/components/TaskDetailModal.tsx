@@ -22,7 +22,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon, Star, Trash2, CheckCircle2, ListTodo, Check, ChevronsUpDown, Paperclip, File, Image, Plus, Download } from "lucide-react";
+import { CalendarIcon, Star, Trash2, CheckCircle2, ListTodo, Check, ChevronsUpDown, Paperclip, File, Image, Plus, Download, Circle, Package, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -89,6 +89,19 @@ export function TaskDetailModal({
   const [selectedColumnId, setSelectedColumnId] = useState<string>("");
   const [projectId, setProjectId] = useState<string | undefined>();
   const [effort, setEffort] = useState<number | null>(null);
+  const [scopeItemId, setScopeItemId] = useState<string | null>(null);
+
+  // Fetch scope items for the livrable selector
+  const { data: taskScopeItems = [] } = useQuery<any[]>({
+    queryKey: ["/api/projects", task?.projectId, "scope-items-form"],
+    queryFn: async () => {
+      if (!task?.projectId) return [];
+      const res = await apiRequest(`/api/projects/${task.projectId}/scope-items`, "GET");
+      const data = await res.json();
+      return data?.scopeItems ?? data ?? [];
+    },
+    enabled: !!task?.projectId && isOpen,
+  });
 
   // File attachments
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -182,6 +195,48 @@ export function TaskDetailModal({
     return selectedBacklog?.sprints || [];
   }, [selectedBacklog]);
 
+  // Fetch scope items for the task's project (for timeline)
+  const { data: projectScopeItems = [] } = useQuery<any[]>({
+    queryKey: ["/api/projects", task?.projectId, "scope-items"],
+    queryFn: async () => {
+      if (!task?.projectId) return [];
+      const res = await apiRequest(`/api/projects/${task.projectId}/scope-items`, "GET");
+      const data = await res.json();
+      return data?.scopeItems ?? data ?? [];
+    },
+    enabled: !!task?.projectId && !!task?.scopeItemId && isOpen,
+  });
+
+  // Fetch all tasks in the same project (for timeline siblings)
+  const { data: projectTasks = [] } = useQuery<any[]>({
+    queryKey: ["/api/projects", task?.projectId, "tasks"],
+    queryFn: async () => {
+      if (!task?.projectId) return [];
+      const res = await apiRequest(`/api/projects/${task.projectId}/tasks`, "GET");
+      return res.json();
+    },
+    enabled: !!task?.projectId && !!task?.scopeItemId && isOpen,
+  });
+
+  // Compute timeline data
+  const deliverableTimeline = useMemo(() => {
+    if (!task?.scopeItemId) return null;
+    const scopeItem = projectScopeItems.find((s: any) => s.id === task.scopeItemId);
+    if (!scopeItem) return null;
+    const siblings = projectTasks
+      .filter((t: any) => t.scopeItemId === task.scopeItemId)
+      .sort((a: any, b: any) => (a.positionInColumn ?? 0) - (b.positionInColumn ?? 0));
+    const doneNames = ["terminé", "done", "complété", "termine", "finished", "closed"];
+    const isDone = (t: any) => {
+      if (t.status === "done") return true;
+      const col = columns.find(c => c.id === t.columnId);
+      if (col) return doneNames.some(n => col.name.toLowerCase().includes(n));
+      return false;
+    };
+    const completedCount = siblings.filter(isDone).length;
+    return { scopeItem, siblings, isDone, completedCount };
+  }, [task, projectScopeItems, projectTasks, columns]);
+
   // Handle opening create ticket dialog
   const handleOpenCreateTicket = () => {
     setTicketTitle(title); // Pre-fill with task title
@@ -207,6 +262,7 @@ export function TaskDetailModal({
       setSelectedColumnId(task.columnId || "");
       setProjectId(task.projectId || undefined);
       setEffort(task.effort ?? null);
+      setScopeItemId((task as any).scopeItemId || null);
     }
   }, [task]);
 
@@ -231,6 +287,7 @@ export function TaskDetailModal({
       columnId: selectedColumnId || null,
       projectId: projectId === undefined ? null : projectId,
       effort: effort,
+      ...({ scopeItemId: scopeItemId || null } as any),
     };
 
     // Set progress to 100 if moving to a "done" column
@@ -446,6 +503,28 @@ export function TaskDetailModal({
             </div>
           </div>
 
+          {task?.projectId && taskScopeItems.length > 0 && (
+            <div className="grid gap-1">
+              <Label className="text-xs">Livrable</Label>
+              <Select
+                value={scopeItemId || "none"}
+                onValueChange={(v) => setScopeItemId(v === "none" ? null : v)}
+              >
+                <SelectTrigger className="h-8 text-xs" data-testid="select-task-scope-item">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none" className="text-xs">Aucun livrable</SelectItem>
+                  {taskScopeItems.map((si: any) => (
+                    <SelectItem key={si.id} value={si.id} className="text-xs">
+                      {si.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="grid gap-1">
             <Label className="text-xs">Date d'échéance</Label>
             <Popover>
@@ -540,6 +619,95 @@ export function TaskDetailModal({
             )}
           </div>
         </div>
+
+        {/* Deliverable Timeline */}
+        {deliverableTimeline && (
+          <div className="space-y-2 pt-2">
+            <Separator />
+            <div className="flex items-center justify-between pt-1">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Package className="h-3 w-3" />
+                Progression du livrable
+              </Label>
+              <span className="text-xs text-muted-foreground">
+                {deliverableTimeline.completedCount}/{deliverableTimeline.siblings.length} tâches
+              </span>
+            </div>
+            <div className="flex flex-col pl-1 pt-1">
+              {/* Scope item header */}
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                <span className="text-xs font-medium truncate">{deliverableTimeline.scopeItem.label}</span>
+                {deliverableTimeline.scopeItem.completedAt && (
+                  <span className="text-[10px] text-green-600 dark:text-green-400 ml-auto flex-shrink-0">Livré</span>
+                )}
+              </div>
+              {/* Tasks in order */}
+              {deliverableTimeline.siblings.map((sibling: any, idx: number) => {
+                const isLast = idx === deliverableTimeline.siblings.length - 1;
+                const isCurrent = sibling.id === task?.id;
+                const done = deliverableTimeline.isDone(sibling);
+                return (
+                  <div key={sibling.id} className="flex gap-2">
+                    {/* Vertical line */}
+                    <div className="flex flex-col items-center w-4 flex-shrink-0">
+                      <div className={cn(
+                        "w-px flex-1 mt-0",
+                        idx === 0 ? "bg-transparent" : done ? "bg-green-400 dark:bg-green-600" : "bg-border"
+                      )} style={{ minHeight: "8px" }} />
+                      <div className="flex-shrink-0">
+                        {done ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-green-500 dark:text-green-400" />
+                        ) : isCurrent ? (
+                          <div className="h-3.5 w-3.5 rounded-full border-2 border-primary bg-primary/20 flex-shrink-0" />
+                        ) : (
+                          <Circle className="h-3.5 w-3.5 text-muted-foreground/40" />
+                        )}
+                      </div>
+                      {!isLast && (
+                        <div className={cn(
+                          "w-px flex-1",
+                          done ? "bg-green-400 dark:bg-green-600" : "bg-border"
+                        )} style={{ minHeight: "8px" }} />
+                      )}
+                    </div>
+                    {/* Task label */}
+                    <div className={cn(
+                      "py-1 text-xs leading-tight",
+                      isCurrent ? "font-medium text-foreground" : done ? "text-muted-foreground line-through" : "text-muted-foreground"
+                    )}>
+                      {sibling.title}
+                      {isCurrent && <span className="ml-1.5 text-[10px] text-primary font-normal no-underline">← ici</span>}
+                    </div>
+                  </div>
+                );
+              })}
+              {/* Final delivery point */}
+              <div className="flex gap-2">
+                <div className="flex flex-col items-center w-4 flex-shrink-0">
+                  <div className={cn(
+                    "w-px flex-1 mt-0",
+                    deliverableTimeline.completedCount === deliverableTimeline.siblings.length
+                      ? "bg-green-400 dark:bg-green-600"
+                      : "bg-border"
+                  )} style={{ minHeight: "8px" }} />
+                  <div className={cn(
+                    "h-3 w-3 rounded-full border-2 flex-shrink-0",
+                    deliverableTimeline.scopeItem.completedAt
+                      ? "border-green-500 bg-green-500"
+                      : "border-muted-foreground/30 bg-transparent"
+                  )} />
+                </div>
+                <div className={cn(
+                  "py-1 text-xs",
+                  deliverableTimeline.scopeItem.completedAt ? "text-green-600 dark:text-green-400 font-medium" : "text-muted-foreground/50 italic"
+                )}>
+                  Livraison du livrable
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* File preview dialog */}
         <Dialog open={!!previewFile} onOpenChange={open => !open && setPreviewFile(null)}>

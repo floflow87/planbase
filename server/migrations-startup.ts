@@ -2778,6 +2778,13 @@ export async function runStartupMigrations() {
     await db.execute(sql`CREATE INDEX IF NOT EXISTS document_member_shares_user_idx ON document_member_shares(shared_with_user_id)`);
     console.log("✅ Document member shares table created");
 
+    // ── Add scope_item_id to tasks (link tasks to project deliverables/livrables) ──
+    await db.execute(sql`
+      ALTER TABLE tasks
+      ADD COLUMN IF NOT EXISTS scope_item_id UUID REFERENCES project_scope_items(id) ON DELETE SET NULL
+    `);
+    console.log("✅ Tasks scope_item_id column added");
+
     // ── TRIAL CLEANUP: reset auto-migration trials that were never explicitly started ──
     // Old auto-migration set trial_ends_at = created_at + 7 days for ALL accounts.
     // Those trials are now expired (created_at is in the past) and were never started by the user.
