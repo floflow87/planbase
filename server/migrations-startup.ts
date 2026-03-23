@@ -2720,6 +2720,64 @@ export async function runStartupMigrations() {
     await db.execute(sql`CREATE INDEX IF NOT EXISTS note_shares_user_idx ON note_shares(shared_with_user_id)`);
     console.log("✅ Note shares table created");
 
+    // ── DOCUMENT COMMENTS ──
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS document_comments (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        document_id UUID NOT NULL,
+        account_id UUID NOT NULL,
+        author_user_id UUID NOT NULL,
+        selected_text TEXT NOT NULL DEFAULT '',
+        selection_from INTEGER,
+        selection_to INTEGER,
+        comment_text TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'open',
+        resolved_by UUID,
+        resolved_at TIMESTAMPTZ,
+        parent_id UUID REFERENCES document_comments(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS document_comments_doc_idx ON document_comments(document_id)`);
+    console.log("✅ Document comments table created");
+
+    // ── DOCUMENT SUGGESTIONS ──
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS document_suggestions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        document_id UUID NOT NULL,
+        account_id UUID NOT NULL,
+        author_user_id UUID NOT NULL,
+        selected_text TEXT NOT NULL DEFAULT '',
+        replacement_text TEXT NOT NULL DEFAULT '',
+        selection_from INTEGER,
+        selection_to INTEGER,
+        status TEXT NOT NULL DEFAULT 'pending',
+        resolved_by UUID,
+        resolved_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS document_suggestions_doc_idx ON document_suggestions(document_id)`);
+    console.log("✅ Document suggestions table created");
+
+    // ── DOCUMENT MEMBER SHARES ──
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS document_member_shares (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        document_id UUID NOT NULL,
+        account_id UUID NOT NULL,
+        shared_with_user_id UUID NOT NULL,
+        permission TEXT NOT NULL DEFAULT 'comment',
+        created_by UUID,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS document_member_shares_doc_user_key ON document_member_shares(document_id, shared_with_user_id)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS document_member_shares_doc_idx ON document_member_shares(document_id)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS document_member_shares_user_idx ON document_member_shares(shared_with_user_id)`);
+    console.log("✅ Document member shares table created");
+
     // ── TRIAL CLEANUP: reset auto-migration trials that were never explicitly started ──
     // Old auto-migration set trial_ends_at = created_at + 7 days for ALL accounts.
     // Those trials are now expired (created_at is in the past) and were never started by the user.

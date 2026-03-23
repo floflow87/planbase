@@ -4714,6 +4714,203 @@ app.get("/config/feature-flags", async (_req, res) => {
   });
 
   // ============================================
+  // DOCUMENT COMMENTS - Collaboration
+  // ============================================
+
+  app.get("/api/documents/:id/comments", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT dc.*, au.email, au.first_name, au.last_name, au.avatar_url
+        FROM document_comments dc
+        LEFT JOIN app_users au ON au.id = dc.author_user_id
+        WHERE dc.document_id = ${req.params.id}
+          AND dc.account_id = ${req.accountId}
+        ORDER BY dc.created_at ASC
+      `);
+      res.json(result as any[]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/documents/:id/comments", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { selected_text, selection_from, selection_to, comment_text, parent_id } = req.body;
+      if (!comment_text?.trim()) return res.status(400).json({ error: "comment_text required" });
+      const result = await db.execute(sql`
+        INSERT INTO document_comments (document_id, account_id, author_user_id, selected_text, selection_from, selection_to, comment_text, parent_id)
+        VALUES (${req.params.id}, ${req.accountId}, ${req.userId}, ${selected_text || ''}, ${selection_from ?? null}, ${selection_to ?? null}, ${comment_text.trim()}, ${parent_id ?? null})
+        RETURNING *
+      `);
+      res.json((result as any[])[0]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/documents/:id/comments/:cid", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { status, comment_text } = req.body;
+      if (comment_text !== undefined) {
+        if (!comment_text?.trim()) return res.status(400).json({ error: "comment_text required" });
+        const result = await db.execute(sql`
+          UPDATE document_comments
+          SET comment_text = ${comment_text.trim()}
+          WHERE id = ${req.params.cid} AND document_id = ${req.params.id} AND account_id = ${req.accountId} AND author_user_id = ${req.userId}
+          RETURNING *
+        `);
+        return res.json((result as any[])[0]);
+      }
+      if (!['open', 'resolved'].includes(status)) return res.status(400).json({ error: "Invalid status" });
+      const result = await db.execute(sql`
+        UPDATE document_comments
+        SET status = ${status}, resolved_by = ${status === 'resolved' ? req.userId : null}, resolved_at = ${status === 'resolved' ? sql`NOW()` : null}
+        WHERE id = ${req.params.cid} AND document_id = ${req.params.id} AND account_id = ${req.accountId}
+        RETURNING *
+      `);
+      res.json((result as any[])[0]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/documents/:id/comments/:cid", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      await db.execute(sql`
+        DELETE FROM document_comments WHERE id = ${req.params.cid} AND document_id = ${req.params.id} AND account_id = ${req.accountId}
+      `);
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // DOCUMENT SUGGESTIONS - Collaboration
+  // ============================================
+
+  app.get("/api/documents/:id/suggestions", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT ds.*, au.email, au.first_name, au.last_name, au.avatar_url
+        FROM document_suggestions ds
+        LEFT JOIN app_users au ON au.id = ds.author_user_id
+        WHERE ds.document_id = ${req.params.id}
+          AND ds.account_id = ${req.accountId}
+        ORDER BY ds.created_at ASC
+      `);
+      res.json(result as any[]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/documents/:id/suggestions", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { selected_text, replacement_text, selection_from, selection_to } = req.body;
+      if (!selected_text?.trim() || !replacement_text?.trim()) return res.status(400).json({ error: "selected_text and replacement_text required" });
+      const result = await db.execute(sql`
+        INSERT INTO document_suggestions (document_id, account_id, author_user_id, selected_text, replacement_text, selection_from, selection_to)
+        VALUES (${req.params.id}, ${req.accountId}, ${req.userId}, ${selected_text.trim()}, ${replacement_text.trim()}, ${selection_from ?? null}, ${selection_to ?? null})
+        RETURNING *
+      `);
+      res.json((result as any[])[0]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/documents/:id/suggestions/:sid", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { status } = req.body;
+      if (!['pending', 'accepted', 'rejected'].includes(status)) return res.status(400).json({ error: "Invalid status" });
+      const result = await db.execute(sql`
+        UPDATE document_suggestions
+        SET status = ${status}, resolved_by = ${req.userId}, resolved_at = NOW()
+        WHERE id = ${req.params.sid} AND document_id = ${req.params.id} AND account_id = ${req.accountId}
+        RETURNING *
+      `);
+      res.json((result as any[])[0]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // DOCUMENT SHARES - Per-member sharing with permissions
+  // ============================================
+
+  app.get("/api/documents/:id/shares", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const shares = await db.execute(sql`
+        SELECT ds.id, ds.document_id, ds.shared_with_user_id, ds.permission, ds.created_at,
+               au.email, au.first_name, au.last_name, au.avatar_url
+        FROM document_member_shares ds
+        JOIN app_users au ON au.id = ds.shared_with_user_id
+        WHERE ds.document_id = ${req.params.id}
+          AND ds.account_id = ${req.accountId}
+        ORDER BY ds.created_at ASC
+      `);
+      res.json(shares as any[]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/documents/:id/shares", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { shared_with_user_id, permission = 'comment' } = req.body;
+      if (!shared_with_user_id) return res.status(400).json({ error: "shared_with_user_id required" });
+      const existing = await db.execute(sql`
+        SELECT id FROM document_member_shares WHERE document_id = ${req.params.id} AND shared_with_user_id = ${shared_with_user_id}
+      `);
+      if ((existing as any[]).length > 0) {
+        const result = await db.execute(sql`
+          UPDATE document_member_shares SET permission = ${permission}
+          WHERE document_id = ${req.params.id} AND shared_with_user_id = ${shared_with_user_id} AND account_id = ${req.accountId}
+          RETURNING *
+        `);
+        return res.json((result as any[])[0]);
+      }
+      const result = await db.execute(sql`
+        INSERT INTO document_member_shares (document_id, account_id, shared_with_user_id, permission, created_by)
+        VALUES (${req.params.id}, ${req.accountId}, ${shared_with_user_id}, ${permission}, ${req.userId})
+        RETURNING *
+      `);
+      res.json((result as any[])[0]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/documents/:id/shares/:shareId", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { permission } = req.body;
+      if (!['read', 'comment', 'edit'].includes(permission)) return res.status(400).json({ error: "Invalid permission" });
+      const result = await db.execute(sql`
+        UPDATE document_member_shares SET permission = ${permission}
+        WHERE id = ${req.params.shareId} AND document_id = ${req.params.id} AND account_id = ${req.accountId}
+        RETURNING *
+      `);
+      res.json((result as any[])[0]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/documents/:id/shares/:shareId", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      await db.execute(sql`
+        DELETE FROM document_member_shares
+        WHERE id = ${req.params.shareId} AND document_id = ${req.params.id} AND account_id = ${req.accountId}
+      `);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // DOCUMENT TEMPLATES - Protected Routes
   // ============================================
 
