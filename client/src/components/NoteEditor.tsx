@@ -20,6 +20,7 @@ import { SlashCommands } from '@/components/SlashCommands';
 import { Details, DetailsSummary, DetailsContent } from '@/components/DetailsExtension';
 import { MermaidBlock, hasMermaidBlock, extractMermaidBlocks } from '@/components/MermaidBlock';
 import { SearchReplaceExtension, searchPluginKey } from '@/components/SearchReplaceExtension';
+import { TextSelection } from 'prosemirror-state';
 import { 
   Bold, 
   Italic, 
@@ -667,8 +668,21 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
 
   useEffect(() => {
     if (!editor) return;
-    const tr = editor.state.tr.setMeta(searchPluginKey, { term: findTerm ?? '', currentIndex: 0 });
+    let tr = editor.state.tr.setMeta(searchPluginKey, { term: findTerm ?? '', currentIndex: 0 });
     editor.view.dispatch(tr);
+    // After dispatch, matches are computed — scroll to first match if any
+    requestAnimationFrame(() => {
+      const ps = searchPluginKey.getState(editor.view.state);
+      if (ps && ps.matches.length > 0) {
+        const first = ps.matches[0];
+        try {
+          const scrollTr = editor.state.tr
+            .setSelection(TextSelection.create(editor.state.doc, first.from, first.to))
+            .scrollIntoView();
+          editor.view.dispatch(scrollTr);
+        } catch (_) {}
+      }
+    });
     setSearchVersion(v => v + 1);
   }, [editor, findTerm]);
 
@@ -682,7 +696,16 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     const ps = searchPluginKey.getState(editor.view.state);
     if (!ps || ps.matches.length === 0) return;
     const next = (ps.currentIndex + delta + ps.matches.length) % ps.matches.length;
-    const tr = editor.state.tr.setMeta(searchPluginKey, { currentIndex: next });
+    const match = ps.matches[next];
+    let tr = editor.state.tr.setMeta(searchPluginKey, { currentIndex: next });
+    if (match) {
+      // Move the ProseMirror selection to the match and request scroll into view
+      try {
+        tr = tr.setSelection(TextSelection.create(tr.doc, match.from, match.to)).scrollIntoView();
+      } catch (_) {
+        // ignore if positions are out of range
+      }
+    }
     editor.view.dispatch(tr);
     setSearchVersion(v => v + 1);
   }

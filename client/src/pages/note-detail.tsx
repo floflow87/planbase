@@ -1775,7 +1775,9 @@ export default function NoteDetail() {
             return dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) + ' à ' + dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
           };
           const topLevelComments = noteComments.filter((c: any) => !c.parent_id);
-          const getReplies = (parentId: string) => noteComments.filter((c: any) => c.parent_id === parentId);
+          const getReplies = (parentId: string) => noteComments
+            .filter((c: any) => c.parent_id === parentId)
+            .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
           const openCount = noteComments.filter((c: any) => c.status === 'open' && !c.parent_id).length + noteSuggestions.filter((s: any) => s.status === 'pending').length;
 
           const renderAvatar = (item: any, size = 'sm') => {
