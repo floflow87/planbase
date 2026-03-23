@@ -246,12 +246,22 @@ export default function IntegrationDetailPage() {
         variant: "success",
       });
     },
-    onError: () => {
-      toast({
-        title: "Erreur",
-        description: "Impossible de synchroniser Gmail.",
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      const isExpired = error?.message?.includes("invalid_grant");
+      if (isExpired) {
+        queryClient.invalidateQueries({ queryKey: ["/api/gmail/status"] });
+        toast({
+          title: "Connexion Gmail expirée",
+          description: "Votre autorisation Google a expiré. Reconnectez votre compte Gmail.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Erreur",
+          description: "Impossible de synchroniser Gmail.",
+          variant: "destructive",
+        });
+      }
     },
   });
 

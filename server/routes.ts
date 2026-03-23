@@ -7801,6 +7801,17 @@ app.get("/config/feature-flags", async (_req, res) => {
     } catch (error: unknown) {
       console.error("Gmail sync error:", error);
       const message = error instanceof Error ? error.message : "Unknown error";
+      // Handle invalid_grant: Google has revoked/expired the OAuth token
+      // Auto-disconnect Gmail so the UI shows a "reconnect" state
+      if (message.includes("invalid_grant") || message.includes("Token has been expired or revoked")) {
+        try {
+          await storage.setGmailEnabled(req.accountId!, req.userId!, false, true);
+        } catch (_) {}
+        return res.status(400).json({ 
+          error: "invalid_grant",
+          message: "Votre connexion Gmail a expiré. Veuillez reconnecter votre compte Google."
+        });
+      }
       res.status(500).json({ error: message });
     }
   });
@@ -7845,9 +7856,15 @@ app.get("/config/feature-flags", async (_req, res) => {
         gmailEnabled = true;
 
         const { syncGmail } = await import("./lib/gmail-sync");
-        syncGmail(req.accountId!, req.userId!).catch((err) =>
-          console.error("Background Gmail sync failed:", err instanceof Error ? err.message : err)
-        );
+        const bgAccountId = req.accountId!;
+        const bgUserId = req.userId!;
+        syncGmail(bgAccountId, bgUserId).catch(async (err) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error("Background Gmail sync failed:", msg);
+          if (msg.includes("invalid_grant") || msg.includes("Token has been expired or revoked")) {
+            try { await storage.setGmailEnabled(bgAccountId, bgUserId, false, true); } catch (_) {}
+          }
+        });
       }
 
       const messageCount = gmailEnabled ? await storage.getEmailMessageCount(req.accountId!, req.userId!) : 0;

@@ -460,8 +460,18 @@ export default function Emails() {
         className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
       });
     },
-    onError: () => {
-      toast({ title: "Erreur", description: "Synchronisation échouée.", variant: "destructive" });
+    onError: (error: any) => {
+      const isExpired = error?.message?.includes("invalid_grant");
+      if (isExpired) {
+        queryClient.invalidateQueries({ queryKey: ["/api/gmail/status"] });
+        toast({
+          title: "Connexion Gmail expirée",
+          description: "Votre autorisation Google a expiré. Reconnectez Gmail depuis les intégrations.",
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Erreur", description: "Synchronisation échouée.", variant: "destructive" });
+      }
     },
   });
 
