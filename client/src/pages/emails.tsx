@@ -35,7 +35,16 @@ import {
   ClipboardList, FileText, ChevronDown, Download, Building2,
   Tag, Clock, FileEdit, CheckCheck, Link2,
   Bold, Italic, Underline, ImageIcon,
+  Eye, FolderOpen, Loader2,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -359,6 +368,10 @@ export default function Emails() {
   const [createNoteTitle, setCreateNoteTitle] = useState("");
   const [createNoteMsg, setCreateNoteMsg] = useState<EmailMessage | null>(null);
   const [attachmentEmail, setAttachmentEmail] = useState<string | null>(null);
+  const [previewAtt, setPreviewAtt] = useState<{ att: EmailAttachment; blobUrl: string; messageId: string } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState<string | null>(null);
+  const [saveToFilesAtt, setSaveToFilesAtt] = useState<{ messageId: string; att: EmailAttachment } | null>(null);
+  const [saveToFilesFolderId, setSaveToFilesFolderId] = useState<string>("root");
   const [tagFilter, setTagFilter] = useState<string>("all");
   const [syncInterval, setSyncIntervalState] = useState<number>(0);
   const [postSendOpen, setPostSendOpen] = useState(false);
@@ -406,6 +419,67 @@ export default function Emails() {
       return res.json();
     },
     enabled: !!attachmentEmail,
+  });
+
+  const { data: folders = [] } = useQuery<{ id: string; name: string; parentId: string | null }[]>({
+    queryKey: ["/api/folders"],
+    enabled: !!saveToFilesAtt,
+  });
+
+  // Download attachment via fetch (to send auth headers) then trigger browser download
+  const downloadAttachmentBlob = async (messageId: string, att: EmailAttachment) => {
+    try {
+      const res = await apiRequest(
+        `/api/gmail/messages/${messageId}/attachments/${att.attachmentId}/download?filename=${encodeURIComponent(att.filename)}&mimeType=${encodeURIComponent(att.mimeType)}`,
+        "GET"
+      );
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = att.filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    } catch (e) {
+      toast({ title: "Erreur lors du téléchargement", variant: "destructive" });
+    }
+  };
+
+  // Fetch attachment as blob and open preview dialog
+  const openAttachmentPreview = async (messageId: string, att: EmailAttachment) => {
+    setPreviewLoading(att.attachmentId);
+    try {
+      const res = await apiRequest(
+        `/api/gmail/messages/${messageId}/attachments/${att.attachmentId}/download?filename=${encodeURIComponent(att.filename)}&mimeType=${encodeURIComponent(att.mimeType)}&inline=1`,
+        "GET"
+      );
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      setPreviewAtt({ att, blobUrl: url, messageId });
+    } catch (e) {
+      toast({ title: "Erreur lors du chargement de l'aperçu", variant: "destructive" });
+    } finally {
+      setPreviewLoading(null);
+    }
+  };
+
+  const saveToFilesMutation = useMutation({
+    mutationFn: async ({ messageId, att, folderId }: { messageId: string; att: EmailAttachment; folderId: string }) => {
+      const res = await apiRequest(
+        `/api/gmail/messages/${messageId}/attachments/${att.attachmentId}/save-to-files`,
+        "POST",
+        { folderId: folderId === "root" ? null : folderId, filename: att.filename, mimeType: att.mimeType }
+      );
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Fichier sauvegardé dans le module Fichiers", variant: "success" });
+      setSaveToFilesAtt(null);
+      setSaveToFilesFolderId("root");
+      queryClient.invalidateQueries({ queryKey: ["/api/files"] });
+    },
+    onError: (e: any) => toast({ title: "Erreur : " + e.message, variant: "destructive" }),
   });
 
   const { data: taskColumns = [] } = useQuery<TaskColumn[]>({
@@ -1668,21 +1742,54 @@ export default function Emails() {
                     </div>
                   ) : (
                     <div className="flex flex-wrap gap-1.5 mt-1">
-                      {attachments.map((att) => (
-                        <div key={att.attachmentId} className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-border bg-muted/40 text-[10px] max-w-[200px]">
-                          <Paperclip className="w-2.5 h-2.5 shrink-0 text-muted-foreground" />
-                          <span className="truncate text-foreground">{att.filename}</span>
-                          <span className="shrink-0 text-muted-foreground">{att.size > 1024 * 1024 ? `${(att.size / 1024 / 1024).toFixed(1)}MB` : att.size > 1024 ? `${Math.round(att.size / 1024)}KB` : `${att.size}B`}</span>
-                          <a
-                            href={`/api/gmail/messages/${selected.id}/attachments/${att.attachmentId}/download?filename=${encodeURIComponent(att.filename)}`}
-                            download={att.filename}
-                            className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                            title="Télécharger"
-                          >
-                            <Download className="w-2.5 h-2.5" />
-                          </a>
-                        </div>
-                      ))}
+                      {attachments.map((att) => {
+                        const isImage = att.mimeType.startsWith("image/");
+                        const isPdf = att.mimeType === "application/pdf";
+                        const canPreview = isImage || isPdf;
+                        const sizeLabel = att.size > 1024 * 1024
+                          ? `${(att.size / 1024 / 1024).toFixed(1)}MB`
+                          : att.size > 1024
+                          ? `${Math.round(att.size / 1024)}KB`
+                          : `${att.size}B`;
+                        return (
+                          <div key={att.attachmentId} className="flex items-center gap-1 px-2 py-1 rounded-md border border-border bg-muted/40 text-[10px]">
+                            <Paperclip className="w-2.5 h-2.5 shrink-0 text-muted-foreground" />
+                            <span className="truncate text-foreground max-w-[120px]">{att.filename}</span>
+                            <span className="shrink-0 text-muted-foreground">{sizeLabel}</span>
+                            {/* Preview button for images and PDFs */}
+                            {canPreview && (
+                              <button
+                                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                                title="Aperçu"
+                                onClick={() => openAttachmentPreview(selected.id, att)}
+                                data-testid={`button-preview-att-${att.attachmentId}`}
+                              >
+                                {previewLoading === att.attachmentId
+                                  ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                                  : <Eye className="w-2.5 h-2.5" />}
+                              </button>
+                            )}
+                            {/* Download button */}
+                            <button
+                              className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                              title="Télécharger"
+                              onClick={() => downloadAttachmentBlob(selected.id, att)}
+                              data-testid={`button-download-att-${att.attachmentId}`}
+                            >
+                              <Download className="w-2.5 h-2.5" />
+                            </button>
+                            {/* Save to files button */}
+                            <button
+                              className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                              title="Enregistrer dans Fichiers"
+                              onClick={() => { setSaveToFilesAtt({ messageId: selected.id, att }); setSaveToFilesFolderId("root"); }}
+                              data-testid={`button-save-att-${att.attachmentId}`}
+                            >
+                              <FolderOpen className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
                       {attachments.length === 0 && (
                         <span className="text-[10px] text-muted-foreground">Aucune pièce jointe trouvée</span>
                       )}
@@ -2186,6 +2293,111 @@ export default function Emails() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Attachment Preview Dialog */}
+      <Dialog open={!!previewAtt} onOpenChange={(o) => { if (!o) { if (previewAtt) URL.revokeObjectURL(previewAtt.blobUrl); setPreviewAtt(null); } }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col bg-white dark:bg-gray-900">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Paperclip className="w-4 h-4" />
+              {previewAtt?.att.filename}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 overflow-hidden rounded-md bg-muted/20">
+            {previewAtt && (
+              previewAtt.att.mimeType.startsWith("image/") ? (
+                <img
+                  src={previewAtt.blobUrl}
+                  alt={previewAtt.att.filename}
+                  className="max-w-full max-h-[65vh] mx-auto object-contain block"
+                />
+              ) : previewAtt.att.mimeType === "application/pdf" ? (
+                <iframe
+                  src={previewAtt.blobUrl}
+                  title={previewAtt.att.filename}
+                  className="w-full h-[65vh] border-0"
+                />
+              ) : null
+            )}
+          </div>
+          <DialogFooter className="gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { if (previewAtt) downloadAttachmentBlob(previewAtt.messageId, previewAtt.att); }}
+            >
+              <Download className="w-3.5 h-3.5 mr-1.5" />
+              Télécharger
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => { if (previewAtt) URL.revokeObjectURL(previewAtt.blobUrl); setPreviewAtt(null); }}>
+              Fermer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Save to Files Dialog */}
+      <Dialog open={!!saveToFilesAtt} onOpenChange={(o) => { if (!o) setSaveToFilesAtt(null); }}>
+        <DialogContent className="max-w-sm bg-white dark:bg-gray-900">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <FolderOpen className="w-4 h-4" />
+              Enregistrer dans Fichiers
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/30 border text-xs">
+              <Paperclip className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+              <span className="truncate font-medium">{saveToFilesAtt?.att.filename}</span>
+              <span className="shrink-0 text-muted-foreground">
+                {saveToFilesAtt && (saveToFilesAtt.att.size > 1024 * 1024
+                  ? `${(saveToFilesAtt.att.size / 1024 / 1024).toFixed(1)}MB`
+                  : saveToFilesAtt.att.size > 1024
+                  ? `${Math.round(saveToFilesAtt.att.size / 1024)}KB`
+                  : `${saveToFilesAtt.att.size}B`)}
+              </span>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Choisir un dossier de destination</label>
+              <Select value={saveToFilesFolderId} onValueChange={setSaveToFilesFolderId}>
+                <SelectTrigger className="text-xs h-8" data-testid="select-save-folder">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white dark:bg-gray-900">
+                  <SelectItem value="root">Racine (aucun dossier)</SelectItem>
+                  {folders.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setSaveToFilesAtt(null)}>
+              Annuler
+            </Button>
+            <Button
+              size="sm"
+              disabled={saveToFilesMutation.isPending}
+              onClick={() => {
+                if (saveToFilesAtt) {
+                  saveToFilesMutation.mutate({
+                    messageId: saveToFilesAtt.messageId,
+                    att: saveToFilesAtt.att,
+                    folderId: saveToFilesFolderId,
+                  });
+                }
+              }}
+              data-testid="button-confirm-save-to-files"
+            >
+              {saveToFilesMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <FolderOpen className="w-3.5 h-3.5 mr-1" />}
+              Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

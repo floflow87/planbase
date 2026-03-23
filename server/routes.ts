@@ -8355,6 +8355,8 @@ app.get("/config/feature-flags", async (_req, res) => {
     try {
       const { messageId, attachmentId } = req.params;
       const filename = (req.query.filename as string) || "attachment";
+      const mimeType = (req.query.mimeType as string) || "application/octet-stream";
+      const inline = req.query.inline === "1";
       const { getGmailServiceForUser } = await import("./lib/gmail-sync");
       const gmailService = await getGmailServiceForUser(req.accountId!, req.userId!);
       if (!gmailService) return res.status(403).json({ error: "Gmail not connected" });
@@ -8368,9 +8370,59 @@ app.get("/config/feature-flags", async (_req, res) => {
       const data = attachment.data.data;
       if (!data) return res.status(404).json({ error: "Attachment not found" });
       const buffer = Buffer.from(data, "base64url");
-      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-      res.setHeader("Content-Type", "application/octet-stream");
+      const disposition = inline ? `inline; filename="${filename}"` : `attachment; filename="${filename}"`;
+      res.setHeader("Content-Disposition", disposition);
+      res.setHeader("Content-Type", inline ? mimeType : "application/octet-stream");
+      res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
       res.send(buffer);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Save Gmail attachment to the files module
+  app.post("/api/gmail/messages/:messageId/attachments/:attachmentId/save-to-files", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { messageId, attachmentId } = req.params;
+      const { folderId = null, filename, mimeType = "application/octet-stream" } = req.body;
+      const { getGmailServiceForUser } = await import("./lib/gmail-sync");
+      const { supabaseAdmin } = await import("./lib/supabase");
+      const gmailService = await getGmailServiceForUser(req.accountId!, req.userId!);
+      if (!gmailService) return res.status(403).json({ error: "Gmail not connected" });
+      const dbMsg = await storage.getEmailMessage(req.accountId!, req.userId!, messageId);
+      if (!dbMsg) return res.status(404).json({ error: "Message not found" });
+      const attachment = await gmailService.gmail.users.messages.attachments.get({
+        userId: "me",
+        messageId: dbMsg.gmailMessageId,
+        id: attachmentId,
+      });
+      const data = attachment.data.data;
+      if (!data) return res.status(404).json({ error: "Attachment not found" });
+      const buffer = Buffer.from(data, "base64url");
+      const safeName = filename || `gmail-attachment-${Date.now()}`;
+      const timestamp = Date.now();
+      const storagePath = `accounts/${req.accountId}/folders/${folderId || "root"}/${timestamp}-${safeName}`;
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from("planbase-files")
+        .upload(storagePath, buffer, { contentType: mimeType, upsert: false });
+      if (uploadError) return res.status(500).json({ error: "Erreur upload: " + uploadError.message });
+      const { data: urlData } = supabaseAdmin.storage.from("planbase-files").getPublicUrl(storagePath);
+      const newFile = await storage.createFile({
+        accountId: req.accountId!,
+        createdBy: req.userId || undefined,
+        folderId: folderId || null,
+        kind: "upload",
+        name: safeName,
+        entityId: null,
+        clientId: null,
+        projectId: null,
+        taskId: null,
+        storageUrl: storagePath,
+        mimeType,
+        fileSize: buffer.length,
+        meta: { storageUrl: urlData?.publicUrl, source: "gmail", gmailMessageId: dbMsg.gmailMessageId },
+      } as any);
+      res.json(newFile);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
