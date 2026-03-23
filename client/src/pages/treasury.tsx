@@ -700,6 +700,48 @@ function TxPanel({
   );
 }
 
+// ── Plan cell component (click-to-select, dbl-click-to-edit, fill handle) ─────
+
+function PlanCell({
+  lineId, periodKey, value, isFillRange, isSelected, hasValue, colW, fmt,
+  onSelect, onStartEdit, onFillDragStart,
+}: {
+  lineId: string; periodKey: string; value: number; isFillRange: boolean;
+  isSelected: boolean; hasValue: boolean; colW: number;
+  fmt: (n: number) => string;
+  onSelect: () => void; onStartEdit: () => void; onFillDragStart: () => void;
+}) {
+  return (
+    <div className="relative group/cell">
+      <button
+        onClick={onSelect}
+        onDoubleClick={onStartEdit}
+        className={cn(
+          "w-full text-right text-[11px] tabular-nums px-1 py-1 rounded transition-colors block outline-none",
+          isFillRange ? "text-blue-700 dark:text-blue-300 font-medium" : "",
+          isSelected ? "ring-1 ring-primary bg-primary/10 text-foreground" : "hover:bg-muted/60"
+        )}
+        style={{ minWidth: colW - 8 }}
+        data-testid={`cell-plan-${lineId}-${periodKey}`}
+      >
+        {value !== 0 ? (
+          <span>{fmt(value)}</span>
+        ) : (
+          <span className={isSelected ? "text-muted-foreground/60" : "text-border/50"}>—</span>
+        )}
+      </button>
+      {hasValue && (
+        <div
+          onMouseDown={(e) => { e.preventDefault(); onFillDragStart(); }}
+          className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 bg-primary rounded-sm cursor-crosshair opacity-0 group-hover/cell:opacity-100 transition-opacity z-10 flex items-center justify-center"
+          title="Glisser pour étirer la valeur"
+          data-testid={`fill-handle-${lineId}-${periodKey}`}
+        />
+      )}
+    </div>
+  );
+}
+
 // ── Plan de trésorerie View ────────────────────────────────────────────────────
 
 function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; name: string }>; flows: TreasuryFlow[] }) {
@@ -708,6 +750,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     new Set(RUBRIQUES.map((r) => r.key))
   );
   const [editingCell, setEditingCell] = useState<{ lineId: string; periodKey: string } | null>(null);
+  const [selectedCell, setSelectedCell] = useState<{ lineId: string; periodKey: string } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [addingToRubrique, setAddingToRubrique] = useState<string | null>(null);
   const [newLineLabel, setNewLineLabel] = useState("");
@@ -719,6 +762,11 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   const [editingLineLabel, setEditingLineLabel] = useState("");
   const [fillDrag, setFillDrag] = useState<{ lineId: string; startIdx: number; value: number } | null>(null);
   const [fillEndIdx, setFillEndIdx] = useState<number | null>(null);
+
+  // Undo/redo history
+  type CellSnapshot = { lineId: string; periodKey: string; prevAmount: number; nextAmount: number };
+  const [undoStack, setUndoStack] = useState<CellSnapshot[][]>([]);
+  const [redoStack, setRedoStack] = useState<CellSnapshot[][]>([]);
 
   // Plan scenarios
   const [activePlanScenarioId, setActivePlanScenarioId] = useState<string | null>(null);
@@ -995,17 +1043,24 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     const onMouseUp = () => {
       if (fillDrag && fillEndIdx !== null && fillEndIdx > fillDrag.startIdx) {
         const cells: Array<{ lineId: string; periodKey: string; amount: number }> = [];
+        const snapshots: Array<{ lineId: string; periodKey: string; prevAmount: number; nextAmount: number }> = [];
         const ps = periods;
         for (let i = fillDrag.startIdx + 1; i <= fillEndIdx; i++) {
           if (ps[i]) {
+            const prevAmount = localCells[fillDrag.lineId]?.[ps[i].key] ?? 0;
             cells.push({ lineId: fillDrag.lineId, periodKey: ps[i].key, amount: fillDrag.value });
+            snapshots.push({ lineId: fillDrag.lineId, periodKey: ps[i].key, prevAmount, nextAmount: fillDrag.value });
             setLocalCells((lc) => ({
               ...lc,
               [fillDrag.lineId]: { ...(lc[fillDrag.lineId] ?? {}), [ps[i].key]: fillDrag.value },
             }));
           }
         }
-        if (cells.length > 0) saveCellMutation.mutate(cells);
+        if (cells.length > 0) {
+          saveCellMutation.mutate(cells);
+          setUndoStack((prev) => [...prev, snapshots]);
+          setRedoStack([]);
+        }
       }
       setFillDrag(null);
       setFillEndIdx(null);
@@ -1055,10 +1110,102 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
 
   const handleCellSave = (lineId: string, periodKey: string) => {
     const amount = evalFormula(editValue);
+    const prevAmount = getCellValue(lineId, periodKey);
     setLocalCells((prev) => ({ ...prev, [lineId]: { ...(prev[lineId] ?? {}), [periodKey]: amount } }));
     saveCellMutation.mutate([{ lineId, periodKey, amount }]);
     setEditingCell(null);
+    if (prevAmount !== amount) {
+      setUndoStack((prev) => [...prev, [{ lineId, periodKey, prevAmount, nextAmount: amount }]]);
+      setRedoStack([]);
+    }
   };
+
+  const handleUndo = () => {
+    if (undoStack.length === 0) return;
+    const entries = undoStack[undoStack.length - 1];
+    const cells = entries.map((e) => ({ lineId: e.lineId, periodKey: e.periodKey, amount: e.prevAmount }));
+    setLocalCells((prev) => {
+      const next = { ...prev };
+      for (const e of entries) {
+        next[e.lineId] = { ...(next[e.lineId] ?? {}), [e.periodKey]: e.prevAmount };
+      }
+      return next;
+    });
+    saveCellMutation.mutate(cells);
+    setUndoStack((prev) => prev.slice(0, -1));
+    setRedoStack((prev) => [...prev, entries]);
+  };
+
+  const handleRedo = () => {
+    if (redoStack.length === 0) return;
+    const entries = redoStack[redoStack.length - 1];
+    const cells = entries.map((e) => ({ lineId: e.lineId, periodKey: e.periodKey, amount: e.nextAmount }));
+    setLocalCells((prev) => {
+      const next = { ...prev };
+      for (const e of entries) {
+        next[e.lineId] = { ...(next[e.lineId] ?? {}), [e.periodKey]: e.nextAmount };
+      }
+      return next;
+    });
+    saveCellMutation.mutate(cells);
+    setRedoStack((prev) => prev.slice(0, -1));
+    setUndoStack((prev) => [...prev, entries]);
+  };
+
+  const handleDeleteSelectedCell = () => {
+    if (!selectedCell || editingCell) return;
+    const { lineId, periodKey } = selectedCell;
+    const prevAmount = getCellValue(lineId, periodKey);
+    if (prevAmount === 0) return;
+    setLocalCells((prev) => ({ ...prev, [lineId]: { ...(prev[lineId] ?? {}), [periodKey]: 0 } }));
+    saveCellMutation.mutate([{ lineId, periodKey, amount: 0 }]);
+    setUndoStack((prev) => [...prev, [{ lineId, periodKey, prevAmount, nextAmount: 0 }]]);
+    setRedoStack([]);
+  };
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept if user is typing in an input/textarea/contenteditable
+      const tag = (e.target as HTMLElement).tagName;
+      const isInput = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable;
+
+      // Ctrl+Z = undo (always, even in inputs except native undo)
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        if (isInput) return; // let the browser handle native undo in inputs
+        e.preventDefault();
+        handleUndo();
+        return;
+      }
+      // Ctrl+Y or Ctrl+Shift+Z = redo
+      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+        if (isInput) return;
+        e.preventDefault();
+        handleRedo();
+        return;
+      }
+      // Delete/Suppr = clear selected cell (only when not editing)
+      if ((e.key === "Delete") && !isInput && selectedCell && !editingCell) {
+        e.preventDefault();
+        handleDeleteSelectedCell();
+        return;
+      }
+      // Enter or F2 = open editor on selected cell
+      if ((e.key === "Enter" || e.key === "F2") && !isInput && selectedCell && !editingCell) {
+        e.preventDefault();
+        const val = getCellValue(selectedCell.lineId, selectedCell.periodKey);
+        setEditingCell(selectedCell);
+        setEditValue(val !== 0 ? String(val) : "");
+        setSelectedCell(null);
+        return;
+      }
+      // Escape = deselect cell
+      if (e.key === "Escape" && selectedCell && !editingCell) {
+        setSelectedCell(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [undoStack, redoStack, selectedCell, editingCell]);
 
   if (isLoading) {
     return (
@@ -1524,35 +1671,26 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                                       autoFocus
                                     />
                                   ) : (
-                                    <div className="relative group/cell">
-                                      <button
-                                        onClick={() => {
-                                          setEditingCell({ lineId: line.id, periodKey: p.key });
-                                          setEditValue(value !== 0 ? String(value) : "");
-                                        }}
-                                        className={cn("w-full text-right text-[11px] tabular-nums px-1 py-1 rounded transition-colors block", isFillRange ? "text-blue-700 dark:text-blue-300 font-medium" : "hover:bg-muted/60")}
-                                        style={{ minWidth: COL_W - 8 }}
-                                        data-testid={`cell-plan-${line.id}-${p.key}`}
-                                      >
-                                        {value !== 0 ? (
-                                          <span>{fmt(value)}</span>
-                                        ) : (
-                                          <span className="text-border/50">—</span>
-                                        )}
-                                      </button>
-                                      {hasValue && !isEditing && (
-                                        <div
-                                          onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            setFillDrag({ lineId: line.id, startIdx: pIdx, value: getCellValue(line.id, p.key) });
-                                            setFillEndIdx(pIdx);
-                                          }}
-                                          className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 bg-primary rounded-sm cursor-crosshair opacity-0 group-hover/cell:opacity-100 transition-opacity z-10 flex items-center justify-center"
-                                          title="Glisser pour étirer la valeur"
-                                          data-testid={`fill-handle-${line.id}-${p.key}`}
-                                        />
-                                      )}
-                                    </div>
+                                    <PlanCell
+                                      lineId={line.id}
+                                      periodKey={p.key}
+                                      value={value}
+                                      isFillRange={isFillRange}
+                                      isSelected={selectedCell?.lineId === line.id && selectedCell?.periodKey === p.key}
+                                      hasValue={hasValue}
+                                      colW={COL_W}
+                                      fmt={fmt}
+                                      onSelect={() => setSelectedCell({ lineId: line.id, periodKey: p.key })}
+                                      onStartEdit={() => {
+                                        setEditingCell({ lineId: line.id, periodKey: p.key });
+                                        setEditValue(value !== 0 ? String(value) : "");
+                                        setSelectedCell(null);
+                                      }}
+                                      onFillDragStart={() => {
+                                        setFillDrag({ lineId: line.id, startIdx: pIdx, value: getCellValue(line.id, p.key) });
+                                        setFillEndIdx(pIdx);
+                                      }}
+                                    />
                                   )}
                                 </td>
                               );
