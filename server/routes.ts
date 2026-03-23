@@ -4616,6 +4616,104 @@ app.get("/config/feature-flags", async (_req, res) => {
   });
 
   // ============================================
+  // NOTE SHARES - Per-member sharing with permissions
+  // ============================================
+
+  // List team members (simplified - for share autocomplete)
+  app.get("/api/team-members", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const members = await db.execute(sql`
+        SELECT au.id, au.email, au.first_name, au.last_name, au.avatar_url, au.role
+        FROM app_users au
+        WHERE au.account_id = ${req.accountId}
+          AND au.id != ${req.userId}
+        ORDER BY au.first_name, au.last_name, au.email
+      `);
+      res.json(members as any[]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // GET /api/notes/:id/shares - list all shares for a note
+  app.get("/api/notes/:id/shares", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const shares = await db.execute(sql`
+        SELECT ns.id, ns.note_id, ns.shared_with_user_id, ns.permission, ns.created_at,
+               au.email, au.first_name, au.last_name, au.avatar_url
+        FROM note_shares ns
+        JOIN app_users au ON au.id = ns.shared_with_user_id
+        WHERE ns.note_id = ${req.params.id}
+          AND ns.account_id = ${req.accountId}
+        ORDER BY ns.created_at ASC
+      `);
+      res.json(shares as any[]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // POST /api/notes/:id/shares - add a share
+  app.post("/api/notes/:id/shares", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { shared_with_user_id, permission = 'comment' } = req.body;
+      if (!shared_with_user_id) return res.status(400).json({ error: "shared_with_user_id required" });
+      if (!['read', 'comment', 'edit'].includes(permission)) return res.status(400).json({ error: "Invalid permission" });
+
+      const existing = await db.execute(sql`
+        SELECT id FROM note_shares WHERE note_id = ${req.params.id} AND shared_with_user_id = ${shared_with_user_id}
+      `);
+      if ((existing as any[]).length > 0) {
+        // Update existing permission
+        const updated = await db.execute(sql`
+          UPDATE note_shares SET permission = ${permission}
+          WHERE note_id = ${req.params.id} AND shared_with_user_id = ${shared_with_user_id} AND account_id = ${req.accountId}
+          RETURNING *
+        `);
+        return res.json((updated as any[])[0]);
+      }
+
+      const result = await db.execute(sql`
+        INSERT INTO note_shares (note_id, account_id, shared_with_user_id, permission, created_by)
+        VALUES (${req.params.id}, ${req.accountId}, ${shared_with_user_id}, ${permission}, ${req.userId})
+        RETURNING *
+      `);
+      res.json((result as any[])[0]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // PATCH /api/notes/:id/shares/:shareId - update permission
+  app.patch("/api/notes/:id/shares/:shareId", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { permission } = req.body;
+      if (!['read', 'comment', 'edit'].includes(permission)) return res.status(400).json({ error: "Invalid permission" });
+      const result = await db.execute(sql`
+        UPDATE note_shares SET permission = ${permission}
+        WHERE id = ${req.params.shareId} AND note_id = ${req.params.id} AND account_id = ${req.accountId}
+        RETURNING *
+      `);
+      res.json((result as any[])[0]);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // DELETE /api/notes/:id/shares/:shareId - remove a share
+  app.delete("/api/notes/:id/shares/:shareId", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      await db.execute(sql`
+        DELETE FROM note_shares
+        WHERE id = ${req.params.shareId} AND note_id = ${req.params.id} AND account_id = ${req.accountId}
+      `);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // DOCUMENT TEMPLATES - Protected Routes
   // ============================================
 

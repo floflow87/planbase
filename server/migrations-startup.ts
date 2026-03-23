@@ -2687,6 +2687,39 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Note comments parent_id added");
 
+    // Create note_shares table for per-member sharing with permission levels
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS note_shares (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        note_id UUID,
+        account_id UUID,
+        shared_with_user_id UUID,
+        permission TEXT NOT NULL DEFAULT 'comment' CHECK (permission IN ('read', 'comment', 'edit')),
+        created_by UUID,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+    // Add columns if missing (handles partial previous migrations)
+    await db.execute(sql`ALTER TABLE note_shares ADD COLUMN IF NOT EXISTS note_id UUID`);
+    await db.execute(sql`ALTER TABLE note_shares ADD COLUMN IF NOT EXISTS account_id UUID`);
+    await db.execute(sql`ALTER TABLE note_shares ADD COLUMN IF NOT EXISTS shared_with_user_id UUID`);
+    await db.execute(sql`ALTER TABLE note_shares ADD COLUMN IF NOT EXISTS permission TEXT NOT NULL DEFAULT 'comment'`).catch(() => {});
+    await db.execute(sql`ALTER TABLE note_shares ADD COLUMN IF NOT EXISTS created_by UUID`);
+    // Add unique constraint if not exists
+    await db.execute(sql`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'note_shares_note_id_shared_with_user_id_key'
+        ) THEN
+          ALTER TABLE note_shares ADD CONSTRAINT note_shares_note_id_shared_with_user_id_key UNIQUE (note_id, shared_with_user_id);
+        END IF;
+      END $$
+    `).catch(() => {});
+    // Indexes
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS note_shares_note_idx ON note_shares(note_id)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS note_shares_user_idx ON note_shares(shared_with_user_id)`);
+    console.log("✅ Note shares table created");
+
     // ── TRIAL CLEANUP: reset auto-migration trials that were never explicitly started ──
     // Old auto-migration set trial_ends_at = created_at + 7 days for ALL accounts.
     // Those trials are now expired (created_at is in the past) and were never started by the user.

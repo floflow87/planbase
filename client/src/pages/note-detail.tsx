@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation, Link } from "wouter";
-import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink, MessageSquare, GitPullRequest, CheckCircle2, XCircle, CornerDownRight, Pencil, Reply } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink, MessageSquare, GitPullRequest, CheckCircle2, XCircle, CornerDownRight, Pencil, Reply, UserPlus } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
@@ -93,7 +93,10 @@ export default function NoteDetail() {
   const [editCommentInput, setEditCommentInput] = useState("");
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyInput, setReplyInput] = useState("");
-  const [sharePopoverOpen, setSharePopoverOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareSearchQuery, setShareSearchQuery] = useState("");
+  const [shareNewPermission, setShareNewPermission] = useState<"read" | "comment" | "edit">("comment");
+  const [shareSelectedUser, setShareSelectedUser] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entitySelectorOpen, setEntitySelectorOpen] = useState(false);
   const [entitySelectorTab, setEntitySelectorTab] = useState<"project" | "client" | "ticket">("project");
@@ -450,6 +453,42 @@ export default function NoteDetail() {
       return r.json();
     },
     onSuccess: () => { refetchComments(); setReplyingToId(null); setReplyInput(""); },
+  });
+
+  // Note shares queries and mutations
+  const { data: noteShares = [], refetch: refetchShares } = useQuery<any[]>({
+    queryKey: ["/api/notes", id, "shares"],
+    queryFn: async () => { const r = await apiRequest(`/api/notes/${id}/shares`, "GET"); return r.json(); },
+    enabled: !!id && shareDialogOpen,
+  });
+
+  const { data: teamMembers = [] } = useQuery<any[]>({
+    queryKey: ["/api/team-members"],
+    queryFn: async () => { const r = await apiRequest("/api/team-members", "GET"); return r.json(); },
+    enabled: shareDialogOpen,
+  });
+
+  const addShareMutation = useMutation({
+    mutationFn: async ({ shared_with_user_id, permission }: { shared_with_user_id: string; permission: string }) => {
+      const r = await apiRequest(`/api/notes/${id}/shares`, "POST", { shared_with_user_id, permission });
+      return r.json();
+    },
+    onSuccess: () => { refetchShares(); setShareSelectedUser(null); setShareSearchQuery(""); toast({ title: "Membre invité", variant: "success" }); },
+  });
+
+  const updateShareMutation = useMutation({
+    mutationFn: async ({ shareId, permission }: { shareId: string; permission: string }) => {
+      const r = await apiRequest(`/api/notes/${id}/shares/${shareId}`, "PATCH", { permission });
+      return r.json();
+    },
+    onSuccess: () => refetchShares(),
+  });
+
+  const removeShareMutation = useMutation({
+    mutationFn: async (shareId: string) => {
+      await apiRequest(`/api/notes/${id}/shares/${shareId}`, "DELETE");
+    },
+    onSuccess: () => { refetchShares(); toast({ title: "Accès retiré", variant: "default" }); },
   });
 
   const createSuggestionMutation = useMutation({
@@ -1284,85 +1323,197 @@ export default function NoteDetail() {
                     ) : null}
               </div>
 
-              {/* Share Popover */}
-              <Popover open={sharePopoverOpen} onOpenChange={setSharePopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5 text-xs"
-                    data-testid="button-share"
-                  >
-                    <Share2 className="w-3.5 h-3.5" />
-                    Partager
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="end" className="w-72 p-4 bg-white dark:bg-gray-900 shadow-lg">
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-sm font-medium mb-0.5">Partager cette note</p>
-                      <p className="text-xs text-muted-foreground">Définissez qui peut consulter ce document.</p>
-                    </div>
-                    <div className="space-y-1.5">
-                      {/* Private */}
-                      <button
-                        type="button"
-                        className={`w-full flex items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs transition-colors ${visibility === 'private' ? 'bg-violet-50 dark:bg-violet-900/30 ring-1 ring-violet-300 dark:ring-violet-700' : 'hover:bg-muted/50'}`}
-                        onClick={() => {
-                          setVisibility('private');
-                          updateMutation.mutate({ visibility: 'private' });
-                          toast({ title: "Visibilité : Privée", variant: "default" });
-                        }}
-                        data-testid="share-option-private"
-                      >
-                        <EyeOff className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                        <div>
-                          <div className="font-medium">Privée</div>
-                          <div className="text-muted-foreground text-[11px]">Visible uniquement par vous</div>
+              {/* Share Dialog */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => setShareDialogOpen(true)}
+                data-testid="button-share"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                Partager
+                {noteShares.length > 0 && (
+                  <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[10px]">{noteShares.length}</Badge>
+                )}
+              </Button>
+
+              <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+                <DialogContent className="max-w-md bg-white dark:bg-gray-900">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Share2 className="w-4 h-4" />
+                      Partager la note
+                    </DialogTitle>
+                    <DialogDescription>
+                      Invitez des membres à consulter ou modifier ce document.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4">
+                    {/* Add member section */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Inviter un membre</p>
+                      {/* Member search */}
+                      {shareSelectedUser ? (
+                        <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-muted/30">
+                          <Avatar className="w-6 h-6">
+                            {shareSelectedUser.avatar_url && <AvatarImage src={shareSelectedUser.avatar_url} />}
+                            <AvatarFallback className="text-[10px]">{(shareSelectedUser.first_name?.[0] || shareSelectedUser.email?.[0] || '?').toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-xs flex-1 font-medium">
+                            {shareSelectedUser.first_name ? `${shareSelectedUser.first_name} ${shareSelectedUser.last_name || ''}`.trim() : shareSelectedUser.email}
+                          </span>
+                          <button type="button" onClick={() => setShareSelectedUser(null)} className="text-muted-foreground hover:text-foreground">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                        {visibility === 'private' && <Check className="w-3.5 h-3.5 ml-auto text-violet-600 flex-shrink-0" />}
-                      </button>
-                      {/* Team */}
-                      <button
-                        type="button"
-                        className={`w-full flex items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs transition-colors ${visibility === 'account' ? 'bg-violet-50 dark:bg-violet-900/30 ring-1 ring-violet-300 dark:ring-violet-700' : 'hover:bg-muted/50'}`}
-                        onClick={() => {
-                          setVisibility('account');
-                          updateMutation.mutate({ visibility: 'account' });
-                          toast({ title: "Visibilité : Équipe", variant: "default" });
-                        }}
-                        data-testid="share-option-team"
-                      >
-                        <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                        <div>
-                          <div className="font-medium">Équipe</div>
-                          <div className="text-muted-foreground text-[11px]">Tous les membres de votre espace</div>
-                        </div>
-                        {visibility === 'account' && <Check className="w-3.5 h-3.5 ml-auto text-violet-600 flex-shrink-0" />}
-                      </button>
+                      ) : (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-xs text-muted-foreground" data-testid="button-search-member">
+                              <UserPlus className="w-3.5 h-3.5" />
+                              Rechercher un membre...
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-72 p-0 bg-white dark:bg-gray-900" align="start">
+                            <Command>
+                              <CommandInput
+                                placeholder="Nom ou email..."
+                                value={shareSearchQuery}
+                                onValueChange={setShareSearchQuery}
+                              />
+                              <CommandList>
+                                <CommandEmpty>Aucun membre trouvé</CommandEmpty>
+                                <CommandGroup>
+                                  {teamMembers
+                                    .filter((m: any) => !noteShares.find((s: any) => s.shared_with_user_id === m.id))
+                                    .filter((m: any) => {
+                                      const q = shareSearchQuery.toLowerCase();
+                                      return !q || m.email?.toLowerCase().includes(q) ||
+                                        m.first_name?.toLowerCase().includes(q) ||
+                                        m.last_name?.toLowerCase().includes(q);
+                                    })
+                                    .map((m: any) => (
+                                      <CommandItem
+                                        key={m.id}
+                                        value={m.email}
+                                        onSelect={() => { setShareSelectedUser(m); setShareSearchQuery(""); }}
+                                        className="flex items-center gap-2 cursor-pointer"
+                                      >
+                                        <Avatar className="w-5 h-5">
+                                          {m.avatar_url && <AvatarImage src={m.avatar_url} />}
+                                          <AvatarFallback className="text-[9px]">{(m.first_name?.[0] || m.email?.[0] || '?').toUpperCase()}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="text-xs font-medium truncate">
+                                            {m.first_name ? `${m.first_name} ${m.last_name || ''}`.trim() : m.email}
+                                          </div>
+                                          {m.first_name && <div className="text-[10px] text-muted-foreground truncate">{m.email}</div>}
+                                        </div>
+                                      </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+
+                      {/* Permission selector + invite button */}
+                      <div className="flex gap-2">
+                        <Select value={shareNewPermission} onValueChange={(v: any) => setShareNewPermission(v)}>
+                          <SelectTrigger className="h-8 text-xs flex-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white dark:bg-gray-900">
+                            <SelectItem value="read">Lecture seule</SelectItem>
+                            <SelectItem value="comment">Commentaire</SelectItem>
+                            <SelectItem value="edit">Modification</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="sm"
+                          disabled={!shareSelectedUser || addShareMutation.isPending}
+                          onClick={() => {
+                            if (shareSelectedUser) {
+                              addShareMutation.mutate({ shared_with_user_id: shareSelectedUser.id, permission: shareNewPermission });
+                            }
+                          }}
+                          data-testid="button-invite-member"
+                        >
+                          Inviter
+                        </Button>
+                      </div>
                     </div>
+
+                    {/* Current shares list */}
+                    {noteShares.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Accès actuels</p>
+                        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                          {noteShares.map((share: any) => {
+                            const name = share.first_name ? `${share.first_name} ${share.last_name || ''}`.trim() : share.email;
+                            const initials = (share.first_name?.[0] || share.email?.[0] || '?').toUpperCase();
+                            return (
+                              <div key={share.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/30">
+                                <Avatar className="w-7 h-7">
+                                  {share.avatar_url && <AvatarImage src={share.avatar_url} />}
+                                  <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-xs font-medium truncate">{name}</div>
+                                  {share.first_name && <div className="text-[10px] text-muted-foreground truncate">{share.email}</div>}
+                                </div>
+                                <Select
+                                  value={share.permission}
+                                  onValueChange={(v) => updateShareMutation.mutate({ shareId: share.id, permission: v })}
+                                >
+                                  <SelectTrigger className="h-6 text-[10px] w-28 border-0 bg-muted/40">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-white dark:bg-gray-900">
+                                    <SelectItem value="read">Lecture</SelectItem>
+                                    <SelectItem value="comment">Commentaire</SelectItem>
+                                    <SelectItem value="edit">Modification</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="w-6 h-6 text-muted-foreground hover:text-destructive"
+                                  onClick={() => removeShareMutation.mutate(share.id)}
+                                  data-testid={`button-remove-share-${share.id}`}
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Copy link */}
                     <div className="border-t pt-3">
-                      <p className="text-[11px] text-muted-foreground mb-2">Lien direct vers ce document</p>
                       <Button
                         variant="outline"
                         size="sm"
                         className="w-full gap-2 text-xs"
                         onClick={() => {
-                          const url = window.location.href;
-                          navigator.clipboard.writeText(url).then(() => {
+                          navigator.clipboard.writeText(window.location.href).then(() => {
                             toast({ title: "Lien copié dans le presse-papier", variant: "default" });
-                            setSharePopoverOpen(false);
                           });
                         }}
                         data-testid="button-copy-link"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
-                        Copier le lien
+                        Copier le lien direct
                       </Button>
                     </div>
                   </div>
-                </PopoverContent>
-              </Popover>
+                </DialogContent>
+              </Dialog>
 
               {/* Collab Panel Toggle */}
               <Tooltip>
