@@ -19,7 +19,16 @@ import { runStartupMigrations } from "./migrations-startup";
 
 const app = express();
 
+app.set("etag", false);
+
 app.use(compression());
+
+app.use("/api", (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  next();
+});
 
 function getStrapiConfig() {
   const baseUrl = process.env.STRAPI_URL;
