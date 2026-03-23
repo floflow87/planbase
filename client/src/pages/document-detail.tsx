@@ -3,16 +3,16 @@ import { useParams, Link, useLocation } from "wouter";
 import {
   ArrowLeft, Trash2, Download, Save, Lock, LockOpen, MoreVertical,
   FolderKanban, ExternalLink, Users, CalendarDays, MessageSquare,
-  Lightbulb, Share2, X, Check, ChevronDown, CheckCircle2, Circle,
-  Trash, Send, UserPlus, PanelRight, GitPullRequest,
+  Share2, X, Check, Send, UserPlus, GitPullRequest, CheckCircle2,
+  CornerDownRight, XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Tooltip, TooltipContent, TooltipTrigger,
 } from "@/components/ui/tooltip";
@@ -49,68 +49,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Calendar as CalendarWidget } from "@/components/ui/calendar";
 import { useAuth } from "@/contexts/AuthContext";
 
-type DocComment = {
-  id: string;
-  document_id: string;
-  author_user_id: string;
-  selected_text?: string;
-  comment_text: string;
-  status: string;
-  parent_id?: string | null;
-  created_at: string;
-  email?: string;
-  first_name?: string;
-  last_name?: string;
-  avatar_url?: string;
-};
-
-type DocSuggestion = {
-  id: string;
-  document_id: string;
-  author_user_id: string;
-  selected_text: string;
-  replacement_text: string;
-  status: string;
-  created_at: string;
-  email?: string;
-  first_name?: string;
-  last_name?: string;
-  avatar_url?: string;
-};
-
-type DocShare = {
-  id: string;
-  document_id: string;
-  shared_with_user_id: string;
-  permission: string;
-  created_at: string;
-  email?: string;
-  first_name?: string;
-  last_name?: string;
-  avatar_url?: string;
-};
-
-type TeamMember = {
-  id: string;
-  email: string;
-  first_name?: string;
-  last_name?: string;
-  avatar_url?: string;
-  role?: string;
-};
-
-function getUserLabel(m: { first_name?: string; last_name?: string; email?: string }) {
-  const name = [m.first_name, m.last_name].filter(Boolean).join(" ");
-  return name || m.email || "?";
-}
-
-function getInitials(m: { first_name?: string; last_name?: string; email?: string }) {
-  if (m.first_name && m.last_name) return (m.first_name[0] + m.last_name[0]).toUpperCase();
-  if (m.first_name) return m.first_name[0].toUpperCase();
-  if (m.email) return m.email[0].toUpperCase();
-  return "?";
-}
-
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
@@ -139,22 +77,24 @@ export default function DocumentDetail() {
   const [dateSelectorOpen, setDateSelectorOpen] = useState(false);
   const [documentDate, setDocumentDate] = useState<Date | null>(null);
 
-  // Collab panel
+  // Collab state
   const [collabPanelOpen, setCollabPanelOpen] = useState(false);
   const [collabTab, setCollabTab] = useState<"comments" | "suggestions">("comments");
   const [newComment, setNewComment] = useState("");
-  const [replyTo, setReplyTo] = useState<DocComment | null>(null);
-  const [replyText, setReplyText] = useState("");
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [replyInput, setReplyInput] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentInput, setEditCommentInput] = useState("");
   const [suggestionOrig, setSuggestionOrig] = useState("");
   const [suggestionReplace, setSuggestionReplace] = useState("");
 
-  // Share dialog
+  // Share state
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [shareSearch, setShareSearch] = useState("");
-  const [shareOpen, setShareOpen] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
-  const [selectedPermission, setSelectedPermission] = useState<string>("comment");
+  const [shareSearchQuery, setShareSearchQuery] = useState("");
+  const [shareNewPermission, setShareNewPermission] = useState<"read" | "comment" | "edit">("comment");
+  const [shareSelectedUser, setShareSelectedUser] = useState<any>(null);
 
+  // — Queries —
   const { data: document, isLoading } = useQuery<Document>({
     queryKey: ["/api/documents", id],
     enabled: !!id,
@@ -173,22 +113,25 @@ export default function DocumentDetail() {
     enabled: !!id,
   });
 
-  const { data: docComments = [] } = useQuery<DocComment[]>({
+  const { data: docComments = [] } = useQuery<any[]>({
     queryKey: ["/api/documents", id, "comments"],
+    queryFn: async () => { const r = await apiRequest(`/api/documents/${id}/comments`, "GET"); return r.json(); },
     enabled: !!id && collabPanelOpen,
   });
 
-  const { data: docSuggestions = [] } = useQuery<DocSuggestion[]>({
+  const { data: docSuggestions = [] } = useQuery<any[]>({
     queryKey: ["/api/documents", id, "suggestions"],
+    queryFn: async () => { const r = await apiRequest(`/api/documents/${id}/suggestions`, "GET"); return r.json(); },
     enabled: !!id && collabPanelOpen,
   });
 
-  const { data: docShares = [] } = useQuery<DocShare[]>({
+  const { data: docShares = [], refetch: refetchShares } = useQuery<any[]>({
     queryKey: ["/api/documents", id, "shares"],
+    queryFn: async () => { const r = await apiRequest(`/api/documents/${id}/shares`, "GET"); return r.json(); },
     enabled: !!id && shareDialogOpen,
   });
 
-  const { data: teamMembers = [] } = useQuery<TeamMember[]>({
+  const { data: teamMembers = [] } = useQuery<any[]>({
     queryKey: ["/api/team-members"],
     enabled: shareDialogOpen,
   });
@@ -397,6 +340,8 @@ export default function DocumentDetail() {
     } catch (error) {}
   }, [linkedClient, linkClientMutation, unlinkClientMutation]);
 
+  const handleUnlinkClient = useCallback(() => { unlinkClientMutation.mutate(); }, [unlinkClientMutation]);
+
   const handleSelectDate = useCallback(async (date: Date | undefined) => {
     const newDate = date ?? null;
     setDocumentDate(newDate);
@@ -405,44 +350,54 @@ export default function DocumentDetail() {
     queryClient.invalidateQueries({ queryKey: ["/api/documents", id] });
   }, [id, queryClient]);
 
-  const handleUnlinkClient = useCallback(() => { unlinkClientMutation.mutate(); }, [unlinkClientMutation]);
-
-  // ── COMMENT MUTATIONS ──
-  const addCommentMutation = useMutation({
+  // — Comment mutations —
+  const createCommentMutation = useMutation({
     mutationFn: async (data: { comment_text: string; parent_id?: string }) => {
-      const response = await apiRequest(`/api/documents/${id}/comments`, "POST", data);
-      return await response.json();
+      const r = await apiRequest(`/api/documents/${id}/comments`, "POST", data);
+      return r.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents", id, "comments"] });
       setNewComment("");
-      setReplyTo(null);
-      setReplyText("");
+      setReplyingToId(null);
+      setReplyInput("");
     },
     onError: (error: any) => { toast({ title: "Erreur", description: error.message, variant: "destructive" }); },
   });
 
   const resolveCommentMutation = useMutation({
     mutationFn: async ({ cid, status }: { cid: string; status: string }) => {
-      const response = await apiRequest(`/api/documents/${id}/comments/${cid}`, "PATCH", { status });
-      return await response.json();
+      const r = await apiRequest(`/api/documents/${id}/comments/${cid}`, "PATCH", { status });
+      return r.json();
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/documents", id, "comments"] }); },
   });
 
   const deleteCommentMutation = useMutation({
     mutationFn: async (cid: string) => {
-      const response = await apiRequest(`/api/documents/${id}/comments/${cid}`, "DELETE");
-      return await response.json();
+      const r = await apiRequest(`/api/documents/${id}/comments/${cid}`, "DELETE");
+      return r.json();
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/documents", id, "comments"] }); },
   });
 
-  // ── SUGGESTION MUTATIONS ──
-  const addSuggestionMutation = useMutation({
+  const editCommentMutation = useMutation({
+    mutationFn: async ({ cid, comment_text }: { cid: string; comment_text: string }) => {
+      const r = await apiRequest(`/api/documents/${id}/comments/${cid}`, "PATCH", { comment_text });
+      return r.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/documents", id, "comments"] });
+      setEditingCommentId(null);
+      setEditCommentInput("");
+    },
+  });
+
+  // — Suggestion mutations —
+  const createSuggestionMutation = useMutation({
     mutationFn: async (data: { selected_text: string; replacement_text: string }) => {
-      const response = await apiRequest(`/api/documents/${id}/suggestions`, "POST", data);
-      return await response.json();
+      const r = await apiRequest(`/api/documents/${id}/suggestions`, "POST", data);
+      return r.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents", id, "suggestions"] });
@@ -454,56 +409,65 @@ export default function DocumentDetail() {
 
   const respondSuggestionMutation = useMutation({
     mutationFn: async ({ sid, status }: { sid: string; status: string }) => {
-      const response = await apiRequest(`/api/documents/${id}/suggestions/${sid}`, "PATCH", { status });
-      return await response.json();
+      const r = await apiRequest(`/api/documents/${id}/suggestions/${sid}`, "PATCH", { status });
+      return r.json();
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/documents", id, "suggestions"] }); },
   });
 
-  // ── SHARE MUTATIONS ──
+  // — Share mutations —
   const addShareMutation = useMutation({
     mutationFn: async (data: { shared_with_user_id: string; permission: string }) => {
-      const response = await apiRequest(`/api/documents/${id}/shares`, "POST", data);
-      return await response.json();
+      const r = await apiRequest(`/api/documents/${id}/shares`, "POST", data);
+      return r.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents", id, "shares"] });
-      setSelectedMember(null);
-      setSelectedPermission("comment");
+      refetchShares();
+      setShareSelectedUser(null);
+      setShareSearchQuery("");
+      toast({ title: "Membre invité", variant: "success" });
     },
     onError: (error: any) => { toast({ title: "Erreur", description: error.message, variant: "destructive" }); },
   });
 
   const updateShareMutation = useMutation({
     mutationFn: async ({ shareId, permission }: { shareId: string; permission: string }) => {
-      const response = await apiRequest(`/api/documents/${id}/shares/${shareId}`, "PATCH", { permission });
-      return await response.json();
+      const r = await apiRequest(`/api/documents/${id}/shares/${shareId}`, "PATCH", { permission });
+      return r.json();
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/documents", id, "shares"] }); },
+    onSuccess: () => refetchShares(),
   });
 
   const removeShareMutation = useMutation({
     mutationFn: async (shareId: string) => {
       await apiRequest(`/api/documents/${id}/shares/${shareId}`, "DELETE");
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/documents", id, "shares"] }); },
+    onSuccess: () => { refetchShares(); toast({ title: "Accès retiré", variant: "default" }); },
   });
 
-  const openComments = docComments.filter(c => c.status === "open" && !c.parent_id);
-  const resolvedComments = docComments.filter(c => c.status === "resolved" && !c.parent_id);
-  const pendingSuggestions = docSuggestions.filter(s => s.status === "pending");
-  const closedSuggestions = docSuggestions.filter(s => s.status !== "pending");
+  // — Collab helpers —
+  const fmtDate = (d: string) => {
+    if (!d) return '';
+    const dt = new Date(d);
+    return dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) + ' à ' + dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  };
 
-  const filteredMembers = teamMembers.filter(m => {
-    const label = getUserLabel(m).toLowerCase();
-    const email = (m.email || "").toLowerCase();
-    const q = shareSearch.toLowerCase();
-    return label.includes(q) || email.includes(q);
-  });
+  const topLevelComments = docComments.filter((c: any) => !c.parent_id);
+  const getReplies = (parentId: string) => docComments.filter((c: any) => c.parent_id === parentId);
+  const openComments = topLevelComments.filter((c: any) => c.status === 'open');
+  const pendingSuggestions = docSuggestions.filter((s: any) => s.status === 'pending');
+  const openCount = openComments.length + pendingSuggestions.length;
 
-  const alreadySharedIds = docShares.map(s => s.shared_with_user_id);
-
-  const permissionLabel = (p: string) => ({ read: "Lecture", comment: "Commentaire", edit: "Édition" }[p] || p);
+  const renderAvatar = (item: any, size = 'sm') => {
+    const initials = (item.first_name?.[0] || item.email?.[0] || '?').toUpperCase();
+    const name = item.first_name || item.email?.split('@')[0] || 'Inconnu';
+    return (
+      <Avatar className={size === 'sm' ? 'w-6 h-6' : 'w-5 h-5'}>
+        {item.avatar_url && <AvatarImage src={item.avatar_url} alt={name} />}
+        <AvatarFallback className="text-[9px] font-bold bg-primary/20 text-primary">{initials}</AvatarFallback>
+      </Avatar>
+    );
+  };
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-full"><Loader size="lg" /></div>;
@@ -566,6 +530,7 @@ export default function DocumentDetail() {
       {/* Fixed Header */}
       <div className="flex-none bg-background">
         {isMobile ? (
+          /* MOBILE HEADER */
           <div className="px-2 py-2 space-y-1.5">
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => navigate("/documents")} data-testid="button-back">
@@ -581,41 +546,45 @@ export default function DocumentDetail() {
               <span className="text-[10px] text-muted-foreground flex-shrink-0 min-w-[50px] text-right">
                 {isSaving ? "..." : lastSaved ? "✓" : ""}
               </span>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={collabPanelOpen ? "default" : "outline"}
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setCollabPanelOpen(!collabPanelOpen)}
-                    data-testid="button-collab-panel"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Commentaires & Suggestions</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setShareDialogOpen(true)} data-testid="button-share">
-                    <Share2 className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Partager</TooltipContent>
-              </Tooltip>
               <ActionsDropdown align="end" />
             </div>
           </div>
         ) : (
+          /* DESKTOP HEADER */
           <div className="px-6 pt-4 pb-3">
+            {/* Row 1: Back + sync status + spacer + share + collab + actions */}
             <div className="flex items-center gap-1.5">
               <Button variant="ghost" size="icon" onClick={() => navigate("/documents")} data-testid="button-back">
                 <ArrowLeft className="w-4 h-4" />
               </Button>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-xs text-muted-foreground cursor-default select-none" data-testid="autosave-status">
+                    {isSaving ? "Sauvegarde..." : lastSaved ? "Sauvegardé" : ""}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Auto-sauvegarde activée</TooltipContent>
+              </Tooltip>
+
               <div className="flex-1" />
-              <span className="text-xs text-muted-foreground mr-2">
-                {isSaving ? "Enregistrement..." : lastSaved ? `Sauvegardé ${formatDistanceToNow(lastSaved, { addSuffix: true, locale: fr })}` : ""}
-              </span>
+
+              {/* Share button — identical to note-detail */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => setShareDialogOpen(true)}
+                data-testid="button-share"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                Partager
+                {docShares.length > 0 && (
+                  <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[10px]">{docShares.length}</Badge>
+                )}
+              </Button>
+
+              {/* Collab panel toggle — identical to note-detail */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -627,26 +596,24 @@ export default function DocumentDetail() {
                     <MessageSquare className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Commentaires & Suggestions</TooltipContent>
+                <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md">Commentaires &amp; suggestions</TooltipContent>
               </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={() => setShareDialogOpen(true)} data-testid="button-share">
-                    <Share2 className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Partager le document</TooltipContent>
-              </Tooltip>
+
               <ActionsDropdown align="end" />
             </div>
 
-            {/* Toolbar row */}
+            {/* Row 2: selectors + status badge — UNCHANGED from original */}
             <div className="mt-2 flex items-center gap-2 flex-wrap">
               {/* Client selector */}
               <div className="flex items-center">
                 <Popover open={clientSelectorOpen} onOpenChange={setClientSelectorOpen}>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className={`h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900 ${currentClient ? 'rounded-r-none border-r-0' : ''}`} data-testid="button-client-selector">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={`h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900 ${currentClient ? 'rounded-r-none border-r-0' : ''}`}
+                      data-testid="button-client-selector"
+                    >
                       <Users className="w-3 h-3 text-cyan-500" />
                       <span className="truncate max-w-[100px]">{currentClient ? currentClient.name : "Client"}</span>
                     </Button>
@@ -674,8 +641,13 @@ export default function DocumentDetail() {
                   </PopoverContent>
                 </Popover>
                 {currentClient && (
-                  <Button variant="outline" size="sm" className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
-                    onClick={(e) => { e.stopPropagation(); unlinkClientMutation.mutate(); }} data-testid="button-unlink-client-x">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+                    onClick={(e) => { e.stopPropagation(); unlinkClientMutation.mutate(); }}
+                    data-testid="button-unlink-client-x"
+                  >
                     <X className="w-3 h-3" />
                   </Button>
                 )}
@@ -685,7 +657,12 @@ export default function DocumentDetail() {
               <div className="flex items-center">
                 <Popover open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className={`h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900 ${currentProject ? 'rounded-r-none border-r-0' : ''}`} data-testid="button-project-selector">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={`h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900 ${currentProject ? 'rounded-r-none border-r-0' : ''}`}
+                      data-testid="button-project-selector"
+                    >
                       <FolderKanban className="w-3 h-3 text-violet-500" />
                       <span className="truncate max-w-[100px]">{currentProject ? currentProject.name : "Projet"}</span>
                     </Button>
@@ -715,12 +692,22 @@ export default function DocumentDetail() {
                 {currentProject && linkedProject && (
                   <>
                     <Link href={`/projects/${currentProject.id}`}>
-                      <Button variant="outline" size="sm" className="h-6 w-6 p-0 rounded-none border-r-0 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-200 dark:hover:bg-violet-950" data-testid="button-go-to-project">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 w-6 p-0 rounded-none border-r-0 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-200 dark:hover:bg-violet-950"
+                        data-testid="button-go-to-project"
+                      >
                         <ExternalLink className="w-3 h-3" />
                       </Button>
                     </Link>
-                    <Button variant="outline" size="sm" className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
-                      onClick={(e) => { e.stopPropagation(); handleUnlinkProject(); }} data-testid="button-unlink-project-x">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+                      onClick={(e) => { e.stopPropagation(); handleUnlinkProject(); }}
+                      data-testid="button-unlink-project-x"
+                    >
                       <X className="w-3 h-3" />
                     </Button>
                   </>
@@ -730,7 +717,12 @@ export default function DocumentDetail() {
               {/* Date selector */}
               <Popover open={dateSelectorOpen} onOpenChange={setDateSelectorOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900" data-testid="button-date-selector">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900"
+                    data-testid="button-date-selector"
+                  >
                     <CalendarDays className="w-3 h-3 text-muted-foreground" />
                     <span className="truncate max-w-[100px]">
                       {documentDate ? formatDate(documentDate, "dd MMM yyyy", { locale: fr }) : "Date"}
@@ -748,7 +740,14 @@ export default function DocumentDetail() {
               </Popover>
 
               {/* Status badge */}
-              <Badge variant="outline" className={`text-[10px] ${status === "draft" ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800" : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"}`} data-testid="badge-status">
+              <Badge
+                variant="outline"
+                className={`text-[10px] ${status === "draft"
+                  ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
+                  : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+                }`}
+                data-testid="badge-status"
+              >
                 {status === "draft" ? "Brouillon" : "Publié"}
               </Badge>
             </div>
@@ -756,154 +755,167 @@ export default function DocumentDetail() {
         )}
       </div>
 
-      {/* Main area: editor + collab panel */}
-      <div className="flex-1 flex min-h-0">
-        {/* Editor */}
-        <div className="flex-1 flex flex-col min-h-0 relative">
-          <div className="flex-1 overflow-auto">
-            <div className={isMobile ? "px-1 py-0" : ""}>
-              <NoteEditor
-                key={id}
-                content={content}
-                onChange={setContent}
-                editable={isEditMode}
-                placeholder="Commencez à rédiger votre document..."
-                borderless={!isMobile}
-                {...(!isMobile ? { title, onTitleChange: setTitle } : {})}
-              />
-            </div>
-          </div>
-          {isEditMode && (
-            <VoiceRecordingButton
-              onTranscript={(text) => {
-                setContent((prev: any) => {
-                  const existingContent = prev?.content || [];
-                  return { type: 'doc', content: [...existingContent, { type: 'paragraph', content: [{ type: 'text', text }] }] };
-                });
-              }}
-              onError={(msg) => toast({ variant: "destructive", title: "Erreur de transcription", description: msg })}
+      {/* Main content row: editor + optional collab panel */}
+      <div className="flex-1 overflow-hidden flex">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-auto relative">
+          <div className={isMobile ? "px-1 py-0" : ""}>
+            <NoteEditor
+              key={id}
+              content={content}
+              onChange={setContent}
+              editable={isEditMode}
+              placeholder="Commencez à rédiger votre document..."
+              borderless={!isMobile}
+              {...(!isMobile ? { title, onTitleChange: setTitle } : {})}
             />
-          )}
+          </div>
         </div>
 
-        {/* Collab Panel */}
-        {collabPanelOpen && (
-          <div className="w-80 flex-shrink-0 border-l bg-background flex flex-col min-h-0">
-            <div className="flex items-center justify-between px-4 py-3 border-b">
-              <span className="font-semibold text-sm">Collaboration</span>
-              <Button variant="ghost" size="icon" onClick={() => setCollabPanelOpen(false)} data-testid="button-close-collab">
-                <X className="w-4 h-4" />
+        {/* Collab Panel — right sidebar, same style as note-detail */}
+        {collabPanelOpen && !isMobile && (
+          <div className="w-80 flex-shrink-0 border-l bg-background flex flex-col overflow-hidden">
+            {/* Panel header */}
+            <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/30">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold">Collaboration</span>
+                {openCount > 0 && (
+                  <Badge variant="secondary" className="text-[10px] h-4 px-1">{openCount}</Badge>
+                )}
+              </div>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCollabPanelOpen(false)} data-testid="button-close-collab">
+                <X className="w-3.5 h-3.5" />
               </Button>
             </div>
 
-            <Tabs value={collabTab} onValueChange={(v) => setCollabTab(v as any)} className="flex flex-col flex-1 min-h-0">
-              <TabsList className="mx-4 mt-3 mb-1 grid grid-cols-2">
-                <TabsTrigger value="comments" className="text-xs gap-1" data-testid="tab-comments">
+            {/* Tabs */}
+            <Tabs value={collabTab} onValueChange={(v) => setCollabTab(v as any)} className="flex flex-col flex-1 overflow-hidden">
+              <TabsList className="mx-3 mt-2.5 mb-1 grid grid-cols-2 h-8">
+                <TabsTrigger value="comments" className="text-xs gap-1 h-7" data-testid="tab-comments">
                   <MessageSquare className="w-3 h-3" />
                   Commentaires
-                  {openComments.length > 0 && (
-                    <Badge variant="secondary" className="ml-1 h-4 min-w-4 px-1 text-[10px]">{openComments.length}</Badge>
-                  )}
+                  {openComments.length > 0 && <Badge variant="secondary" className="ml-0.5 h-3.5 min-w-3.5 px-1 text-[9px]">{openComments.length}</Badge>}
                 </TabsTrigger>
-                <TabsTrigger value="suggestions" className="text-xs gap-1" data-testid="tab-suggestions">
+                <TabsTrigger value="suggestions" className="text-xs gap-1 h-7" data-testid="tab-suggestions">
                   <GitPullRequest className="w-3 h-3" />
                   Suggestions
-                  {pendingSuggestions.length > 0 && (
-                    <Badge variant="secondary" className="ml-1 h-4 min-w-4 px-1 text-[10px]">{pendingSuggestions.length}</Badge>
-                  )}
+                  {pendingSuggestions.length > 0 && <Badge variant="secondary" className="ml-0.5 h-3.5 min-w-3.5 px-1 text-[9px]">{pendingSuggestions.length}</Badge>}
                 </TabsTrigger>
               </TabsList>
 
-              {/* COMMENTS TAB */}
-              <TabsContent value="comments" className="flex-1 flex flex-col min-h-0 mt-0 px-4">
-                <ScrollArea className="flex-1">
-                  <div className="space-y-3 pb-3">
-                    {openComments.length === 0 && resolvedComments.length === 0 && (
-                      <p className="text-xs text-muted-foreground text-center py-6">Aucun commentaire pour l'instant.</p>
+              {/* COMMENTS */}
+              <TabsContent value="comments" className="flex-1 flex flex-col overflow-hidden mt-0">
+                <ScrollArea className="flex-1 px-3">
+                  <div className="space-y-2 pb-2 pt-1">
+                    {topLevelComments.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-8">Aucun commentaire pour l'instant.</p>
                     )}
-                    {openComments.map(comment => {
-                      const replies = docComments.filter(c => c.parent_id === comment.id);
+                    {topLevelComments.map((comment: any) => {
+                      const replies = getReplies(comment.id);
+                      const isEditing = editingCommentId === comment.id;
+                      const isReplying = replyingToId === comment.id;
+                      const isOwn = comment.author_user_id === user?.id;
                       return (
-                        <div key={comment.id} className="bg-muted/40 rounded-md p-3 space-y-2" data-testid={`comment-${comment.id}`}>
-                          <div className="flex items-start gap-2">
-                            <Avatar className="h-6 w-6 flex-shrink-0">
-                              <AvatarImage src={comment.avatar_url || undefined} />
-                              <AvatarFallback className="text-[10px]">{getInitials(comment)}</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1">
-                                <span className="text-xs font-medium truncate">{getUserLabel(comment)}</span>
-                                <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                                  {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: fr })}
-                                </span>
+                        <div key={comment.id} className={`rounded-md text-xs border bg-white dark:bg-gray-900 shadow-sm ${comment.status === 'resolved' ? 'opacity-60' : ''}`} data-testid={`comment-${comment.id}`}>
+                          <div className="p-3">
+                            <div className="flex items-start justify-between gap-1 mb-1">
+                              <div className="flex items-start gap-1.5 min-w-0">
+                                {renderAvatar(comment)}
+                                <div className="min-w-0">
+                                  <span className="font-medium block truncate leading-tight">{comment.first_name || comment.email?.split('@')[0] || 'Inconnu'}</span>
+                                  <span className="text-[10px] text-muted-foreground">{fmtDate(comment.created_at)}</span>
+                                </div>
                               </div>
-                              {comment.selected_text && (
-                                <blockquote className="text-[10px] text-muted-foreground italic border-l-2 border-violet-300 pl-2 my-1 line-clamp-2">
-                                  {comment.selected_text}
-                                </blockquote>
-                              )}
-                              <p className="text-xs mt-0.5">{comment.comment_text}</p>
+                              {comment.status === 'resolved'
+                                ? <span className="text-[9px] h-4 px-1.5 py-0.5 flex-shrink-0 rounded-sm font-medium bg-green-100 text-green-700 border border-green-200 dark:bg-green-950/60 dark:text-green-400 dark:border-green-800">Résolu</span>
+                                : <span className="text-[9px] h-4 px-1.5 py-0.5 flex-shrink-0 rounded-sm font-medium bg-primary text-primary-foreground">Ouvert</span>
+                              }
                             </div>
-                          </div>
-                          {replies.map(reply => (
-                            <div key={reply.id} className="ml-8 bg-background rounded p-2" data-testid={`reply-${reply.id}`}>
-                              <div className="flex items-center gap-1 mb-0.5">
-                                <Avatar className="h-4 w-4">
-                                  <AvatarImage src={reply.avatar_url || undefined} />
-                                  <AvatarFallback className="text-[8px]">{getInitials(reply)}</AvatarFallback>
-                                </Avatar>
-                                <span className="text-[10px] font-medium">{getUserLabel(reply)}</span>
+                            {comment.selected_text && (
+                              <div className="text-[10px] text-muted-foreground bg-muted/40 rounded px-1.5 py-0.5 mb-1.5 truncate flex items-center gap-1">
+                                <CornerDownRight className="w-2.5 h-2.5 flex-shrink-0" />
+                                « {comment.selected_text.slice(0, 50)} »
                               </div>
-                              <p className="text-[11px]">{reply.comment_text}</p>
-                            </div>
-                          ))}
-                          <div className="flex items-center gap-1 pt-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 px-1.5 text-[10px] text-muted-foreground"
-                              onClick={() => setReplyTo(replyTo?.id === comment.id ? null : comment)}
-                              data-testid={`button-reply-${comment.id}`}
-                            >
-                              Répondre
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 px-1.5 text-[10px] text-green-600"
-                              onClick={() => resolveCommentMutation.mutate({ cid: comment.id, status: "resolved" })}
-                              data-testid={`button-resolve-${comment.id}`}
-                            >
-                              <CheckCircle2 className="w-3 h-3 mr-0.5" />Résoudre
-                            </Button>
-                            {comment.author_user_id === user?.id && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-5 px-1.5 text-[10px] text-destructive"
-                                onClick={() => deleteCommentMutation.mutate(comment.id)}
-                                data-testid={`button-delete-comment-${comment.id}`}
-                              >
-                                <Trash className="w-3 h-3" />
-                              </Button>
+                            )}
+                            {isEditing ? (
+                              <div className="mt-1.5 space-y-1.5">
+                                <textarea
+                                  className="w-full text-xs border rounded p-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-primary bg-white dark:bg-gray-900"
+                                  rows={2}
+                                  value={editCommentInput}
+                                  onChange={e => setEditCommentInput(e.target.value)}
+                                  autoFocus
+                                />
+                                <div className="flex gap-1">
+                                  <Button size="sm" variant="default" className="h-5 text-[10px] px-2" disabled={editCommentMutation.isPending}
+                                    onClick={() => editCommentMutation.mutate({ cid: comment.id, comment_text: editCommentInput })}>Sauvegarder</Button>
+                                  <Button size="sm" variant="ghost" className="h-5 text-[10px] px-2"
+                                    onClick={() => { setEditingCommentId(null); setEditCommentInput(''); }}>Annuler</Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-foreground leading-relaxed mt-1">{comment.comment_text}</p>
                             )}
                           </div>
-                          {replyTo?.id === comment.id && (
-                            <div className="mt-1 ml-8 flex gap-1">
-                              <Textarea
-                                value={replyText}
-                                onChange={(e) => setReplyText(e.target.value)}
+
+                          {/* Replies */}
+                          {replies.length > 0 && (
+                            <div className="border-t mx-3 py-2 space-y-2">
+                              {replies.map((reply: any) => (
+                                <div key={reply.id} className="flex items-start gap-1.5">
+                                  {renderAvatar(reply, 'xs')}
+                                  <div className="min-w-0 flex-1">
+                                    <span className="font-medium text-[10px]">{reply.first_name || reply.email?.split('@')[0] || 'Inconnu'}</span>
+                                    <p className="text-[11px] text-foreground">{reply.comment_text}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-1 px-3 pb-2">
+                            {comment.status === 'open' ? (
+                              <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 gap-0.5 text-green-700"
+                                onClick={() => resolveCommentMutation.mutate({ cid: comment.id, status: 'resolved' })} data-testid={`button-resolve-${comment.id}`}>
+                                <CheckCircle2 className="w-3 h-3" />Résoudre
+                              </Button>
+                            ) : (
+                              <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 gap-0.5"
+                                onClick={() => resolveCommentMutation.mutate({ cid: comment.id, status: 'open' })} data-testid={`button-reopen-${comment.id}`}>
+                                Rouvrir
+                              </Button>
+                            )}
+                            <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5"
+                              onClick={() => { setReplyingToId(isReplying ? null : comment.id); setReplyInput(""); }} data-testid={`button-reply-${comment.id}`}>
+                              Répondre
+                            </Button>
+                            {isOwn && !isEditing && (
+                              <>
+                                <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5"
+                                  onClick={() => { setEditingCommentId(comment.id); setEditCommentInput(comment.comment_text); }}>Modifier</Button>
+                                <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 text-destructive hover:text-destructive"
+                                  onClick={() => deleteCommentMutation.mutate(comment.id)} data-testid={`button-delete-comment-${comment.id}`}>Supprimer</Button>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Reply input */}
+                          {isReplying && (
+                            <div className="px-3 pb-3 flex gap-1.5">
+                              <textarea
+                                autoFocus
+                                className="flex-1 text-xs border rounded p-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-primary bg-white dark:bg-gray-900 min-h-[52px]"
                                 placeholder="Votre réponse..."
-                                className="text-xs min-h-[52px] resize-none"
+                                value={replyInput}
+                                onChange={e => setReplyInput(e.target.value)}
                                 data-testid="input-reply-text"
                               />
-                              <Button
-                                size="icon"
-                                className="h-9 w-9 flex-shrink-0"
-                                disabled={!replyText.trim() || addCommentMutation.isPending}
-                                onClick={() => addCommentMutation.mutate({ comment_text: replyText, parent_id: comment.id })}
-                                data-testid="button-send-reply"
-                              >
+                              <Button size="icon" className="h-9 w-8 flex-shrink-0"
+                                disabled={!replyInput.trim() || createCommentMutation.isPending}
+                                onClick={() => createCommentMutation.mutate({ comment_text: replyInput, parent_id: comment.id })}
+                                data-testid="button-send-reply">
                                 <Send className="w-3 h-3" />
                               </Button>
                             </div>
@@ -911,160 +923,103 @@ export default function DocumentDetail() {
                         </div>
                       );
                     })}
-
-                    {resolvedComments.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Résolus ({resolvedComments.length})</p>
-                        {resolvedComments.map(comment => (
-                          <div key={comment.id} className="bg-muted/20 rounded-md p-2 opacity-60" data-testid={`comment-resolved-${comment.id}`}>
-                            <div className="flex items-start gap-2">
-                              <Avatar className="h-5 w-5 flex-shrink-0">
-                                <AvatarFallback className="text-[9px]">{getInitials(comment)}</AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs line-through text-muted-foreground">{comment.comment_text}</p>
-                              </div>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 px-1.5 text-[10px] text-muted-foreground mt-1"
-                              onClick={() => resolveCommentMutation.mutate({ cid: comment.id, status: "open" })}
-                              data-testid={`button-reopen-${comment.id}`}
-                            >
-                              <Circle className="w-3 h-3 mr-0.5" />Rouvrir
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </ScrollArea>
 
-                {/* New comment input */}
-                <div className="border-t pt-3 pb-2 space-y-2">
-                  <Textarea
+                {/* New comment */}
+                <div className="border-t p-3 space-y-2">
+                  <textarea
                     value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
+                    onChange={e => setNewComment(e.target.value)}
                     placeholder="Ajouter un commentaire..."
-                    className="text-xs min-h-[60px] resize-none"
+                    className="w-full text-xs border rounded-md px-2 py-1.5 resize-none bg-background focus:outline-none focus:ring-1 focus:ring-primary min-h-[56px]"
                     data-testid="input-new-comment"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && newComment.trim()) {
                         e.preventDefault();
-                        addCommentMutation.mutate({ comment_text: newComment });
+                        createCommentMutation.mutate({ comment_text: newComment });
                       }
                     }}
                   />
-                  <Button
-                    size="sm"
-                    className="w-full text-xs"
-                    disabled={!newComment.trim() || addCommentMutation.isPending}
-                    onClick={() => addCommentMutation.mutate({ comment_text: newComment })}
-                    data-testid="button-add-comment"
-                  >
-                    <Send className="w-3 h-3 mr-1" />
-                    {addCommentMutation.isPending ? "Envoi..." : "Commenter"}
+                  <Button size="sm" className="w-full text-xs gap-1" disabled={!newComment.trim() || createCommentMutation.isPending}
+                    onClick={() => createCommentMutation.mutate({ comment_text: newComment })} data-testid="button-add-comment">
+                    <Send className="w-3 h-3" />
+                    {createCommentMutation.isPending ? "Envoi..." : "Commenter"}
                   </Button>
                 </div>
               </TabsContent>
 
-              {/* SUGGESTIONS TAB */}
-              <TabsContent value="suggestions" className="flex-1 flex flex-col min-h-0 mt-0 px-4">
-                <ScrollArea className="flex-1">
-                  <div className="space-y-3 pb-3">
-                    {pendingSuggestions.length === 0 && closedSuggestions.length === 0 && (
-                      <p className="text-xs text-muted-foreground text-center py-6">Aucune suggestion pour l'instant.</p>
+              {/* SUGGESTIONS */}
+              <TabsContent value="suggestions" className="flex-1 flex flex-col overflow-hidden mt-0">
+                <ScrollArea className="flex-1 px-3">
+                  <div className="space-y-2 pb-2 pt-1">
+                    {docSuggestions.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-8">Aucune suggestion pour l'instant.</p>
                     )}
-                    {pendingSuggestions.map(sug => (
-                      <div key={sug.id} className="bg-muted/40 rounded-md p-3 space-y-2" data-testid={`suggestion-${sug.id}`}>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6 flex-shrink-0">
-                            <AvatarImage src={sug.avatar_url || undefined} />
-                            <AvatarFallback className="text-[10px]">{getInitials(sug)}</AvatarFallback>
-                          </Avatar>
-                          <span className="text-xs font-medium flex-1 truncate">{getUserLabel(sug)}</span>
-                          <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                            {formatDistanceToNow(new Date(sug.created_at), { addSuffix: true, locale: fr })}
-                          </span>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="rounded bg-red-50 dark:bg-red-950/30 px-2 py-1">
-                            <p className="text-[10px] text-muted-foreground mb-0.5 font-medium">Texte original</p>
-                            <p className="text-xs line-through text-red-600 dark:text-red-400">{sug.selected_text}</p>
+                    {docSuggestions.map((sug: any) => (
+                      <div key={sug.id} className={`rounded-md text-xs border bg-white dark:bg-gray-900 shadow-sm ${sug.status !== 'pending' ? 'opacity-60' : ''}`} data-testid={`suggestion-${sug.id}`}>
+                        <div className="p-3">
+                          <div className="flex items-start gap-1.5 mb-2">
+                            {renderAvatar(sug)}
+                            <div className="min-w-0 flex-1">
+                              <span className="font-medium block truncate">{sug.first_name || sug.email?.split('@')[0] || 'Inconnu'}</span>
+                              <span className="text-[10px] text-muted-foreground">{fmtDate(sug.created_at)}</span>
+                            </div>
+                            <Badge variant="outline" className={`text-[9px] flex-shrink-0 ${sug.status === 'accepted' ? 'text-green-700 border-green-200' : sug.status === 'rejected' ? 'text-destructive border-destructive/30' : 'text-primary border-primary/30'}`}>
+                              {sug.status === 'accepted' ? 'Acceptée' : sug.status === 'rejected' ? 'Rejetée' : 'En attente'}
+                            </Badge>
                           </div>
-                          <div className="rounded bg-green-50 dark:bg-green-950/30 px-2 py-1">
-                            <p className="text-[10px] text-muted-foreground mb-0.5 font-medium">Remplacement proposé</p>
-                            <p className="text-xs text-green-700 dark:text-green-400">{sug.replacement_text}</p>
+                          <div className="space-y-1 mb-2">
+                            <div className="rounded bg-red-50 dark:bg-red-950/30 px-2 py-1">
+                              <p className="text-[10px] text-muted-foreground font-medium mb-0.5">Texte original</p>
+                              <p className="text-xs line-through text-red-600 dark:text-red-400">{sug.selected_text}</p>
+                            </div>
+                            <div className="rounded bg-green-50 dark:bg-green-950/30 px-2 py-1">
+                              <p className="text-[10px] text-muted-foreground font-medium mb-0.5">Remplacement</p>
+                              <p className="text-xs text-green-700 dark:text-green-400">{sug.replacement_text}</p>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex gap-1.5">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 text-xs h-6 text-green-700 border-green-300 hover:bg-green-50"
-                            onClick={() => respondSuggestionMutation.mutate({ sid: sug.id, status: "accepted" })}
-                            data-testid={`button-accept-${sug.id}`}
-                          >
-                            <Check className="w-3 h-3 mr-1" />Accepter
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 text-xs h-6 text-destructive border-destructive/30 hover:bg-destructive/10"
-                            onClick={() => respondSuggestionMutation.mutate({ sid: sug.id, status: "rejected" })}
-                            data-testid={`button-reject-${sug.id}`}
-                          >
-                            <X className="w-3 h-3 mr-1" />Rejeter
-                          </Button>
+                          {sug.status === 'pending' && (
+                            <div className="flex gap-1.5">
+                              <Button size="sm" variant="outline" className="flex-1 text-xs h-6 text-green-700 border-green-300 hover:bg-green-50"
+                                onClick={() => respondSuggestionMutation.mutate({ sid: sug.id, status: "accepted" })} data-testid={`button-accept-${sug.id}`}>
+                                <Check className="w-3 h-3 mr-1" />Accepter
+                              </Button>
+                              <Button size="sm" variant="outline" className="flex-1 text-xs h-6 text-destructive border-destructive/30 hover:bg-destructive/10"
+                                onClick={() => respondSuggestionMutation.mutate({ sid: sug.id, status: "rejected" })} data-testid={`button-reject-${sug.id}`}>
+                                <X className="w-3 h-3 mr-1" />Rejeter
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
-
-                    {closedSuggestions.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Traitées ({closedSuggestions.length})</p>
-                        {closedSuggestions.map(sug => (
-                          <div key={sug.id} className={`rounded-md p-2 opacity-60 ${sug.status === 'accepted' ? 'bg-green-50/50 dark:bg-green-950/20' : 'bg-muted/20'}`} data-testid={`suggestion-closed-${sug.id}`}>
-                            <div className="flex items-center gap-1">
-                              <Badge variant="outline" className={`text-[9px] ${sug.status === 'accepted' ? 'text-green-700 border-green-200' : 'text-muted-foreground'}`}>
-                                {sug.status === 'accepted' ? 'Acceptée' : 'Rejetée'}
-                              </Badge>
-                              <span className="text-[10px] text-muted-foreground truncate">{sug.selected_text} → {sug.replacement_text}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </ScrollArea>
 
                 {/* New suggestion form */}
-                <div className="border-t pt-3 pb-2 space-y-2">
-                  <p className="text-[10px] text-muted-foreground font-medium">Proposer une modification</p>
-                  <Textarea
+                <div className="border-t p-3 space-y-1.5">
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Proposer une modification</p>
+                  <textarea
                     value={suggestionOrig}
-                    onChange={(e) => setSuggestionOrig(e.target.value)}
-                    placeholder="Texte original à modifier..."
-                    className="text-xs min-h-[44px] resize-none"
+                    onChange={e => setSuggestionOrig(e.target.value)}
+                    placeholder="Texte original..."
+                    className="w-full text-xs border rounded-md px-2 py-1.5 resize-none bg-background focus:outline-none focus:ring-1 focus:ring-primary min-h-[44px]"
                     data-testid="input-suggestion-orig"
                   />
-                  <Textarea
+                  <textarea
                     value={suggestionReplace}
-                    onChange={(e) => setSuggestionReplace(e.target.value)}
-                    placeholder="Texte de remplacement proposé..."
-                    className="text-xs min-h-[44px] resize-none"
+                    onChange={e => setSuggestionReplace(e.target.value)}
+                    placeholder="Remplacement proposé..."
+                    className="w-full text-xs border rounded-md px-2 py-1.5 resize-none bg-background focus:outline-none focus:ring-1 focus:ring-primary min-h-[44px]"
                     data-testid="input-suggestion-replace"
                   />
-                  <Button
-                    size="sm"
-                    className="w-full text-xs"
-                    disabled={!suggestionOrig.trim() || !suggestionReplace.trim() || addSuggestionMutation.isPending}
-                    onClick={() => addSuggestionMutation.mutate({ selected_text: suggestionOrig, replacement_text: suggestionReplace })}
-                    data-testid="button-add-suggestion"
-                  >
-                    <GitPullRequest className="w-3 h-3 mr-1" />
-                    {addSuggestionMutation.isPending ? "Envoi..." : "Proposer la modification"}
+                  <Button size="sm" className="w-full text-xs gap-1"
+                    disabled={!suggestionOrig.trim() || !suggestionReplace.trim() || createSuggestionMutation.isPending}
+                    onClick={() => createSuggestionMutation.mutate({ selected_text: suggestionOrig, replacement_text: suggestionReplace })}
+                    data-testid="button-add-suggestion">
+                    <GitPullRequest className="w-3 h-3" />
+                    {createSuggestionMutation.isPending ? "Envoi..." : "Proposer"}
                   </Button>
                 </div>
               </TabsContent>
@@ -1072,6 +1027,19 @@ export default function DocumentDetail() {
           </div>
         )}
       </div>
+
+      {/* Voice Recording Button */}
+      {isEditMode && (
+        <VoiceRecordingButton
+          onTranscript={(text) => {
+            setContent((prev: any) => {
+              const existingContent = prev?.content || [];
+              return { type: 'doc', content: [...existingContent, { type: 'paragraph', content: [{ type: 'text', text }] }] };
+            });
+          }}
+          onError={(msg) => toast({ variant: "destructive", title: "Erreur de transcription", description: msg })}
+        />
+      )}
 
       {/* Delete Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -1089,121 +1057,155 @@ export default function DocumentDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Share Dialog */}
+      {/* Share Dialog — identical to note-detail */}
       <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-white dark:bg-gray-900">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Share2 className="w-4 h-4" />Partager le document
+              <Share2 className="w-4 h-4" />
+              Partager le document
             </DialogTitle>
-            <DialogDescription>Invitez des membres de votre équipe à accéder à ce document.</DialogDescription>
+            <DialogDescription>
+              Invitez des membres à consulter ou modifier ce document.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Add member row */}
-            <div className="flex gap-2">
-              <Popover open={shareOpen} onOpenChange={setShareOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="flex-1 justify-start text-sm font-normal h-9" data-testid="button-share-member-picker">
-                    <UserPlus className="w-4 h-4 mr-2 text-muted-foreground" />
-                    {selectedMember ? getUserLabel(selectedMember) : "Ajouter un membre..."}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Rechercher..." value={shareSearch} onValueChange={setShareSearch} />
-                    <CommandList>
-                      <CommandEmpty>Aucun membre trouvé.</CommandEmpty>
-                      <CommandGroup>
-                        {filteredMembers.filter(m => !alreadySharedIds.includes(m.id)).map(m => (
-                          <CommandItem key={m.id} onSelect={() => { setSelectedMember(m); setShareOpen(false); setShareSearch(""); }} data-testid={`option-member-${m.id}`}>
-                            <Avatar className="h-5 w-5 mr-2">
-                              <AvatarImage src={m.avatar_url || undefined} />
-                              <AvatarFallback className="text-[9px]">{getInitials(m)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="text-xs font-medium">{getUserLabel(m)}</p>
-                              <p className="text-[10px] text-muted-foreground">{m.email}</p>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+            {/* Add member section */}
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Inviter un membre</p>
+              {shareSelectedUser ? (
+                <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-muted/30">
+                  <Avatar className="w-6 h-6">
+                    {shareSelectedUser.avatar_url && <AvatarImage src={shareSelectedUser.avatar_url} />}
+                    <AvatarFallback className="text-[10px]">{(shareSelectedUser.first_name?.[0] || shareSelectedUser.email?.[0] || '?').toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs flex-1 font-medium">
+                    {shareSelectedUser.first_name ? `${shareSelectedUser.first_name} ${shareSelectedUser.last_name || ''}`.trim() : shareSelectedUser.email}
+                  </span>
+                  <button type="button" onClick={() => setShareSelectedUser(null)} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-xs text-muted-foreground" data-testid="button-search-member">
+                      <UserPlus className="w-3.5 h-3.5" />
+                      Rechercher un membre...
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-0 bg-white dark:bg-gray-900" align="start">
+                    <Command>
+                      <CommandInput placeholder="Nom ou email..." value={shareSearchQuery} onValueChange={setShareSearchQuery} />
+                      <CommandList>
+                        <CommandEmpty>Aucun membre trouvé</CommandEmpty>
+                        <CommandGroup>
+                          {teamMembers
+                            .filter((m: any) => !docShares.find((s: any) => s.shared_with_user_id === m.id))
+                            .filter((m: any) => {
+                              const q = shareSearchQuery.toLowerCase();
+                              return !q || m.email?.toLowerCase().includes(q) || m.first_name?.toLowerCase().includes(q) || m.last_name?.toLowerCase().includes(q);
+                            })
+                            .map((m: any) => (
+                              <CommandItem key={m.id} value={m.email} onSelect={() => { setShareSelectedUser(m); setShareSearchQuery(""); }} className="flex items-center gap-2 cursor-pointer">
+                                <Avatar className="w-5 h-5">
+                                  {m.avatar_url && <AvatarImage src={m.avatar_url} />}
+                                  <AvatarFallback className="text-[9px]">{(m.first_name?.[0] || m.email?.[0] || '?').toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-xs font-medium truncate">{m.first_name ? `${m.first_name} ${m.last_name || ''}`.trim() : m.email}</div>
+                                  {m.first_name && <div className="text-[10px] text-muted-foreground truncate">{m.email}</div>}
+                                </div>
+                              </CommandItem>
+                            ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              )}
 
-              <Select value={selectedPermission} onValueChange={setSelectedPermission}>
-                <SelectTrigger className="w-32 h-9 text-xs" data-testid="select-permission">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="read">Lecture</SelectItem>
-                  <SelectItem value="comment">Commentaire</SelectItem>
-                  <SelectItem value="edit">Édition</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Button
-                size="icon"
-                className="h-9 w-9 flex-shrink-0"
-                disabled={!selectedMember || addShareMutation.isPending}
-                onClick={() => { if (selectedMember) addShareMutation.mutate({ shared_with_user_id: selectedMember.id, permission: selectedPermission }); }}
-                data-testid="button-add-share"
-              >
-                <Check className="w-4 h-4" />
-              </Button>
+              {/* Permission selector + invite button */}
+              <div className="flex gap-2">
+                <Select value={shareNewPermission} onValueChange={(v: any) => setShareNewPermission(v)}>
+                  <SelectTrigger className="h-8 text-xs flex-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-gray-900">
+                    <SelectItem value="read">Lecture seule</SelectItem>
+                    <SelectItem value="comment">Commentaire</SelectItem>
+                    <SelectItem value="edit">Modification</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  disabled={!shareSelectedUser || addShareMutation.isPending}
+                  onClick={() => {
+                    if (shareSelectedUser) {
+                      addShareMutation.mutate({ shared_with_user_id: shareSelectedUser.id, permission: shareNewPermission });
+                    }
+                  }}
+                  data-testid="button-invite-member"
+                >
+                  Inviter
+                </Button>
+              </div>
             </div>
 
-            {/* Current shares */}
+            {/* Current shares list */}
             {docShares.length > 0 && (
               <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">Accès partagés</p>
-                {docShares.map(share => (
-                  <div key={share.id} className="flex items-center gap-2 py-1" data-testid={`share-row-${share.id}`}>
-                    <Avatar className="h-7 w-7">
-                      <AvatarImage src={share.avatar_url || undefined} />
-                      <AvatarFallback className="text-[10px]">{getInitials(share)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate">{getUserLabel(share)}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{share.email}</p>
-                    </div>
-                    <Select
-                      value={share.permission}
-                      onValueChange={(v) => updateShareMutation.mutate({ shareId: share.id, permission: v })}
-                    >
-                      <SelectTrigger className="h-7 w-28 text-xs" data-testid={`select-share-perm-${share.id}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="read">Lecture</SelectItem>
-                        <SelectItem value="comment">Commentaire</SelectItem>
-                        <SelectItem value="edit">Édition</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                      onClick={() => removeShareMutation.mutate(share.id)}
-                      data-testid={`button-remove-share-${share.id}`}
-                    >
-                      <X className="w-3 h-3" />
-                    </Button>
-                  </div>
-                ))}
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Accès actuels</p>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {docShares.map((share: any) => {
+                    const name = share.first_name ? `${share.first_name} ${share.last_name || ''}`.trim() : share.email;
+                    const initials = (share.first_name?.[0] || share.email?.[0] || '?').toUpperCase();
+                    return (
+                      <div key={share.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/30" data-testid={`share-row-${share.id}`}>
+                        <Avatar className="w-7 h-7">
+                          {share.avatar_url && <AvatarImage src={share.avatar_url} />}
+                          <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-medium truncate">{name}</div>
+                          {share.first_name && <div className="text-[10px] text-muted-foreground truncate">{share.email}</div>}
+                        </div>
+                        <Select value={share.permission} onValueChange={(v) => updateShareMutation.mutate({ shareId: share.id, permission: v })}>
+                          <SelectTrigger className="h-6 text-[10px] w-28 border-0 bg-muted/40" data-testid={`select-share-perm-${share.id}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white dark:bg-gray-900">
+                            <SelectItem value="read">Lecture</SelectItem>
+                            <SelectItem value="comment">Commentaire</SelectItem>
+                            <SelectItem value="edit">Modification</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button variant="ghost" size="icon" className="w-6 h-6 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeShareMutation.mutate(share.id)} data-testid={`button-remove-share-${share.id}`}>
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
-            {docShares.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-2">Ce document n'est pas encore partagé.</p>
-            )}
+            {/* Copy link */}
+            <div className="border-t pt-3">
+              <Button variant="outline" size="sm" className="w-full gap-2 text-xs"
+                onClick={() => {
+                  navigator.clipboard.writeText(window.location.href).then(() => {
+                    toast({ title: "Lien copié dans le presse-papier", variant: "default" });
+                  });
+                }}
+                data-testid="button-copy-link">
+                <ExternalLink className="w-3.5 h-3.5" />
+                Copier le lien direct
+              </Button>
+            </div>
           </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShareDialogOpen(false)}>Fermer</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
