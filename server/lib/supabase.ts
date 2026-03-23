@@ -1,6 +1,4 @@
 import dotenv from "dotenv";
-dotenv.config({ path: "F:\\Projets\\planbase\\server\\.env" });
-
 import path from "node:path";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });

@@ -12,11 +12,14 @@ console.log("ENTRY FILE =", import.meta.url);
 
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { runStartupMigrations } from "./migrations-startup";
 
 const app = express();
+
+app.use(compression());
 
 function getStrapiConfig() {
   const baseUrl = process.env.STRAPI_URL;
@@ -201,7 +204,22 @@ app.get("/api/config/all", async (_req, res) => {
       accountActions,
     });
   } catch (e: any) {
-    return res.status(500).json({ error: "Server error", message: e?.message ?? String(e) });
+    console.error("⚠️ /api/config/all failed (Strapi unavailable), returning empty fallback:", e?.message);
+    return res.json({
+      plans: [],
+      featureFlags: [],
+      featureFlagsMap: {},
+      cdcTemplates: [],
+      roadmapTemplates: [],
+      okrTemplates: [],
+      resourceTemplates: [],
+      registry: [],
+      registryMap: {},
+      faq: [],
+      onboarding: [],
+      accountActions: [],
+      _strapiAvailable: false,
+    });
   }
 });
 

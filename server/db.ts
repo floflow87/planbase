@@ -1,8 +1,7 @@
 import dotenv from "dotenv";
+import path from "node:path";
 
-dotenv.config({ path: "F:\\Projets\\planbase\\server\\.env" });
-
-console.log("db.ts sees SUPABASE_URL?", !!process.env.SUPABASE_URL);
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
 console.log("db.ts sees SUPABASE_URL?", !!process.env.SUPABASE_URL);
 
