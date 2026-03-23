@@ -38,7 +38,8 @@ export function usePermissions() {
     // While RBAC is loading, be optimistic and allow access
     // (server-side auth still protects actual data)
     if (isLoading) return true;
-    if (!data) return false;
+    // If query errored or no data, be permissive — server-side auth is the real gate
+    if (error || !data) return true;
     
     // Owner and Admin have full access to everything
     if (data.role === "owner" || data.role === "admin") return true;

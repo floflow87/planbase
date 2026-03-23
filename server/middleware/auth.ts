@@ -238,11 +238,15 @@ export async function requireOrgMember(req: Request, res: Response, next: NextFu
     }
 
     let member = await permissionService.getMemberByUserAndOrg(req.userId, req.accountId);
+
+    // Determine if user is the account owner by checking DB directly (more reliable than metadata)
+    const account = await storage.getAccount(req.accountId);
+    const isAccountOwner = req.userRole === "owner" || account?.ownerUserId === req.userId;
     
     if (!member) {
-      // Only auto-create membership for account OWNER (emergency recovery)
+      // Only auto-create membership for account OWNER (emergency recovery / new signup)
       // All other users without membership must be rejected (they were likely removed)
-      if (req.userRole === "owner") {
+      if (isAccountOwner) {
         console.log(`🔧 AUTO-CREATE: Creating admin membership for account owner ${req.userId}`);
         const newMember = await permissionService.createMember({
           organizationId: req.accountId,
@@ -261,9 +265,9 @@ export async function requireOrgMember(req: Request, res: Response, next: NextFu
         });
       }
     } else {
-      // AUTO-FIX: If user is account owner but not admin in RBAC, correct it automatically
-      if (req.userRole === "owner" && member.role !== "admin") {
-        console.log(`🔧 AUTO-FIX: Restoring admin role for account owner ${req.userId}`);
+      // AUTO-FIX: If user is account owner but is stuck with non-admin RBAC role, correct it automatically
+      if (isAccountOwner && member.role !== "admin") {
+        console.log(`🔧 AUTO-FIX: Restoring admin role for account owner ${req.userId} (was: ${member.role})`);
         const updatedMember = await permissionService.updateMemberRole(member.id, "admin", req.accountId);
         if (updatedMember) {
           member = updatedMember;

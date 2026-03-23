@@ -2006,6 +2006,79 @@ export async function runStartupMigrations() {
     console.log("✅ Member permissions initialized");
 
     // ============================================
+    // Fix account owners stuck with "member" role in organization_members
+    // or missing entirely - they should always be "admin" in RBAC
+    // ============================================
+    const ownersToFix = await db.execute(sql`
+      SELECT a.id as account_id, a.owner_user_id, om.id as member_id, om.role as current_role
+      FROM accounts a
+      JOIN app_users au ON au.id = a.owner_user_id
+      LEFT JOIN organization_members om ON om.organization_id = a.id AND om.user_id = a.owner_user_id
+      WHERE a.owner_user_id IS NOT NULL
+        AND (om.id IS NULL OR om.role != 'admin')
+    `);
+
+    for (const row of (ownersToFix.rows || [])) {
+      const accountId = row.account_id as string;
+      const ownerUserId = row.owner_user_id as string;
+      const memberId = row.member_id as string | null;
+      const currentRole = row.current_role as string | null;
+
+      if (!memberId) {
+        // Owner has no org member entry - create one
+        try {
+          const result = await db.execute(sql`
+            INSERT INTO organization_members (organization_id, user_id, role)
+            VALUES (${accountId}, ${ownerUserId}, 'admin')
+            ON CONFLICT (organization_id, user_id) DO UPDATE SET role = 'admin'
+            RETURNING id
+          `);
+          const newMemberId = (result.rows[0] as any)?.id;
+          if (newMemberId) {
+            // Initialize permissions for this new admin member
+            const modules = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability', 'whiteboards'];
+            const actions = ['read', 'create', 'update', 'delete'];
+            for (const mod of modules) {
+              for (const action of actions) {
+                await db.execute(sql`
+                  INSERT INTO permissions (organization_id, member_id, module, action, allowed, scope)
+                  VALUES (${accountId}, ${newMemberId}, ${mod}, ${action}, true, 'module')
+                  ON CONFLICT (member_id, module, action, COALESCE(subview_key, '')) DO NOTHING
+                `);
+              }
+            }
+            console.log(`✅ Created admin org member for account owner ${ownerUserId}`);
+          }
+        } catch (e: any) {
+          console.error(`⚠️  Failed to create org member for owner ${ownerUserId}:`, e.message);
+        }
+      } else if (currentRole !== 'admin') {
+        // Owner has an entry but with wrong role - fix it
+        try {
+          await db.execute(sql`
+            UPDATE organization_members SET role = 'admin' WHERE id = ${memberId}
+          `);
+          // Update permissions to admin level
+          const modules = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability', 'whiteboards'];
+          const actions = ['read', 'create', 'update', 'delete'];
+          for (const mod of modules) {
+            for (const action of actions) {
+              await db.execute(sql`
+                INSERT INTO permissions (organization_id, member_id, module, action, allowed, scope)
+                VALUES (${accountId}, ${memberId}, ${mod}, ${action}, true, 'module')
+                ON CONFLICT (member_id, module, action, COALESCE(subview_key, '')) DO UPDATE SET allowed = true
+              `);
+            }
+          }
+          console.log(`✅ Fixed org member role from '${currentRole}' to 'admin' for owner ${ownerUserId}`);
+        } catch (e: any) {
+          console.error(`⚠️  Failed to fix org member role for owner ${ownerUserId}:`, e.message);
+        }
+      }
+    }
+    console.log("✅ Account owner RBAC roles verified and fixed");
+
+    // ============================================
     // Roadmaps status column
     // ============================================
     await db.execute(sql`

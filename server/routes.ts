@@ -496,7 +496,20 @@ app.get("/config/feature-flags", async (_req, res) => {
         // Don't rollback for this - user account is still valid
       }
 
-      // Step 5: Create onboarding record for new user
+      // Step 5: Create organization_members entry with admin role (CRITICAL for sidebar access)
+      try {
+        await permissionService.createMember({
+          organizationId: account.id,
+          userId: appUser.id,
+          role: "admin",
+        });
+        console.log("✅ Created org member (admin) for user:", appUser.id);
+      } catch (memberError: any) {
+        // Non-critical: requireOrgMember middleware will auto-create on first API call
+        console.error("⚠️  Failed to create org member during signup (non-critical):", memberError.message);
+      }
+
+      // Step 6: Create onboarding record for new user
       try {
         await db.insert(userOnboarding).values({
           userId: appUser.id,
