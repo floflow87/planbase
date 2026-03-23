@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation, Link } from "wouter";
-import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink, MessageSquare, GitPullRequest, CheckCircle2, XCircle, CornerDownRight } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink, MessageSquare, GitPullRequest, CheckCircle2, XCircle, CornerDownRight, Pencil, Reply } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -86,6 +87,10 @@ export default function NoteDetail() {
   const [collabMode, setCollabMode] = useState<"comment" | "suggest" | null>(null);
   const [collabInput, setCollabInput] = useState("");
   const [suggestionInput, setSuggestionInput] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentInput, setEditCommentInput] = useState("");
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [replyInput, setReplyInput] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entitySelectorOpen, setEntitySelectorOpen] = useState(false);
   const [entitySelectorTab, setEntitySelectorTab] = useState<"project" | "client" | "ticket">("project");
@@ -426,6 +431,22 @@ export default function NoteDetail() {
       return r.json();
     },
     onSuccess: () => refetchComments(),
+  });
+
+  const editCommentMutation = useMutation({
+    mutationFn: async ({ cid, comment_text }: { cid: string; comment_text: string }) => {
+      const r = await apiRequest(`/api/notes/${id}/comments/${cid}`, "PATCH", { comment_text });
+      return r.json();
+    },
+    onSuccess: () => { refetchComments(); setEditingCommentId(null); setEditCommentInput(""); },
+  });
+
+  const addReplyMutation = useMutation({
+    mutationFn: async ({ parent_id, comment_text }: { parent_id: string; comment_text: string }) => {
+      const r = await apiRequest(`/api/notes/${id}/comments`, "POST", { comment_text, parent_id });
+      return r.json();
+    },
+    onSuccess: () => { refetchComments(); setReplyingToId(null); setReplyInput(""); },
   });
 
   const createSuggestionMutation = useMutation({
@@ -1272,7 +1293,7 @@ export default function NoteDetail() {
                     <MessageSquare className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Commentaires & suggestions</TooltipContent>
+                <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md">Commentaires &amp; suggestions</TooltipContent>
               </Tooltip>
 
               {/* Actions dropdown — Save + Delete at top */}
@@ -1745,147 +1766,248 @@ export default function NoteDetail() {
         </div>
 
         {/* Collab Panel — right sidebar */}
-        {collabPanelOpen && !isMobile && (
-          <div className="w-80 border-l border-border/60 flex flex-col overflow-hidden bg-muted/20" data-testid="collab-panel">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-background">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium">Collaboration</span>
-                {(() => {
-                  const openCount = noteComments.filter((c: any) => c.status === 'open').length + noteSuggestions.filter((s: any) => s.status === 'pending').length;
-                  return openCount > 0 ? <Badge className="h-4 px-1 text-[10px]">{openCount}</Badge> : null;
-                })()}
-              </div>
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setCollabPanelOpen(false)}>
-                <XCircle className="w-4 h-4" />
-              </Button>
-            </div>
+        {collabPanelOpen && !isMobile && (() => {
+          const fmtDate = (d: string) => {
+            if (!d) return '';
+            const dt = new Date(d);
+            return dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) + ' à ' + dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          };
+          const topLevelComments = noteComments.filter((c: any) => !c.parent_id);
+          const getReplies = (parentId: string) => noteComments.filter((c: any) => c.parent_id === parentId);
+          const openCount = noteComments.filter((c: any) => c.status === 'open' && !c.parent_id).length + noteSuggestions.filter((s: any) => s.status === 'pending').length;
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-4">
-              {/* Comments Section */}
-              <div>
-                <div className="flex items-center gap-1 mb-2">
-                  <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Commentaires ({noteComments.filter((c: any) => c.status === 'open').length} ouverts)
-                  </span>
-                </div>
-                {noteComments.length === 0 && (
-                  <p className="text-xs text-muted-foreground italic px-1">Aucun commentaire</p>
-                )}
-                {noteComments.map((comment: any) => (
-                  <div key={comment.id} className={`rounded-md p-3 mb-2 text-xs border ${comment.status === 'resolved' ? 'bg-muted/30 opacity-60' : 'bg-background'}`} data-testid={`comment-${comment.id}`}>
-                    <div className="flex items-start justify-between gap-1 mb-1.5">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-[9px] font-bold text-primary flex-shrink-0">
-                          {(comment.first_name?.[0] || comment.email?.[0] || '?').toUpperCase()}
-                        </div>
-                        <span className="font-medium truncate">{comment.first_name || comment.email?.split('@')[0] || 'Inconnu'}</span>
+          const renderAvatar = (item: any, size = 'sm') => {
+            const initials = (item.first_name?.[0] || item.email?.[0] || '?').toUpperCase();
+            const name = item.first_name || item.email?.split('@')[0] || 'Inconnu';
+            return (
+              <Avatar className={size === 'sm' ? 'w-6 h-6' : 'w-5 h-5'}>
+                {item.avatar_url && <AvatarImage src={item.avatar_url} alt={name} />}
+                <AvatarFallback className="text-[9px] font-bold bg-primary/20 text-primary">{initials}</AvatarFallback>
+              </Avatar>
+            );
+          };
+
+          const renderComment = (comment: any, isReply = false) => {
+            const replies = isReply ? [] : getReplies(comment.id);
+            const isEditing = editingCommentId === comment.id;
+            const isReplying = replyingToId === comment.id;
+            return (
+              <div key={comment.id}>
+                <div
+                  className={`rounded-md p-3 mb-1.5 text-xs border ${comment.status === 'resolved' ? 'opacity-60' : ''} bg-white dark:bg-gray-900 shadow-sm`}
+                  data-testid={`comment-${comment.id}`}
+                  style={isReply ? { marginLeft: '12px', borderLeft: '2px solid var(--border)' } : {}}
+                >
+                  <div className="flex items-start justify-between gap-1 mb-1">
+                    <div className="flex items-start gap-1.5 min-w-0">
+                      {renderAvatar(comment)}
+                      <div className="min-w-0">
+                        <span className="font-medium block truncate leading-tight">{comment.first_name || comment.email?.split('@')[0] || 'Inconnu'}</span>
+                        <span className="text-[10px] text-muted-foreground">{fmtDate(comment.created_at)}</span>
                       </div>
-                      <Badge variant={comment.status === 'resolved' ? 'secondary' : 'outline'} className="text-[9px] h-4 px-1 flex-shrink-0">
-                        {comment.status === 'resolved' ? 'Résolu' : 'Ouvert'}
-                      </Badge>
                     </div>
-                    {comment.selected_text && (
-                      <div className="text-[10px] text-muted-foreground bg-muted/50 rounded px-1.5 py-0.5 mb-1.5 truncate flex items-center gap-1">
-                        <CornerDownRight className="w-2.5 h-2.5 flex-shrink-0" />
-                        « {comment.selected_text.slice(0, 50)} »
+                    <Badge variant={comment.status === 'resolved' ? 'secondary' : 'outline'} className="text-[9px] h-4 px-1 flex-shrink-0">
+                      {comment.status === 'resolved' ? 'Résolu' : 'Ouvert'}
+                    </Badge>
+                  </div>
+                  {comment.selected_text && (
+                    <div className="text-[10px] text-muted-foreground bg-muted/40 rounded px-1.5 py-0.5 mb-1.5 truncate flex items-center gap-1">
+                      <CornerDownRight className="w-2.5 h-2.5 flex-shrink-0" />
+                      « {comment.selected_text.slice(0, 50)} »
+                    </div>
+                  )}
+                  {isEditing ? (
+                    <div className="mt-1.5 space-y-1.5">
+                      <textarea
+                        className="w-full text-xs border rounded p-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-primary bg-white dark:bg-gray-900"
+                        rows={2}
+                        value={editCommentInput}
+                        onChange={e => setEditCommentInput(e.target.value)}
+                        autoFocus
+                      />
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="default" className="h-5 text-[10px] px-2"
+                          disabled={editCommentMutation.isPending}
+                          onClick={() => editCommentMutation.mutate({ cid: comment.id, comment_text: editCommentInput })}
+                        >Sauvegarder</Button>
+                        <Button size="sm" variant="ghost" className="h-5 text-[10px] px-2"
+                          onClick={() => { setEditingCommentId(null); setEditCommentInput(''); }}
+                        >Annuler</Button>
                       </div>
-                    )}
-                    <p className="text-foreground leading-relaxed">{comment.comment_text}</p>
-                    {comment.status === 'open' && (
-                      <div className="flex gap-1 mt-2">
+                    </div>
+                  ) : (
+                    <p className="text-foreground leading-relaxed mt-1">{comment.comment_text}</p>
+                  )}
+                  {!isEditing && (
+                    <div className="flex gap-0.5 mt-2 flex-wrap">
+                      {comment.status === 'open' && !isReply && (
                         <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 text-green-600"
                           onClick={() => resolveCommentMutation.mutate({ cid: comment.id, status: 'resolved' })}
                           data-testid={`btn-resolve-comment-${comment.id}`}
                         ><CheckCircle2 className="w-3 h-3 mr-0.5" />Résoudre</Button>
-                        <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 text-red-500"
-                          onClick={() => deleteCommentMutation.mutate(comment.id)}
-                          data-testid={`btn-delete-comment-${comment.id}`}
-                        ><XCircle className="w-3 h-3 mr-0.5" />Supprimer</Button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Suggestions Section */}
-              <div>
-                <div className="flex items-center gap-1 mb-2">
-                  <GitPullRequest className="w-3.5 h-3.5 text-violet-500" />
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Suggestions ({noteSuggestions.filter((s: any) => s.status === 'pending').length} en attente)
-                  </span>
+                      )}
+                      {!isReply && (
+                        <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 text-muted-foreground"
+                          onClick={() => { setReplyingToId(isReplying ? null : comment.id); setReplyInput(''); }}
+                          data-testid={`btn-reply-comment-${comment.id}`}
+                        ><Reply className="w-3 h-3 mr-0.5" />Répondre</Button>
+                      )}
+                      <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 text-muted-foreground"
+                        onClick={() => { setEditingCommentId(comment.id); setEditCommentInput(comment.comment_text); }}
+                        data-testid={`btn-edit-comment-${comment.id}`}
+                      ><Pencil className="w-3 h-3 mr-0.5" />Modifier</Button>
+                      <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 text-red-500"
+                        onClick={() => deleteCommentMutation.mutate(comment.id)}
+                        data-testid={`btn-delete-comment-${comment.id}`}
+                      ><XCircle className="w-3 h-3 mr-0.5" />Supprimer</Button>
+                    </div>
+                  )}
                 </div>
-                {noteSuggestions.length === 0 && (
-                  <p className="text-xs text-muted-foreground italic px-1">Aucune suggestion</p>
+                {/* Replies */}
+                {replies.map((reply: any) => renderComment(reply, true))}
+                {/* Reply form */}
+                {isReplying && (
+                  <div className="ml-3 mb-2 space-y-1.5" style={{ borderLeft: '2px solid var(--border)', paddingLeft: '8px' }}>
+                    <textarea
+                      className="w-full text-xs border rounded p-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-primary bg-white dark:bg-gray-900"
+                      rows={2}
+                      placeholder="Votre réponse..."
+                      value={replyInput}
+                      onChange={e => setReplyInput(e.target.value)}
+                      autoFocus
+                    />
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="default" className="h-5 text-[10px] px-2"
+                        disabled={addReplyMutation.isPending || !replyInput.trim()}
+                        onClick={() => addReplyMutation.mutate({ parent_id: comment.id, comment_text: replyInput })}
+                      >Envoyer</Button>
+                      <Button size="sm" variant="ghost" className="h-5 text-[10px] px-2"
+                        onClick={() => { setReplyingToId(null); setReplyInput(''); }}
+                      >Annuler</Button>
+                    </div>
+                  </div>
                 )}
-                {noteSuggestions.map((sugg: any) => (
-                  <div key={sugg.id} className={`rounded-md p-3 mb-2 text-xs border ${sugg.status !== 'pending' ? 'bg-muted/30 opacity-60' : 'bg-background'}`} data-testid={`suggestion-${sugg.id}`}>
-                    <div className="flex items-start justify-between gap-1 mb-1.5">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <div className="w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-[9px] font-bold text-violet-600 flex-shrink-0">
-                          {(sugg.first_name?.[0] || sugg.email?.[0] || '?').toUpperCase()}
-                        </div>
-                        <span className="font-medium truncate">{sugg.first_name || sugg.email?.split('@')[0] || 'Inconnu'}</span>
-                      </div>
-                      <Badge
-                        variant={sugg.status === 'accepted' ? 'default' : sugg.status === 'rejected' ? 'destructive' : 'outline'}
-                        className="text-[9px] h-4 px-1 flex-shrink-0"
-                      >
-                        {sugg.status === 'accepted' ? 'Acceptée' : sugg.status === 'rejected' ? 'Refusée' : 'En attente'}
-                      </Badge>
-                    </div>
-                    <div className="space-y-1 mb-1.5">
-                      <div className="text-[10px] text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 rounded px-1.5 py-0.5 line-through truncate">
-                        « {sugg.selected_text.slice(0, 50)} »
-                      </div>
-                      <div className="flex items-center gap-1 text-[10px] text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30 rounded px-1.5 py-0.5">
-                        <CornerDownRight className="w-2.5 h-2.5 flex-shrink-0" />
-                        <span className="truncate">{sugg.replacement_text.slice(0, 50)}</span>
-                      </div>
-                    </div>
-                    {sugg.status === 'pending' && (
-                      <div className="flex gap-1 mt-2">
-                        <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 text-green-600"
-                          onClick={() => resolveSuggestionMutation.mutate({ sid: sugg.id, status: 'accepted' })}
-                          data-testid={`btn-accept-suggestion-${sugg.id}`}
-                        ><CheckCircle2 className="w-3 h-3 mr-0.5" />Accepter</Button>
-                        <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 text-red-500"
-                          onClick={() => resolveSuggestionMutation.mutate({ sid: sugg.id, status: 'rejected' })}
-                          data-testid={`btn-reject-suggestion-${sugg.id}`}
-                        ><XCircle className="w-3 h-3 mr-0.5" />Refuser</Button>
-                      </div>
-                    )}
-                  </div>
-                ))}
               </div>
-            </div>
+            );
+          };
 
-            {/* Access level control (for public notes) */}
-            {visibility === 'account' && (
-              <div className="border-t border-border/60 px-4 py-3 bg-background">
-                <div className="text-xs text-muted-foreground mb-2">Accès note publique</div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant={accessLevel === 'read' ? 'default' : 'outline'}
-                    className="h-7 text-xs flex-1"
-                    onClick={() => { setAccessLevel('read'); updateMutation.mutate({ access_level: 'read' } as any); }}
-                    data-testid="btn-access-read"
-                  ><Eye className="w-3 h-3 mr-1" />Lecture</Button>
-                  <Button
-                    size="sm"
-                    variant={accessLevel === 'comment' ? 'default' : 'outline'}
-                    className="h-7 text-xs flex-1"
-                    onClick={() => { setAccessLevel('comment'); updateMutation.mutate({ access_level: 'comment' } as any); }}
-                    data-testid="btn-access-comment"
-                  ><MessageSquare className="w-3 h-3 mr-1" />Commentaire</Button>
+          return (
+            <div className="w-80 border-l border-border/60 flex flex-col overflow-hidden bg-white dark:bg-gray-950" data-testid="collab-panel">
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-white dark:bg-gray-950">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium">Collaboration</span>
+                  {openCount > 0 && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge className="h-4 px-1 text-[10px] cursor-default">{openCount}</Badge>
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md text-xs max-w-[200px]">
+                        {noteComments.filter((c: any) => c.status === 'open' && !c.parent_id).length} commentaire{noteComments.filter((c: any) => c.status === 'open' && !c.parent_id).length !== 1 ? 's' : ''} ouvert{noteComments.filter((c: any) => c.status === 'open' && !c.parent_id).length !== 1 ? 's' : ''} et {noteSuggestions.filter((s: any) => s.status === 'pending').length} suggestion{noteSuggestions.filter((s: any) => s.status === 'pending').length !== 1 ? 's' : ''} en attente.
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setCollabPanelOpen(false)}>
+                  <XCircle className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-3 space-y-4">
+                {/* Comments Section */}
+                <div>
+                  <div className="flex items-center gap-1 mb-2">
+                    <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Commentaires ({noteComments.filter((c: any) => c.status === 'open' && !c.parent_id).length} ouverts)
+                    </span>
+                  </div>
+                  {topLevelComments.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic px-1">Aucun commentaire</p>
+                  )}
+                  {topLevelComments.map((comment: any) => renderComment(comment))}
+                </div>
+
+                {/* Suggestions Section */}
+                <div>
+                  <div className="flex items-center gap-1 mb-2">
+                    <GitPullRequest className="w-3.5 h-3.5 text-violet-500" />
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Suggestions ({noteSuggestions.filter((s: any) => s.status === 'pending').length} en attente)
+                    </span>
+                  </div>
+                  {noteSuggestions.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic px-1">Aucune suggestion</p>
+                  )}
+                  {noteSuggestions.map((sugg: any) => (
+                    <div key={sugg.id} className={`rounded-md p-3 mb-2 text-xs border bg-white dark:bg-gray-900 shadow-sm ${sugg.status !== 'pending' ? 'opacity-60' : ''}`} data-testid={`suggestion-${sugg.id}`}>
+                      <div className="flex items-start justify-between gap-1 mb-1">
+                        <div className="flex items-start gap-1.5 min-w-0">
+                          {renderAvatar(sugg)}
+                          <div className="min-w-0">
+                            <span className="font-medium block truncate leading-tight">{sugg.first_name || sugg.email?.split('@')[0] || 'Inconnu'}</span>
+                            <span className="text-[10px] text-muted-foreground">{fmtDate(sugg.created_at)}</span>
+                          </div>
+                        </div>
+                        <Badge
+                          variant={sugg.status === 'accepted' ? 'default' : sugg.status === 'rejected' ? 'destructive' : 'outline'}
+                          className="text-[9px] h-4 px-1 flex-shrink-0"
+                        >
+                          {sugg.status === 'accepted' ? 'Acceptée' : sugg.status === 'rejected' ? 'Refusée' : 'En attente'}
+                        </Badge>
+                      </div>
+                      <div className="space-y-1 mb-1.5 mt-1">
+                        <div className="text-[10px] text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 rounded px-1.5 py-0.5 line-through truncate">
+                          « {sugg.selected_text.slice(0, 50)} »
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30 rounded px-1.5 py-0.5">
+                          <CornerDownRight className="w-2.5 h-2.5 flex-shrink-0" />
+                          <span className="truncate">{sugg.replacement_text.slice(0, 50)}</span>
+                        </div>
+                      </div>
+                      {sugg.status === 'pending' && (
+                        <div className="flex gap-1 mt-2">
+                          <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 text-green-600"
+                            onClick={() => resolveSuggestionMutation.mutate({ sid: sugg.id, status: 'accepted' })}
+                            data-testid={`btn-accept-suggestion-${sugg.id}`}
+                          ><CheckCircle2 className="w-3 h-3 mr-0.5" />Accepter</Button>
+                          <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 text-red-500"
+                            onClick={() => resolveSuggestionMutation.mutate({ sid: sugg.id, status: 'rejected' })}
+                            data-testid={`btn-reject-suggestion-${sugg.id}`}
+                          ><XCircle className="w-3 h-3 mr-0.5" />Refuser</Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
-            )}
-          </div>
-        )}
+
+              {/* Access level control (for public notes) */}
+              {visibility === 'account' && (
+                <div className="border-t border-border/60 px-4 py-3 bg-white dark:bg-gray-950">
+                  <div className="text-xs text-muted-foreground mb-2">Accès note publique</div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant={accessLevel === 'read' ? 'default' : 'outline'}
+                      className="h-7 text-xs flex-1"
+                      onClick={() => { setAccessLevel('read'); updateMutation.mutate({ access_level: 'read' } as any); }}
+                      data-testid="btn-access-read"
+                    ><Eye className="w-3 h-3 mr-1" />Lecture</Button>
+                    <Button
+                      size="sm"
+                      variant={accessLevel === 'comment' ? 'default' : 'outline'}
+                      className="h-7 text-xs flex-1"
+                      onClick={() => { setAccessLevel('comment'); updateMutation.mutate({ access_level: 'comment' } as any); }}
+                      data-testid="btn-access-comment"
+                    ><MessageSquare className="w-3 h-3 mr-1" />Commentaire</Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Delete Dialog */}

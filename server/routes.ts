@@ -4495,7 +4495,7 @@ app.get("/config/feature-flags", async (_req, res) => {
   app.get("/api/notes/:id/comments", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const result = await db.execute(sql`
-        SELECT nc.*, au.email, au.first_name, au.last_name
+        SELECT nc.*, au.email, au.first_name, au.last_name, au.avatar_url
         FROM note_comments nc
         LEFT JOIN app_users au ON au.id = nc.author_user_id
         WHERE nc.note_id = ${req.params.id}
@@ -4511,11 +4511,11 @@ app.get("/config/feature-flags", async (_req, res) => {
 
   app.post("/api/notes/:id/comments", requireAuth, requireOrgMember, async (req, res) => {
     try {
-      const { selected_text, selection_from, selection_to, comment_text } = req.body;
+      const { selected_text, selection_from, selection_to, comment_text, parent_id } = req.body;
       if (!comment_text?.trim()) return res.status(400).json({ error: "comment_text required" });
       const result = await db.execute(sql`
-        INSERT INTO note_comments (note_id, account_id, author_user_id, selected_text, selection_from, selection_to, comment_text)
-        VALUES (${req.params.id}, ${req.accountId}, ${req.userId}, ${selected_text || ''}, ${selection_from ?? null}, ${selection_to ?? null}, ${comment_text.trim()})
+        INSERT INTO note_comments (note_id, account_id, author_user_id, selected_text, selection_from, selection_to, comment_text, parent_id)
+        VALUES (${req.params.id}, ${req.accountId}, ${req.userId}, ${selected_text || ''}, ${selection_from ?? null}, ${selection_to ?? null}, ${comment_text.trim()}, ${parent_id ?? null})
         RETURNING *
       `);
       res.json((result as any[])[0]);
@@ -4526,7 +4526,19 @@ app.get("/config/feature-flags", async (_req, res) => {
 
   app.patch("/api/notes/:id/comments/:cid", requireAuth, requireOrgMember, async (req, res) => {
     try {
-      const { status } = req.body;
+      const { status, comment_text } = req.body;
+      // Edit comment text
+      if (comment_text !== undefined) {
+        if (!comment_text?.trim()) return res.status(400).json({ error: "comment_text required" });
+        const result = await db.execute(sql`
+          UPDATE note_comments
+          SET comment_text = ${comment_text.trim()}
+          WHERE id = ${req.params.cid} AND note_id = ${req.params.id} AND account_id = ${req.accountId} AND author_user_id = ${req.userId}
+          RETURNING *
+        `);
+        return res.json((result as any[])[0]);
+      }
+      // Update status (resolve/reopen)
       if (!['open', 'resolved'].includes(status)) return res.status(400).json({ error: "Invalid status" });
       const result = await db.execute(sql`
         UPDATE note_comments
@@ -4558,7 +4570,7 @@ app.get("/config/feature-flags", async (_req, res) => {
   app.get("/api/notes/:id/suggestions", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const result = await db.execute(sql`
-        SELECT ns.*, au.email, au.first_name, au.last_name
+        SELECT ns.*, au.email, au.first_name, au.last_name, au.avatar_url
         FROM note_suggestions ns
         LEFT JOIN app_users au ON au.id = ns.author_user_id
         WHERE ns.note_id = ${req.params.id}

@@ -2681,6 +2681,12 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Note suggestions table created");
 
+    // Add parent_id to note_comments for threading (replies)
+    await db.execute(sql`
+      ALTER TABLE note_comments ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES note_comments(id) ON DELETE CASCADE
+    `);
+    console.log("✅ Note comments parent_id added");
+
     // ── TRIAL CLEANUP: reset auto-migration trials that were never explicitly started ──
     // Old auto-migration set trial_ends_at = created_at + 7 days for ALL accounts.
     // Those trials are now expired (created_at is in the past) and were never started by the user.
