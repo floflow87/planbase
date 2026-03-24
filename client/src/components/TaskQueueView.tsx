@@ -1334,7 +1334,7 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
                         {label}
                       </div>
                       {!isLast && (
-                        <div className="ml-[5px] w-px bg-border/60" style={{ height: "10px" }} />
+                        <div className="ml-[5px] w-px bg-muted-foreground/30" style={{ height: "10px" }} />
                       )}
                     </div>
                   );
