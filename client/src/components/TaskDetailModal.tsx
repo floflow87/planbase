@@ -666,16 +666,16 @@ export function TaskDetailModal({
                     const done = deliverableTimeline.isDone(t);
                     isActive = isCurrent;
                     if (done) {
-                      bullet = <CheckCircle2 className="h-3 w-3 text-green-500 flex-shrink-0" />;
+                      bullet = <span className="text-primary flex-shrink-0 text-[11px] leading-none">🚀</span>;
                     } else if (isCurrent) {
                       bullet = <div className="h-3 w-3 rounded-full flex-shrink-0" style={{ border: "1.5px dashed var(--primary)", background: "hsl(var(--primary)/0.12)" }} />;
                     } else {
                       bullet = <Circle className="h-3 w-3 text-muted-foreground/35 flex-shrink-0" />;
                     }
                     label = (
-                      <span className={cn("text-[11px] leading-tight", done ? "line-through text-muted-foreground/50" : isCurrent ? "font-medium text-foreground" : "text-muted-foreground")}>
+                      <span className={cn("text-[11px] leading-tight", done ? "text-primary/70 font-medium" : isCurrent ? "font-medium text-foreground" : "text-muted-foreground")}>
                         {t.title}
-                        {isCurrent && <span className="ml-1.5 text-[10px] text-primary font-normal">← ici</span>}
+                        {isCurrent && <span className="ml-1.5 text-[11px]">👈</span>}
                       </span>
                     );
                   } else {

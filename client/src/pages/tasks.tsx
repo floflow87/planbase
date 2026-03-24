@@ -764,9 +764,9 @@ export default function Tasks() {
   });
   const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
   const [taskSearchQuery, setTaskSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<"kanban" | "list" | "calendar">(() => {
+  const [viewMode, setViewMode] = useState<"kanban" | "list" | "calendar" | "deliverables">(() => {
     const saved = localStorage.getItem("tasks_view_mode");
-    return (saved === "kanban" || saved === "list" || saved === "calendar") ? saved : "list";
+    return (saved === "kanban" || saved === "list" || saved === "calendar" || saved === "deliverables") ? saved : "list";
   });
   const [groupBy, setGroupBy] = useState<"status" | "deliverable" | "none">(() => {
     const saved = localStorage.getItem("tasks_group_by");
@@ -885,7 +885,7 @@ export default function Tasks() {
       const items = Array.isArray(data) ? data : (data?.scopeItems ?? []);
       return items.filter((i: any) => i.isDeliverable === 1);
     },
-    enabled: !!singleProjectId && viewMode === "list" && groupBy === "deliverable",
+    enabled: !!singleProjectId && (viewMode === "deliverables" || (viewMode === "list" && groupBy === "deliverable")),
   });
 
   // Get columns for the project selected in the form
@@ -1829,7 +1829,7 @@ export default function Tasks() {
                 className="gap-1.5 text-xs"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Nouveau livrable
+                + Livrable
               </Button>
             )}
             {viewMode !== "kanban" && (
@@ -1932,6 +1932,7 @@ export default function Tasks() {
                 size="icon"
                 onClick={() => setViewMode("kanban")}
                 data-testid="button-view-kanban"
+                title="Vue Kanban"
               >
                 <Columns3 className="w-4 h-4" />
               </Button>
@@ -1940,6 +1941,7 @@ export default function Tasks() {
                 size="icon"
                 onClick={() => setViewMode("list")}
                 data-testid="button-view-list"
+                title="Vue liste"
               >
                 <List className="w-4 h-4" />
               </Button>
@@ -1948,9 +1950,21 @@ export default function Tasks() {
                 size="icon"
                 onClick={() => setViewMode("calendar")}
                 data-testid="button-view-calendar"
+                title="Vue calendrier"
               >
                 <CalendarLucide className="w-4 h-4" />
               </Button>
+              {singleProjectId && (
+                <Button
+                  variant={viewMode === "deliverables" ? "secondary" : "ghost"}
+                  size="icon"
+                  onClick={() => setViewMode("deliverables")}
+                  data-testid="button-view-deliverables"
+                  title="Vue livrables"
+                >
+                  <Package className="w-4 h-4" />
+                </Button>
+              )}
             </div>
             {(() => {
               const queueCount = tasks.filter(t => {
@@ -1990,7 +2004,7 @@ export default function Tasks() {
                   className="hidden md:flex"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  <span className="text-xs">{viewMode === "list" ? "Nouvelle Tâche" : "Nouvelle Colonne"}</span>
+                  <span className="text-xs">{viewMode === "list" ? "+ Tâche" : "Nouvelle Colonne"}</span>
                 </Button>
               </>
             )}
@@ -2001,7 +2015,7 @@ export default function Tasks() {
                 className="flex-1 sm:flex-none"
               >
                 <Plus className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline text-[12px]">Nouvelle Tâche</span>
+                <span className="hidden sm:inline text-[12px]">+ Tâche</span>
               </Button>
             )}
           </div>
@@ -2069,6 +2083,102 @@ export default function Tasks() {
           />
         ) : (
           <>
+            {/* Deliverables View */}
+            {viewMode === "deliverables" && (() => {
+              const doneNames = ["terminé", "done", "complété", "termine", "finished", "closed"];
+              const isDoneTask = (t: any) => {
+                if (t.status === "done") return true;
+                const col = taskColumns.find(c => c.id === t.columnId);
+                return col ? doneNames.some(n => (col.name || "").toLowerCase().includes(n)) : false;
+              };
+              if (!singleProjectId) {
+                return (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <Package className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Sélectionnez un projet unique pour voir ses livrables.</p>
+                  </div>
+                );
+              }
+              if (projectScopeItems.length === 0) {
+                return (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <Package className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground mb-3">Aucun livrable pour ce projet.</p>
+                    <Button variant="default" size="default" className="gap-1.5 text-xs" onClick={() => setIsNewLivrableDialogOpen(true)}>
+                      <Plus className="h-3.5 w-3.5" />
+                      + Livrable
+                    </Button>
+                  </div>
+                );
+              }
+              return (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{projectScopeItems.length} livrable{projectScopeItems.length > 1 ? "s" : ""}</span>
+                    <Button variant="default" size="default" className="gap-1.5 text-xs" onClick={() => setIsNewLivrableDialogOpen(true)}>
+                      <Plus className="h-3.5 w-3.5" />
+                      + Livrable
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {projectScopeItems.map((si: any) => {
+                      const linked = filteredTasks.filter((t: any) => t.scopeItemId === si.id);
+                      const done = linked.filter(isDoneTask);
+                      const pct = linked.length > 0 ? Math.round((done.length / linked.length) * 100) : 0;
+                      const statusLabel = si.status === "delivered" ? "Livré" : si.status === "in_review" ? "À réviser" : si.status === "in_progress" ? "En cours" : "Planifié";
+                      const statusColor = si.status === "delivered" ? "text-green-600" : si.status === "in_review" ? "text-amber-600" : si.status === "in_progress" ? "text-blue-600" : "text-muted-foreground";
+                      return (
+                        <Card key={si.id} className="p-4 space-y-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Package className="h-4 w-4 text-primary flex-shrink-0" />
+                              <span className="text-sm font-semibold truncate">{si.label}</span>
+                            </div>
+                            <span className={`text-[10px] font-medium flex-shrink-0 ${statusColor}`}>{statusLabel}</span>
+                          </div>
+                          {si.dueDate && (
+                            <p className="text-[10px] text-muted-foreground">
+                              Échéance : {new Date(si.dueDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                            </p>
+                          )}
+                          {/* Progress */}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-muted-foreground">{done.length} / {linked.length} tâches</span>
+                              <span className="text-[10px] font-semibold text-foreground">{pct}%</span>
+                            </div>
+                            <Progress value={pct} className="h-1.5" />
+                          </div>
+                          {/* Task list */}
+                          {linked.length > 0 && (
+                            <div className="space-y-1 pt-1">
+                              {linked.map((t: any) => {
+                                const d = isDoneTask(t);
+                                const col = taskColumns.find(c => c.id === t.columnId);
+                                return (
+                                  <div key={t.id} className="flex items-center gap-2 cursor-pointer hover-elevate rounded px-1 -mx-1 py-0.5"
+                                    onClick={() => handleTaskClick(t)}>
+                                    {d
+                                      ? <span className="text-primary flex-shrink-0 text-[11px]">🚀</span>
+                                      : <Circle className="h-3 w-3 text-muted-foreground/40 flex-shrink-0" />
+                                    }
+                                    <span className={`text-[11px] flex-1 truncate leading-tight ${d ? "line-through text-primary/60" : "text-foreground"}`}>
+                                      {t.title}
+                                    </span>
+                                    {col && <span className="text-[9px] text-muted-foreground flex-shrink-0 hidden sm:block">{col.name}</span>}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* List View */}
             {viewMode === "list" && groupBy !== "deliverable" && (
               <ListView
