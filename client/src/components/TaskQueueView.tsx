@@ -1278,11 +1278,10 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
             </div>
           );
           const allNodes: Array<{type: "scope"|"fixed_start"|"task"|"delivery", task?: any}> = [
-            { type: "scope" },
             { type: "fixed_start" },
             ...doneSiblings.map((s: any) => ({ type: "task" as const, task: s })),
             ...pendingSiblings.map((s: any) => ({ type: "task" as const, task: s })),
-            { type: "delivery" },
+            { type: "scope" },
           ];
           return (
             <div className="w-64 shrink-0 border-l bg-muted/10 overflow-y-auto p-5 space-y-3">

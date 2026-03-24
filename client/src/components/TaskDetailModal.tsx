@@ -635,11 +635,10 @@ export function TaskDetailModal({
             </div>
           );
           const allNodes: Array<{type: "scope"|"fixed_start"|"task"|"delivery", task?: any}> = [
-            { type: "scope" },
             { type: "fixed_start" },
             ...doneSiblings.map((s: any) => ({ type: "task" as const, task: s })),
             ...pendingSiblings.map((s: any) => ({ type: "task" as const, task: s })),
-            { type: "delivery" },
+            { type: "scope" },
           ];
           const totalSteps = deliverableTimeline.siblings.length;
           const doneCount = doneSiblings.length;
