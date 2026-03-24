@@ -1270,10 +1270,19 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
         {queueDeliverableTimeline && (() => {
           const si = queueDeliverableTimeline.scopeItem as any;
           const statusLabel = si.status === "delivered" ? "Livré" : si.status === "in_review" ? "À réviser" : si.status === "in_progress" ? "En cours" : "Planifié";
-          const allNodes = [
-            { type: "scope" as const },
-            ...queueDeliverableTimeline.siblings.map((s: any) => ({ type: "task" as const, task: s })),
-            { type: "delivery" as const },
+          const doneSiblings = queueDeliverableTimeline.siblings.filter((t: any) => queueDeliverableTimeline.isDone(t));
+          const pendingSiblings = queueDeliverableTimeline.siblings.filter((t: any) => !queueDeliverableTimeline.isDone(t));
+          const doneBullet = (
+            <div className="h-3.5 w-3.5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+              <Check className="h-2 w-2 text-white stroke-[3]" />
+            </div>
+          );
+          const allNodes: Array<{type: "scope"|"fixed_start"|"task"|"delivery", task?: any}> = [
+            { type: "scope" },
+            { type: "fixed_start" },
+            ...doneSiblings.map((s: any) => ({ type: "task" as const, task: s })),
+            ...pendingSiblings.map((s: any) => ({ type: "task" as const, task: s })),
+            { type: "delivery" },
           ];
           return (
             <div className="w-64 shrink-0 border-l bg-muted/10 overflow-y-auto p-5 space-y-3">
@@ -1286,7 +1295,7 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
                 <p className="text-[10px] text-muted-foreground pl-4">{statusLabel}</p>
                 {queueDeliverableTimeline.siblings.length > 0 && (
                   <p className="text-[10px] text-muted-foreground pl-4">
-                    {queueDeliverableTimeline.completedCount} / {queueDeliverableTimeline.siblings.length} étapes
+                    {doneSiblings.length} / {queueDeliverableTimeline.siblings.length} étapes
                   </p>
                 )}
               </div>
@@ -1299,30 +1308,33 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
                   let label: React.ReactNode;
                   let isActive = false;
                   if (node.type === "scope") {
-                    bullet = <div className="h-2.5 w-2.5 rounded-full bg-primary flex-shrink-0" />;
+                    bullet = <span className="text-[13px] leading-none flex-shrink-0">🚀</span>;
                     label = <span className="text-[11px] font-semibold text-foreground">{si.label}</span>;
+                  } else if (node.type === "fixed_start") {
+                    bullet = doneBullet;
+                    label = <span className="text-[11px] text-primary/70 font-medium">Définition du besoin</span>;
                   } else if (node.type === "task") {
                     const t = node.task;
                     const isCurrent = t.id === currentTask?.id;
                     const done = queueDeliverableTimeline.isDone(t);
-                    isActive = isCurrent;
+                    isActive = isCurrent && !done;
                     if (done) {
-                      bullet = <span className="text-primary flex-shrink-0 text-[11px] leading-none">🚀</span>;
+                      bullet = doneBullet;
                     } else if (isCurrent) {
-                      bullet = <div className="h-3 w-3 rounded-full flex-shrink-0" style={{ border: "1.5px dashed var(--primary)", background: "hsl(var(--primary)/0.12)" }} />;
+                      bullet = <div className="h-3.5 w-3.5 rounded-full flex-shrink-0" style={{ border: "1.5px dashed var(--primary)", background: "hsl(var(--primary)/0.12)" }} />;
                     } else {
-                      bullet = <Circle className="h-3 w-3 text-muted-foreground/35 flex-shrink-0" />;
+                      bullet = <Circle className="h-3.5 w-3.5 text-muted-foreground/35 flex-shrink-0" />;
                     }
                     label = (
                       <span className={cn("text-[11px] leading-tight", done ? "text-primary/70 font-medium" : isCurrent ? "font-medium text-foreground" : "text-muted-foreground")}>
                         {t.title}
-                        {isCurrent && <span className="ml-1.5 text-[11px]">👈</span>}
+                        {isCurrent && !done && <span className="ml-1.5 text-[11px]">👈</span>}
                       </span>
                     );
                   } else {
                     const delivered = !!(si as any).completedAt;
-                    bullet = <div className={cn("h-2.5 w-2.5 rounded-full border-2 flex-shrink-0", delivered ? "border-green-500 bg-green-500" : "border-muted-foreground/25 bg-transparent")} />;
-                    label = <span className={cn("text-[11px] italic", delivered ? "text-green-600 dark:text-green-400 font-medium" : "text-muted-foreground/50")}>Livraison du livrable</span>;
+                    bullet = <div className={cn("h-2.5 w-2.5 rounded-full border-2 flex-shrink-0", delivered ? "border-primary bg-primary" : "border-muted-foreground/25 bg-transparent")} />;
+                    label = <span className={cn("text-[11px] italic", delivered ? "text-primary font-medium" : "text-muted-foreground/50")}>Livrable</span>;
                   }
                   return (
                     <div key={idx}>
@@ -1334,7 +1346,7 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
                         {label}
                       </div>
                       {!isLast && (
-                        <div className="ml-[5px] w-px bg-muted-foreground/30" style={{ height: "10px" }} />
+                        <div className="ml-[6px] w-px bg-muted-foreground/30" style={{ height: "10px" }} />
                       )}
                     </div>
                   );
