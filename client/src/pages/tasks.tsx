@@ -2124,7 +2124,7 @@ export default function Tasks() {
                       const done = linked.filter(isDoneTask);
                       const pct = linked.length > 0 ? Math.round((done.length / linked.length) * 100) : 0;
                       const statusLabel = si.status === "delivered" ? "Livré" : si.status === "in_review" ? "À réviser" : si.status === "in_progress" ? "En cours" : "Planifié";
-                      const statusColor = si.status === "delivered" ? "text-green-600" : si.status === "in_review" ? "text-amber-600" : si.status === "in_progress" ? "text-blue-600" : "text-muted-foreground";
+                      const statusColor = si.status === "delivered" ? "text-primary/60" : si.status === "in_review" ? "text-amber-600" : si.status === "in_progress" ? "text-blue-600" : "text-muted-foreground";
                       return (
                         <Card key={si.id} className="p-4 space-y-3">
                           <div className="flex items-start justify-between gap-2">
@@ -2160,7 +2160,7 @@ export default function Tasks() {
                                       ? <div className="h-3 w-3 rounded-full bg-primary flex items-center justify-center flex-shrink-0"><Check className="h-1.5 w-1.5 text-white stroke-[3]" /></div>
                                       : <Circle className="h-3 w-3 text-muted-foreground/40 flex-shrink-0" />
                                     }
-                                    <span className={`text-[11px] flex-1 truncate leading-tight ${d ? "line-through text-primary" : "text-foreground"}`}>
+                                    <span className={`text-[11px] flex-1 truncate leading-tight ${d ? "line-through text-primary/60" : "text-foreground"}`}>
                                       {t.title}
                                     </span>
                                     {col && <span className="text-[9px] text-muted-foreground flex-shrink-0 hidden sm:block">{col.name}</span>}

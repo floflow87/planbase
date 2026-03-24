@@ -13138,6 +13138,27 @@ app.get("/config/feature-flags", async (_req, res) => {
 
   // Validate invitation token (public - no auth required)
   app.get("/api/invitations/validate", async (req, res) => {
+    const isConnectionError = (err: any) =>
+      err?.message?.includes('CONNECT_TIMEOUT') ||
+      err?.message?.includes('ECONNREFUSED') ||
+      err?.message?.includes('pooler') ||
+      err?.code === 'ECONNREFUSED';
+
+    const withRetry = async <T>(fn: () => Promise<T>, retries = 3): Promise<T> => {
+      for (let i = 0; i < retries; i++) {
+        try {
+          return await fn();
+        } catch (err: any) {
+          if (i < retries - 1 && isConnectionError(err)) {
+            await new Promise(r => setTimeout(r, 800 * (i + 1)));
+          } else {
+            throw err;
+          }
+        }
+      }
+      throw new Error('Max retries exceeded');
+    };
+
     try {
       const { token } = req.query;
 
@@ -13146,11 +13167,9 @@ app.get("/config/feature-flags", async (_req, res) => {
       }
 
       const { invitations } = await import("@shared/schema");
-      const [invitation] = await db
-        .select()
-        .from(invitations)
-        .where(eq(invitations.token, token))
-        .limit(1);
+      const [invitation] = await withRetry(() =>
+        db.select().from(invitations).where(eq(invitations.token, token)).limit(1)
+      );
 
       if (!invitation) {
         return res.status(404).json({ error: "Invitation non trouvée" });
@@ -13165,10 +13184,10 @@ app.get("/config/feature-flags", async (_req, res) => {
       }
 
       // Get account name for display
-      const account = await storage.getAccount(invitation.accountId);
+      const account = await withRetry(() => storage.getAccount(invitation.accountId));
       
       // Get inviter name (from first admin of the account)
-      const members = await permissionService.getMembersByOrganization(invitation.accountId);
+      const members = await withRetry(() => permissionService.getMembersByOrganization(invitation.accountId));
       const adminMember = members.find(m => m.role === 'admin');
       let inviterName = 'Un membre';
       if (adminMember) {
@@ -13188,7 +13207,13 @@ app.get("/config/feature-flags", async (_req, res) => {
       });
     } catch (error: any) {
       console.error("Validate invitation error:", error);
-      res.status(500).json({ error: error.message });
+      const isConn = isConnectionError(error);
+      res.status(isConn ? 503 : 500).json({
+        error: isConn
+          ? "Le service est momentanément indisponible. Veuillez réessayer dans quelques instants."
+          : (error.message || "Erreur lors de la validation de l'invitation"),
+        retryable: isConn,
+      });
     }
   });
 

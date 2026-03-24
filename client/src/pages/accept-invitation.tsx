@@ -45,6 +45,8 @@ export default function AcceptInvitation() {
   const [validating, setValidating] = useState(true);
   const [invitationInfo, setInvitationInfo] = useState<InvitationInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retryable, setRetryable] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const [formData, setFormData] = useState({
     password: "",
     confirmPassword: "",
@@ -60,13 +62,16 @@ export default function AcceptInvitation() {
     }
 
     const validateToken = async () => {
+      setValidating(true);
+      setError(null);
+      setRetryable(false);
       try {
         const response = await fetch(`/api/invitations/validate?token=${token}`);
+        const data = await response.json();
         if (!response.ok) {
-          const data = await response.json();
+          setRetryable(!!data.retryable);
           throw new Error(data.error || "Invitation invalide ou expirée");
         }
-        const data = await response.json();
         setInvitationInfo(data);
       } catch (err: any) {
         setError(err.message || "Impossible de valider l'invitation");
@@ -76,7 +81,7 @@ export default function AcceptInvitation() {
     };
 
     validateToken();
-  }, [token]);
+  }, [token, retryCount]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -195,15 +200,25 @@ export default function AcceptInvitation() {
               <Shield className="w-8 h-8 text-destructive" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground mb-2">Invitation invalide</h1>
+              <h1 className="text-2xl font-bold text-foreground mb-2">
+                {retryable ? "Service temporairement indisponible" : "Invitation invalide"}
+              </h1>
               <p className="text-muted-foreground">{error}</p>
             </div>
-            <Link href="/login">
-              <Button variant="outline" className="mt-4">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Retour à la connexion
-              </Button>
-            </Link>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
+              {retryable && (
+                <Button variant="default" onClick={() => setRetryCount(c => c + 1)}>
+                  <Loader2 className="w-4 h-4 mr-2" />
+                  Réessayer
+                </Button>
+              )}
+              <Link href="/login">
+                <Button variant="outline">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Retour à la connexion
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
         <div className="hidden lg:flex flex-1 bg-gradient-to-br from-violet-600 via-purple-600 to-violet-700 items-center justify-center p-12">
