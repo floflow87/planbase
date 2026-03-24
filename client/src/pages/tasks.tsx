@@ -822,6 +822,9 @@ export default function Tasks() {
 
   // New column form
   const [newColumnName, setNewColumnName] = useState("");
+  const [isNewLivrableDialogOpen, setIsNewLivrableDialogOpen] = useState(false);
+  const [newLivrableLabel, setNewLivrableLabel] = useState("");
+  const [newLivableDays, setNewLivableDays] = useState("");
   const [renameColumnName, setRenameColumnName] = useState("");
   const [columnColor, setColumnColor] = useState("#ffffff");
 
@@ -1183,6 +1186,20 @@ export default function Tasks() {
         title: "Colonne créée",
         description: "La colonne a été créée avec succès.",
       });
+    },
+  });
+
+  const createLivrable = useMutation({
+    mutationFn: async ({ projectId, label, estimatedDays }: { projectId: string; label: string; estimatedDays: string }) => {
+      const res = await apiRequest(`/api/projects/${projectId}/scope-items`, "POST", { label, estimatedDays });
+      return res.json();
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", vars.projectId, "scope-items"] });
+      setIsNewLivrableDialogOpen(false);
+      setNewLivrableLabel("");
+      setNewLivableDays("");
+      toast({ variant: "success", title: "Livrable créé", description: "Le livrable a bien été ajouté." });
     },
   });
 
@@ -1798,6 +1815,19 @@ export default function Tasks() {
                   <SelectItem value="none">Aucun groupement</SelectItem>
                 </SelectContent>
               </Select>
+            )}
+            {/* Nouveau livrable button — only in list+deliverable view with a single project */}
+            {viewMode === "list" && groupBy === "deliverable" && singleProjectId && (
+              <Button
+                variant="outline"
+                size="default"
+                onClick={() => setIsNewLivrableDialogOpen(true)}
+                data-testid="button-new-livrable"
+                className="gap-1.5"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Nouveau livrable
+              </Button>
             )}
             {viewMode !== "kanban" && (
               <Popover open={statusSelectorOpen} onOpenChange={setStatusSelectorOpen}>
@@ -2616,7 +2646,65 @@ export default function Tasks() {
           </SheetContent>
         </Sheet>
 
-        {/* Create Column Dialog */}
+        {/* Nouveau Livrable Dialog */}
+        <Dialog open={isNewLivrableDialogOpen} onOpenChange={open => {
+          setIsNewLivrableDialogOpen(open);
+          if (!open) { setNewLivrableLabel(""); setNewLivableDays(""); }
+        }}>
+          <DialogContent data-testid="dialog-new-livrable" aria-describedby={undefined}>
+            <DialogHeader>
+              <DialogTitle>Nouveau livrable</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-1">
+              <div className="space-y-1.5">
+                <Label htmlFor="livrable-label">Nom du livrable *</Label>
+                <Input
+                  id="livrable-label"
+                  placeholder="ex. Maquettes UI, Développement back-end…"
+                  value={newLivrableLabel}
+                  onChange={e => setNewLivrableLabel(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && document.getElementById("livrable-days")?.focus()}
+                  data-testid="input-livrable-label"
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="livrable-days">Jours estimés *</Label>
+                <Input
+                  id="livrable-days"
+                  type="number"
+                  min="0.5"
+                  step="0.5"
+                  placeholder="ex. 3"
+                  value={newLivableDays}
+                  onChange={e => setNewLivableDays(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && singleProjectId && newLivrableLabel.trim() && newLivableDays) {
+                      createLivrable.mutate({ projectId: singleProjectId, label: newLivrableLabel.trim(), estimatedDays: newLivableDays });
+                    }
+                  }}
+                  data-testid="input-livrable-days"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsNewLivrableDialogOpen(false)} data-testid="button-cancel-livrable">
+                Annuler
+              </Button>
+              <Button
+                onClick={() => {
+                  if (!singleProjectId || !newLivrableLabel.trim() || !newLivableDays) return;
+                  createLivrable.mutate({ projectId: singleProjectId, label: newLivrableLabel.trim(), estimatedDays: newLivableDays });
+                }}
+                disabled={!newLivrableLabel.trim() || !newLivableDays || createLivrable.isPending}
+                data-testid="button-submit-livrable"
+              >
+                {createLivrable.isPending ? "Création…" : "Créer"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={isCreateColumnDialogOpen} onOpenChange={setIsCreateColumnDialogOpen}>
           <DialogContent data-testid="dialog-create-column" className="">
             <DialogHeader>
