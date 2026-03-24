@@ -585,6 +585,8 @@ export const projectScopeItems = pgTable("project_scope_items", {
   generatedEpicId: uuid("generated_epic_id"), // If generated as an Epic
   generatedUserStoryId: uuid("generated_user_story_id"), // If generated as a User Story
   generatedRoadmapItemId: uuid("generated_roadmap_item_id"), // If generated as a Roadmap item
+  // Deliverable flag — distinguishes CDC items (is_deliverable=0) from true deliverables (is_deliverable=1)
+  isDeliverable: integer("is_deliverable").notNull().default(0),
   // Completion tracking - when set, the scope item is "closed" and projections stop
   completedAt: timestamp("completed_at", { withTimezone: true }), // null = open, timestamp = completed (synced with status=delivered)
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

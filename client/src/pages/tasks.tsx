@@ -1804,7 +1804,7 @@ export default function Tasks() {
             {viewMode === "list" && (
               <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
                 <SelectTrigger
-                  className="w-44 h-9 bg-white dark:bg-white text-sm font-normal"
+                  className="w-44 h-9 bg-white dark:bg-white text-xs font-normal"
                   data-testid="select-group-by"
                 >
                   <div className="flex items-center gap-1.5">
@@ -1839,7 +1839,7 @@ export default function Tasks() {
                     variant="outline"
                     role="combobox"
                     aria-expanded={statusSelectorOpen}
-                    className="w-44 h-9 justify-between bg-white dark:bg-white text-sm font-normal"
+                    className="w-44 h-9 justify-between bg-white dark:bg-white text-xs font-normal"
                     data-testid="select-status-filter"
                   >
                     <span className="truncate">{getStatusFilterLabel()}</span>
