@@ -1827,9 +1827,8 @@ export default function Tasks() {
                 size="default"
                 onClick={() => setIsNewLivrableDialogOpen(true)}
                 data-testid="button-new-livrable"
-                className="gap-1.5 text-xs"
+                className="text-xs"
               >
-                <Plus className="h-3.5 w-3.5" />
                 + Livrable
               </Button>
             )}
@@ -2158,10 +2157,10 @@ export default function Tasks() {
                                   <div key={t.id} className="flex items-center gap-2 cursor-pointer hover-elevate rounded px-1 -mx-1 py-0.5"
                                     onClick={() => handleTaskClick(t)}>
                                     {d
-                                      ? <span className="text-primary flex-shrink-0 text-[11px]">🚀</span>
+                                      ? <div className="h-3 w-3 rounded-full bg-primary flex items-center justify-center flex-shrink-0"><Check className="h-1.5 w-1.5 text-white stroke-[3]" /></div>
                                       : <Circle className="h-3 w-3 text-muted-foreground/40 flex-shrink-0" />
                                     }
-                                    <span className={`text-[11px] flex-1 truncate leading-tight ${d ? "line-through text-primary/60" : "text-foreground"}`}>
+                                    <span className={`text-[11px] flex-1 truncate leading-tight ${d ? "line-through text-primary" : "text-foreground"}`}>
                                       {t.title}
                                     </span>
                                     {col && <span className="text-[9px] text-muted-foreground flex-shrink-0 hidden sm:block">{col.name}</span>}
