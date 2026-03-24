@@ -1822,11 +1822,11 @@ export default function Tasks() {
             {/* Nouveau livrable button — only in list+deliverable view with a single project */}
             {viewMode === "list" && groupBy === "deliverable" && singleProjectId && (
               <Button
-                variant="outline"
+                variant="default"
                 size="default"
                 onClick={() => setIsNewLivrableDialogOpen(true)}
                 data-testid="button-new-livrable"
-                className="gap-1.5"
+                className="gap-1.5 text-xs"
               >
                 <Plus className="h-3.5 w-3.5" />
                 Nouveau livrable
@@ -2200,7 +2200,7 @@ export default function Tasks() {
                                     <Circle className="h-4 w-4 text-muted-foreground/40" />
                                   )}
                                 </div>
-                                <span className={cn("text-sm flex-1 truncate", done && "line-through text-muted-foreground")}>
+                                <span className={cn("text-xs flex-1 truncate", done && "line-through text-muted-foreground")}>
                                   {t.title}
                                 </span>
                                 {col && (

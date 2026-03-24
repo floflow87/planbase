@@ -38,7 +38,11 @@ import {
   Trash2,
   Pencil,
   Check,
+  Package,
+  Circle,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
@@ -320,6 +324,48 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
   const { data: clients = [] } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
   });
+
+  // Scope items for the current task's project (for deliverable timeline)
+  const { data: queueScopeItems = [] } = useQuery<any[]>({
+    queryKey: ["/api/projects", currentTask?.projectId, "scope-items"],
+    queryFn: async () => {
+      if (!currentTask?.projectId) return [];
+      const res = await apiRequest(`/api/projects/${currentTask.projectId}/scope-items`, "GET");
+      return res.json();
+    },
+    select: (data: any) => Array.isArray(data) ? data : (data?.scopeItems ?? []),
+    enabled: !!currentTask?.projectId && !!(currentTask as any)?.scopeItemId,
+  });
+
+  // All tasks in the same project (for timeline siblings)
+  const { data: queueProjectTasks = [] } = useQuery<any[]>({
+    queryKey: ["/api/projects", currentTask?.projectId, "tasks"],
+    queryFn: async () => {
+      if (!currentTask?.projectId) return [];
+      const res = await apiRequest(`/api/tasks?projectId=${currentTask.projectId}`, "GET");
+      return res.json();
+    },
+    enabled: !!currentTask?.projectId && !!(currentTask as any)?.scopeItemId,
+  });
+
+  // Build deliverable timeline for the queue view
+  const queueDeliverableTimeline = useMemo(() => {
+    const si = (currentTask as any)?.scopeItemId;
+    if (!si) return null;
+    const scopeItem = queueScopeItems.find((s: any) => s.id === si);
+    if (!scopeItem) return null;
+    const doneNames = ["terminé", "done", "complété", "termine", "finished", "closed"];
+    const isDone = (t: any) => {
+      if (t.status === "done") return true;
+      const col = taskColumns.find(c => c.id === t.columnId);
+      return col ? doneNames.some(n => col.name.toLowerCase().includes(n)) : false;
+    };
+    const siblings = queueProjectTasks
+      .filter((t: any) => t.scopeItemId === si)
+      .sort((a: any, b: any) => (a.positionInColumn ?? 0) - (b.positionInColumn ?? 0));
+    const completedCount = siblings.filter(isDone).length;
+    return { scopeItem, siblings, isDone, completedCount };
+  }, [currentTask, queueScopeItems, queueProjectTasks, taskColumns]);
 
   const patchTask = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Task> }) => {
@@ -1219,6 +1265,101 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
             </div>
           </div>
         </div>
+
+        {/* Right panel — deliverable timeline (only when task has a linked deliverable) */}
+        {queueDeliverableTimeline && (
+          <div className="w-64 shrink-0 border-l bg-muted/10 overflow-y-auto p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <Package className="w-3 h-3" />
+                Livrable
+              </label>
+              {queueDeliverableTimeline.siblings.length > 0 && (
+                <span className="text-[10px] text-muted-foreground">
+                  {queueDeliverableTimeline.completedCount}/{queueDeliverableTimeline.siblings.length}
+                </span>
+              )}
+            </div>
+            <Separator />
+            {/* Scope item header */}
+            {(() => {
+              const si = queueDeliverableTimeline.scopeItem as any;
+              const statusColor = si.status === "delivered" ? "text-green-600 dark:text-green-400"
+                : si.status === "in_review" ? "text-amber-600 dark:text-amber-400"
+                : si.status === "in_progress" ? "text-blue-600 dark:text-blue-400"
+                : "text-muted-foreground";
+              const statusLabel = si.status === "delivered" ? "Livré"
+                : si.status === "in_review" ? "À réviser"
+                : si.status === "in_progress" ? "En cours"
+                : "Planifié";
+              return (
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                    <span className="text-xs font-semibold leading-tight">{si.label}</span>
+                  </div>
+                  <span className={`text-[10px] font-medium pl-3.5 ${statusColor}`}>{statusLabel}</span>
+                  {si.dueDate && (
+                    <p className="text-[10px] text-muted-foreground pl-3.5">
+                      Échéance : {new Date(si.dueDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Task list */}
+            <div className="flex flex-col pl-1 pt-1 space-y-0">
+              {queueDeliverableTimeline.siblings.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">Aucune tâche liée.</p>
+              ) : (
+                <>
+                  {queueDeliverableTimeline.siblings.map((sibling: any, idx: number) => {
+                    const isLast = idx === queueDeliverableTimeline.siblings.length - 1;
+                    const isCurrent = sibling.id === currentTask?.id;
+                    const done = queueDeliverableTimeline.isDone(sibling);
+                    return (
+                      <div key={sibling.id} className="flex gap-2">
+                        <div className="flex flex-col items-center w-4 flex-shrink-0">
+                          <div className={cn("w-px flex-1 mt-0", idx === 0 ? "bg-transparent" : done ? "bg-green-400 dark:bg-green-600" : "bg-border")} style={{ minHeight: "8px" }} />
+                          <div className="flex-shrink-0">
+                            {done ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                            ) : isCurrent ? (
+                              <div className="h-3.5 w-3.5 rounded-full border-2 border-primary bg-primary/20 flex-shrink-0" />
+                            ) : (
+                              <Circle className="h-3.5 w-3.5 text-muted-foreground/40" />
+                            )}
+                          </div>
+                          {!isLast && (
+                            <div className={cn("w-px flex-1", done ? "bg-green-400 dark:bg-green-600" : "bg-border")} style={{ minHeight: "8px" }} />
+                          )}
+                        </div>
+                        <div className={cn(
+                          "py-1 text-xs leading-tight",
+                          isCurrent ? "font-semibold text-foreground bg-primary/5 px-1.5 rounded" : done ? "text-muted-foreground line-through" : "text-muted-foreground"
+                        )}>
+                          {sibling.title}
+                          {isCurrent && <span className="ml-1 text-[10px] text-primary font-normal">← ici</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {/* Final delivery dot */}
+                  <div className="flex gap-2">
+                    <div className="flex flex-col items-center w-4 flex-shrink-0">
+                      <div className={cn("w-px flex-1 mt-0", queueDeliverableTimeline.completedCount === queueDeliverableTimeline.siblings.length ? "bg-green-400 dark:bg-green-600" : "bg-border")} style={{ minHeight: "8px" }} />
+                      <div className={cn("h-3 w-3 rounded-full border-2 flex-shrink-0", (queueDeliverableTimeline.scopeItem as any).completedAt ? "border-green-500 bg-green-500" : "border-muted-foreground/30 bg-transparent")} />
+                    </div>
+                    <div className={cn("py-1 text-[10px]", (queueDeliverableTimeline.scopeItem as any).completedAt ? "text-green-600 dark:text-green-400 font-medium" : "text-muted-foreground/50 italic")}>
+                      Livraison du livrable
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
