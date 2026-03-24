@@ -2105,8 +2105,7 @@ export default function Tasks() {
                   <div className="flex flex-col items-center justify-center py-16 text-center">
                     <Package className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground mb-3">Aucun livrable pour ce projet.</p>
-                    <Button variant="default" size="default" className="gap-1.5 text-xs" onClick={() => setIsNewLivrableDialogOpen(true)}>
-                      <Plus className="h-3.5 w-3.5" />
+                    <Button variant="default" size="default" className="text-xs" onClick={() => setIsNewLivrableDialogOpen(true)}>
                       + Livrable
                     </Button>
                   </div>
@@ -2116,8 +2115,7 @@ export default function Tasks() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">{projectScopeItems.length} livrable{projectScopeItems.length > 1 ? "s" : ""}</span>
-                    <Button variant="default" size="default" className="gap-1.5 text-xs" onClick={() => setIsNewLivrableDialogOpen(true)}>
-                      <Plus className="h-3.5 w-3.5" />
+                    <Button variant="default" size="default" className="text-xs" onClick={() => setIsNewLivrableDialogOpen(true)}>
                       + Livrable
                     </Button>
                   </div>

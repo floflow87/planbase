@@ -629,6 +629,12 @@ export function TaskDetailModal({
           const ownerName = owner ? (owner.firstName ? `${owner.firstName} ${owner.lastName || ""}`.trim() : owner.email) : null;
           const doneSiblings = deliverableTimeline.siblings.filter((t: any) => deliverableTimeline.isDone(t));
           const pendingSiblings = deliverableTimeline.siblings.filter((t: any) => !deliverableTimeline.isDone(t));
+          const currentIsDone = task ? deliverableTimeline.isDone(task) : false;
+          const nextTask: any = currentIsDone
+            ? (pendingSiblings.find((t: any) => t.status === "in_progress") ||
+               pendingSiblings.find((t: any) => t.status === "in_review") ||
+               pendingSiblings[0] || null)
+            : null;
           const doneBullet = (
             <div className="h-3.5 w-3.5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
               <Check className="h-2 w-2 text-white stroke-[3]" />
@@ -676,19 +682,21 @@ export function TaskDetailModal({
                   } else if (node.type === "task") {
                     const t = node.task;
                     const isCurrent = t.id === task?.id;
+                    const isNext = nextTask ? t.id === nextTask.id : false;
+                    const isPointed = isNext || (isCurrent && !currentIsDone);
                     const done = deliverableTimeline.isDone(t);
-                    isActive = isCurrent && !done;
+                    isActive = isPointed && !done;
                     if (done) {
                       bullet = doneBullet;
-                    } else if (isCurrent) {
+                    } else if (isPointed) {
                       bullet = <div className="h-3.5 w-3.5 rounded-full flex-shrink-0" style={{ border: "1.5px dashed var(--primary)", background: "hsl(var(--primary)/0.12)" }} />;
                     } else {
                       bullet = <Circle className="h-3.5 w-3.5 text-muted-foreground/35 flex-shrink-0" />;
                     }
                     label = (
-                      <span className={cn("text-[11px] leading-tight", done ? "text-primary/70 font-medium" : isCurrent ? "font-medium text-foreground" : "text-muted-foreground")}>
+                      <span className={cn("text-[11px] leading-tight", done ? "text-primary/70 font-medium" : isPointed ? "font-medium text-foreground" : "text-muted-foreground")}>
                         {t.title}
-                        {isCurrent && !done && <span className="ml-1.5 text-[11px]">👈</span>}
+                        {isPointed && <span className="ml-1.5 text-[11px]">👈</span>}
                       </span>
                     );
                   } else {
