@@ -98,7 +98,8 @@ export function TaskDetailModal({
       if (!task?.projectId) return [];
       const res = await apiRequest(`/api/projects/${task.projectId}/scope-items`, "GET");
       const data = await res.json();
-      return data?.scopeItems ?? data ?? [];
+      const items = data?.scopeItems ?? data ?? [];
+      return items.filter((i: any) => i.isDeliverable === 1);
     },
     enabled: !!task?.projectId && isOpen,
   });

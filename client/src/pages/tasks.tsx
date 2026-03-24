@@ -881,7 +881,10 @@ export default function Tasks() {
       const res = await apiRequest(`/api/projects/${singleProjectId}/scope-items`, "GET");
       return res.json();
     },
-    select: (data: any) => Array.isArray(data) ? data : (data?.scopeItems ?? []),
+    select: (data: any) => {
+      const items = Array.isArray(data) ? data : (data?.scopeItems ?? []);
+      return items.filter((i: any) => i.isDeliverable === 1);
+    },
     enabled: !!singleProjectId && viewMode === "list" && groupBy === "deliverable",
   });
 

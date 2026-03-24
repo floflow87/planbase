@@ -2794,6 +2794,13 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Scope items owner_id, status, due_date columns added");
 
+    // ── Add is_deliverable flag to project_scope_items ──
+    await db.execute(sql`
+      ALTER TABLE project_scope_items
+      ADD COLUMN IF NOT EXISTS is_deliverable INTEGER NOT NULL DEFAULT 0
+    `);
+    console.log("✅ Scope items is_deliverable column added");
+
     // ── TRIAL CLEANUP: reset auto-migration trials that were never explicitly started ──
     // Old auto-migration set trial_ends_at = created_at + 7 days for ALL accounts.
     // Those trials are now expired (created_at is in the past) and were never started by the user.

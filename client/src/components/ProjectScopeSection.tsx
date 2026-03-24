@@ -30,7 +30,9 @@ import {
   ChevronUp,
   User,
   CalendarIcon,
+  Package,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -135,6 +137,7 @@ function SortableScopeItem({ item, onUpdate, onDelete, users }: ScopeItemRowProp
   const [ownerId, setOwnerId] = useState<string>((item as any).ownerId || "none");
   const [status, setStatus] = useState<string>((item as any).status || "planned");
   const [dueDate, setDueDate] = useState<string>((item as any).dueDate || "");
+  const [isDeliverable, setIsDeliverable] = useState<boolean>((item as any).isDeliverable === 1);
 
   const {
     attributes,
@@ -162,6 +165,7 @@ function SortableScopeItem({ item, onUpdate, onDelete, users }: ScopeItemRowProp
       ownerId: ownerId === "none" ? null : ownerId,
       status,
       dueDate: dueDate || null,
+      isDeliverable: isDeliverable ? 1 : 0,
     } as any);
     setIsEnriching(false);
   };
@@ -198,10 +202,18 @@ function SortableScopeItem({ item, onUpdate, onDelete, users }: ScopeItemRowProp
             setOwnerId((item as any).ownerId || "none");
             setStatus((item as any).status || "planned");
             setDueDate((item as any).dueDate || "");
+            setIsDeliverable((item as any).isDeliverable === 1);
           }}
         >
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm truncate">{item.label}</span>
+            {/* Deliverable badge */}
+            {(item as any).isDeliverable === 1 && (
+              <Badge className="text-[10px] px-1.5 py-0 shrink-0 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                <Package className="h-2.5 w-2.5 mr-0.5" />
+                Livrable
+              </Badge>
+            )}
             {/* Status badge */}
             {(item as any).status && (item as any).status !== "planned" && (
               <Badge className={`text-[10px] px-1.5 py-0 shrink-0 ${statusInfo.color}`}>
@@ -303,6 +315,20 @@ function SortableScopeItem({ item, onUpdate, onDelete, users }: ScopeItemRowProp
                 data-testid={`input-scope-description-${item.id}`}
               />
             </div>
+          </div>
+
+          {/* Livrable toggle */}
+          <div className="flex items-center gap-2 pb-1 border-b border-dashed">
+            <Checkbox
+              id={`deliverable-${item.id}`}
+              checked={isDeliverable}
+              onCheckedChange={(v) => setIsDeliverable(!!v)}
+              data-testid={`checkbox-is-deliverable-${item.id}`}
+            />
+            <Label htmlFor={`deliverable-${item.id}`} className="text-xs font-medium cursor-pointer select-none">
+              Marquer comme livrable
+            </Label>
+            <span className="text-[10px] text-muted-foreground">— apparaîtra dans le sélecteur de tâches et dans le groupement</span>
           </div>
 
           {/* Status / Owner / Due date */}
