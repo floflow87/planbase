@@ -2200,7 +2200,7 @@ export default function Tasks() {
                                     <Circle className="h-4 w-4 text-muted-foreground/40" />
                                   )}
                                 </div>
-                                <span className={cn("text-xs flex-1 truncate", done && "line-through text-muted-foreground")}>
+                                <span className={cn("text-[11px] flex-1 truncate", done && "line-through text-muted-foreground")}>
                                   {t.title}
                                 </span>
                                 {col && (
