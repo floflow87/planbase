@@ -874,14 +874,14 @@ export default function Tasks() {
 
   // Fetch scope items for "group by deliverable" — only when a single project is selected in list mode
   const singleProjectId = (!selectedProjectIds.includes("all") && selectedProjectIds.length === 1) ? selectedProjectIds[0] : null;
-  const { data: scopeItemsForGrouping = [] } = useQuery<any[]>({
+  const { data: scopeItemsForGrouping = [] } = useQuery<any, Error, any[]>({
     queryKey: ["/api/projects", singleProjectId, "scope-items"],
     queryFn: async () => {
       if (!singleProjectId) return [];
       const res = await apiRequest(`/api/projects/${singleProjectId}/scope-items`, "GET");
-      const data = await res.json();
-      return data?.scopeItems ?? data ?? [];
+      return res.json();
     },
+    select: (data: any) => Array.isArray(data) ? data : (data?.scopeItems ?? []),
     enabled: !!singleProjectId && viewMode === "list" && groupBy === "deliverable",
   });
 
