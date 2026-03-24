@@ -887,6 +887,7 @@ export default function Tasks() {
     },
     enabled: !!singleProjectId && (viewMode === "deliverables" || (viewMode === "list" && groupBy === "deliverable")),
   });
+  const projectScopeItems = scopeItemsForGrouping;
 
   // Get columns for the project selected in the form
   const { data: newTaskProjectColumns = [] } = useQuery<TaskColumn[]>({
