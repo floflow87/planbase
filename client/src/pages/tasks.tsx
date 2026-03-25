@@ -98,7 +98,7 @@ import type {
 type BacklogWithSprints = Backlog & { sprints?: Sprint[] };
 import { TaskCardMenu } from "@/components/TaskCardMenu";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
-import { getDeliverableStatusInfo } from "@/components/ProjectScopeSection";
+import { getDeliverableStatusInfo, DELIVERABLE_STATUSES } from "@/components/ProjectScopeSection";
 import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
 import { ColorPicker } from "@/components/ColorPicker";
 import { ListView } from "@/components/ListView";
@@ -902,6 +902,16 @@ export default function Tasks() {
     enabled: !!singleProjectId && (viewMode === "deliverables" || (viewMode === "list" && groupBy === "deliverable")),
   });
   const projectScopeItems = scopeItemsForGrouping;
+
+  const updateScopeItemStatusMutation = useMutation({
+    mutationFn: async ({ itemId, status }: { itemId: string; status: string }) => {
+      const res = await apiRequest(`/api/scope-items/${itemId}`, "PATCH", { status });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", singleProjectId, "scope-items"] });
+    },
+  });
 
   // Get columns for the project selected in the form
   const { data: newTaskProjectColumns = [] } = useQuery<TaskColumn[]>({
@@ -2284,9 +2294,36 @@ export default function Tasks() {
                             {scopeItem && (() => {
                               const si = getDeliverableStatusInfo(scopeItem.status);
                               return (
-                                <Badge className={`text-[10px] px-1.5 py-0 shrink-0 ${si.color}`}>
-                                  {si.label}
-                                </Badge>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <button
+                                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0 cursor-pointer hover:opacity-80 transition-opacity ${si.color}`}
+                                      data-testid={`scope-status-trigger-${scopeItem.id}`}
+                                    >
+                                      {si.label}
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-44 p-1" align="start">
+                                    {DELIVERABLE_STATUSES.map((s) => {
+                                      const isActive = (scopeItem.status ?? "planned") === s.value;
+                                      return (
+                                        <button
+                                          key={s.value}
+                                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-xs hover:bg-accent transition-colors ${isActive ? "bg-accent" : ""}`}
+                                          data-testid={`scope-status-option-${s.value}`}
+                                          onClick={() => {
+                                            if (!isActive) {
+                                              updateScopeItemStatusMutation.mutate({ itemId: scopeItem.id, status: s.value });
+                                            }
+                                          }}
+                                        >
+                                          <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${s.color}`} />
+                                          <span>{s.label}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </PopoverContent>
+                                </Popover>
                               );
                             })()}
                           </div>

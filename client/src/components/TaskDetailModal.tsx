@@ -34,6 +34,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useCelebration } from "@/hooks/useCelebration";
 import { supabase } from "@/lib/supabase";
 
 type BacklogWithSprints = Backlog & { sprints?: Sprint[] };
@@ -81,6 +82,7 @@ export function TaskDetailModal({
   onCreateTicket,
 }: TaskDetailModalProps) {
   const { toast } = useToast();
+  const { celebrate } = useCelebration();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
@@ -318,6 +320,7 @@ export function TaskDetailModal({
       const doneColumn = columns.find((c) => getStatusFromColumnName(c.name) === "done");
       if (doneColumn) {
         setSelectedColumnId(doneColumn.id);
+        celebrate("micro", { entityId: task.id });
       }
     }
   };

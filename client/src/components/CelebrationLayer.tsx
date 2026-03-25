@@ -1,11 +1,23 @@
 import { useEffect, useState, useRef } from "react";
-import { celebrationService, CelebrationEvent } from "@/services/celebrationService";
+import { celebrationService, CelebrationEvent, CelebrationLevel } from "@/services/celebrationService";
 import { CheckCircle2 } from "lucide-react";
 
 type Toast = {
   id: number;
   label: string;
-  level: "medium" | "major";
+  level: CelebrationLevel;
+};
+
+const DURATIONS: Record<CelebrationLevel, number> = {
+  micro: 900,
+  medium: 2800,
+  major: 3500,
+};
+
+const LABELS: Record<CelebrationLevel, string> = {
+  micro: "Tâche terminée",
+  medium: "Livrable terminé",
+  major: "Mission accomplie !",
 };
 
 let toastIdCounter = 0;
@@ -78,12 +90,8 @@ export function CelebrationLayer() {
 
   useEffect(() => {
     const unsub = celebrationService.subscribe((event: CelebrationEvent) => {
-      if (event.level === "micro") return;
-
       const id = ++toastIdCounter;
-      const label =
-        event.label ??
-        (event.level === "major" ? "Mission accomplie !" : "Livrable terminé");
+      const label = event.label ?? LABELS[event.level];
 
       if (event.level === "major") {
         fireMajorConfetti();
@@ -96,7 +104,7 @@ export function CelebrationLayer() {
       timerRefs.current[id] = setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
         delete timerRefs.current[id];
-      }, event.level === "major" ? 3500 : 2800);
+      }, DURATIONS[event.level]);
     });
 
     return () => {
@@ -119,14 +127,12 @@ export function CelebrationLayer() {
           data-level={t.level}
         >
           <CheckCircle2
-            className={
-              t.level === "major"
-                ? "w-4 h-4 text-white"
-                : "w-3.5 h-3.5 text-white"
-            }
+            className={t.level === "major" ? "w-4 h-4 text-white" : "w-3.5 h-3.5 text-white"}
             strokeWidth={2.5}
           />
-          <span className="text-sm font-semibold text-white leading-tight">
+          <span
+            className={`font-semibold text-white leading-tight ${t.level === "micro" ? "text-xs" : "text-sm"}`}
+          >
             {t.label}
           </span>
         </div>
