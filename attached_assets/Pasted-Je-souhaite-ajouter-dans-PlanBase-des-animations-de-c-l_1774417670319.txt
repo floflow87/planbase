@@ -1,0 +1,227 @@
+Je souhaite ajouter dans PlanBase des animations de célébration de réussite, mais de manière premium, subtile et contextuelle.
+
+IMPORTANT :
+- ne pas faire de célébrations gadget ou trop bruyantes
+- garder une esthétique élégante, SaaS premium, moderne
+- adapter l’intensité de l’animation selon l’importance de l’action
+- privilégier des micro-interactions satisfaisantes
+- ne pas casser les flows existants
+- implémenter cela proprement et de façon réutilisable
+
+## Objectif produit
+
+Ajouter des animations de réussite lors de certaines actions clés afin de rendre l’expérience plus satisfaisante et motivante, sans tomber dans l’excès.
+
+Je veux 3 niveaux d’intensité :
+
+1. tâche terminée → micro célébration
+2. livrable terminé / prêt à livrer → célébration intermédiaire
+3. projet terminé / deal conclu → célébration plus forte
+
+## Direction UX
+
+Je veux un rendu :
+- premium
+- subtil
+- fluide
+- satisfaisant
+- pas enfantin
+- pas trop “arcade”
+- plus proche de Linear / Stripe / Notion avec une touche émotionnelle légère
+
+## Technologie recommandée
+
+Si pertinent, utiliser :
+- Framer Motion pour les micro-interactions
+- une petite librairie de confettis légère uniquement pour les célébrations plus fortes
+- sinon CSS animations si c’est plus simple et plus propre
+
+Éviter toute dépendance lourde inutile.
+
+---
+
+# 1. TÂCHE TERMINÉE
+
+Quand une tâche est marquée comme terminée :
+
+## Effet attendu
+- animation très légère
+- la carte ou la ligne de tâche doit réagir visuellement
+- la checkbox / l’icône de validation doit être satisfaisante
+
+## Comportement UX
+Je veux une combinaison possible de :
+- check qui se dessine
+- petit bounce
+- légère montée / scale
+- glow subtil
+- ripple discret
+- fade doux si la tâche change de colonne ou disparaît
+
+## Contraintes
+- durée courte
+- pas de confettis à ce niveau
+- pas de popup intrusive
+- pas de son
+
+---
+
+# 2. LIVRABLE TERMINÉ / PRÊT À LIVRER
+
+Quand :
+- toutes les tâches d’un livrable sont terminées
+ou
+- un livrable passe en statut “ready_to_deliver”
+ou “delivered”
+
+## Effet attendu
+- animation un peu plus visible
+- mais toujours élégante
+
+## Idées d’effets
+- mini confettis localisés autour du bloc concerné
+- badge “Prêt à livrer” qui apparaît avec un petit motion
+- progression qui va à 100%
+- cercle / anneau qui se complète
+- flash très léger + fade
+
+## Message possible
+Prévoir si pertinent un petit toast ou badge du type :
+- Livrable prêt à être livré
+- Livrable terminé
+- Ready to deliver
+
+Ce message doit rester discret.
+
+---
+
+# 3. PROJET TERMINÉ / DEAL CONCLU
+
+Quand :
+- un projet passe en terminé
+- un deal / client / opportunité passe en “signé” ou statut équivalent de succès
+
+## Effet attendu
+- célébration plus marquée
+- mais toujours haut de gamme
+
+## Effets souhaités
+- confettis plus visibles, mais courts
+- éventuellement une animation globale de la page ou du header
+- petit moment “achievement”
+- toast ou carte de succès
+
+## Message possible
+- Projet terminé
+- Mission accomplie
+- Deal signé
+- Bravo, projet livré
+
+## Contraintes
+- animation courte (pas plus de 1 à 1,5 seconde)
+- pas d’effet kitsch
+- pas de plein écran agressif
+- pas de répétition excessive si plusieurs actions successives
+
+---
+
+# 4. LOGIQUE DE NIVEAUX
+
+Je veux une logique réutilisable avec trois niveaux :
+
+- success_micro
+- success_medium
+- success_major
+
+Et un système centralisé pour déclencher les animations selon le type d’action.
+
+Exemple :
+- completeTask() → success_micro
+- completeDeliverable() → success_medium
+- completeProject() → success_major
+- signedDeal() → success_major
+
+---
+
+# 5. POINTS D’INTÉGRATION
+
+Implémenter les animations sur les cas suivants :
+
+## Niveau micro
+- tâche terminée depuis la vue tâches
+- tâche terminée depuis un drawer ou détail
+
+## Niveau medium
+- livrable terminé
+- livrable prêt à livrer
+- milestone terminée si déjà présente
+
+## Niveau major
+- projet terminé
+- deal / opportunité / client signé / validé
+
+---
+
+# 6. GESTION UX / RÉPÉTITION
+
+Je veux éviter toute sensation de spam ou de surcharge.
+
+Prévoir :
+- pas d’animation forte répétée 10 fois d’affilée
+- si plusieurs tâches sont terminées rapidement, limiter la répétition
+- les célébrations majeures doivent être rares et significatives
+- possibilité de désactiver ou réduire les animations dans les préférences plus tard si utile (pas obligatoire en V1)
+
+---
+
+# 7. ARCHITECTURE ATTENDUE
+
+Créer une logique propre et réutilisable :
+
+Par exemple :
+- useCelebration()
+- celebrationService
+- CelebrationLayer / CelebrationPortal
+
+L’idée :
+- ne pas coder les animations en dur dans chaque composant
+- centraliser la logique
+- permettre de déclencher facilement une animation selon un type d’événement
+
+---
+
+# 8. STYLES / MOTION
+
+Je veux des timings élégants :
+- animation tâche : 200–400ms
+- livrable : 400–700ms
+- projet : 700–1200ms
+
+Easing :
+- smooth
+- premium
+- jamais brutale
+
+Éviter :
+- elastic trop cartoon
+- overshoot excessif
+- couleurs agressives
+
+---
+
+# 9. LIVRABLE ATTENDU
+
+Avant de coder :
+1. proposer la stratégie d’implémentation
+2. proposer la librairie ou approche choisie
+3. proposer où brancher chaque niveau d’animation
+4. proposer comment éviter la répétition excessive
+
+Puis implémente :
+- niveau micro
+- niveau medium
+- niveau major
+- logique centralisée de déclenchement
+
+Objectif final :
+apporter du plaisir et de la satisfaction à l’usage, sans dégrader la sobriété premium de PlanBase.
