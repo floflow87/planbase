@@ -68,6 +68,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TimeTracker } from "@/components/TimeTracker";
 import { GlobalSearch } from "@/components/GlobalSearch";
+import { CelebrationLayer } from "@/components/CelebrationLayer";
 import { UnifiedAvatar } from "@/onboarding/UnifiedAvatar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -1568,6 +1569,7 @@ export default function App() {
             <TooltipProvider>
               <AppLayout />
               <UnifiedAvatar />
+              <CelebrationLayer />
               <Toaster />
             </TooltipProvider>
           </OnboardingProvider>

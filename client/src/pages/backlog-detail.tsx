@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useCelebration } from "@/hooks/useCelebration";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -137,6 +138,7 @@ export default function BacklogDetail() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { celebrate } = useCelebration();
   const { accountId, user } = useAuth();
   
   const [showEpicDialog, setShowEpicDialog] = useState(false);
@@ -795,7 +797,10 @@ export default function BacklogDetail() {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
-    onSuccess: () => toastSuccess({ title: "Sprint clôturé" }),
+    onSuccess: (_, variables) => {
+      toastSuccess({ title: "Sprint clôturé" });
+      celebrate("major", { entityId: variables.sprintId, label: "Sprint clôturé !" });
+    },
   });
 
   const deleteSprintMutation = useMutation({

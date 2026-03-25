@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useCelebration } from "@/hooks/useCelebration";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, formatDateForStorage } from "@/lib/queryClient";
@@ -254,6 +255,7 @@ function CommentItem({
 export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: TaskQueueViewProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { celebrate } = useCelebration();
   const [, setLocation] = useLocation();
   const isMobile = useIsMobile();
 
@@ -440,11 +442,12 @@ export function TaskQueueView({ tasks, taskColumns, projects, users, onClose }: 
         ...(doneColumn ? { columnId: doneColumn.id } : {}),
       },
     });
+    celebrate("micro", { entityId: currentTask.id });
     setProcessedCount((c) => c + 1);
     transition(() => {
       setPendingQueue((q) => q.slice(1));
     });
-  }, [currentTask, taskColumns, patchTask, transition]);
+  }, [currentTask, taskColumns, patchTask, transition, celebrate]);
 
   const handleSkip = useCallback(() => {
     if (!currentTask) return;

@@ -1,5 +1,6 @@
 // Tasks page - Complete duplicate of tasks tab from projects page
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useCelebration } from "@/hooks/useCelebration";
 import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight, Eye, EyeOff, Search, X, Play, Layers, Package, CheckCircle2, Circle } from "lucide-react";
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { useAuth } from "@/contexts/AuthContext";
@@ -523,6 +524,7 @@ function SortableTaskCard({
       data-testid={`task-card-${task.id}`}
     >
       <Card
+        data-task-id={task.id}
         className={cn("hover-elevate active-elevate-2")}
         style={{
           borderLeft: `3px solid ${columnColor || "#94A3B8"}`,
@@ -754,6 +756,18 @@ export default function Tasks() {
   const { accountId, user } = useAuth();
   const userId = user?.id || null;
   const { toast } = useToast();
+  const { celebrate } = useCelebration();
+  const [celebratingTaskId, setCelebratingTaskId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!celebratingTaskId) return;
+    const el = document.querySelector(`[data-task-id="${celebratingTaskId}"]`);
+    if (el) {
+      el.classList.add("animate-celebrate-micro");
+      const t = setTimeout(() => el.classList.remove("animate-celebrate-micro"), 450);
+      return () => clearTimeout(t);
+    }
+  }, [celebratingTaskId]);
   const { readOnly, canCreate, canUpdate, canDelete } = useReadOnlyMode("tasks");
   const { taskPriorities, taskStatuses } = useConfig();
   
@@ -1424,6 +1438,17 @@ export default function Tasks() {
           positionInColumn: newPosition,
           status: newStatus,
         }, 0);
+
+        const isDoneCol = newColumn && (
+          newColumn.name.toLowerCase().includes("terminé") ||
+          newColumn.name.toLowerCase().includes("done")
+        );
+        const wasNotDone = !task.columnId || task.columnId !== newColumnId;
+        if (isDoneCol && wasNotDone) {
+          setCelebratingTaskId(taskId);
+          celebrate("micro", { entityId: taskId });
+          setTimeout(() => setCelebratingTaskId(null), 450);
+        }
       }
     }
 
@@ -1564,6 +1589,10 @@ export default function Tasks() {
         status: "done",
         progress: 100,
       }, 0);
+
+      setCelebratingTaskId(task.id);
+      celebrate("micro", { entityId: task.id });
+      setTimeout(() => setCelebratingTaskId(null), 450);
     }
   };
 
