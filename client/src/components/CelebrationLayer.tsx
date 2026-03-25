@@ -22,65 +22,106 @@ const LABELS: Record<CelebrationLevel, string> = {
 
 let toastIdCounter = 0;
 
+const RAINBOW_COLORS = [
+  "#FF0080", "#FF6600", "#FFD700", "#00E676",
+  "#00BCD4", "#7C3AED", "#F06292", "#FFCA28",
+  "#26C6DA", "#AB47BC", "#66BB6A", "#EF5350",
+];
+
+const MEDIUM_COLORS = [
+  "#7C3AED", "#a78bfa", "#c4b5fd", "#06B6D4",
+  "#FFD700", "#00E676", "#FF6600",
+];
+
 async function fireMajorConfetti() {
   try {
     const confetti = (await import("canvas-confetti")).default;
-    const colors = ["#7C3AED", "#a78bfa", "#ffffff", "#c4b5fd", "#06B6D4"];
 
+    // First burst — center, full rainbow
     confetti({
-      particleCount: 60,
-      spread: 70,
-      origin: { y: 0.15, x: 0.5 },
-      colors,
-      gravity: 1.2,
-      scalar: 0.9,
-      ticks: 180,
+      particleCount: 80,
+      spread: 80,
+      origin: { y: 0.12, x: 0.5 },
+      colors: RAINBOW_COLORS,
+      gravity: 1.1,
+      scalar: 0.95,
+      ticks: 200,
       disableForReducedMotion: true,
     });
 
+    // Left burst
     setTimeout(() => {
       confetti({
-        particleCount: 35,
-        spread: 50,
-        origin: { y: 0.1, x: 0.35 },
-        colors,
-        gravity: 1.1,
-        scalar: 0.8,
-        ticks: 140,
+        particleCount: 45,
+        spread: 60,
+        angle: 55,
+        origin: { y: 0.08, x: 0.15 },
+        colors: RAINBOW_COLORS,
+        gravity: 1.0,
+        scalar: 0.85,
+        ticks: 160,
         disableForReducedMotion: true,
       });
-    }, 180);
+    }, 160);
 
+    // Right burst
     setTimeout(() => {
       confetti({
-        particleCount: 35,
-        spread: 50,
-        origin: { y: 0.1, x: 0.65 },
-        colors,
-        gravity: 1.1,
-        scalar: 0.8,
-        ticks: 140,
+        particleCount: 45,
+        spread: 60,
+        angle: 125,
+        origin: { y: 0.08, x: 0.85 },
+        colors: RAINBOW_COLORS,
+        gravity: 1.0,
+        scalar: 0.85,
+        ticks: 160,
         disableForReducedMotion: true,
       });
     }, 280);
+
+    // Late center sparkle
+    setTimeout(() => {
+      confetti({
+        particleCount: 30,
+        spread: 100,
+        origin: { y: 0.2, x: 0.5 },
+        colors: RAINBOW_COLORS,
+        gravity: 0.9,
+        scalar: 0.7,
+        ticks: 130,
+        disableForReducedMotion: true,
+      });
+    }, 450);
   } catch {}
 }
 
 async function fireMediumConfetti() {
   try {
     const confetti = (await import("canvas-confetti")).default;
-    const colors = ["#7C3AED", "#a78bfa", "#c4b5fd", "#06B6D4"];
 
     confetti({
-      particleCount: 25,
-      spread: 45,
-      origin: { y: 0.2, x: 0.5 },
-      colors,
-      gravity: 1.3,
-      scalar: 0.75,
-      ticks: 120,
+      particleCount: 40,
+      spread: 55,
+      origin: { y: 0.18, x: 0.5 },
+      colors: MEDIUM_COLORS,
+      gravity: 1.2,
+      scalar: 0.8,
+      ticks: 140,
       disableForReducedMotion: true,
     });
+
+    setTimeout(() => {
+      confetti({
+        particleCount: 20,
+        spread: 40,
+        origin: { y: 0.15, x: 0.4 },
+        colors: MEDIUM_COLORS,
+        gravity: 1.1,
+        scalar: 0.75,
+        ticks: 110,
+        disableForReducedMotion: true,
+      });
+    }, 200);
   } catch {}
 }
 

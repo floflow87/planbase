@@ -908,8 +908,11 @@ export default function Tasks() {
       const res = await apiRequest(`/api/scope-items/${itemId}`, "PATCH", { status });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", singleProjectId, "scope-items"] });
+      if (variables.status === "delivered") {
+        celebrate("medium", { entityId: variables.itemId, label: "Livrable livré !" });
+      }
     },
   });
 
