@@ -1941,12 +1941,14 @@ function MindmapCanvas() {
       }]);
       return { tempId };
     },
-    onSuccess: (data, variables, context) => {
-      // Remove temp node — the query refetch will add the real persisted node
-      if (context?.tempId) {
-        setNodes(prev => prev.filter(n => n.id !== context.tempId));
-      }
-      queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
+    onSuccess: (serverNode, _variables, _context) => {
+      // Inject the persisted node into the cache directly — no network refetch.
+      // The useEffect (which watches `data`) will atomically swap the temp node
+      // with the real one in a single setNodes call — zero visible gap.
+      queryClient.setQueryData(["/api/mindmaps", id], (oldData: any) => {
+        if (!oldData) return oldData;
+        return { ...oldData, nodes: [...oldData.nodes, serverNode] };
+      });
       setIsAddingNode(false);
       setNewNodeLabel("");
       setNewNodeDescription("");
@@ -2229,7 +2231,9 @@ function MindmapCanvas() {
       if (nodeId.startsWith('temp-')) return;
       return await apiRequest(`/api/mindmap-nodes/${nodeId}`, "DELETE");
     },
-    onMutate: (nodeId: string) => {
+    onMutate: async (nodeId: string) => {
+      // Cancel any in-flight refetches that could restore the deleted node before the DELETE completes
+      await queryClient.cancelQueries({ queryKey: ["/api/mindmaps", id] });
       // Snapshot for rollback
       const snapshotNodes: Node[] = [];
       const snapshotEdges: Edge[] = [];
@@ -2261,8 +2265,14 @@ function MindmapCanvas() {
       const res = await apiRequest(`/api/mindmaps/${id}/edges`, "POST", edgeData);
       return await res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
+    onSuccess: (serverEdge) => {
+      // Inject the persisted edge into the cache without a network refetch.
+      // The visual edge is already present via addEdge() in onConnect; this just
+      // syncs the server-assigned ID so future mutations use the real ID.
+      queryClient.setQueryData(["/api/mindmaps", id], (oldData: any) => {
+        if (!oldData) return oldData;
+        return { ...oldData, edges: [...oldData.edges, serverEdge] };
+      });
     },
     onError: (error: Error) => {
       toast({
@@ -2302,7 +2312,8 @@ function MindmapCanvas() {
       const url = `/api/mindmap-edges/${edgeId}/with-entity-link?deleteEntityLink=${deleteEntityLink}`;
       return await apiRequest(url, "DELETE");
     },
-    onMutate: ({ edgeId }) => {
+    onMutate: async ({ edgeId }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/mindmaps", id] });
       const snapshotEdges: Edge[] = [];
       setEdges(eds => { snapshotEdges.push(...eds); return eds.filter(e => e.id !== edgeId); });
       setSelectedEdge(null);
