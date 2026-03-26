@@ -1793,6 +1793,8 @@ function MindmapCanvas() {
   }>({
     queryKey: ["/api/mindmaps", id],
     enabled: !!id,
+    // 30s staleTime — prevents refetches from overwriting optimistic node/edge state
+    staleTime: 30_000,
   });
 
   const { data: notes } = useQuery<Note[]>({
@@ -1977,9 +1979,7 @@ function MindmapCanvas() {
       if (nodeId.startsWith('temp-')) return;
       return await apiRequest(`/api/mindmap-nodes/${nodeId}`, "PATCH", updates);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
-    },
+    // No invalidateQueries — state is already updated optimistically via handleNodeStyleUpdate / handleTextNodeEdit
     onError: (error: Error) => {
       toast({
         title: "Erreur",
@@ -2225,24 +2225,28 @@ function MindmapCanvas() {
 
   const deleteNodeMutation = useMutation({
     mutationFn: async (nodeId: string) => {
-      // Temp optimistic nodes can be removed locally — they have no DB record yet
-      if (nodeId.startsWith('temp-')) {
-        setNodes(nds => nds.filter(n => n.id !== nodeId));
-        return;
-      }
+      // Temp optimistic nodes have no DB record — already removed in onMutate
+      if (nodeId.startsWith('temp-')) return;
       return await apiRequest(`/api/mindmap-nodes/${nodeId}`, "DELETE");
     },
-    onSuccess: (_, nodeId) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
-      setNodes((nds) => nds.filter((n) => n.id !== nodeId));
-      setEdges((eds) =>
-        eds.filter((e) => e.source !== nodeId && e.target !== nodeId)
-      );
+    onMutate: (nodeId: string) => {
+      // Snapshot for rollback
+      const snapshotNodes: Node[] = [];
+      const snapshotEdges: Edge[] = [];
+      setNodes(nds => { snapshotNodes.push(...nds); return nds.filter(n => n.id !== nodeId); });
+      setEdges(eds => { snapshotEdges.push(...eds); return eds.filter(e => e.source !== nodeId && e.target !== nodeId); });
       setSelectedNode(null);
+      return { snapshotNodes, snapshotEdges };
     },
-    onError: (error: Error) => {
+    onSuccess: () => {
+      // State already updated in onMutate — no refetch needed
+    },
+    onError: (error: Error, _nodeId, context: any) => {
+      // Restore on failure
+      if (context?.snapshotNodes) setNodes(context.snapshotNodes);
+      if (context?.snapshotEdges) setEdges(context.snapshotEdges);
       toast({
-        title: "Erreur",
+        title: "Erreur de suppression",
         description: error.message,
         variant: "destructive",
       });
@@ -2279,9 +2283,11 @@ function MindmapCanvas() {
     }) => {
       return await apiRequest(`/api/mindmap-edges/${edgeId}`, "PATCH", updates);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
+    onMutate: ({ edgeId, updates }) => {
+      // Optimistic update for edge style changes
+      setEdges(eds => eds.map(e => e.id === edgeId ? { ...e, data: { ...e.data, ...updates }, style: updates.style ? updates.style as React.CSSProperties : e.style } : e));
     },
+    // No invalidateQueries — state updated optimistically
     onError: (error: Error) => {
       toast({
         title: "Erreur",
@@ -2296,15 +2302,20 @@ function MindmapCanvas() {
       const url = `/api/mindmap-edges/${edgeId}/with-entity-link?deleteEntityLink=${deleteEntityLink}`;
       return await apiRequest(url, "DELETE");
     },
-    onSuccess: (_, { edgeId }) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
-      setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+    onMutate: ({ edgeId }) => {
+      const snapshotEdges: Edge[] = [];
+      setEdges(eds => { snapshotEdges.push(...eds); return eds.filter(e => e.id !== edgeId); });
       setSelectedEdge(null);
       setShowEdgeDeleteDialog(false);
+      return { snapshotEdges };
     },
-    onError: (error: Error) => {
+    onSuccess: () => {
+      // State already updated in onMutate — no refetch needed
+    },
+    onError: (error: Error, _vars, context: any) => {
+      if (context?.snapshotEdges) setEdges(context.snapshotEdges);
       toast({
-        title: "Erreur",
+        title: "Erreur de suppression",
         description: error.message,
         variant: "destructive",
       });
