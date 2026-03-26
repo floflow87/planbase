@@ -241,7 +241,6 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
-import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Button } from "@/components/ui/button";
@@ -661,7 +660,9 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
   const nodeStyle = data.nodeStyle || {};
   
   const initialContent = data.nodeStyle?.richContent || data.label || "";
-  
+  // Accumulate HTML changes locally; only flush to backend when leaving edit mode
+  const pendingHtmlRef = useRef<string | null>(null);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
@@ -670,36 +671,38 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
       TaskItem.configure({ nested: true }),
       TextStyle,
       Color,
-      Underline,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Placeholder.configure({ placeholder: 'Saisir du texte…' }),
     ],
     content: initialContent,
-    editable: isEditing,
+    editable: false, // start read-only; toggled via setEditable in useEffect
     onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
-      const plainText = editor.getText();
-      data.onUpdateStyle?.({ richContent: html });
-      if (plainText !== data.label) {
-        data.onEndEdit?.(plainText);
-      }
+      // Only stash locally — NO backend call on every keystroke
+      pendingHtmlRef.current = editor.getHTML();
     },
   });
-  
+
   useEffect(() => {
-    if (editor) {
-      editor.setEditable(isEditing);
-      if (isEditing) {
-        editor.commands.focus('end');
-      }
+    if (!editor) return;
+    editor.setEditable(isEditing);
+    if (isEditing) {
+      setTimeout(() => editor.commands.focus('end'), 0);
+    } else if (pendingHtmlRef.current !== null) {
+      // Flush to backend once when edit mode ends
+      const html = pendingHtmlRef.current;
+      const plain = editor.getText();
+      pendingHtmlRef.current = null;
+      data.onUpdateStyle?.({ richContent: html });
+      data.onEndEdit?.(plain);
     }
-  }, [editor, isEditing]);
-  
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing]);
+
   useEffect(() => {
-    if (editor && data.nodeStyle?.richContent && data.nodeStyle.richContent !== editor.getHTML()) {
-      editor.commands.setContent(data.nodeStyle.richContent);
+    if (editor && !isEditing && data.nodeStyle?.richContent && data.nodeStyle.richContent !== editor.getHTML()) {
+      editor.commands.setContent(data.nodeStyle.richContent, false);
     }
-  }, [editor, data.nodeStyle?.richContent]);
+  }, [editor, data.nodeStyle?.richContent, isEditing]);
 
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -756,399 +759,213 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
   };
 
   return (
-    <div className="relative" ref={containerRef}>
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="!w-2 !h-2 !bg-primary/50 !border-0"
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="!w-2 !h-2 !bg-primary/50 !border-0"
-      />
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="left"
-        className="!w-2 !h-2 !bg-primary/50 !border-0"
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="right"
-        className="!w-2 !h-2 !bg-primary/50 !border-0"
-      />
+    <div className="relative" ref={containerRef} style={{ overflow: 'visible' }}>
+      <Handle type="target" position={Position.Top}    className="!w-2 !h-2 !bg-primary/50 !border-0" />
+      <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-primary/50 !border-0" />
+      <Handle type="target" position={Position.Left}   id="left"  className="!w-2 !h-2 !bg-primary/50 !border-0" />
+      <Handle type="source" position={Position.Right}  id="right" className="!w-2 !h-2 !bg-primary/50 !border-0" />
       
-      {/* ── Rich-text editing toolbar (visible when editing) ─────────────── */}
-      <NodeToolbar isVisible={!!isEditing} position={Position.Top} className="flex items-center gap-0.5 p-1 bg-card border rounded-lg shadow-lg">
-        {editor && (<>
-          <Button variant={editor.isActive('bold') ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
-            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBold().run(); }} title="Gras">
-            <Bold className="w-3.5 h-3.5" />
-          </Button>
+      {/* ── Formatting toolbar — visible while editing (no portal = no flicker) ── */}
+      {isEditing && editor && (
+        <div
+          className="nodrag nopan absolute z-50 flex items-center gap-0.5 p-1 bg-card border rounded-lg shadow-lg"
+          style={{ bottom: '100%', left: 0, marginBottom: 6, whiteSpace: 'nowrap' }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <Button variant={editor.isActive('bold')   ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBold().run(); }} title="Gras"><Bold className="w-3.5 h-3.5" /></Button>
           <Button variant={editor.isActive('italic') ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
-            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleItalic().run(); }} title="Italique">
-            <Italic className="w-3.5 h-3.5" />
-          </Button>
-          <Button variant={editor.isActive('underline') ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
-            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleUnderline().run(); }} title="Souligné">
-            <UnderlineIcon className="w-3.5 h-3.5" />
-          </Button>
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleItalic().run(); }} title="Italique"><Italic className="w-3.5 h-3.5" /></Button>
           <Button variant={editor.isActive('strike') ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
-            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleStrike().run(); }} title="Barré">
-            <Strikethrough className="w-3.5 h-3.5" />
-          </Button>
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleStrike().run(); }} title="Barré"><Strikethrough className="w-3.5 h-3.5" /></Button>
           <Separator orientation="vertical" className="h-5 mx-0.5" />
           <Button variant={editor.isActive('heading', { level: 1 }) ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
-            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 1 }).run(); }} title="Titre 1">
-            <span className="text-xs font-bold">H1</span>
-          </Button>
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 1 }).run(); }} title="H1"><span className="text-xs font-bold">H1</span></Button>
           <Button variant={editor.isActive('heading', { level: 2 }) ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
-            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 2 }).run(); }} title="Titre 2">
-            <span className="text-xs font-bold">H2</span>
-          </Button>
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 2 }).run(); }} title="H2"><span className="text-xs font-bold">H2</span></Button>
           <Button variant={editor.isActive('heading', { level: 3 }) ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
-            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 3 }).run(); }} title="Titre 3">
-            <span className="text-xs font-bold">H3</span>
-          </Button>
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 3 }).run(); }} title="H3"><span className="text-xs font-bold">H3</span></Button>
           <Separator orientation="vertical" className="h-5 mx-0.5" />
-          <Button variant={editor.isActive('bulletList') ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
-            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBulletList().run(); }} title="Liste">
-            <List className="w-3.5 h-3.5" />
-          </Button>
+          <Button variant={editor.isActive('bulletList')  ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBulletList().run(); }} title="Liste"><List className="w-3.5 h-3.5" /></Button>
           <Button variant={editor.isActive('orderedList') ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
-            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleOrderedList().run(); }} title="Liste numérotée">
-            <ListOrdered className="w-3.5 h-3.5" />
-          </Button>
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleOrderedList().run(); }} title="Liste num."><ListOrdered className="w-3.5 h-3.5" /></Button>
           <Separator orientation="vertical" className="h-5 mx-0.5" />
-          <Button variant={editor.isActive({ textAlign: 'left' }) ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
-            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setTextAlign('left').run(); }} title="Gauche">
-            <AlignLeft className="w-3.5 h-3.5" />
-          </Button>
+          <Button variant={editor.isActive({ textAlign: 'left' })   ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setTextAlign('left').run(); }} title="Gauche"><AlignLeft className="w-3.5 h-3.5" /></Button>
           <Button variant={editor.isActive({ textAlign: 'center' }) ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
-            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setTextAlign('center').run(); }} title="Centré">
-            <AlignCenter className="w-3.5 h-3.5" />
-          </Button>
-          <Button variant={editor.isActive({ textAlign: 'right' }) ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
-            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setTextAlign('right').run(); }} title="Droite">
-            <AlignRight className="w-3.5 h-3.5" />
-          </Button>
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setTextAlign('center').run(); }} title="Centré"><AlignCenter className="w-3.5 h-3.5" /></Button>
+          <Button variant={editor.isActive({ textAlign: 'right' })  ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setTextAlign('right').run(); }} title="Droite"><AlignRight className="w-3.5 h-3.5" /></Button>
           <Separator orientation="vertical" className="h-5 mx-0.5" />
           <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600"
-            onMouseDown={(e) => { e.preventDefault(); setIsEditing(false); }} title="Terminer l'édition">
-            <Check className="w-3.5 h-3.5" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-destructive"
-            onMouseDown={(e) => { e.preventDefault(); data.onDeleteNode?.(); }} title="Supprimer">
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
-        </>)}
-      </NodeToolbar>
+            onMouseDown={(e) => { e.preventDefault(); setIsEditing(false); }} title="Terminer (Entrée)"><Check className="w-3.5 h-3.5" /></Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7"
+            onMouseDown={(e) => { e.preventDefault(); data.onDeleteNode?.(); }} title="Supprimer"><Trash2 className="w-3.5 h-3.5" /></Button>
+        </div>
+      )}
 
-      {/* ── Style toolbar (visible when selected but NOT editing) ───────────── */}
-      <NodeToolbar isVisible={!!(selected && !isEditing)} position={Position.Top} className="flex flex-wrap items-center gap-1 p-1 bg-card border rounded-lg shadow-lg max-w-[400px]">
+      {/* ── Style toolbar — visible when selected but not editing ── */}
+      {selected && !isEditing && (
+        <div
+          className="nodrag nopan absolute z-50 flex flex-wrap items-center gap-1 p-1 bg-card border rounded-lg shadow-lg"
+          style={{ bottom: '100%', left: 0, marginBottom: 6, maxWidth: 420, whiteSpace: 'nowrap' }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           {/* Background color */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted" title="Couleur de fond">
-                <div 
-                  className="w-4 h-4 rounded border"
-                  style={{ backgroundColor: nodeStyle.backgroundColor || "#ffffff" }}
-                />
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Couleur de fond">
+                <div className="w-4 h-4 rounded border" style={{ backgroundColor: nodeStyle.backgroundColor || "#ffffff" }} />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-2 bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
               <div className="grid grid-cols-5 gap-1">
                 {NODE_COLORS.map((color) => (
-                  <button
-                    key={color.value}
+                  <button key={color.value}
                     className={`w-6 h-6 rounded border hover:ring-2 hover:ring-primary ${!color.value ? "bg-white" : ""}`}
                     style={{ backgroundColor: color.value || undefined }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      data.onUpdateStyle?.({ backgroundColor: color.value || undefined });
-                    }}
-                    title={color.name}
-                  />
+                    onClick={(e) => { e.stopPropagation(); data.onUpdateStyle?.({ backgroundColor: color.value || undefined }); }}
+                    title={color.name} />
                 ))}
               </div>
             </PopoverContent>
           </Popover>
-
           {/* Text color */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted" title="Couleur du texte">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Couleur du texte">
                 <Type className="w-4 h-4" style={{ color: nodeStyle.textColor || "currentColor" }} />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-2 bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
               <div className="grid grid-cols-5 gap-1">
                 {TEXT_COLORS.map((color) => (
-                  <button
-                    key={color.value}
+                  <button key={color.value}
                     className={`w-6 h-6 rounded border flex items-center justify-center hover:ring-2 hover:ring-primary ${!color.value ? "bg-white" : ""}`}
                     style={{ backgroundColor: color.value || undefined }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      data.onUpdateStyle?.({ textColor: color.value || undefined });
-                    }}
-                    title={color.name}
-                  >
+                    onClick={(e) => { e.stopPropagation(); data.onUpdateStyle?.({ textColor: color.value || undefined }); }}
+                    title={color.name}>
                     <span className="text-xs font-bold" style={{ color: color.value ? "#fff" : "#000" }}>A</span>
                   </button>
                 ))}
               </div>
             </PopoverContent>
           </Popover>
-
           <Separator orientation="vertical" className="h-5" />
-
           {/* Border */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted" title="Bordure">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Bordure">
                 <Square className="w-4 h-4" style={{ color: nodeStyle.borderColor || "#000000" }} />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-2 space-y-2 bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
               <div className="grid grid-cols-5 gap-1">
                 {BORDER_COLORS.map((color) => (
-                  <button
-                    key={color.value}
+                  <button key={color.value}
                     className={`w-6 h-6 rounded border-2 hover:ring-2 hover:ring-primary ${!color.value ? "bg-white border-gray-200" : ""}`}
                     style={{ borderColor: color.value || undefined, backgroundColor: "transparent" }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      data.onUpdateStyle?.({ borderColor: color.value || undefined });
-                    }}
-                    title={color.name}
-                  />
+                    onClick={(e) => { e.stopPropagation(); data.onUpdateStyle?.({ borderColor: color.value || undefined }); }}
+                    title={color.name} />
                 ))}
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs">Épaisseur:</span>
                 {[0, 1, 2, 3, 4].map((w) => (
-                  <button
-                    key={w}
-                    className={`px-2 py-1 text-xs rounded hover:bg-muted ${nodeStyle.borderWidth === w ? "bg-primary text-primary-foreground" : "bg-muted"}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      data.onUpdateStyle?.({ borderWidth: w });
-                    }}
-                  >
+                  <button key={w}
+                    className={`px-2 py-1 text-xs rounded ${nodeStyle.borderWidth === w ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+                    onClick={(e) => { e.stopPropagation(); data.onUpdateStyle?.({ borderWidth: w }); }}>
                     {w}
                   </button>
                 ))}
               </div>
             </PopoverContent>
           </Popover>
-
           <Separator orientation="vertical" className="h-5" />
-
           {/* Font size */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted" title="Taille de police">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Taille de police">
                 <span className="text-xs font-bold">{nodeStyle.fontSize || 14}</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-2 bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
               <div className="flex items-center gap-1">
                 {[12, 14, 16, 18, 20, 24, 28, 32].map((size) => (
-                  <button
-                    key={size}
-                    className={`px-2 py-1 text-xs rounded hover:bg-muted ${nodeStyle.fontSize === size ? "bg-primary text-primary-foreground" : "bg-muted"}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      data.onUpdateStyle?.({ fontSize: size });
-                    }}
-                  >
+                  <button key={size}
+                    className={`px-2 py-1 text-xs rounded ${nodeStyle.fontSize === size ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+                    onClick={(e) => { e.stopPropagation(); data.onUpdateStyle?.({ fontSize: size }); }}>
                     {size}
                   </button>
                 ))}
               </div>
             </PopoverContent>
           </Popover>
-
-          {/* Bold (TipTap) */}
-          <Button
-            variant={editor?.isActive('bold') ? "default" : "ghost"}
-            size="icon"
-            className="h-7 w-7 hover:bg-muted"
-            onClick={(e) => {
-              e.stopPropagation();
-              editor?.chain().focus().toggleBold().run();
-            }}
-            title="Gras (Ctrl+B)"
-          >
-            <Bold className="w-4 h-4" />
-          </Button>
-
-          {/* Italic (TipTap) */}
-          <Button
-            variant={editor?.isActive('italic') ? "default" : "ghost"}
-            size="icon"
-            className="h-7 w-7 hover:bg-muted"
-            onClick={(e) => {
-              e.stopPropagation();
-              editor?.chain().focus().toggleItalic().run();
-            }}
-            title="Italique (Ctrl+I)"
-          >
-            <Italic className="w-4 h-4" />
-          </Button>
-
-          <Separator orientation="vertical" className="h-5" />
-
-          {/* Bullet List (TipTap) */}
-          <Button
-            variant={editor?.isActive('bulletList') ? "default" : "ghost"}
-            size="icon"
-            className="h-7 w-7 hover:bg-muted"
-            onClick={(e) => {
-              e.stopPropagation();
-              editor?.chain().focus().toggleBulletList().run();
-            }}
-            title="Liste à puces"
-          >
-            <List className="w-4 h-4" />
-          </Button>
-
-          {/* Ordered List (TipTap) */}
-          <Button
-            variant={editor?.isActive('orderedList') ? "default" : "ghost"}
-            size="icon"
-            className="h-7 w-7 hover:bg-muted"
-            onClick={(e) => {
-              e.stopPropagation();
-              editor?.chain().focus().toggleOrderedList().run();
-            }}
-            title="Liste numérotée"
-          >
-            <ListOrdered className="w-4 h-4" />
-          </Button>
-
-          {/* Task List (TipTap) */}
-          <Button
-            variant={editor?.isActive('taskList') ? "default" : "ghost"}
-            size="icon"
-            className="h-7 w-7 hover:bg-muted"
-            onClick={(e) => {
-              e.stopPropagation();
-              editor?.chain().focus().toggleTaskList().run();
-            }}
-            title="Liste de tâches"
-          >
-            <CheckSquare className="w-4 h-4" />
-          </Button>
-
-          <Separator orientation="vertical" className="h-5" />
-
-          {/* Highlight (TipTap) */}
+          {/* Highlight */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button 
-                variant={editor?.isActive('highlight') ? "default" : "ghost"} 
-                size="icon" 
-                className="h-7 w-7 hover:bg-muted" 
-                title="Surlignage"
-              >
+              <Button variant={editor?.isActive('highlight') ? "default" : "ghost"} size="icon" className="h-7 w-7" title="Surlignage">
                 <Highlighter className="w-4 h-4" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-2 bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
               <div className="grid grid-cols-4 gap-1">
-                <button
-                  className="w-6 h-6 rounded border bg-popover flex items-center justify-center hover:ring-2 hover:ring-primary"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    editor?.chain().focus().unsetHighlight().run();
-                  }}
-                  title="Sans surlignage"
-                >
+                <button className="w-6 h-6 rounded border bg-popover flex items-center justify-center hover:ring-2 hover:ring-primary"
+                  onClick={(e) => { e.stopPropagation(); editor?.chain().focus().unsetHighlight().run(); }} title="Aucun">
                   <X className="w-3 h-3" />
                 </button>
                 {HIGHLIGHT_COLORS.map((color) => (
-                  <button
-                    key={color.value}
-                    className="w-6 h-6 rounded border hover:ring-2 hover:ring-primary"
+                  <button key={color.value} className="w-6 h-6 rounded border hover:ring-2 hover:ring-primary"
                     style={{ backgroundColor: color.value }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      editor?.chain().focus().toggleHighlight({ color: color.value }).run();
-                    }}
-                    title={color.name}
-                  />
+                    onClick={(e) => { e.stopPropagation(); editor?.chain().focus().toggleHighlight({ color: color.value }).run(); }}
+                    title={color.name} />
                 ))}
               </div>
             </PopoverContent>
           </Popover>
-
-          {/* Shadow toggle */}
-          <Button
-            variant={nodeStyle.hasShadow ? "default" : "ghost"}
-            size="icon"
-            className="h-7 w-7 hover:bg-muted"
-            onClick={(e) => {
-              e.stopPropagation();
-              data.onUpdateStyle?.({ hasShadow: !nodeStyle.hasShadow });
-            }}
-            title="Ombre"
-          >
+          {/* Shadow */}
+          <Button variant={nodeStyle.hasShadow ? "default" : "ghost"} size="icon" className="h-7 w-7"
+            onClick={(e) => { e.stopPropagation(); data.onUpdateStyle?.({ hasShadow: !nodeStyle.hasShadow }); }} title="Ombre">
             <Layers className="w-4 h-4" />
           </Button>
-
           <Separator orientation="vertical" className="h-5" />
-
-          {/* Double-click hint + enter edit mode */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 hover:bg-muted"
-            onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
-            title="Éditer le texte (ou double-clic)"
-          >
+          {/* Enter edit mode */}
+          <Button variant="ghost" size="icon" className="h-7 w-7"
+            onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} title="Éditer (double-clic)">
             <Edit className="w-4 h-4" />
           </Button>
-
           <Separator orientation="vertical" className="h-5" />
-
-          {/* Delete node */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
-            onClick={(e) => {
-              e.stopPropagation();
-              data.onDeleteNode?.();
-            }}
-            title="Supprimer"
-          >
+          {/* Delete */}
+          <Button variant="ghost" size="icon" className="h-7 w-7"
+            onClick={(e) => { e.stopPropagation(); data.onDeleteNode?.(); }} title="Supprimer">
             <Trash2 className="w-4 h-4" />
           </Button>
-        </NodeToolbar>
-      
+        </div>
+      )}
+
+      {/* ── Node content ── */}
       <div
         className="p-2 relative"
         style={style}
         onDoubleClick={() => !isEditing && setIsEditing(true)}
       >
         {editor ? (
-          <EditorContent 
-            editor={editor} 
-            className={`tiptap prose prose-sm max-w-none focus:outline-none min-h-[40px] ${!isEditing ? 'cursor-text select-none pointer-events-none' : ''}`}
+          <EditorContent
+            editor={editor}
+            className="tiptap prose prose-sm max-w-none focus:outline-none min-h-[40px]"
             style={{ fontSize: nodeStyle.fontSize || 14 }}
           />
         ) : (
           <div className="text-muted-foreground italic text-sm">Saisir du texte…</div>
         )}
-        
+
         {/* Resize handle */}
         {selected && (
           <div
-            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-center justify-center"
+            className="nodrag absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-center justify-center"
             onMouseDown={handleResizeStart}
           >
             <div className="w-2 h-2 border-b-2 border-r-2 border-muted-foreground opacity-50" />
