@@ -359,7 +359,7 @@ export function TimeTracker() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 bg-white dark:bg-white" align="end">
+      <PopoverContent className="w-80 bg-white dark:bg-card" align="end">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="font-medium text-sm text-foreground flex items-center gap-2">

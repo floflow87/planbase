@@ -250,28 +250,28 @@ function UserMenu() {
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onClick={handleProfile} className="cursor-pointer" data-testid="dropdown-profile">
-          <User className="w-4 h-4 mr-2" />
+      <DropdownMenuContent align="end" className="w-48 text-xs">
+        <DropdownMenuItem onClick={handleProfile} className="cursor-pointer text-xs" data-testid="dropdown-profile">
+          <User className="w-3.5 h-3.5 mr-2" />
           Mon profil
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer" data-testid="dropdown-theme-toggle">
+        <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer text-xs" data-testid="dropdown-theme-toggle">
           {theme === "dark" ? (
             <>
-              <Sun className="w-4 h-4 mr-2" />
+              <Sun className="w-3.5 h-3.5 mr-2" />
               Mode clair
             </>
           ) : (
             <>
-              <Moon className="w-4 h-4 mr-2" />
+              <Moon className="w-3.5 h-3.5 mr-2" />
               Mode sombre
             </>
           )}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer" data-testid="dropdown-logout">
-          <LogOut className="w-4 h-4 mr-2" />
+        <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer text-xs" data-testid="dropdown-logout">
+          <LogOut className="w-3.5 h-3.5 mr-2" />
           Déconnexion
         </DropdownMenuItem>
       </DropdownMenuContent>

@@ -2049,7 +2049,7 @@ export default function Tasks() {
                   className="hidden md:flex"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  <span className="text-xs">{viewMode === "list" ? "+ Tâche" : "Nouvelle Colonne"}</span>
+                  <span className="text-xs">{viewMode === "list" ? "Tâche" : "Nouvelle Colonne"}</span>
                 </Button>
               </>
             )}
@@ -2060,7 +2060,7 @@ export default function Tasks() {
                 className="flex-1 sm:flex-none"
               >
                 <Plus className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline text-[12px]">+ Tâche</span>
+                <span className="hidden sm:inline text-[12px]">Tâche</span>
               </Button>
             )}
           </div>

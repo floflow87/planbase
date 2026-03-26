@@ -375,13 +375,13 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                 </div>
               </PopoverTrigger>
             </TooltipTrigger>
-            <TooltipContent className="bg-white text-gray-900 border shadow-md">
+            <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md">
               <p className="text-xs">Cliquez pour modifier le type</p>
             </TooltipContent>
           </Tooltip>
-          <PopoverContent className="w-36 p-2 bg-white" align="start" onClick={(e) => e.stopPropagation()}>
+          <PopoverContent className="w-36 p-2 bg-white dark:bg-card" align="start" onClick={(e) => e.stopPropagation()}>
             <div className="space-y-1">
-              <p className="text-xs font-medium text-gray-700 mb-2">Type de ticket</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Type de ticket</p>
               {(["user_story", "task", "bug"] as TicketType[]).map(t => (
                 <Button
                   key={t}
@@ -456,13 +456,13 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                 </Badge>
               </PopoverTrigger>
             </TooltipTrigger>
-            <TooltipContent className="bg-white text-gray-900 border shadow-md">
+            <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md">
               <p className="text-xs">Cliquez pour modifier les points d'estimation</p>
             </TooltipContent>
           </Tooltip>
-          <PopoverContent className="w-28 p-2 bg-white" align="center" onClick={(e) => e.stopPropagation()}>
+          <PopoverContent className="w-28 p-2 bg-white dark:bg-card" align="center" onClick={(e) => e.stopPropagation()}>
             <div className="space-y-1">
-              <p className="text-xs font-medium text-gray-700 mb-2">Points</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Points</p>
               {[0.25, 0.5, 1, 2, 3, 5, 8, 13].map(pts => (
                 <Button
                   key={pts}
@@ -503,13 +503,13 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                 </div>
               </PopoverTrigger>
             </TooltipTrigger>
-            <TooltipContent className="bg-white text-gray-900 border shadow-md">
+            <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md">
               <p className="text-xs">Cliquez pour modifier la priorité</p>
             </TooltipContent>
           </Tooltip>
-          <PopoverContent className="w-36 p-2 bg-white" align="center" onClick={(e) => e.stopPropagation()}>
+          <PopoverContent className="w-36 p-2 bg-white dark:bg-card" align="center" onClick={(e) => e.stopPropagation()}>
             <div className="space-y-1">
-              <p className="text-xs font-medium text-gray-700 mb-2">Priorité</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Priorité</p>
               {backlogPriorityOptions.map(opt => (
                 <Button
                   key={opt.value}
@@ -559,13 +559,13 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                 </div>
               </PopoverTrigger>
             </TooltipTrigger>
-            <TooltipContent className="bg-white text-gray-900 border shadow-md">
+            <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md">
               <p className="text-xs">Cliquez pour assigner un collaborateur</p>
             </TooltipContent>
           </Tooltip>
-          <PopoverContent className="w-48 p-2 bg-white max-h-64 overflow-y-auto" align="end" onClick={(e) => e.stopPropagation()}>
+          <PopoverContent className="w-48 p-2 bg-white dark:bg-card max-h-64 overflow-y-auto" align="end" onClick={(e) => e.stopPropagation()}>
             <div className="space-y-1">
-              <p className="text-xs font-medium text-gray-700 mb-2">Assigner à</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Assigner à</p>
               <Button
                 variant={!ticket.assigneeId ? "default" : "ghost"}
                 size="sm"
@@ -633,7 +633,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                   {ticketEpic ? (
                     <Badge 
                       variant="outline" 
-                      className="text-[10px] px-1 py-0 bg-white border truncate max-w-[80px]"
+                      className="text-[10px] px-1 py-0 bg-white dark:bg-card border truncate max-w-[80px]"
                       style={{ borderColor: ticketEpic.color || "#8B5CF6" }}
                     >
                       <div 
@@ -643,7 +643,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                       <span className="truncate">{ticketEpic.title}</span>
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="text-[10px] px-1 py-0 bg-white text-muted-foreground">
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 bg-white dark:bg-card text-muted-foreground">
                       <Layers className="h-2.5 w-2.5 mr-0.5" />
                       Aucun
                     </Badge>
@@ -651,13 +651,13 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                 </div>
               </PopoverTrigger>
             </TooltipTrigger>
-            <TooltipContent className="bg-white text-gray-900 border shadow-md">
+            <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md">
               <p className="text-xs">Cliquez pour modifier l'Epic</p>
             </TooltipContent>
           </Tooltip>
-          <PopoverContent className="w-48 p-2 bg-white max-h-64 overflow-y-auto" align="end" onClick={(e) => e.stopPropagation()}>
+          <PopoverContent className="w-48 p-2 bg-white dark:bg-card max-h-64 overflow-y-auto" align="end" onClick={(e) => e.stopPropagation()}>
             <div className="space-y-1">
-              <p className="text-xs font-medium text-gray-700 mb-2">Epic</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Epic</p>
               <Button
                 variant={!ticket.epicId ? "default" : "ghost"}
                 size="sm"
@@ -758,7 +758,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
             }}
           >
             <SelectTrigger 
-              className={cn("h-5 w-auto min-w-[70px] text-[10px] px-1.5 border cursor-pointer bg-white dark:bg-white", getStateStyle(ticket.state))}
+              className={cn("h-5 w-auto min-w-[70px] text-[10px] px-1.5 border cursor-pointer bg-white dark:bg-card", getStateStyle(ticket.state))}
               onPointerDown={(e) => e.stopPropagation()}
               data-testid={`select-inline-state-${ticket.id}`}
             >
@@ -769,9 +769,9 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                 </span>
               </SelectValue>
             </SelectTrigger>
-            <SelectContent className="bg-white dark:bg-white">
+            <SelectContent className="bg-white dark:bg-card">
               {backlogItemStateOptions.map(opt => (
-                <SelectItem key={opt.value} value={opt.value} className="text-gray-900 text-xs cursor-pointer">
+                <SelectItem key={opt.value} value={opt.value} className="text-xs cursor-pointer">
                   <span className="flex items-center gap-1.5">
                     <span className={cn("w-2 h-2 rounded-full", getStateDot(opt.value))} />
                     {opt.label}
@@ -809,20 +809,20 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-white dark:bg-white w-48">
+          <DropdownMenuContent align="end" className="bg-white dark:bg-card w-48">
             {/* Move submenu */}
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="text-gray-900">
+              <DropdownMenuSubTrigger className="text-foreground">
                 <ArrowUp className="h-4 w-4 mr-2" />
                 Déplacer
               </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="bg-white dark:bg-white">
+              <DropdownMenuSubContent className="bg-white dark:bg-card">
                 <DropdownMenuItem 
                   onClick={(e) => {
                     e.stopPropagation();
                     onTicketAction({ type: "move_top", ticketId: ticket.id, ticketType: ticket.type });
                   }}
-                  className="text-gray-900"
+                  className="text-foreground"
                 >
                   <ArrowUp className="h-4 w-4 mr-2" />
                   Haut du backlog
@@ -832,7 +832,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                     e.stopPropagation();
                     onTicketAction({ type: "move_bottom", ticketId: ticket.id, ticketType: ticket.type });
                   }}
-                  className="text-gray-900"
+                  className="text-foreground"
                 >
                   <ArrowDown className="h-4 w-4 mr-2" />
                   Bas du backlog
@@ -845,7 +845,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                       e.stopPropagation();
                       onTicketAction({ type: "move_sprint", ticketId: ticket.id, ticketType: ticket.type, sprintId: sprint.id });
                     }}
-                    className="text-gray-900"
+                    className="text-foreground"
                   >
                     <Play className="h-4 w-4 mr-2" />
                     {sprint.name}
@@ -856,7 +856,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                     e.stopPropagation();
                     onTicketAction({ type: "move_sprint", ticketId: ticket.id, ticketType: ticket.type, sprintId: null });
                   }}
-                  className="text-gray-900"
+                  className="text-foreground"
                 >
                   <AlertCircle className="h-4 w-4 mr-2" />
                   Backlog
@@ -870,7 +870,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                 e.stopPropagation();
                 onTicketAction({ type: "copy", ticketId: ticket.id, ticketType: ticket.type });
               }}
-              className="text-gray-900"
+              className="text-foreground"
             >
               <Copy className="h-4 w-4 mr-2" />
               Copier
@@ -880,17 +880,17 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
             
             {/* Assign submenu */}
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="text-gray-900">
+              <DropdownMenuSubTrigger className="text-foreground">
                 <UserPlus className="h-4 w-4 mr-2" />
                 Assigner à
               </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="bg-white dark:bg-white">
+              <DropdownMenuSubContent className="bg-white dark:bg-card">
                 <DropdownMenuItem 
                   onClick={(e) => {
                     e.stopPropagation();
                     onTicketAction({ type: "assign", ticketId: ticket.id, ticketType: ticket.type, assigneeId: null });
                   }}
-                  className="text-gray-900"
+                  className="text-foreground"
                 >
                   <User className="h-4 w-4 mr-2" />
                   Non assigné
@@ -903,7 +903,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                       e.stopPropagation();
                       onTicketAction({ type: "assign", ticketId: ticket.id, ticketType: ticket.type, assigneeId: user.id });
                     }}
-                    className="text-gray-900"
+                    className="text-foreground"
                   >
                     <Avatar className="h-4 w-4 mr-2">
                       <AvatarFallback className="text-[8px]">
@@ -918,11 +918,11 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
             
             {/* Mark status submenu */}
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="text-gray-900">
+              <DropdownMenuSubTrigger className="text-foreground">
                 <Check className="h-4 w-4 mr-2" />
                 Marquer comme
               </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="bg-white dark:bg-white">
+              <DropdownMenuSubContent className="bg-white dark:bg-card">
                 {backlogItemStateOptions.map(opt => (
                   <DropdownMenuItem 
                     key={opt.value}
@@ -930,7 +930,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                       e.stopPropagation();
                       onTicketAction({ type: "mark_status", ticketId: ticket.id, ticketType: ticket.type, state: opt.value });
                     }}
-                    className="text-gray-900"
+                    className="text-foreground"
                   >
                     <span className={cn("w-2 h-2 rounded-full mr-2", getStateDot(opt.value))} />
                     {opt.label}
@@ -941,11 +941,11 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
             
             {/* Estimate points submenu */}
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="text-gray-900">
+              <DropdownMenuSubTrigger className="text-foreground">
                 <Hash className="h-4 w-4 mr-2" />
                 Points d'estimation
               </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="bg-white dark:bg-white">
+              <DropdownMenuSubContent className="bg-white dark:bg-card">
                 {[0, 0.25, 0.5, 1, 2, 3, 5, 8, 13, 21].map(points => (
                   <DropdownMenuItem 
                     key={points}
@@ -953,7 +953,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                       e.stopPropagation();
                       onTicketAction({ type: "set_estimate", ticketId: ticket.id, ticketType: ticket.type, estimatePoints: points });
                     }}
-                    className="text-gray-900"
+                    className="text-foreground"
                   >
                     <Badge variant="outline" className="text-xs mr-2">{points}</Badge>
                     {points === 0 ? "Sans estimation" : `${points} point${points > 1 ? "s" : ""}`}
@@ -964,11 +964,11 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
             
             {/* Priority submenu */}
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="text-gray-900">
+              <DropdownMenuSubTrigger className="text-foreground">
                 <Flag className="h-4 w-4 mr-2" />
                 Priorité
               </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="bg-white dark:bg-white">
+              <DropdownMenuSubContent className="bg-white dark:bg-card">
                 {backlogPriorityOptions.map(opt => (
                   <DropdownMenuItem 
                     key={opt.value}
@@ -976,7 +976,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                       e.stopPropagation();
                       onTicketAction({ type: "set_priority", ticketId: ticket.id, ticketType: ticket.type, priority: opt.value });
                     }}
-                    className="text-gray-900"
+                    className="text-foreground"
                   >
                     <span className="mr-2"><PriorityIcon priority={opt.value} /></span>
                     {opt.label}
@@ -994,7 +994,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                   e.stopPropagation();
                   onTicketAction({ type: "convert_to_task", ticketId: ticket.id, ticketType: ticket.type });
                 }}
-                className="text-gray-900"
+                className="text-foreground"
               >
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Ajouter dans les Tâches
@@ -1068,19 +1068,19 @@ function BulkActionsDropdown({
             <ChevronDown className="h-3 w-3" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56 bg-white dark:bg-white text-[12px]" align="start">
+        <DropdownMenuContent className="w-56 bg-white dark:bg-card text-[12px]" align="start">
           {/* Change State */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="text-gray-900">
+            <DropdownMenuSubTrigger className="text-foreground">
               <Check className="h-4 w-4 mr-2" />
               Changer l'étape
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="bg-white dark:bg-white">
+            <DropdownMenuSubContent className="bg-white dark:bg-card">
               {backlogItemStateOptions.map(opt => (
                 <DropdownMenuItem 
                   key={opt.value}
                   onClick={() => onBulkAction({ type: "bulk_change_state", ticketIds: selectedTickets, state: opt.value })}
-                  className="text-gray-900"
+                  className="text-foreground"
                   data-testid={`bulk-action-state-${opt.value}`}
                 >
                   <span className={cn("w-2 h-2 rounded-full mr-2", getStateDot(opt.value))} />
@@ -1092,16 +1092,16 @@ function BulkActionsDropdown({
           
           {/* Change Priority */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="text-gray-900">
+            <DropdownMenuSubTrigger className="text-foreground">
               <Flag className="h-4 w-4 mr-2" />
               Changer la priorité
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="bg-white dark:bg-white">
+            <DropdownMenuSubContent className="bg-white dark:bg-card">
               {backlogPriorityOptions.map(opt => (
                 <DropdownMenuItem 
                   key={opt.value}
                   onClick={() => onBulkAction({ type: "bulk_change_priority", ticketIds: selectedTickets, priority: opt.value })}
-                  className="text-gray-900"
+                  className="text-foreground"
                   data-testid={`bulk-action-priority-${opt.value}`}
                 >
                   <span className="mr-2"><PriorityIcon priority={opt.value} /></span>
@@ -1113,14 +1113,14 @@ function BulkActionsDropdown({
           
           {/* Assign to */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="text-gray-900">
+            <DropdownMenuSubTrigger className="text-foreground">
               <UserPlus className="h-4 w-4 mr-2" />
               Assigner à
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="bg-white dark:bg-white max-h-[300px] overflow-y-auto">
+            <DropdownMenuSubContent className="bg-white dark:bg-card max-h-[300px] overflow-y-auto">
               <DropdownMenuItem 
                 onClick={() => onBulkAction({ type: "bulk_assign", ticketIds: selectedTickets, assigneeId: null })}
-                className="text-gray-900"
+                className="text-foreground"
                 data-testid="bulk-action-unassign"
               >
                 <User className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -1131,7 +1131,7 @@ function BulkActionsDropdown({
                 <DropdownMenuItem 
                   key={user.id}
                   onClick={() => onBulkAction({ type: "bulk_assign", ticketIds: selectedTickets, assigneeId: user.id })}
-                  className="text-gray-900"
+                  className="text-foreground"
                   data-testid={`bulk-action-assign-${user.id}`}
                 >
                   <Avatar className="h-4 w-4 mr-2">
@@ -1147,16 +1147,16 @@ function BulkActionsDropdown({
           
           {/* Set Estimate Points */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="text-gray-900">
+            <DropdownMenuSubTrigger className="text-foreground">
               <Hash className="h-4 w-4 mr-2" />
               Ajouter un estimate point
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="bg-white dark:bg-white">
+            <DropdownMenuSubContent className="bg-white dark:bg-card">
               {[0, 0.25, 0.5, 1, 2, 3, 5, 8, 13, 21].map(points => (
                 <DropdownMenuItem 
                   key={points}
                   onClick={() => onBulkAction({ type: "bulk_set_estimate", ticketIds: selectedTickets, estimatePoints: points })}
-                  className="text-gray-900"
+                  className="text-foreground"
                   data-testid={`bulk-action-estimate-${points}`}
                 >
                   <Badge variant="outline" className="text-xs mr-2">{points}</Badge>
@@ -1168,14 +1168,14 @@ function BulkActionsDropdown({
           
           {/* Link to Epic */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="text-gray-900">
+            <DropdownMenuSubTrigger className="text-foreground">
               <Link2 className="h-4 w-4 mr-2" />
               Lier à l'Epic
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="bg-white dark:bg-white max-h-[300px] overflow-y-auto">
+            <DropdownMenuSubContent className="bg-white dark:bg-card max-h-[300px] overflow-y-auto">
               <DropdownMenuItem 
                 onClick={() => onBulkAction({ type: "bulk_link_epic", ticketIds: selectedTickets, epicId: null })}
-                className="text-gray-900"
+                className="text-foreground"
                 data-testid="bulk-action-unlink-epic"
               >
                 <Layers className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -1186,7 +1186,7 @@ function BulkActionsDropdown({
                 <DropdownMenuItem 
                   key={epic.id}
                   onClick={() => onBulkAction({ type: "bulk_link_epic", ticketIds: selectedTickets, epicId: epic.id })}
-                  className="text-gray-900"
+                  className="text-foreground"
                   data-testid={`bulk-action-epic-${epic.id}`}
                 >
                   <div 
@@ -1201,16 +1201,16 @@ function BulkActionsDropdown({
           
           {/* Move to Sprint */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="text-gray-900">
+            <DropdownMenuSubTrigger className="text-foreground">
               <Play className="h-4 w-4 mr-2" />
               Déplacer vers le sprint
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="bg-white dark:bg-white max-h-[300px] overflow-y-auto">
+            <DropdownMenuSubContent className="bg-white dark:bg-card max-h-[300px] overflow-y-auto">
               {sprints?.filter(s => s.status !== "termine").map(sprint => (
                 <DropdownMenuItem 
                   key={sprint.id}
                   onClick={() => onBulkAction({ type: "bulk_move_sprint", ticketIds: selectedTickets, sprintId: sprint.id })}
-                  className="text-gray-900"
+                  className="text-foreground"
                   data-testid={`bulk-action-sprint-${sprint.id}`}
                 >
                   <Calendar className="h-4 w-4 mr-2" />
@@ -1223,7 +1223,7 @@ function BulkActionsDropdown({
           {/* Move to Backlog */}
           <DropdownMenuItem 
             onClick={() => onBulkAction({ type: "bulk_move_backlog", ticketIds: selectedTickets })}
-            className="text-gray-900"
+            className="text-foreground"
             data-testid="bulk-action-move-backlog"
           >
             <AlertCircle className="h-4 w-4 mr-2" />
@@ -1232,14 +1232,14 @@ function BulkActionsDropdown({
           
           {/* Set Version */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="text-gray-900">
+            <DropdownMenuSubTrigger className="text-foreground">
               <Tag className="h-4 w-4 mr-2" />
               Définir la version
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="bg-white dark:bg-white">
+            <DropdownMenuSubContent className="bg-white dark:bg-card">
               <DropdownMenuItem 
                 onClick={() => onBulkAction({ type: "bulk_set_version", ticketIds: selectedTickets, version: null })}
-                className="text-gray-900"
+                className="text-foreground"
                 data-testid="bulk-action-remove-version"
               >
                 <X className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -1250,7 +1250,7 @@ function BulkActionsDropdown({
                 <DropdownMenuItem 
                   key={version}
                   onClick={() => onBulkAction({ type: "bulk_set_version", ticketIds: selectedTickets, version })}
-                  className="text-gray-900"
+                  className="text-foreground"
                   data-testid={`bulk-action-version-${version}`}
                 >
                   <Badge variant="outline" className="text-xs mr-2">{version}</Badge>
@@ -1422,7 +1422,7 @@ export function SprintSection({
               </span>
             </TooltipTrigger>
             {sprint.identifier && (
-              <TooltipContent className="bg-white text-black border shadow-md dark:bg-white dark:text-black">
+              <TooltipContent className="bg-white text-black border shadow-md dark:bg-card dark:text-black">
                 <p className="text-xs font-mono">{sprint.identifier}</p>
               </TooltipContent>
             )}
@@ -1443,7 +1443,7 @@ export function SprintSection({
                   <Link2 className="h-3 w-3" />
                 </Badge>
               </TooltipTrigger>
-              <TooltipContent className="bg-white text-black border shadow-md dark:bg-white dark:text-black">
+              <TooltipContent className="bg-white text-black border shadow-md dark:bg-card dark:text-black">
                 <p className="text-xs font-medium">{linkedRoadmapItem.title}</p>
               </TooltipContent>
             </Tooltip>
@@ -1520,13 +1520,13 @@ export function SprintSection({
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-white dark:bg-white">
-              <DropdownMenuItem onClick={() => setIsCreating(true)} className="text-gray-900">
+            <DropdownMenuContent align="end" className="bg-white dark:bg-card">
+              <DropdownMenuItem onClick={() => setIsCreating(true)} className="text-foreground">
                 <Plus className="h-4 w-4 mr-2" />
                 Créer un ticket
               </DropdownMenuItem>
               {onEditSprint && (
-                <DropdownMenuItem onClick={() => onEditSprint(sprint)} className="text-gray-900" data-testid={`button-edit-sprint-${sprint.id}`}>
+                <DropdownMenuItem onClick={() => onEditSprint(sprint)} className="text-foreground" data-testid={`button-edit-sprint-${sprint.id}`}>
                   <Pencil className="h-4 w-4 mr-2" />
                   Modifier le sprint
                 </DropdownMenuItem>
@@ -1537,7 +1537,7 @@ export function SprintSection({
                   {onMoveSprintUp && !isFirstSprint && (
                     <DropdownMenuItem 
                       onClick={() => onMoveSprintUp(sprint.id)} 
-                      className="text-gray-900"
+                      className="text-foreground"
                       data-testid={`button-move-sprint-up-${sprint.id}`}
                     >
                       <ArrowUp className="h-4 w-4 mr-2" />
@@ -1547,7 +1547,7 @@ export function SprintSection({
                   {onMoveSprintDown && !isLastSprint && (
                     <DropdownMenuItem 
                       onClick={() => onMoveSprintDown(sprint.id)} 
-                      className="text-gray-900"
+                      className="text-foreground"
                       data-testid={`button-move-sprint-down-${sprint.id}`}
                     >
                       <ArrowDown className="h-4 w-4 mr-2" />
@@ -1640,26 +1640,26 @@ export function SprintSection({
                       <ChevronDown className="h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="bg-white dark:bg-white">
-                    <DropdownMenuItem onClick={() => setNewTicketType("epic")} className="text-gray-900">
+                  <DropdownMenuContent className="bg-white dark:bg-card">
+                    <DropdownMenuItem onClick={() => setNewTicketType("epic")} className="text-foreground">
                       <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-purple-500">
                         <Layers className="h-3 w-3 text-white" />
                       </div>
                       Epic
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setNewTicketType("user_story")} className="text-gray-900">
+                    <DropdownMenuItem onClick={() => setNewTicketType("user_story")} className="text-foreground">
                       <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-green-500">
                         <Bookmark className="h-3 w-3 text-white" />
                       </div>
                       User Story
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setNewTicketType("task")} className="text-gray-900">
+                    <DropdownMenuItem onClick={() => setNewTicketType("task")} className="text-foreground">
                       <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-blue-500">
                         <ListTodo className="h-3 w-3 text-white" />
                       </div>
                       Task
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setNewTicketType("bug")} className="text-gray-900" data-testid="menu-item-type-bug">
+                    <DropdownMenuItem onClick={() => setNewTicketType("bug")} className="text-foreground" data-testid="menu-item-type-bug">
                       <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-destructive">
                         <Bug className="h-3 w-3 text-white" />
                       </div>
@@ -1880,26 +1880,26 @@ export function BacklogPool({
                       <ChevronDown className="h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="bg-white dark:bg-white">
-                    <DropdownMenuItem onClick={() => setNewTicketType("epic")} className="text-gray-900">
+                  <DropdownMenuContent className="bg-white dark:bg-card">
+                    <DropdownMenuItem onClick={() => setNewTicketType("epic")} className="text-foreground">
                       <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-purple-500">
                         <Layers className="h-3 w-3 text-white" />
                       </div>
                       Epic
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setNewTicketType("user_story")} className="text-gray-900">
+                    <DropdownMenuItem onClick={() => setNewTicketType("user_story")} className="text-foreground">
                       <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-green-500">
                         <Bookmark className="h-3 w-3 text-white" />
                       </div>
                       User Story
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setNewTicketType("task")} className="text-gray-900">
+                    <DropdownMenuItem onClick={() => setNewTicketType("task")} className="text-foreground">
                       <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-blue-500">
                         <ListTodo className="h-3 w-3 text-white" />
                       </div>
                       Task
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setNewTicketType("bug")} className="text-gray-900" data-testid="menu-item-type-bug">
+                    <DropdownMenuItem onClick={() => setNewTicketType("bug")} className="text-foreground" data-testid="menu-item-type-bug">
                       <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-destructive">
                         <Bug className="h-3 w-3 text-white" />
                       </div>

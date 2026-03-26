@@ -140,14 +140,14 @@ export function SubscriptionTab() {
           <p className="text-sm text-muted-foreground mt-1">Statut de votre accès à Planbase.</p>
         </div>
         <Card>
-          <CardContent className="pt-5">
+          <CardContent className="pt-3 pb-3">
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 bg-violet-100 dark:bg-violet-900/30 rounded-md p-2">
-                <Crown className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+              <div className="mt-0.5 bg-violet-100 dark:bg-violet-900/30 rounded-md p-1.5">
+                <Crown className="w-4 h-4 text-violet-600 dark:text-violet-400" />
               </div>
               <div>
-                <p className="font-semibold text-foreground">Compte administrateur</p>
-                <p className="text-sm text-muted-foreground mt-0.5">
+                <p className="text-sm font-semibold text-foreground">Compte administrateur</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Ce compte bénéficie d'un accès complet au plan Agence sans abonnement requis.
                 </p>
                 <div className="flex items-center gap-2 mt-3">
