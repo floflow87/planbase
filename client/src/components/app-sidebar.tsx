@@ -296,7 +296,7 @@ export function AppSidebar() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center justify-center hover:bg-white/10 rounded-md p-2 cursor-pointer" data-testid="button-user-profile">
-                  <Avatar className="w-8 h-8">
+                  <Avatar className="w-8 h-8 ring-1 ring-white">
                     <AvatarImage src={userProfile?.avatarUrl || defaultAvatar} />
                     <AvatarFallback className="bg-white/20 text-white text-[10px] font-medium">
                       {userProfile?.firstName?.[0] || user?.email?.[0].toUpperCase() || 'U'}
@@ -313,7 +313,7 @@ export function AppSidebar() {
             </Tooltip>
           ) : (
             <div className="flex items-center gap-3 hover:bg-white/10 rounded-md p-2 cursor-pointer" data-testid="button-user-profile">
-              <Avatar className="w-8 h-8">
+              <Avatar className="w-8 h-8 ring-1 ring-white">
                 <AvatarImage src={userProfile?.avatarUrl || defaultAvatar} />
                 <AvatarFallback className="bg-white/20 text-white text-[10px] font-medium">
                   {userProfile?.firstName?.[0] || user?.email?.[0].toUpperCase() || 'U'}

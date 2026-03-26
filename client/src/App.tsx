@@ -242,7 +242,7 @@ function UserMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="rounded-full cursor-pointer" data-testid="button-user-menu">
-          <Avatar className="h-8 w-8">
+          <Avatar className="h-8 w-8 ring-1 ring-white">
             <AvatarImage src={userProfile?.avatarUrl || ""} alt={userInitials} />
             <AvatarFallback className="bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300 text-xs">
               {userInitials}
@@ -1501,7 +1501,7 @@ function AppLayout() {
                 </div>
               )}
               <Button variant="ghost" size="icon" className="hidden sm:flex" onClick={() => setLocation("/emails")} data-testid="button-mail">
-                <Mail className="w-4 h-4 text-primary" />
+                <Mail className="w-4 h-4 text-primary dark:text-white" />
               </Button>
               <Button
                 variant="ghost"
@@ -1510,7 +1510,7 @@ function AppLayout() {
                 onClick={() => setLocation("/calendar")}
                 data-testid="button-calendar"
               >
-                <Calendar className="w-4 h-4 text-primary" />
+                <Calendar className="w-4 h-4 text-primary dark:text-white" />
               </Button>
               {/* Mobile: collapsed dropdown — all three items use identical icon+text layout */}
               <DropdownMenu>
@@ -1529,16 +1529,16 @@ function AppLayout() {
                       }}
                       data-testid="button-time-tracker-mobile"
                     >
-                      <Timer className="w-4 h-4 text-primary" />
+                      <Timer className="w-4 h-4 text-primary dark:text-white" />
                       <span>Time tracker</span>
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem onClick={() => setLocation("/emails")} data-testid="button-mail-mobile">
-                    <Mail className="w-4 h-4 text-primary" />
+                    <Mail className="w-4 h-4 text-primary dark:text-white" />
                     <span>Mails</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setLocation("/calendar")} data-testid="button-calendar-mobile">
-                    <Calendar className="w-4 h-4 text-primary" />
+                    <Calendar className="w-4 h-4 text-primary dark:text-white" />
                     <span>Calendrier</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>

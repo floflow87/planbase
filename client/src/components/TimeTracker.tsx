@@ -351,7 +351,7 @@ export function TimeTracker() {
           className={isRunning ? "gap-2" : ""}
           data-testid="button-time-tracker"
         >
-          <Timer className={`w-5 h-5 ${isRunning ? "text-primary-foreground" : "text-primary"}`} />
+          <Timer className={`w-5 h-5 ${isRunning ? "text-primary-foreground" : "text-primary dark:text-white"}`} />
           {isRunning && (
             <span className="text-sm font-mono text-primary-foreground" data-testid="text-elapsed-time">
               {formatTime(elapsedTime)}
