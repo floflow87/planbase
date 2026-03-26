@@ -22,6 +22,7 @@ import ReactFlow, {
   EdgeTypes,
   getBezierPath,
   EdgeProps,
+  NodeResizer,
 } from "reactflow";
 import { NodeToolbar } from "@reactflow/node-toolbar";
 import "reactflow/dist/style.css";
@@ -141,6 +142,7 @@ import {
   Package,
   ShoppingCart,
   CreditCard,
+  Diamond,
   DollarSign,
   Tag,
   Briefcase,
@@ -590,6 +592,36 @@ const NODE_KIND_CONFIG: Record<
     color: "text-neutral-600",
     bgColor: "bg-card border-transparent",
   },
+  sticky_note: {
+    label: "Sticky note",
+    icon: StickyNote,
+    color: "text-yellow-600",
+    bgColor: "bg-yellow-100 border-yellow-300 dark:bg-yellow-900/40 dark:border-yellow-700",
+  },
+  shape_rectangle: {
+    label: "Rectangle",
+    icon: Square,
+    color: "text-sky-600",
+    bgColor: "bg-sky-50 border-sky-200 dark:bg-sky-950/30 dark:border-sky-800",
+  },
+  shape_circle: {
+    label: "Cercle",
+    icon: Circle,
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800",
+  },
+  shape_diamond: {
+    label: "Losange",
+    icon: Diamond,
+    color: "text-purple-600",
+    bgColor: "bg-purple-50 border-purple-200 dark:bg-purple-950/30 dark:border-purple-800",
+  },
+  entity_card: {
+    label: "Carte entité",
+    icon: CreditCard,
+    color: "text-rose-600",
+    bgColor: "bg-rose-50 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800",
+  },
 };
 
 interface CustomNodeData {
@@ -1031,6 +1063,317 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
   );
 }
 
+function ShapeNode({ id, data, selected }: { id: string; data: CustomNodeData; selected?: boolean }) {
+  const nodeStyle = data.nodeStyle || {};
+  const [dimensions, setDimensions] = useState({ width: nodeStyle.width || 160, height: nodeStyle.height || 100 });
+  const kind = data.kind as MindmapNodeKind;
+
+  const fillColor = nodeStyle.backgroundColor || (kind === "shape_circle" ? "#d1fae5" : kind === "shape_diamond" ? "#ede9fe" : "#e0f2fe");
+  const strokeColor = nodeStyle.borderColor || (kind === "shape_circle" ? "#059669" : kind === "shape_diamond" ? "#7c3aed" : "#0284c7");
+  const strokeWidth = nodeStyle.borderWidth !== undefined ? nodeStyle.borderWidth : 2;
+  const textColor = nodeStyle.textColor || "#1e293b";
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startW = dimensions.width;
+    const startH = dimensions.height;
+    let finalW = startW;
+    let finalH = startH;
+    const onMove = (ev: MouseEvent) => {
+      finalW = Math.max(80, startW + (ev.clientX - startX));
+      finalH = Math.max(60, startH + (ev.clientY - startY));
+      setDimensions({ width: finalW, height: finalH });
+    };
+    const onUp = () => {
+      data.onUpdateStyle?.({ width: finalW, height: finalH });
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
+
+  const w = dimensions.width;
+  const h = dimensions.height;
+
+  const diamondPoints = `${w / 2},4 ${w - 4},${h / 2} ${w / 2},${h - 4} 4,${h / 2}`;
+
+  return (
+    <div style={{ width: w, height: h, position: "relative" }}>
+      <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-primary/50 !border-0" />
+      <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-primary/50 !border-0" />
+      <Handle type="target" position={Position.Left} id="left" className="!w-2 !h-2 !bg-primary/50 !border-0" />
+      <Handle type="source" position={Position.Right} id="right" className="!w-2 !h-2 !bg-primary/50 !border-0" />
+
+      {selected && (
+        <NodeToolbar isVisible position={Position.Top} className="flex items-center gap-1 p-1 bg-card border rounded-lg shadow-lg">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Couleur de fond">
+                <div className="w-4 h-4 rounded border" style={{ backgroundColor: fillColor }} />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2 bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
+              <div className="grid grid-cols-5 gap-1">
+                {NODE_COLORS.map((color) => (
+                  <button key={color.value} className="w-6 h-6 rounded border hover:ring-2 hover:ring-primary"
+                    style={{ backgroundColor: color.value || "#ffffff" }}
+                    onClick={(e) => { e.stopPropagation(); data.onUpdateStyle?.({ backgroundColor: color.value || undefined }); }}
+                  />
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Bordure">
+                <div className="w-4 h-4 rounded border-2" style={{ borderColor: strokeColor, backgroundColor: "transparent" }} />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2 bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
+              <div className="grid grid-cols-5 gap-1">
+                {BORDER_COLORS.map((color) => (
+                  <button key={color.value} className="w-6 h-6 rounded border-2 hover:ring-2 hover:ring-primary"
+                    style={{ borderColor: color.value || "#e2e8f0", backgroundColor: "transparent" }}
+                    onClick={(e) => { e.stopPropagation(); data.onUpdateStyle?.({ borderColor: color.value || undefined }); }}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs">Épaisseur:</span>
+                {[0, 1, 2, 3, 4].map((bw) => (
+                  <button key={bw} className={`px-2 py-1 text-xs rounded hover:bg-muted ${strokeWidth === bw ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+                    onClick={(e) => { e.stopPropagation(); data.onUpdateStyle?.({ borderWidth: bw }); }}
+                  >{bw}</button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </NodeToolbar>
+      )}
+
+      <svg width={w} height={h} style={{ position: "absolute", top: 0, left: 0 }}>
+        {kind === "shape_rectangle" && (
+          <rect x={2} y={2} width={w - 4} height={h - 4} fill={fillColor} stroke={strokeColor} strokeWidth={strokeWidth} rx={6} />
+        )}
+        {kind === "shape_circle" && (
+          <ellipse cx={w / 2} cy={h / 2} rx={(w - 4) / 2} ry={(h - 4) / 2} fill={fillColor} stroke={strokeColor} strokeWidth={strokeWidth} />
+        )}
+        {kind === "shape_diamond" && (
+          <polygon points={diamondPoints} fill={fillColor} stroke={strokeColor} strokeWidth={strokeWidth} />
+        )}
+      </svg>
+
+      <div
+        style={{
+          position: "absolute", top: 0, left: 0, width: w, height: h,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: textColor, fontSize: nodeStyle.fontSize || 13, fontWeight: 500,
+          padding: 8, textAlign: "center", wordBreak: "break-word",
+        }}
+      >
+        {data.label && data.label !== "Nouveau nœud" ? data.label : ""}
+      </div>
+
+      {selected && (
+        <div className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-center justify-center" onMouseDown={handleResizeStart}>
+          <div className="w-2 h-2 border-b-2 border-r-2 border-muted-foreground opacity-50" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StickyNoteNode({ id, data, selected }: { id: string; data: CustomNodeData; selected?: boolean }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [text, setText] = useState(data.label || "");
+  const nodeStyle = data.nodeStyle || {};
+  const [dimensions, setDimensions] = useState({ width: nodeStyle.width || 200, height: nodeStyle.height || 180 });
+  const bgColor = nodeStyle.backgroundColor || "#fef08a";
+  const textColor = nodeStyle.textColor || "#713f12";
+
+  useEffect(() => {
+    if (!isEditing && text !== data.label) {
+      data.onEndEdit?.(text);
+    }
+  }, [isEditing]);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    const startX = e.clientX, startY = e.clientY;
+    const startW = dimensions.width, startH = dimensions.height;
+    let finalW = startW, finalH = startH;
+    const onMove = (ev: MouseEvent) => {
+      finalW = Math.max(120, startW + (ev.clientX - startX));
+      finalH = Math.max(100, startH + (ev.clientY - startY));
+      setDimensions({ width: finalW, height: finalH });
+    };
+    const onUp = () => {
+      data.onUpdateStyle?.({ width: finalW, height: finalH });
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
+
+  return (
+    <div style={{ width: dimensions.width, height: dimensions.height, position: "relative" }}>
+      <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-primary/50 !border-0" />
+      <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-primary/50 !border-0" />
+      <Handle type="target" position={Position.Left} id="left" className="!w-2 !h-2 !bg-primary/50 !border-0" />
+      <Handle type="source" position={Position.Right} id="right" className="!w-2 !h-2 !bg-primary/50 !border-0" />
+
+      {selected && (
+        <NodeToolbar isVisible position={Position.Top} className="flex items-center gap-1 p-1 bg-card border rounded-lg shadow-lg">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Couleur du sticky">
+                <div className="w-4 h-4 rounded border" style={{ backgroundColor: bgColor }} />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2 bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
+              <div className="grid grid-cols-5 gap-1">
+                {[
+                  { value: "#fef08a", name: "Jaune" }, { value: "#86efac", name: "Vert" },
+                  { value: "#93c5fd", name: "Bleu" }, { value: "#fca5a5", name: "Rose" },
+                  { value: "#e9d5ff", name: "Violet" }, { value: "#fed7aa", name: "Orange" },
+                  { value: "#ffffff", name: "Blanc" }, { value: "#f1f5f9", name: "Gris clair" },
+                ].map((color) => (
+                  <button key={color.value} className="w-6 h-6 rounded border hover:ring-2 hover:ring-primary"
+                    style={{ backgroundColor: color.value }}
+                    onClick={(e) => { e.stopPropagation(); data.onUpdateStyle?.({ backgroundColor: color.value }); }}
+                    title={color.name}
+                  />
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Button variant={isEditing ? "default" : "ghost"} size="icon" className="h-7 w-7"
+            onClick={(e) => { e.stopPropagation(); setIsEditing(!isEditing); }}
+            title={isEditing ? "Terminer l'édition" : "Éditer"}
+          >
+            <Edit className="w-4 h-4" />
+          </Button>
+        </NodeToolbar>
+      )}
+
+      <div
+        className="rounded shadow-md w-full h-full p-3 relative overflow-hidden"
+        style={{
+          backgroundColor: bgColor, color: textColor,
+          fontSize: nodeStyle.fontSize || 14,
+          boxShadow: "2px 2px 8px rgba(0,0,0,0.15)",
+        }}
+        onDoubleClick={() => !isEditing && setIsEditing(true)}
+      >
+        <div className="h-2 mb-2 rounded-sm opacity-40" style={{ backgroundColor: textColor }} />
+        {isEditing ? (
+          <textarea
+            autoFocus
+            className="w-full resize-none bg-transparent border-none outline-none"
+            style={{ color: textColor, fontSize: nodeStyle.fontSize || 14, height: "calc(100% - 24px)" }}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onBlur={() => setIsEditing(false)}
+            onKeyDown={(e) => { if (e.key === "Escape") setIsEditing(false); }}
+          />
+        ) : (
+          <div className="whitespace-pre-wrap" style={{ fontSize: nodeStyle.fontSize || 14 }}>
+            {text || <span className="opacity-50">Double-clic pour écrire...</span>}
+          </div>
+        )}
+
+        {selected && (
+          <div className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-center justify-center" onMouseDown={handleResizeStart}>
+            <div className="w-2 h-2 border-b-2 border-r-2 opacity-50" style={{ borderColor: textColor }} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EntityCardNode({ id, data, selected }: { id: string; data: CustomNodeData; selected?: boolean }) {
+  const nodeStyle = data.nodeStyle || {};
+  const entityType = data.linkedEntityType;
+  const entityId = data.linkedEntityId;
+
+  const getEntityIcon = () => {
+    switch (entityType) {
+      case "task": return <CheckSquare className="w-4 h-4 text-orange-500" />;
+      case "note": return <StickyNote className="w-4 h-4 text-blue-500" />;
+      case "project": return <FolderOpen className="w-4 h-4 text-violet-500" />;
+      case "client": return <User className="w-4 h-4 text-cyan-500" />;
+      case "document": return <FileText className="w-4 h-4 text-green-500" />;
+      default: return <CreditCard className="w-4 h-4 text-rose-500" />;
+    }
+  };
+
+  const getEntityLabel = () => {
+    switch (entityType) {
+      case "task": return "Tâche";
+      case "note": return "Note";
+      case "project": return "Projet";
+      case "client": return "Client";
+      case "document": return "Document";
+      default: return "Entité";
+    }
+  };
+
+  const getBorderColor = () => {
+    switch (entityType) {
+      case "task": return "#f97316";
+      case "note": return "#3b82f6";
+      case "project": return "#7c3aed";
+      case "client": return "#06b6d4";
+      case "document": return "#10b981";
+      default: return "#f43f5e";
+    }
+  };
+
+  return (
+    <div style={{ minWidth: 200, maxWidth: 260 }}>
+      <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-primary/50 !border-0" />
+      <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-primary/50 !border-0" />
+      <Handle type="target" position={Position.Left} id="left" className="!w-2 !h-2 !bg-primary/50 !border-0" />
+      <Handle type="source" position={Position.Right} id="right" className="!w-2 !h-2 !bg-primary/50 !border-0" />
+
+      <div
+        className="rounded-lg bg-card shadow-md"
+        style={{
+          border: `2px solid ${getBorderColor()}`,
+          opacity: selected ? 1 : 0.95,
+        }}
+      >
+        <div className="flex items-center gap-2 px-3 py-2 border-b" style={{ borderColor: getBorderColor() + "40" }}>
+          {getEntityIcon()}
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {getEntityLabel()}
+          </span>
+          {entityId && (
+            <ExternalLink className="w-3 h-3 ml-auto text-muted-foreground" />
+          )}
+        </div>
+        <div className="px-3 py-2">
+          <p className="text-sm font-medium leading-snug" style={{ color: nodeStyle.textColor || "inherit" }}>
+            {data.label || "Entité liée"}
+          </p>
+          {data.description && (
+            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{data.description}</p>
+          )}
+          {!entityId && (
+            <p className="text-xs text-muted-foreground italic mt-1">Aucune entité liée</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNodeData; selected?: boolean }) {
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   
@@ -1309,6 +1652,9 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
 const nodeTypes: NodeTypes = {
   custom: CustomMindmapNode,
   text: RichTextNode,
+  shape: ShapeNode,
+  sticky: StickyNoteNode,
+  entity: EntityCardNode,
 };
 
 function MindmapCanvas() {
@@ -1316,7 +1662,7 @@ function MindmapCanvas() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { fitView, zoomIn, zoomOut, setViewport, getViewport } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, setViewport, getViewport, screenToFlowPosition } = useReactFlow();
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -1450,7 +1796,7 @@ function MindmapCanvas() {
     queryKey: ["/api/clients"],
   });
 
-  const getEntitiesForType = useCallback((type: MindmapNodeKind): Array<{ id: string; name: string }> => {
+  const getEntitiesForType = useCallback((type: MindmapNodeKind): Array<{ id: string; name: string; entityType?: string }> => {
     switch (type) {
       case "note":
         return (notes || []).map(n => ({ id: n.id, name: n.title }));
@@ -1462,13 +1808,21 @@ function MindmapCanvas() {
         return (tasks || []).map(t => ({ id: t.id, name: t.title }));
       case "client":
         return (clients || []).map(c => ({ id: c.id, name: c.name }));
+      case "entity_card":
+        return [
+          ...(tasks || []).map(t => ({ id: t.id, name: t.title, entityType: "task" })),
+          ...(projects || []).map(p => ({ id: p.id, name: p.name, entityType: "project" })),
+          ...(clients || []).map(c => ({ id: c.id, name: c.name, entityType: "client" })),
+          ...(notes || []).map(n => ({ id: n.id, name: n.title, entityType: "note" })),
+          ...(documents || []).map(d => ({ id: d.id, name: d.title, entityType: "document" })),
+        ];
       default:
         return [];
     }
   }, [notes, projects, documents, tasks, clients]);
 
   const canLinkEntity = (type: MindmapNodeKind): boolean => {
-    return ["note", "project", "document", "task", "client"].includes(type);
+    return ["note", "project", "document", "task", "client", "entity_card"].includes(type);
   };
 
   const layoutConfig: LayoutConfig = useMemo(() => {
@@ -1743,11 +2097,17 @@ function MindmapCanvas() {
           const currentPos = positionMap.get(node.id);
           const serverPos = { x: parseFloat(node.x), y: parseFloat(node.y) };
           
+          const ns = node.style as NodeStyle || {};
           return {
             id: node.id,
-            type: node.type === "text" ? "text" : "custom",
+            type: node.type === "text" ? "text" :
+                  node.type === "sticky_note" ? "sticky" :
+                  ["shape_rectangle", "shape_circle", "shape_diamond"].includes(node.type) ? "shape" :
+                  node.type === "entity_card" ? "entity" :
+                  "custom",
             position: currentPos || serverPos,
             selected: wasSelected,
+            zIndex: (ns as any).zIndex || 0,
             data: {
               label: node.title,
               description: node.description,
@@ -1756,7 +2116,7 @@ function MindmapCanvas() {
               linkedEntityType: node.linkedEntityType,
               linkedEntityId: node.linkedEntityId,
               layoutConfig,
-              nodeStyle: node.style as NodeStyle || {},
+              nodeStyle: ns,
               onUpdateStyle: (styleUpdate: Partial<NodeStyle>) => handleNodeStyleUpdate(node.id, styleUpdate),
               onEndEdit: (newText: string) => handleTextNodeEdit(node.id, newText),
             },
@@ -2439,6 +2799,27 @@ function MindmapCanvas() {
     toast({ title: `Layout "${layoutNames[layoutType]}" appliqué` });
   }, [nodes, edges, updateNodeMutation, setNodes, fitView, toast]);
 
+  // Navigate to entity detail page based on entity type and id
+  const navigateToEntity = useCallback((entityType: string | undefined, entityId: string | undefined) => {
+    if (!entityId || !entityType) return;
+    const routes: Record<string, string> = {
+      task: "/tasks",
+      note: `/notes/${entityId}`,
+      project: `/projects/${entityId}`,
+      client: `/crm/${entityId}`,
+      document: `/documents/${entityId}`,
+    };
+    const route = routes[entityType] || "/";
+    setLocation(route);
+  }, [setLocation]);
+
+  // Handle double-click on a node — entity_card opens the linked entity
+  const onNodeDoubleClick = useCallback((_: any, node: Node) => {
+    if (node.type === "entity" && node.data.linkedEntityId) {
+      navigateToEntity(node.data.linkedEntityType, node.data.linkedEntityId);
+    }
+  }, [navigateToEntity]);
+
   // Delete selected nodes
   const deleteSelectedNodes = useCallback(() => {
     const selectedNodes = nodes.filter(n => n.selected);
@@ -2611,30 +2992,63 @@ function MindmapCanvas() {
     setSelectedEdge(null);
   }, []);
 
-  const handleAddNode = () => {
-    if (!newNodeLabel.trim() && newNodeKind !== "text") return;
-    
-    saveToHistory(); // Save state before adding node
-    const viewportCenter = { x: 400, y: 300 };
+  const handleWrapperDoubleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (!target.classList.contains("react-flow__pane") && !target.closest(".react-flow__pane")) return;
+    const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+    saveToHistory();
     createNodeMutation.mutate({
-      title: newNodeLabel || "Texte...",
+      title: "Texte libre",
+      type: "text",
+      x: position.x,
+      y: position.y,
+    });
+  }, [screenToFlowPosition, createNodeMutation]);
+
+  const getCanvasCenter = () => {
+    const wrapperEl = reactFlowWrapper.current;
+    if (wrapperEl) {
+      const rect = wrapperEl.getBoundingClientRect();
+      return screenToFlowPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      });
+    }
+    const vp = getViewport();
+    return { x: (-vp.x + 400) / vp.zoom, y: (-vp.y + 300) / vp.zoom };
+  };
+
+  const handleAddNode = () => {
+    if (!newNodeLabel.trim() && newNodeKind !== "text" && newNodeKind !== "sticky_note" && !newNodeKind.startsWith("shape_") && newNodeKind !== "entity_card") return;
+    
+    saveToHistory();
+    const center = getCanvasCenter();
+    const defaultLabel =
+      newNodeKind === "sticky_note" ? "" :
+      newNodeKind === "shape_rectangle" ? "Rectangle" :
+      newNodeKind === "shape_circle" ? "Cercle" :
+      newNodeKind === "shape_diamond" ? "Losange" :
+      newNodeKind === "entity_card" ? (newLinkedEntityName || "Carte entité") :
+      newNodeLabel || "Nouveau nœud";
+    createNodeMutation.mutate({
+      title: newNodeLabel || defaultLabel,
       description: newNodeDescription || undefined,
       type: newNodeKind,
-      x: viewportCenter.x + Math.random() * 100 - 50,
-      y: viewportCenter.y + Math.random() * 100 - 50,
+      x: center.x + Math.random() * 100 - 50,
+      y: center.y + Math.random() * 100 - 50,
       linkedEntityType: newLinkedEntityType || undefined,
       linkedEntityId: newLinkedEntityId || undefined,
     });
   };
 
   const handleAddTextNode = () => {
-    saveToHistory(); // Save state before adding text node
-    const viewportCenter = { x: 400, y: 300 };
+    saveToHistory();
+    const center = getCanvasCenter();
     createNodeMutation.mutate({
-      title: "Texte...",
+      title: "Texte libre",
       type: "text",
-      x: viewportCenter.x + Math.random() * 100 - 50,
-      y: viewportCenter.y + Math.random() * 100 - 50,
+      x: center.x + Math.random() * 100 - 50,
+      y: center.y + Math.random() * 100 - 50,
     });
   };
 
@@ -2712,8 +3126,9 @@ function MindmapCanvas() {
     }
   }, [toast]);
 
-  const handleSelectEntity = (entity: { id: string; name: string }) => {
-    setNewLinkedEntityType(newNodeKind);
+  const handleSelectEntity = (entity: { id: string; name: string; entityType?: string }) => {
+    const entityType = newNodeKind === "entity_card" ? (entity.entityType || "task") : newNodeKind;
+    setNewLinkedEntityType(entityType);
     setNewLinkedEntityId(entity.id);
     setNewLinkedEntityName(entity.name);
     setNewNodeLabel(entity.name);
@@ -2971,7 +3386,7 @@ function MindmapCanvas() {
         </div>
       </div>
 
-      <div className="flex-1 relative">
+      <div className="flex-1 relative" ref={reactFlowWrapper} onDoubleClick={handleWrapperDoubleClick}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -2981,6 +3396,7 @@ function MindmapCanvas() {
           onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
           onNodeClick={onNodeClick}
+          onNodeDoubleClick={onNodeDoubleClick}
           onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
           onMoveEnd={handleMoveEnd}
@@ -3342,32 +3758,90 @@ function MindmapCanvas() {
           </Panel>
 
           <Panel position="top-right" className="mr-2">
-            <div className="flex flex-col gap-1 p-1.5 bg-card border rounded-lg shadow-lg">
-              {Object.entries(NODE_KIND_CONFIG).map(([kind, { label, icon: Icon, color }]) => (
-                <Tooltip key={kind} delayDuration={100}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        if (kind === "text") {
-                          handleAddTextNode();
-                        } else {
-                          setNewNodeKind(kind as MindmapNodeKind);
-                          setIsAddingNode(true);
-                        }
-                      }}
-                      data-testid={`toolbar-add-${kind}`}
-                      className="h-9 w-9"
-                    >
-                      <Icon className={`w-5 h-5 ${color}`} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left" className="font-medium">
-                    {label}
-                  </TooltipContent>
-                </Tooltip>
-              ))}
+            <div className="flex flex-col gap-0.5 p-1.5 bg-card border rounded-lg shadow-lg max-h-[calc(100vh-80px)] overflow-y-auto">
+              {/* Entity nodes */}
+              {(["idea", "note", "project", "document", "task", "client", "generic"] as MindmapNodeKind[]).map((kind) => {
+                const { label, icon: Icon, color } = NODE_KIND_CONFIG[kind];
+                return (
+                  <Tooltip key={kind} delayDuration={100}>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-9 w-9" data-testid={`toolbar-add-${kind}`}
+                        onClick={() => { setNewNodeKind(kind); setIsAddingNode(true); }}
+                      >
+                        <Icon className={`w-5 h-5 ${color}`} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="font-medium">{label}</TooltipContent>
+                  </Tooltip>
+                );
+              })}
+
+              <Separator className="my-1" />
+
+              {/* Canvas tools */}
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-9 w-9" data-testid="toolbar-add-text"
+                    onClick={handleAddTextNode}
+                  >
+                    <Type className="w-5 h-5 text-neutral-600" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="font-medium">Texte (ou double-clic canvas)</TooltipContent>
+              </Tooltip>
+
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-9 w-9" data-testid="toolbar-add-sticky_note"
+                    onClick={() => {
+                      saveToHistory();
+                      const center = getCanvasCenter();
+                      createNodeMutation.mutate({ title: "", type: "sticky_note", x: center.x + Math.random() * 100 - 50, y: center.y + Math.random() * 100 - 50 });
+                    }}
+                  >
+                    <StickyNote className="w-5 h-5 text-yellow-600" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="font-medium">Sticky note</TooltipContent>
+              </Tooltip>
+
+              <Separator className="my-1" />
+
+              {/* Shapes */}
+              {(["shape_rectangle", "shape_circle", "shape_diamond"] as MindmapNodeKind[]).map((kind) => {
+                const { label, icon: Icon, color } = NODE_KIND_CONFIG[kind];
+                return (
+                  <Tooltip key={kind} delayDuration={100}>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-9 w-9" data-testid={`toolbar-add-${kind}`}
+                        onClick={() => {
+                          saveToHistory();
+                          const center = getCanvasCenter();
+                          const defaultTitle = kind === "shape_rectangle" ? "Rectangle" : kind === "shape_circle" ? "Cercle" : "Losange";
+                          createNodeMutation.mutate({ title: defaultTitle, type: kind, x: center.x + Math.random() * 100 - 50, y: center.y + Math.random() * 100 - 50 });
+                        }}
+                      >
+                        <Icon className={`w-5 h-5 ${color}`} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="font-medium">{label}</TooltipContent>
+                  </Tooltip>
+                );
+              })}
+
+              <Separator className="my-1" />
+
+              {/* Entity card */}
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-9 w-9" data-testid="toolbar-add-entity_card"
+                    onClick={() => { setNewNodeKind("entity_card"); setIsAddingNode(true); }}
+                  >
+                    <CreditCard className="w-5 h-5 text-rose-600" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="font-medium">Carte entité</TooltipContent>
+              </Tooltip>
             </div>
           </Panel>
         </ReactFlow>
@@ -3406,7 +3880,7 @@ function MindmapCanvas() {
                   <div className="space-y-1.5">
                     <Label className="text-xs flex items-center gap-2">
                       <Link2 className="w-3 h-3" />
-                      Lier à un {NODE_KIND_CONFIG[newNodeKind].label.toLowerCase()} existant
+                      {newNodeKind === "entity_card" ? "Lier à une entité existante" : `Lier à un ${NODE_KIND_CONFIG[newNodeKind].label.toLowerCase()} existant`}
                     </Label>
                     {newLinkedEntityId ? (
                       <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
@@ -3449,10 +3923,13 @@ function MindmapCanvas() {
                                   .slice(0, 10)
                                   .map((entity) => (
                                     <CommandItem
-                                      key={entity.id}
+                                      key={`${entity.entityType || newNodeKind}-${entity.id}`}
                                       value={entity.name}
                                       onSelect={() => handleSelectEntity(entity)}
                                     >
+                                      {newNodeKind === "entity_card" && entity.entityType && (
+                                        <span className="text-xs text-muted-foreground mr-2 capitalize">[{entity.entityType}]</span>
+                                      )}
                                       {entity.name}
                                     </CommandItem>
                                   ))}
@@ -3616,14 +4093,59 @@ function MindmapCanvas() {
                       variant="link"
                       size="sm"
                       className="mt-1 h-auto p-0"
-                      onClick={() => {
-                        toast({ title: "Fonctionnalité à venir", description: "L'ouverture dans l'app sera bientôt disponible" });
-                      }}
+                      onClick={() => navigateToEntity(selectedNode.data.linkedEntityType, selectedNode.data.linkedEntityId)}
+                      data-testid="button-open-entity"
                     >
-                      Ouvrir dans l'app
+                      Ouvrir dans l'app →
                     </Button>
                   </div>
                 )}
+
+                <Separator />
+
+                {/* Z-index controls */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5" />
+                    Ordre d'affichage
+                  </Label>
+                  <div className="flex gap-1">
+                    <Tooltip delayDuration={100}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 flex-1"
+                          data-testid="button-bring-front"
+                          onClick={() => {
+                            const maxZ = Math.max(0, ...nodes.map(n => (n.data.nodeStyle as any)?.zIndex || 0));
+                            selectedNode.data.onUpdateStyle?.({ zIndex: maxZ + 1 } as any);
+                          }}
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="bg-white dark:bg-gray-900 text-foreground border shadow-md">Premier plan</TooltipContent>
+                    </Tooltip>
+                    <Tooltip delayDuration={100}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 flex-1"
+                          data-testid="button-send-back"
+                          onClick={() => {
+                            const minZ = Math.min(0, ...nodes.map(n => (n.data.nodeStyle as any)?.zIndex || 0));
+                            selectedNode.data.onUpdateStyle?.({ zIndex: minZ - 1 } as any);
+                          }}
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="bg-white dark:bg-gray-900 text-foreground border shadow-md">Arrière-plan</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
 
                 <Separator />
 

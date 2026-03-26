@@ -2358,6 +2358,11 @@ export const mindmapNodeTypeOptions = [
   { value: "client", label: "Client", icon: "User", color: "#FCA5A5" },
   { value: "generic", label: "Générique", icon: "Square", color: "#D1D5DB" },
   { value: "text", label: "Texte libre", icon: "Type", color: "#A3A3A3" },
+  { value: "sticky_note", label: "Sticky note", icon: "StickyNote", color: "#FDE047" },
+  { value: "shape_rectangle", label: "Rectangle", icon: "Square", color: "#93C5FD" },
+  { value: "shape_circle", label: "Cercle", icon: "Circle", color: "#86EFAC" },
+  { value: "shape_diamond", label: "Losange", icon: "Diamond", color: "#C4B5FD" },
+  { value: "entity_card", label: "Carte entité", icon: "CreditCard", color: "#5EEAD4" },
 ] as const;
 
 export type MindmapNodeType = typeof mindmapNodeTypeOptions[number]["value"];

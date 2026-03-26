@@ -1,0 +1,362 @@
+Je souhaite refondre le module Whiteboard de mon application pour en faire un vrai espace de travail visuel fluide, libre et exploitable, proche dans l’expérience de Miro, tout en restant connecté à mes objets métier existants.
+
+L’objectif est de transformer le whiteboard actuel, qui ressemble encore trop à une simple vue de cartes, en un canvas libre permettant de réfléchir, structurer, organiser et ouvrir des entités métier depuis le board.
+
+Merci de travailler en plusieurs étapes propres, robustes et maintenables, avec une attention particulière portée à la fluidité UX, à la qualité du code et à la stabilité.
+
+1. Objectif produit
+
+Je veux que le Whiteboard permette de :
+
+créer et manipuler des objets libres sur un canvas infini
+ajouter du texte libre
+ajouter des formes libres
+déplacer, redimensionner, sélectionner et organiser les éléments
+connecter des éléments entre eux
+représenter des objets métier sous forme de cartes compactes :
+note
+fiche client
+tâche
+projet
+ouvrir ces objets métier en pop-up / drawer / full window
+avoir une sensation proche d’un outil de co-construction visuelle type Miro
+
+Le whiteboard ne doit plus être seulement une vue de données, mais un espace de travail visuel libre.
+
+2. Problèmes actuels à corriger
+
+Merci de corriger les problèmes existants du module actuel :
+
+Bugs
+le texte libre provoque actuellement une erreur 400
+l’expérience générale n’est pas assez fluide
+les objets ressemblent trop à des cartes rigides
+le comportement du board n’est pas assez libre ni naturel
+Limites UX actuelles
+manque de liberté dans la construction
+pas assez d’objets natifs de whiteboard
+ouverture insuffisante des entités métier
+sensation plus “mindmap statique” que “canvas libre”
+hiérarchie visuelle insuffisante
+3. Ce que je veux implémenter
+A. Canvas libre “Miro-like”
+
+Merci d’implémenter un vrai canvas avec :
+
+pan fluide
+zoom fluide
+sélection simple
+multi-sélection
+drag & drop fluide
+resize des éléments
+duplication
+suppression
+z-index
+bring to front / send to back
+raccourcis clavier de base
+undo / redo local si possible
+mini-map si déjà présente, à améliorer si nécessaire
+
+Le comportement doit être stable, agréable et intuitif.
+
+B. Nouveaux types d’objets à supporter
+
+Merci d’ajouter les objets suivants :
+
+Objets libres
+texte libre
+sticky note
+rectangle
+cercle
+losange
+ligne
+flèche
+frame / zone / section
+Objets métier
+note
+client
+tâche
+projet
+
+Merci de bien distinguer dans l’architecture :
+
+les objets libres du canvas
+les objets métier liés au modèle de données
+
+Je veux une structure propre et extensible.
+
+4. Comportement attendu pour le texte libre
+
+Le texte libre est une priorité.
+
+Merci de :
+
+corriger l’erreur 400 actuelle
+permettre l’ajout d’un bloc de texte libre n’importe où sur le board
+permettre l’édition inline
+permettre le déplacement
+permettre le redimensionnement
+enregistrer correctement les coordonnées, dimensions et contenu
+prévoir un modèle suffisamment souple pour supporter ensuite plusieurs styles
+
+Merci de vérifier précisément la cause de l’erreur 400 :
+
+type d’objet non reconnu ?
+payload incomplet ?
+schéma backend trop strict ?
+validation API incorrecte ?
+données x/y/width/height manquantes ?
+champ content ou text absent ?
+
+Je veux que le texte libre fonctionne parfaitement.
+
+5. Comportement attendu pour les formes libres
+
+Merci d’ajouter au minimum :
+
+rectangle
+cercle
+losange
+ligne
+flèche
+
+Comportements attendus :
+
+création depuis la toolbar
+placement sur le canvas
+resize
+drag
+sélection
+couleur de fond / contour plus tard si simple, sinon structure prête pour ça
+rotation non obligatoire en V1, mais architecture compatible
+
+Je préfère commencer par les formes géométriques avant le dessin à main levée.
+
+6. Gestion des objets métier sur le board
+
+Je veux pouvoir placer sur le whiteboard des cartes métier compactes pour :
+
+note
+client
+tâche
+projet
+
+Ces cartes doivent être plus légères et plus visuelles que des fiches complètes.
+
+Exemple de comportement attendu
+sur le board : carte compacte avec informations essentielles
+clic simple : sélection
+double clic ou action dédiée : ouverture d’un aperçu
+bouton “agrandir” : ouverture en vue large / full window
+Niveau d’ouverture souhaité
+Note
+pop-up légère ou petit modal
+Tâche
+drawer latéral ou pop-up enrichie
+Client
+grande modal ou vue plein écran
+Projet
+grande modal ou vue plein écran
+
+Le but est de ne pas quitter brutalement le board tout en gardant un accès riche aux données.
+
+7. UX d’ouverture des entités
+
+Merci d’implémenter une logique en 3 niveaux si possible :
+
+Niveau 1 — carte compacte sur le board
+
+Exemples :
+
+tâche : titre, statut, owner, échéance
+client : nom, entreprise, statut
+projet : nom, phase, owner
+note : titre ou extrait
+Niveau 2 — ouverture rapide
+
+Au double clic ou via action :
+
+modal ou drawer
+aperçu détaillé
+actions rapides
+possibilité d’éditer certaines infos
+Niveau 3 — ouverture complète
+
+Bouton “ouvrir en grand” :
+
+grande modal
+ou
+full screen panel
+ou
+page dédiée si déjà existante
+
+Je veux une UX propre, naturelle et cohérente.
+
+8. Architecture technique attendue
+
+Merci de refactorer proprement le module si nécessaire.
+
+Je veux une structure claire avec par exemple :
+
+un modèle générique WhiteboardItem
+un champ type
+une structure data propre selon le type
+un stockage cohérent des coordonnées et dimensions
+une séparation claire entre rendu canvas et logique métier
+
+Exemple de structure attendue :
+
+type WhiteboardItemType =
+  | "text"
+  | "sticky_note"
+  | "shape"
+  | "connector"
+  | "entity_card";
+
+interface WhiteboardItem {
+  id: string;
+  boardId: string;
+  type: WhiteboardItemType;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  zIndex: number;
+  data: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+Et pour les objets métier, un entity_card avec par exemple :
+
+data: {
+  entityType: "task" | "project" | "client" | "note",
+  entityId: string,
+  viewMode: "compact"
+}
+
+Merci de proposer si besoin une structure plus robuste, tant qu’elle reste simple, maintenable et évolutive.
+
+9. Toolbar et interactions
+
+Merci d’ajouter ou améliorer une vraie toolbar de whiteboard avec :
+
+sélection
+texte
+sticky note
+rectangle
+cercle
+losange
+ligne
+flèche
+ajout d’une carte métier
+suppression
+duplication
+bring to front / send to back si simple
+
+Je veux une UX visuelle claire et moderne.
+
+10. Connecteurs
+
+Je veux pouvoir relier des objets entre eux avec des connecteurs.
+
+Minimum attendu :
+
+création d’une ligne / flèche entre deux objets
+repositionnement qui suit les objets déplacés si possible
+sauvegarde des liaisons
+
+Si les connecteurs intelligents sont trop complexes pour une première passe, merci de faire une V1 simple mais propre.
+
+11. Priorisation d’implémentation
+
+Merci de découper le chantier en lots.
+
+Lot 1 — Stabilisation
+corriger le bug texte libre 400
+fiabiliser création / update / delete des objets
+vérifier persistence des coordonnées et dimensions
+améliorer pan / zoom / sélection
+Lot 2 — Nouveaux objets libres
+texte
+sticky note
+rectangle
+cercle
+losange
+ligne / flèche
+Lot 3 — Objets métier enrichis
+cartes note / client / tâche / projet
+ouverture en modal / drawer
+bouton agrandir en full screen
+Lot 4 — Finition UX Miro-like
+multi-sélection
+duplication
+z-index
+alignement de base
+connecteurs
+polish global
+12. Contraintes importantes
+
+Merci de respecter les points suivants :
+
+ne pas casser le fonctionnement existant
+conserver la logique actuelle du board si elle existe déjà, mais la faire évoluer proprement
+écrire du code lisible et modulaire
+éviter les grosses régressions UI
+garder des composants séparés par responsabilité
+prévoir des types propres côté front et backend
+documenter les choix structurants
+me signaler clairement si une partie nécessite une migration ou adaptation backend
+13. Ce que j’attends en sortie
+
+Je veux que tu me livres :
+
+1. Un diagnostic rapide
+causes du bug texte libre 400
+limites actuelles du module
+refacto éventuellement nécessaire
+2. Un plan d’implémentation
+fichiers à modifier
+nouveaux composants
+nouvelles routes / schémas si nécessaire
+éventuelles migrations
+3. L’implémentation
+front
+backend si besoin
+persistence
+ouverture des entités métier
+4. Une vérification finale
+création objet
+édition
+déplacement
+resize
+sauvegarde
+réouverture
+ouverture modal / full screen
+14. Vision UX à garder en tête
+
+Je veux que ce module donne la sensation suivante :
+
+“Je peux réfléchir librement sur un canvas, structurer mes idées visuellement, puis ouvrir ou transformer ces éléments en vrais objets de travail.”
+
+Le whiteboard doit devenir un espace :
+
+de cadrage
+de brainstorming
+d’organisation
+de navigation entre vision et exécution
+
+Pas juste une vue de cartes statiques.
+
+15. Bonus si simple à faire
+
+Seulement si c’est simple et non risqué :
+
+snap to grid léger
+raccourcis clavier de base
+double clic pour éditer
+hover actions propres
+meilleure minimap
+frame / section nommée
+conversion d’une note en tâche plus tard si l’architecture le permet
