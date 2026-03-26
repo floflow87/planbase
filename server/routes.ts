@@ -12794,8 +12794,9 @@ app.get("/config/feature-flags", async (_req, res) => {
         return res.status(400).json({ error: "Missing required fields: module, action, allowed" });
       }
 
-      // Validate module and action enums
-      const VALID_MODULES = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability', 'whiteboards'];
+      // Validate module and action enums — use canonical RBAC_MODULES from schema
+      const { RBAC_MODULES: VALID_MODULES_LIST } = await import("@shared/schema");
+      const VALID_MODULES = [...VALID_MODULES_LIST];
       const VALID_ACTIONS = ['read', 'create', 'update', 'delete'];
       
       if (!VALID_MODULES.includes(module)) {
