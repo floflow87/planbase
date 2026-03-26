@@ -91,7 +91,7 @@ export async function addDocumentTables() {
       console.log("ℹ️  Document tables already exist");
     } else {
       console.error("❌ Error creating document tables:", error);
-      throw error;
+      // Do NOT re-throw — a migration timeout must never crash the server
     }
   }
 }
@@ -1276,6 +1276,6 @@ Les indicateurs de succès suivis seront :
     console.log("✅ Document templates seeded successfully (16 templates)");
   } catch (error: any) {
     console.error("❌ Error seeding document templates:", error);
-    throw error;
+    // Do NOT re-throw — a migration timeout must never crash the server
   }
 }

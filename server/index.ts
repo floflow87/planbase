@@ -5,6 +5,11 @@ import billingRouter from "./routes/billing";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
+// Prevent unhandled promise rejections (e.g. DB timeouts in migrations) from crashing the server
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('⚠️ Unhandled promise rejection (non-fatal):', reason);
+});
+
 console.log("STRAPI_URL =", process.env.STRAPI_URL);
 console.log("SUPABASE_URL loaded?", !!process.env.SUPABASE_URL);
 console.log("SUPABASE_DB_PASSWORD loaded?", !!process.env.SUPABASE_DB_PASSWORD);

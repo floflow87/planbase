@@ -2820,6 +2820,6 @@ export async function runStartupMigrations() {
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
-    throw error;
+    // Do NOT re-throw — migrations failing must never crash the server
   }
 }
