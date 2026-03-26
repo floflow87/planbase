@@ -1904,7 +1904,10 @@ function MindmapCanvas() {
         type: rfType,
         position: { x: nodeData.x, y: nodeData.y },
         selected: false,
+        selectable: false,   // ← prevent selection to avoid accidental delete/edit of temp node
+        draggable: false,    // ← prevent drag to avoid onNodeDragStop 404
         zIndex: 0,
+        style: { opacity: 0.55, pointerEvents: 'none' }, // visual "loading" state
         data: {
           label: nodeData.title,
           kind: nodeData.type,
@@ -1912,6 +1915,7 @@ function MindmapCanvas() {
           description: nodeData.description || "",
           linkedEntityType: nodeData.linkedEntityType,
           linkedEntityId: nodeData.linkedEntityId,
+          isTemp: true,
         },
       }]);
       return { tempId };
@@ -1950,6 +1954,8 @@ function MindmapCanvas() {
       nodeId: string;
       updates: Partial<MindmapNodeType>;
     }) => {
+      // Ignore temp optimistic nodes — they don't exist in the DB yet
+      if (nodeId.startsWith('temp-')) return;
       return await apiRequest(`/api/mindmap-nodes/${nodeId}`, "PATCH", updates);
     },
     onSuccess: () => {
@@ -2198,6 +2204,11 @@ function MindmapCanvas() {
 
   const deleteNodeMutation = useMutation({
     mutationFn: async (nodeId: string) => {
+      // Temp optimistic nodes can be removed locally — they have no DB record yet
+      if (nodeId.startsWith('temp-')) {
+        setNodes(nds => nds.filter(n => n.id !== nodeId));
+        return;
+      }
       return await apiRequest(`/api/mindmap-nodes/${nodeId}`, "DELETE");
     },
     onSuccess: (_, nodeId) => {
@@ -2459,6 +2470,8 @@ function MindmapCanvas() {
   const onNodeDragStop = useCallback(
     (_: any, node: Node) => {
       setAlignmentGuides({});
+      // Skip temp optimistic nodes — they don't have a DB record yet
+      if (node.id.startsWith('temp-')) return;
       updateNodeMutation.mutate({
         nodeId: node.id,
         updates: {
@@ -3026,6 +3039,8 @@ function MindmapCanvas() {
   }, []);
 
   const handleWrapperDoubleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    // Skip if a creation is already in flight — prevents duplicate nodes
+    if (createNodeMutation.isPending) return;
     const target = event.target as HTMLElement;
     if (!target.classList.contains("react-flow__pane") && !target.closest(".react-flow__pane")) return;
     const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
@@ -3856,6 +3871,7 @@ function MindmapCanvas() {
                       const { label, icon: Icon, color } = NODE_KIND_CONFIG[kind];
                       return (
                         <Button key={kind} variant="ghost" className="justify-start gap-2 h-8 px-2 text-sm" data-testid={`toolbar-add-${kind}`}
+                          disabled={createNodeMutation.isPending}
                           onClick={() => {
                             saveToHistory();
                             const center = getCanvasCenter();
@@ -3878,6 +3894,7 @@ function MindmapCanvas() {
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-9 w-9" data-testid="toolbar-add-sticky_note"
+                    disabled={createNodeMutation.isPending}
                     onClick={() => {
                       saveToHistory();
                       const center = getCanvasCenter();
@@ -3896,6 +3913,7 @@ function MindmapCanvas() {
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-9 w-9" data-testid="toolbar-add-text"
+                    disabled={createNodeMutation.isPending}
                     onClick={handleAddTextNode}
                   >
                     <Type className="w-5 h-5 text-neutral-600" />
