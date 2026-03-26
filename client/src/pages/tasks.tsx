@@ -4,6 +4,7 @@ import { useCelebration } from "@/hooks/useCelebration";
 import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight, Eye, EyeOff, Search, X, Play, Layers, Package, CheckCircle2, Circle } from "lucide-react";
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -657,6 +658,8 @@ function SortableColumn({
   canUpdate = true,
   canDelete = true,
 }: SortableColumnProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const {
     attributes,
     listeners,
@@ -693,7 +696,7 @@ function SortableColumn({
     <div ref={setNodeRef} style={style} {...attributes}>
       <Card
         className={`flex flex-col h-full min-h-[500px] ${showDropIndicator ? 'ring-2 ring-primary ring-offset-2' : ''}`}
-        style={{ backgroundColor: column.color }}
+        style={{ backgroundColor: isDark ? undefined : column.color }}
         data-testid={`column-${column.id}`}
       >
         <CardHeader className="px-2 py-2" {...listeners}>
@@ -1780,7 +1783,7 @@ export default function Tasks() {
                     variant="outline"
                     role="combobox"
                     aria-expanded={projectSelectorOpen}
-                    className="w-full sm:w-[280px] justify-between text-[12px] bg-white dark:bg-white"
+                    className="w-full sm:w-[280px] justify-between text-[12px] bg-white dark:bg-card"
                     data-testid="select-project"
                   >
                     {getSelectedProjectsText()}
@@ -1847,7 +1850,7 @@ export default function Tasks() {
             {viewMode === "list" && (
               <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
                 <SelectTrigger
-                  className="w-44 h-9 bg-white dark:bg-white text-xs font-normal"
+                  className="w-44 h-9 bg-white dark:bg-card text-xs font-normal"
                   data-testid="select-group-by"
                 >
                   <div className="flex items-center gap-1.5">
@@ -1881,7 +1884,7 @@ export default function Tasks() {
                     variant="outline"
                     role="combobox"
                     aria-expanded={statusSelectorOpen}
-                    className="w-44 h-9 justify-between bg-white dark:bg-white text-xs font-normal"
+                    className="w-44 h-9 justify-between bg-white dark:bg-card text-xs font-normal"
                     data-testid="select-status-filter"
                   >
                     <span className="truncate">{getStatusFilterLabel()}</span>
@@ -2519,7 +2522,7 @@ export default function Tasks() {
                       variant="outline"
                       role="combobox"
                       aria-expanded={projectComboboxOpen}
-                      className="w-full justify-between h-8 text-xs bg-white dark:bg-white"
+                      className="w-full justify-between h-8 text-xs bg-white dark:bg-card"
                       data-testid="button-select-project"
                     >
                       {newTaskProjectId === "none"

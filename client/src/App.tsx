@@ -1449,7 +1449,7 @@ function AppLayout() {
                           group flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-medium 
                           transition-colors min-w-0 max-w-[120px] sm:max-w-[160px] flex-shrink-0 cursor-pointer
                           ${activeTabId === tab.id 
-                            ? 'bg-primary/10 text-primary border border-primary/20' 
+                            ? 'bg-primary/10 text-primary dark:text-white border border-primary/20' 
                             : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                           }
                         `}

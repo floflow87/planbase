@@ -2333,7 +2333,7 @@ export default function BacklogDetail() {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="w-[150px] h-8 justify-between bg-white dark:bg-white text-gray-900"
+                    className="w-[150px] h-8 justify-between bg-white dark:bg-card text-gray-900"
                     data-testid="button-epic-filter"
                   >
                     <span className="flex items-center gap-1 truncate">
@@ -2347,7 +2347,7 @@ export default function BacklogDetail() {
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[200px] p-2 bg-white dark:bg-white" align="start">
+                <PopoverContent className="w-[200px] p-2 bg-white dark:bg-card" align="start">
                   <div className="space-y-1">
                     <Button
                       variant="ghost"
@@ -3630,7 +3630,7 @@ function EpicDialog({
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-md w-full overflow-y-auto bg-white dark:bg-white">
+      <SheetContent className="sm:max-w-md w-full overflow-y-auto bg-white dark:bg-card">
         <SheetHeader>
           <SheetTitle className="text-gray-900">{epic ? "Modifier l'Epic" : "Nouvel Epic"}</SheetTitle>
         </SheetHeader>
@@ -3774,7 +3774,7 @@ function UserStoryDialog({
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-md w-full overflow-y-auto bg-white dark:bg-white">
+      <SheetContent className="sm:max-w-md w-full overflow-y-auto bg-white dark:bg-card">
         <SheetHeader>
           <SheetTitle className="text-gray-900">{userStory ? "Modifier la User Story" : "Nouvelle User Story"}</SheetTitle>
         </SheetHeader>
@@ -4002,7 +4002,7 @@ function SprintSheet({
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-md bg-white dark:bg-white">
+      <SheetContent className="sm:max-w-md bg-white dark:bg-card">
         <SheetHeader className="border-b border-gray-200 pb-4">
           <SheetTitle className="text-gray-900 flex items-center gap-2">
             {sprint ? "Modifier le Sprint" : "Nouveau Sprint"}
@@ -5532,7 +5532,7 @@ function CompletedTicketsView({
                 <tr
                   key={ticket.id}
                   className={cn(
-                    "cursor-pointer bg-white dark:bg-white hover:bg-gray-50 dark:hover:bg-gray-50",
+                    "cursor-pointer bg-white dark:bg-card hover:bg-gray-50 dark:hover:bg-muted",
                     selectedTicketId === ticket.id && "bg-violet-50 dark:bg-violet-50"
                   )}
                   onClick={() => onSelectTicket(ticket)}
@@ -6042,7 +6042,7 @@ function BacklogStats({
                 
                 {/* Action suggérée (si présente) */}
                 {readings.action && (
-                  <p className="text-xs text-violet-600 dark:text-violet-400 bg-white/50 dark:bg-white/10 px-2 py-1.5 rounded" data-testid="text-reading-action">
+                  <p className="text-xs text-violet-600 dark:text-violet-400 bg-white/50 dark:bg-card/10 px-2 py-1.5 rounded" data-testid="text-reading-action">
                     {readings.action}
                   </p>
                 )}
@@ -6991,7 +6991,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
             <div className="flex items-center gap-3">
               {/* Recipe Filter integrated in header */}
               {selectedSprintIds.length > 0 && (
-                <div className="flex bg-white dark:bg-white rounded-md border border-gray-200 p-1 gap-1">
+                <div className="flex bg-white dark:bg-card rounded-md border border-gray-200 p-1 gap-1">
                   <Button
                     variant={recipeFilter === "todo" ? "default" : "ghost"}
                     size="sm"
@@ -7410,7 +7410,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
 
       {/* Recipe Editor Sheet */}
       <Sheet open={!!editingRecipe} onOpenChange={(open) => !open && setEditingRecipe(null)}>
-        <SheetContent className="sm:max-w-md overflow-y-auto bg-white dark:bg-white">
+        <SheetContent className="sm:max-w-md overflow-y-auto bg-white dark:bg-card">
           <SheetHeader className="pb-2 border-b border-gray-200">
             <div className="flex items-center gap-2">
               <Badge 
@@ -7702,7 +7702,7 @@ function RetrospectiveView({ backlogId, sprints }: { backlogId: string; sprints:
         
         {/* Create Retro Side Panel */}
         <Sheet open={createPanelOpen} onOpenChange={setCreatePanelOpen}>
-          <SheetContent className="sm:max-w-md w-full overflow-y-auto bg-white dark:bg-white">
+          <SheetContent className="sm:max-w-md w-full overflow-y-auto bg-white dark:bg-card">
             <SheetHeader>
               <SheetTitle className="text-gray-900">Nouvelle rétrospective</SheetTitle>
             </SheetHeader>

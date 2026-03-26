@@ -418,7 +418,7 @@ export default function Product() {
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-white dark:bg-white border shadow-md">
+              <DropdownMenuContent align="end" className="bg-white dark:bg-card border shadow-md">
                 <DropdownMenuItem onClick={() => navigate(`/product/backlog/${backlog.id}`)} className="cursor-pointer text-gray-900" data-testid={`list-menu-open-backlog-${backlog.id}`}>
                   <ArrowRight className="h-4 w-4 mr-2" />
                   Ouvrir
@@ -599,7 +599,7 @@ export default function Product() {
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-white border shadow-md">
+                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-card border shadow-md">
                         <DropdownMenuItem onClick={() => navigate(`/product/backlog/${backlog.id}`)} className="cursor-pointer text-gray-900" data-testid={`menu-open-backlog-${backlog.id}`}>
                           <ArrowRight className="h-4 w-4 mr-2" />
                           Ouvrir
