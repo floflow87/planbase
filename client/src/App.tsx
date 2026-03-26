@@ -242,7 +242,7 @@ function UserMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="rounded-full cursor-pointer" data-testid="button-user-menu">
-          <Avatar className="h-8 w-8 ring-1 ring-white">
+          <Avatar className="h-8 w-8">
             <AvatarImage src={userProfile?.avatarUrl || ""} alt={userInitials} />
             <AvatarFallback className="bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300 text-xs">
               {userInitials}
