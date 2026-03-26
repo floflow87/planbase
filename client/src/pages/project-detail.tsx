@@ -17,6 +17,7 @@ import { fr } from "date-fns/locale";
 import type { Project, Task, Client, AppUser, TaskColumn, Note, Document, ProjectPayment, Backlog, Epic, UserStory, BacklogTask, Sprint, BacklogColumn, ChecklistItem, BacklogItemState, BacklogPriority, Activity, ProjectScopeItem } from "@shared/schema";
 import { billingStatusOptions, backlogModeOptions, backlogItemStateOptions, backlogPriorityOptions } from "@shared/schema";
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
@@ -2783,6 +2784,8 @@ export default function ProjectDetail() {
   const [, setLocation] = useLocation();
   const navigate = (path: string) => setLocation(path);
   const { toast } = useToast();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const { visibleStages: projectStages, getLabel: getStageLabel, getColor: getStageColor } = useProjectStagesUI();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -4193,12 +4196,21 @@ export default function ProjectDetail() {
                   devops: "DevOps", communication: "Communication", gtm: "GTM", autre: "Autre",
                 };
                 // Track (pastel) colors — mirrors TYPE_TRACK in progress bars — used for non-completed blocks
-                const SCOPE_TYPE_TRACK: Record<string, string> = {
+                const SCOPE_TYPE_TRACK_LIGHT: Record<string, string> = {
                   functional: "#E0F2FE", technical: "#CFFAFE", design: "#FAE8FF",
                   gestion: "#FEF3C7", strategy: "#F3E8FF", discovery: "#FFE4E6",
                   delivery: "#CCFBF1", devops: "#FFEDD5", communication: "#EDE9FE",
                   gtm: "#ECFCCB", autre: "#F3F4F6",
                 };
+                const SCOPE_TYPE_TRACK_DARK: Record<string, string> = {
+                  functional:    "rgba(125,211,252,0.15)", technical:     "rgba(103,232,249,0.15)",
+                  design:        "rgba(240,171,252,0.15)", gestion:       "rgba(252,211,77,0.15)",
+                  strategy:      "rgba(216,180,254,0.15)", discovery:     "rgba(253,164,175,0.15)",
+                  delivery:      "rgba(94,234,212,0.15)",  devops:        "rgba(253,186,116,0.15)",
+                  communication: "rgba(196,181,253,0.15)", gtm:           "rgba(190,242,100,0.15)",
+                  autre:         "rgba(156,163,175,0.15)",
+                };
+                const SCOPE_TYPE_TRACK = isDark ? SCOPE_TYPE_TRACK_DARK : SCOPE_TYPE_TRACK_LIGHT;
 
                 // Add N working days to a date (skip Sat/Sun)
                 const addWorkingDays = (start: Date, days: number): Date => {
@@ -4416,12 +4428,21 @@ export default function ProjectDetail() {
                     {/* Circular progress bars by scope type */}
                     {(() => {
                       // TYPE_CONFIG — labels + track colors; main color from SCOPE_TYPE_HEX (single source of truth)
-                      const TYPE_TRACK: Record<string, string> = {
+                      const TYPE_TRACK_LIGHT: Record<string, string> = {
                         functional: "#E0F2FE", technical: "#CFFAFE", design: "#FAE8FF",
                         gestion: "#FEF3C7", strategy: "#F3E8FF", discovery: "#FFE4E6",
                         delivery: "#CCFBF1", devops: "#FFEDD5", communication: "#EDE9FE",
                         gtm: "#ECFCCB", autre: "#F3F4F6",
                       };
+                      const TYPE_TRACK_DARK: Record<string, string> = {
+                        functional:    "rgba(125,211,252,0.15)", technical:     "rgba(103,232,249,0.15)",
+                        design:        "rgba(240,171,252,0.15)", gestion:       "rgba(252,211,77,0.15)",
+                        strategy:      "rgba(216,180,254,0.15)", discovery:     "rgba(253,164,175,0.15)",
+                        delivery:      "rgba(94,234,212,0.15)",  devops:        "rgba(253,186,116,0.15)",
+                        communication: "rgba(196,181,253,0.15)", gtm:           "rgba(190,242,100,0.15)",
+                        autre:         "rgba(156,163,175,0.15)",
+                      };
+                      const TYPE_TRACK = isDark ? TYPE_TRACK_DARK : TYPE_TRACK_LIGHT;
                       const TYPE_LABELS: Record<string, { label: string; shortLabel: string }> = {
                         functional:    { label: "Fonctionnel",   shortLabel: "Fonct."  },
                         technical:     { label: "Technique",     shortLabel: "Tech."   },
