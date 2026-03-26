@@ -680,6 +680,11 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
       // Only stash locally — NO backend call on every keystroke
       pendingHtmlRef.current = editor.getHTML();
     },
+    onBlur: () => {
+      // Exit edit mode when focus leaves the editor (e.g. user clicks elsewhere)
+      // Formatting toolbar buttons use e.preventDefault() on mousedown so they never cause blur
+      setIsEditing(false);
+    },
   });
 
   useEffect(() => {
@@ -3415,6 +3420,7 @@ function MindmapCanvas() {
           panOnDrag={interactionMode === "pan"}
           selectionOnDrag={interactionMode === "select"}
           selectNodesOnDrag={interactionMode === "select"}
+          deleteKeyCode={null}
           className="bg-muted/30"
           data-testid="mindmap-canvas"
         >
