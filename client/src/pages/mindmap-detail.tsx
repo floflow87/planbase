@@ -759,19 +759,19 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
   };
 
   return (
-    <div className="relative" ref={containerRef} style={{ overflow: 'visible' }}>
+    <div className="relative" ref={containerRef}>
       <Handle type="target" position={Position.Top}    className="!w-2 !h-2 !bg-primary/50 !border-0" />
       <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-primary/50 !border-0" />
       <Handle type="target" position={Position.Left}   id="left"  className="!w-2 !h-2 !bg-primary/50 !border-0" />
       <Handle type="source" position={Position.Right}  id="right" className="!w-2 !h-2 !bg-primary/50 !border-0" />
-      
-      {/* ── Formatting toolbar — visible while editing (no portal = no flicker) ── */}
+
+      {/* ── Formatting toolbar — shown while editing (inline, no portal, inside node DOM) ── */}
       {isEditing && editor && (
         <div
           className="nodrag nopan absolute z-50 flex items-center gap-0.5 p-1 bg-card border rounded-lg shadow-lg"
           style={{ bottom: '100%', left: 0, marginBottom: 6, whiteSpace: 'nowrap' }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+          onClick={(e) => e.stopPropagation()}
         >
           <Button variant={editor.isActive('bold')   ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
             onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBold().run(); }} title="Gras"><Bold className="w-3.5 h-3.5" /></Button>
@@ -806,14 +806,14 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
         </div>
       )}
 
-      {/* ── Style toolbar — visible when selected but not editing ── */}
-      {selected && !isEditing && (
-        <div
-          className="nodrag nopan absolute z-50 flex flex-wrap items-center gap-1 p-1 bg-card border rounded-lg shadow-lg"
-          style={{ bottom: '100%', left: 0, marginBottom: 6, maxWidth: 420, whiteSpace: 'nowrap' }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
+      {/* ── Style toolbar — ReactFlow NodeToolbar portal (zero layout impact on node) ── */}
+      <NodeToolbar
+        isVisible={!!(selected && !isEditing)}
+        position={Position.Top}
+        className="flex flex-wrap items-center gap-1 p-1 bg-card border rounded-lg shadow-lg max-w-[420px]"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
           {/* Background color */}
           <Popover>
             <PopoverTrigger asChild>
@@ -943,8 +943,7 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
             onClick={(e) => { e.stopPropagation(); data.onDeleteNode?.(); }} title="Supprimer">
             <Trash2 className="w-4 h-4" />
           </Button>
-        </div>
-      )}
+      </NodeToolbar>
 
       {/* ── Node content ── */}
       <div
@@ -2128,14 +2127,14 @@ function MindmapCanvas() {
       return await apiRequest(`/api/mindmap-nodes/${nodeId}`, "DELETE");
     },
     onMutate: async (nodeId: string) => {
-      // Cancel any in-flight refetches that could restore the deleted node before the DELETE completes
-      await queryClient.cancelQueries({ queryKey: ["/api/mindmaps", id] });
-      // Snapshot for rollback
+      // Remove from UI immediately — BEFORE the await so there's zero visual delay
       const snapshotNodes: Node[] = [];
       const snapshotEdges: Edge[] = [];
       setNodes(nds => { snapshotNodes.push(...nds); return nds.filter(n => n.id !== nodeId); });
       setEdges(eds => { snapshotEdges.push(...eds); return eds.filter(e => e.source !== nodeId && e.target !== nodeId); });
       setSelectedNode(null);
+      // Cancel in-flight refetches AFTER the visual update (prevents stale data from restoring the node)
+      queryClient.cancelQueries({ queryKey: ["/api/mindmaps", id] });
       return { snapshotNodes, snapshotEdges };
     },
     onSuccess: () => {
