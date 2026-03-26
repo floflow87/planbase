@@ -45,6 +45,11 @@ import {
   Image,
   Type,
   AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Underline as UnderlineIcon,
+  Strikethrough,
+  Check,
   ExternalLink,
   Film,
   Route,
@@ -236,6 +241,9 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
+import Underline from '@tiptap/extension-underline';
+import TextAlign from '@tiptap/extension-text-align';
+import Placeholder from '@tiptap/extension-placeholder';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -656,14 +664,15 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
   
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({
-        heading: false,
-      }),
+      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
       Highlight.configure({ multicolor: true }),
       TaskList,
       TaskItem.configure({ nested: true }),
       TextStyle,
       Color,
+      Underline,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Placeholder.configure({ placeholder: 'Saisir du texte…' }),
     ],
     content: initialContent,
     editable: isEditing,
@@ -728,19 +737,22 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
     document.addEventListener("mouseup", handleMouseUp);
   };
 
-  // Text nodes are floating — transparent by default, no box styling unless explicitly set
-  const hasExplicitBackground = !!nodeStyle.backgroundColor;
+  // Border logic: blue when selected/editing, dashed hint when empty, explicit when set
   const hasExplicitBorder = !!nodeStyle.borderColor && (nodeStyle.borderWidth ?? 0) > 0;
+  const borderCss: React.CSSProperties = isEditing || selected
+    ? { border: "2px solid #3b82f6", borderRadius: 6 }
+    : hasExplicitBorder
+      ? { borderColor: nodeStyle.borderColor, borderWidth: nodeStyle.borderWidth, borderStyle: "solid", borderRadius: 4 }
+      : { border: "1.5px dashed #93c5fd", borderRadius: 4 }; // always visible as subtle blue hint
+
   const style: React.CSSProperties = {
     backgroundColor: nodeStyle.backgroundColor || "transparent",
-    borderColor: hasExplicitBorder ? nodeStyle.borderColor : "transparent",
-    borderWidth: hasExplicitBorder ? (nodeStyle.borderWidth || 1) : 0,
-    borderStyle: "solid",
     fontSize: nodeStyle.fontSize || 14,
     color: nodeStyle.textColor || "inherit",
     width: dimensions.width,
     minHeight: dimensions.height,
     boxShadow: nodeStyle.hasShadow ? "0 4px 12px rgba(0,0,0,0.15)" : "none",
+    ...borderCss,
   };
 
   return (
@@ -768,7 +780,74 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
         className="!w-2 !h-2 !bg-primary/50 !border-0"
       />
       
-      <NodeToolbar isVisible={selected} position={Position.Top} className="flex flex-wrap items-center gap-1 p-1 bg-card border rounded-lg shadow-lg max-w-[400px]">
+      {/* ── Rich-text editing toolbar (visible when editing) ─────────────── */}
+      <NodeToolbar isVisible={!!isEditing} position={Position.Top} className="flex items-center gap-0.5 p-1 bg-card border rounded-lg shadow-lg">
+        {editor && (<>
+          <Button variant={editor.isActive('bold') ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBold().run(); }} title="Gras">
+            <Bold className="w-3.5 h-3.5" />
+          </Button>
+          <Button variant={editor.isActive('italic') ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleItalic().run(); }} title="Italique">
+            <Italic className="w-3.5 h-3.5" />
+          </Button>
+          <Button variant={editor.isActive('underline') ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleUnderline().run(); }} title="Souligné">
+            <UnderlineIcon className="w-3.5 h-3.5" />
+          </Button>
+          <Button variant={editor.isActive('strike') ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleStrike().run(); }} title="Barré">
+            <Strikethrough className="w-3.5 h-3.5" />
+          </Button>
+          <Separator orientation="vertical" className="h-5 mx-0.5" />
+          <Button variant={editor.isActive('heading', { level: 1 }) ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 1 }).run(); }} title="Titre 1">
+            <span className="text-xs font-bold">H1</span>
+          </Button>
+          <Button variant={editor.isActive('heading', { level: 2 }) ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 2 }).run(); }} title="Titre 2">
+            <span className="text-xs font-bold">H2</span>
+          </Button>
+          <Button variant={editor.isActive('heading', { level: 3 }) ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 3 }).run(); }} title="Titre 3">
+            <span className="text-xs font-bold">H3</span>
+          </Button>
+          <Separator orientation="vertical" className="h-5 mx-0.5" />
+          <Button variant={editor.isActive('bulletList') ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBulletList().run(); }} title="Liste">
+            <List className="w-3.5 h-3.5" />
+          </Button>
+          <Button variant={editor.isActive('orderedList') ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleOrderedList().run(); }} title="Liste numérotée">
+            <ListOrdered className="w-3.5 h-3.5" />
+          </Button>
+          <Separator orientation="vertical" className="h-5 mx-0.5" />
+          <Button variant={editor.isActive({ textAlign: 'left' }) ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setTextAlign('left').run(); }} title="Gauche">
+            <AlignLeft className="w-3.5 h-3.5" />
+          </Button>
+          <Button variant={editor.isActive({ textAlign: 'center' }) ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setTextAlign('center').run(); }} title="Centré">
+            <AlignCenter className="w-3.5 h-3.5" />
+          </Button>
+          <Button variant={editor.isActive({ textAlign: 'right' }) ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setTextAlign('right').run(); }} title="Droite">
+            <AlignRight className="w-3.5 h-3.5" />
+          </Button>
+          <Separator orientation="vertical" className="h-5 mx-0.5" />
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600"
+            onMouseDown={(e) => { e.preventDefault(); setIsEditing(false); }} title="Terminer l'édition">
+            <Check className="w-3.5 h-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-destructive"
+            onMouseDown={(e) => { e.preventDefault(); data.onDeleteNode?.(); }} title="Supprimer">
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        </>)}
+      </NodeToolbar>
+
+      {/* ── Style toolbar (visible when selected but NOT editing) ───────────── */}
+      <NodeToolbar isVisible={!!(selected && !isEditing)} position={Position.Top} className="flex flex-wrap items-center gap-1 p-1 bg-card border rounded-lg shadow-lg max-w-[400px]">
           {/* Background color */}
           <Popover>
             <PopoverTrigger asChild>
@@ -1021,17 +1100,15 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
             <Layers className="w-4 h-4" />
           </Button>
 
-          {/* Edit mode toggle */}
           <Separator orientation="vertical" className="h-5" />
+
+          {/* Double-click hint + enter edit mode */}
           <Button
-            variant={isEditing ? "default" : "ghost"}
+            variant="ghost"
             size="icon"
             className="h-7 w-7 hover:bg-muted"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsEditing(!isEditing);
-            }}
-            title={isEditing ? "Terminer l'édition" : "Éditer le texte"}
+            onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
+            title="Éditer le texte (ou double-clic)"
           >
             <Edit className="w-4 h-4" />
           </Button>
@@ -1061,11 +1138,11 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
         {editor ? (
           <EditorContent 
             editor={editor} 
-            className={`prose prose-sm max-w-none focus:outline-none ${!isEditing ? 'cursor-text' : ''}`}
+            className={`tiptap prose prose-sm max-w-none focus:outline-none min-h-[40px] ${!isEditing ? 'cursor-text select-none pointer-events-none' : ''}`}
             style={{ fontSize: nodeStyle.fontSize || 14 }}
           />
         ) : (
-          <div className="text-muted-foreground italic">Double-cliquer pour éditer</div>
+          <div className="text-muted-foreground italic text-sm">Saisir du texte…</div>
         )}
         
         {/* Resize handle */}
@@ -1711,6 +1788,8 @@ function MindmapCanvas() {
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
   const [showEdgeDeleteDialog, setShowEdgeDeleteDialog] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  // Placement mode: when true, next canvas click places a text node at click position
+  const [isPlacingText, setIsPlacingText] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   // Snap to grid state
@@ -3013,6 +3092,11 @@ function MindmapCanvas() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape cancels placement mode first (before any other logic)
+      if (e.key === "Escape") {
+        setIsPlacingText(false);
+      }
+
       // Check if we're in an input, textarea, or any contenteditable element (including TipTap editors)
       const target = e.target as HTMLElement;
       const isInEditableContext = 
@@ -3076,10 +3160,25 @@ function MindmapCanvas() {
     setSelectedNode(null);
   }, []);
 
-  const onPaneClick = useCallback(() => {
+  const onPaneClick = useCallback((event: React.MouseEvent) => {
+    if (isPlacingText) {
+      // Place text node centered on click position
+      const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      const TEXT_NODE_W = 250;
+      const TEXT_NODE_H = 80;
+      saveToHistory();
+      createNodeMutation.mutate({
+        title: "",
+        type: "text",
+        x: position.x - TEXT_NODE_W / 2,
+        y: position.y - TEXT_NODE_H / 2,
+      });
+      setIsPlacingText(false);
+      return;
+    }
     setSelectedNode(null);
     setSelectedEdge(null);
-  }, []);
+  }, [isPlacingText, screenToFlowPosition, createNodeMutation]);
 
   const handleWrapperDoubleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     // Skip if a creation is already in flight — prevents duplicate nodes
@@ -3088,11 +3187,14 @@ function MindmapCanvas() {
     if (!target.classList.contains("react-flow__pane") && !target.closest(".react-flow__pane")) return;
     const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
     saveToHistory();
+    // Center the node on the click point
+    const TEXT_NODE_W = 250;
+    const TEXT_NODE_H = 80;
     createNodeMutation.mutate({
-      title: "Texte libre",
+      title: "",
       type: "text",
-      x: position.x,
-      y: position.y,
+      x: position.x - TEXT_NODE_W / 2,
+      y: position.y - TEXT_NODE_H / 2,
     });
   }, [screenToFlowPosition, createNodeMutation]);
 
@@ -3133,14 +3235,8 @@ function MindmapCanvas() {
   };
 
   const handleAddTextNode = () => {
-    saveToHistory();
-    const center = getCanvasCenter();
-    createNodeMutation.mutate({
-      title: "Texte libre",
-      type: "text",
-      x: center.x + Math.random() * 100 - 50,
-      y: center.y + Math.random() * 100 - 50,
-    });
+    // Activate placement mode — next canvas click positions the node
+    setIsPlacingText(true);
   };
 
   const handleSaveNodeEdit = () => {
@@ -3477,7 +3573,12 @@ function MindmapCanvas() {
         </div>
       </div>
 
-      <div className="flex-1 relative" ref={reactFlowWrapper} onDoubleClick={handleWrapperDoubleClick}>
+      <div
+        className="flex-1 relative"
+        ref={reactFlowWrapper}
+        onDoubleClick={handleWrapperDoubleClick}
+        style={isPlacingText ? { cursor: 'crosshair' } : undefined}
+      >
         <ReactFlow
           nodes={nodes}
           edges={edges}
