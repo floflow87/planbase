@@ -27,6 +27,7 @@ import { apiRequest, queryClient, formatDateForStorage } from "@/lib/queryClient
 import type { Project, Client, Activity, AppUser, InsertClient, InsertProject, Task, TaskColumn, ProjectPayment, Note, Backlog, Appointment } from "@shared/schema";
 import { insertClientSchema, insertProjectSchema } from "@shared/schema";
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useTheme } from "@/contexts/ThemeContext";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { Switch } from "@/components/ui/switch";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
@@ -560,6 +561,8 @@ function CustomRevenueTooltip({ active, payload, label }: any) {
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const { getLabel: getStageLabel, getColor: getStageColor } = useProjectStagesUI();
   const [isCreateClientDialogOpen, setIsCreateClientDialogOpen] = useState(false);
   const [isCreateProjectDialogOpen, setIsCreateProjectDialogOpen] = useState(false);
@@ -1463,8 +1466,8 @@ export default function Dashboard() {
       const hypothesesRevenue = monthlyHypothesesBudgets[key];
       // Calculate violet gradient color based on budget (max 20K)
       const intensity = Math.min(revenue / 20000, 1);
-      // Violet gradient from light (#E9D5FF) to dark (#7C3AED)
-      const lightColor = { r: 233, g: 213, b: 255 };
+      // Violet gradient — light end is more saturated in dark mode for better contrast
+      const lightColor = isDark ? { r: 139, g: 92, b: 246 } : { r: 233, g: 213, b: 255 };
       const darkColor = { r: 124, g: 58, b: 237 };
       const r = Math.round(lightColor.r + (darkColor.r - lightColor.r) * intensity);
       const g = Math.round(lightColor.g + (darkColor.g - lightColor.g) * intensity);
@@ -1486,7 +1489,7 @@ export default function Dashboard() {
         fill
       };
     });
-  }, [projects, payments, revenuePeriod, showForecast, showHypotheses]);
+  }, [projects, payments, revenuePeriod, showForecast, showHypotheses, isDark]);
 
   // Enrich revenueData with TVA cumulative — running sum of entry.revenue (same as chart bars),
   // reset per year. Always in sync with what is displayed, no separate recalculation.

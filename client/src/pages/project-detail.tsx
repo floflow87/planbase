@@ -4203,12 +4203,12 @@ export default function ProjectDetail() {
                   gtm: "#ECFCCB", autre: "#F3F4F6",
                 };
                 const SCOPE_TYPE_TRACK_DARK: Record<string, string> = {
-                  functional:    "rgba(125,211,252,0.15)", technical:     "rgba(103,232,249,0.15)",
-                  design:        "rgba(240,171,252,0.15)", gestion:       "rgba(252,211,77,0.15)",
-                  strategy:      "rgba(216,180,254,0.15)", discovery:     "rgba(253,164,175,0.15)",
-                  delivery:      "rgba(94,234,212,0.15)",  devops:        "rgba(253,186,116,0.15)",
-                  communication: "rgba(196,181,253,0.15)", gtm:           "rgba(190,242,100,0.15)",
-                  autre:         "rgba(156,163,175,0.15)",
+                  functional:    "rgba(125,211,252,0.25)", technical:     "rgba(103,232,249,0.25)",
+                  design:        "rgba(240,171,252,0.25)", gestion:       "rgba(252,211,77,0.25)",
+                  strategy:      "rgba(216,180,254,0.25)", discovery:     "rgba(253,164,175,0.25)",
+                  delivery:      "rgba(94,234,212,0.25)",  devops:        "rgba(253,186,116,0.25)",
+                  communication: "rgba(196,181,253,0.25)", gtm:           "rgba(190,242,100,0.25)",
+                  autre:         "rgba(156,163,175,0.25)",
                 };
                 const SCOPE_TYPE_TRACK = isDark ? SCOPE_TYPE_TRACK_DARK : SCOPE_TYPE_TRACK_LIGHT;
 
@@ -4435,12 +4435,12 @@ export default function ProjectDetail() {
                         gtm: "#ECFCCB", autre: "#F3F4F6",
                       };
                       const TYPE_TRACK_DARK: Record<string, string> = {
-                        functional:    "rgba(125,211,252,0.15)", technical:     "rgba(103,232,249,0.15)",
-                        design:        "rgba(240,171,252,0.15)", gestion:       "rgba(252,211,77,0.15)",
-                        strategy:      "rgba(216,180,254,0.15)", discovery:     "rgba(253,164,175,0.15)",
-                        delivery:      "rgba(94,234,212,0.15)",  devops:        "rgba(253,186,116,0.15)",
-                        communication: "rgba(196,181,253,0.15)", gtm:           "rgba(190,242,100,0.15)",
-                        autre:         "rgba(156,163,175,0.15)",
+                        functional:    "rgba(125,211,252,0.25)", technical:     "rgba(103,232,249,0.25)",
+                        design:        "rgba(240,171,252,0.25)", gestion:       "rgba(252,211,77,0.25)",
+                        strategy:      "rgba(216,180,254,0.25)", discovery:     "rgba(253,164,175,0.25)",
+                        delivery:      "rgba(94,234,212,0.25)",  devops:        "rgba(253,186,116,0.25)",
+                        communication: "rgba(196,181,253,0.25)", gtm:           "rgba(190,242,100,0.25)",
+                        autre:         "rgba(156,163,175,0.25)",
                       };
                       const TYPE_TRACK = isDark ? TYPE_TRACK_DARK : TYPE_TRACK_LIGHT;
                       const TYPE_LABELS: Record<string, { label: string; shortLabel: string }> = {
