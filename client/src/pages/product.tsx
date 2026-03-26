@@ -688,7 +688,7 @@ export default function Product() {
                                 </text>
                               </svg>
                             </TooltipTrigger>
-                            <TooltipContent className="bg-white text-foreground border shadow-md text-xs">
+                            <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md text-xs">
                               {done} terminés / {total} tickets engagés
                             </TooltipContent>
                           </Tooltip>

@@ -497,7 +497,7 @@ export function PermissionsTab() {
                               )}
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent className="bg-white text-foreground border">
+                          <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">
                             {copiedInvitationId === member.id 
                               ? "Lien d'inscription copié" 
                               : "Copier le lien d'inscription"
@@ -523,7 +523,7 @@ export function PermissionsTab() {
                               )}
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent className="bg-white text-foreground border">
+                          <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">
                             Renvoyer l'invitation par email
                           </TooltipContent>
                         </Tooltip>
@@ -569,7 +569,7 @@ export function PermissionsTab() {
                             )}
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent className="bg-white text-foreground border">
+                        <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">
                           {isPending ? "Révoquer l'invitation" : "Retirer de l'organisation"}
                         </TooltipContent>
                       </Tooltip>

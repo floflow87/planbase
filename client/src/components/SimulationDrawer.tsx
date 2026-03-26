@@ -286,7 +286,7 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
                   Jours / semaine
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="h-3 w-3 cursor-help" /></TooltipTrigger>
-                    <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">
+                    <TooltipContent className="text-xs max-w-xs bg-white dark:bg-gray-900 text-foreground border shadow-md">
                       5 = full time · 3 = mi-temps+ · 1 = 1 jour/semaine
                     </TooltipContent>
                   </Tooltip>
@@ -314,7 +314,7 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
                 Mode de calcul de la durée
                 <Tooltip>
                   <TooltipTrigger asChild><Info className="h-3 w-3 cursor-help" /></TooltipTrigger>
-                  <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">
+                  <TooltipContent className="text-xs max-w-xs bg-white dark:bg-gray-900 text-foreground border shadow-md">
                     Conserver les jours estimés du CDC pour projeter la fin, ou fixer une date limite pour calculer les jours disponibles.
                   </TooltipContent>
                 </Tooltip>
@@ -354,7 +354,7 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
                   Type
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="h-3 w-3 cursor-help" /></TooltipTrigger>
-                    <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">
+                    <TooltipContent className="text-xs max-w-xs bg-white dark:bg-gray-900 text-foreground border shadow-md">
                       <strong>Forfait</strong> : prix fixe, jours calculés sur la durée de la mission.<br />
                       <strong>Régie</strong> : facturation au temps passé, jours pré-remplis depuis le CDC.
                     </TooltipContent>
@@ -385,7 +385,7 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
                     Jours facturés
                     <Tooltip>
                       <TooltipTrigger asChild><Info className="h-3 w-3 cursor-help" /></TooltipTrigger>
-                      <TooltipContent className="text-xs max-w-xs bg-white text-foreground border shadow-md">
+                      <TooltipContent className="text-xs max-w-xs bg-white dark:bg-gray-900 text-foreground border shadow-md">
                         {simBillingType === "time_based"
                           ? "Régie : pré-rempli avec les jours restants du CDC."
                           : "Forfait : pré-rempli avec j/semaine × semaines totales sur la période."}

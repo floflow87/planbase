@@ -446,7 +446,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
               Générer
             </Button>
           </TooltipTrigger>
-          <TooltipContent className="bg-white text-foreground border">
+          <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">
             Régénérer les OKR depuis le type de projet
           </TooltipContent>
         </Tooltip>
@@ -462,7 +462,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                 <List className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent className="bg-white text-foreground border">Vue liste</TooltipContent>
+            <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Vue liste</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -475,7 +475,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                 <GitBranch className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent className="bg-white text-foreground border">Vue hiérarchique</TooltipContent>
+            <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Vue hiérarchique</TooltipContent>
           </Tooltip>
         </div>
         <Button
@@ -566,7 +566,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                               <Edit className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent className="bg-white text-foreground border">Modifier</TooltipContent>
+                          <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Modifier</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -584,7 +584,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                               <Plus className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent className="bg-white text-foreground border">Ajouter un Key Result</TooltipContent>
+                          <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Ajouter un Key Result</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -601,7 +601,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent className="bg-white text-foreground border">Supprimer</TooltipContent>
+                          <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Supprimer</TooltipContent>
                         </Tooltip>
                       </div>
                     </div>
@@ -678,7 +678,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                                       <ListPlus className="h-4 w-4" />
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent className="bg-white text-foreground border">Créer une tâche</TooltipContent>
+                                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Créer une tâche</TooltipContent>
                                 </Tooltip>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -694,7 +694,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                                       <Link2 className="h-4 w-4" />
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent className="bg-white text-foreground border">Lier à Epic/Sprint/Roadmap</TooltipContent>
+                                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Lier à Epic/Sprint/Roadmap</TooltipContent>
                                 </Tooltip>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -711,7 +711,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                                       <Edit className="h-4 w-4" />
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent className="bg-white text-foreground border">Modifier</TooltipContent>
+                                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Modifier</TooltipContent>
                                 </Tooltip>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -727,7 +727,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent className="bg-white text-foreground border">Supprimer</TooltipContent>
+                                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Supprimer</TooltipContent>
                                 </Tooltip>
                               </div>
                             </div>
@@ -775,7 +775,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                                             <Trash2 className="h-3 w-3 text-muted-foreground" />
                                           </Button>
                                         </TooltipTrigger>
-                                        <TooltipContent className="bg-white text-foreground border">Supprimer le lien</TooltipContent>
+                                        <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Supprimer le lien</TooltipContent>
                                       </Tooltip>
                                     </div>
                                   );

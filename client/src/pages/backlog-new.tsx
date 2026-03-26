@@ -236,7 +236,7 @@ export default function BacklogNew() {
                       <TooltipTrigger asChild>
                         <Info className="h-3 w-3 text-muted-foreground cursor-help" />
                       </TooltipTrigger>
-                      <TooltipContent className="max-w-xs bg-white text-foreground border">
+                      <TooltipContent className="max-w-xs bg-white dark:bg-gray-900 text-foreground border">
                         <p className="text-xs">
                           Générer automatiquement les EPICs depuis les rubriques de la roadmap du projet parent. 
                           Chaque rubrique de la roadmap deviendra une EPIC liée.

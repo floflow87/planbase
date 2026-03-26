@@ -597,7 +597,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
                 <TooltipTrigger asChild>
                   <Info className="h-3 w-3 cursor-help" />
                 </TooltipTrigger>
-                <TooltipContent className="bg-white text-black font-light border shadow-sm text-[11px] max-w-[220px]">
+                <TooltipContent className="bg-white dark:bg-gray-900 text-foreground font-light border shadow-sm text-[11px] max-w-[220px]">
                   Une ressource n'impacte les KPIs financiers que si un montant est renseigné.<br/>
                   Elle est ensuite considérée comme un coût interne et, si facturable, comme du chiffre d'affaires.
                 </TooltipContent>
@@ -737,7 +737,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
                 Simulations
               </Button>
             </TooltipTrigger>
-            <TooltipContent className="bg-white text-black font-light border shadow-sm text-[11px] max-w-[200px] text-center">
+            <TooltipContent className="bg-white dark:bg-gray-900 text-foreground font-light border shadow-sm text-[11px] max-w-[200px] text-center">
               Afficher/masquer les simulations<br/>pour estimer l'impact financier
             </TooltipContent>
           </Tooltip>
@@ -842,7 +842,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
                                   <TooltipTrigger asChild>
                                     <AlertTriangle className="h-4 w-4 text-amber-500 cursor-help" />
                                   </TooltipTrigger>
-                                  <TooltipContent className="bg-white text-black font-light border shadow-sm text-[11px] max-w-[220px]">
+                                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground font-light border shadow-sm text-[11px] max-w-[220px]">
                                     Cette ressource dégrade significativement la marge du projet.
                                   </TooltipContent>
                                 </Tooltip>
@@ -975,7 +975,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
                                   <TooltipTrigger asChild>
                                     <AlertTriangle className="h-4 w-4 text-amber-500 cursor-help" />
                                   </TooltipTrigger>
-                                  <TooltipContent className="bg-white text-black font-light border shadow-sm text-[11px] max-w-[220px]">
+                                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground font-light border shadow-sm text-[11px] max-w-[220px]">
                                     Cette ressource dégrade significativement la marge du projet.
                                   </TooltipContent>
                                 </Tooltip>

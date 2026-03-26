@@ -6064,7 +6064,7 @@ function BacklogStats({
                 <TooltipTrigger asChild>
                   <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
-                <TooltipContent className="max-w-xs bg-white text-gray-900 border shadow-lg p-3" side="right">
+                <TooltipContent className="max-w-xs bg-white dark:bg-gray-900 text-foreground border shadow-lg p-3" side="right">
                   <p className="text-xs font-light leading-relaxed">
                     La vélocité correspond à la quantité de travail réellement livrée par l'équipe sur un sprint, mesurée en points d'estimation.
                   </p>
@@ -6154,7 +6154,7 @@ function BacklogStats({
                       <AlertCircle className="h-3.5 w-3.5" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="right" className="max-w-xs bg-white text-gray-900 border shadow-lg p-3 text-left">
+                  <TooltipContent side="right" className="max-w-xs bg-white dark:bg-gray-900 text-foreground border shadow-lg p-3 text-left">
                     <p className="text-xs font-light leading-relaxed">
                       Le burn down mesure à quelle vitesse le travail restant diminue pendant un sprint ou une période donnée, en comparant le travail livré (points ou tickets) au temps écoulé. Il permet de vérifier si l'équipe avance au rythme attendu pour atteindre les objectifs du sprint.
                     </p>

@@ -1422,7 +1422,7 @@ export function SprintSection({
               </span>
             </TooltipTrigger>
             {sprint.identifier && (
-              <TooltipContent className="bg-white text-black border shadow-md dark:bg-card dark:text-black">
+              <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md">
                 <p className="text-xs font-mono">{sprint.identifier}</p>
               </TooltipContent>
             )}
@@ -1443,7 +1443,7 @@ export function SprintSection({
                   <Link2 className="h-3 w-3" />
                 </Badge>
               </TooltipTrigger>
-              <TooltipContent className="bg-white text-black border shadow-md dark:bg-card dark:text-black">
+              <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md">
                 <p className="text-xs font-medium">{linkedRoadmapItem.title}</p>
               </TooltipContent>
             </Tooltip>

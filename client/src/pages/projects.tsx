@@ -3717,7 +3717,7 @@ export default function Projects() {
                                       </div>
                                     </div>
                                   </TooltipTrigger>
-                                  <TooltipContent className="bg-white text-foreground border shadow-md text-xs">
+                                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md text-xs">
                                     {cdcProgress !== null
                                       ? `Rubriques CDC terminées · ${stats?.actualDaysWorked ?? 0}j / ${stats?.totalEstimatedDays ?? 0}j estimés`
                                       : "Aucune rubrique CDC définie"}
@@ -3758,7 +3758,7 @@ export default function Projects() {
                                           </text>
                                         </svg>
                                       </TooltipTrigger>
-                                      <TooltipContent className="bg-white text-foreground border shadow-md text-xs">
+                                      <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md text-xs">
                                         {timeConsumedPct !== null
                                           ? `Temps consommé : ${stats?.actualDaysWorked ?? 0}j / ${stats?.totalEstimatedDays ?? 0}j prévus`
                                           : "Aucune donnée de temps enregistrée"}

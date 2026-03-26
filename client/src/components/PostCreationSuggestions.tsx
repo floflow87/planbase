@@ -49,7 +49,7 @@ const PROJECT_TYPE_DESCRIPTIONS: Record<string, string> = {
   autre: 'Projet personnalisé. Adaptez le pilotage selon vos besoins.',
 };
 
-const tooltipContentClass = "max-w-xs text-xs bg-white text-foreground border shadow-md";
+const tooltipContentClass = "max-w-xs text-xs bg-white dark:bg-gray-900 text-foreground border shadow-md";
 
 export function PostCreationSuggestions({
   project,

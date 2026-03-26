@@ -2030,7 +2030,7 @@ export default function Tasks() {
                       <Play className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent className="bg-white text-foreground border">Commencer la file des tâches</TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Commencer la file des tâches</TooltipContent>
                 </Tooltip>
               ) : null;
             })()}

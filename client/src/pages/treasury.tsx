@@ -2310,7 +2310,7 @@ function TreasuryPageInner() {
                       </CardContent>
                     </Card>
                   </TooltipTrigger>
-                  <TooltipContent className="bg-white text-foreground border shadow-md max-w-56 text-[11px] leading-snug">
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md max-w-56 text-[11px] leading-snug">
                     Tout ce qui n'est pas facturé n'est pas considéré comme confirmé mais comme prévu. Seuls les flux reçus / payés constituent le solde réel.
                   </TooltipContent>
                 </Tooltip>

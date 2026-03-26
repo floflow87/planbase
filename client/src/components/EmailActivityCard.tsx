@@ -68,7 +68,7 @@ function DeliveryStatus({ direction }: { direction: "sent" | "received" }) {
             <CheckCheck className="w-3.5 h-3.5 text-blue-500" />
           </span>
         </TooltipTrigger>
-        <TooltipContent side="top" className="text-xs bg-white text-foreground border shadow-md">
+        <TooltipContent side="top" className="text-xs bg-white dark:bg-gray-900 text-foreground border shadow-md">
           {"Re\u00e7u et lu"}
         </TooltipContent>
       </Tooltip>
@@ -82,7 +82,7 @@ function DeliveryStatus({ direction }: { direction: "sent" | "received" }) {
           <Check className="w-3.5 h-3.5 text-emerald-500 -ml-2" />
         </span>
       </TooltipTrigger>
-      <TooltipContent side="top" className="text-xs bg-white text-foreground border shadow-md">
+      <TooltipContent side="top" className="text-xs bg-white dark:bg-gray-900 text-foreground border shadow-md">
         {"Envoy\u00e9 et lu"}
       </TooltipContent>
     </Tooltip>
