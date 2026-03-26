@@ -635,9 +635,11 @@ interface CustomNodeData {
   layoutConfig: LayoutConfig;
   nodeStyle?: NodeStyle;
   isEditing?: boolean;
+  isTemp?: boolean;
   onStartEdit?: () => void;
   onEndEdit?: (newText: string) => void;
   onUpdateStyle?: (style: Partial<NodeStyle>) => void;
+  onDeleteNode?: () => void;
 }
 
 function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData; selected?: boolean }) {
@@ -726,16 +728,19 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
     document.addEventListener("mouseup", handleMouseUp);
   };
 
+  // Text nodes are floating — transparent by default, no box styling unless explicitly set
+  const hasExplicitBackground = !!nodeStyle.backgroundColor;
+  const hasExplicitBorder = !!nodeStyle.borderColor && (nodeStyle.borderWidth ?? 0) > 0;
   const style: React.CSSProperties = {
-    backgroundColor: nodeStyle.backgroundColor || "rgba(255,255,255,0.95)",
-    borderColor: nodeStyle.borderColor || "transparent",
-    borderWidth: nodeStyle.borderWidth || 1,
+    backgroundColor: nodeStyle.backgroundColor || "transparent",
+    borderColor: hasExplicitBorder ? nodeStyle.borderColor : "transparent",
+    borderWidth: hasExplicitBorder ? (nodeStyle.borderWidth || 1) : 0,
     borderStyle: "solid",
     fontSize: nodeStyle.fontSize || 14,
     color: nodeStyle.textColor || "inherit",
     width: dimensions.width,
     minHeight: dimensions.height,
-    boxShadow: nodeStyle.hasShadow ? "0 4px 12px rgba(0,0,0,0.15)" : "0 1px 3px rgba(0,0,0,0.08)",
+    boxShadow: nodeStyle.hasShadow ? "0 4px 12px rgba(0,0,0,0.15)" : "none",
   };
 
   return (
@@ -763,8 +768,7 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
         className="!w-2 !h-2 !bg-primary/50 !border-0"
       />
       
-      {selected && (
-        <NodeToolbar isVisible position={Position.Top} className="flex flex-wrap items-center gap-1 p-1 bg-card border rounded-lg shadow-lg max-w-[400px]">
+      <NodeToolbar isVisible={selected} position={Position.Top} className="flex flex-wrap items-center gap-1 p-1 bg-card border rounded-lg shadow-lg max-w-[400px]">
           {/* Background color */}
           <Popover>
             <PopoverTrigger asChild>
@@ -1031,11 +1035,26 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
           >
             <Edit className="w-4 h-4" />
           </Button>
+
+          <Separator orientation="vertical" className="h-5" />
+
+          {/* Delete node */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
+            onClick={(e) => {
+              e.stopPropagation();
+              data.onDeleteNode?.();
+            }}
+            title="Supprimer"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
         </NodeToolbar>
-      )}
       
       <div
-        className="p-3 rounded relative overflow-hidden"
+        className="p-2 relative"
         style={style}
         onDoubleClick={() => !isEditing && setIsEditing(true)}
       >
@@ -2158,6 +2177,8 @@ function MindmapCanvas() {
               nodeStyle: ns,
               onUpdateStyle: (styleUpdate: Partial<NodeStyle>) => handleNodeStyleUpdate(node.id, styleUpdate),
               onEndEdit: (newText: string) => handleTextNodeEdit(node.id, newText),
+              // onDeleteNode uses a lazy closure — deleteNodeMutation is stable from useMutation
+              onDeleteNode: () => { if (!node.id.startsWith('temp-')) deleteNodeMutation.mutate(node.id); },
             },
           };
         });
