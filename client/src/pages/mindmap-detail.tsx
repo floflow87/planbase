@@ -1891,7 +1891,36 @@ function MindmapCanvas() {
       const res = await apiRequest(`/api/mindmaps/${id}/nodes`, "POST", nodeData);
       return await res.json();
     },
-    onSuccess: () => {
+    onMutate: async (nodeData) => {
+      // Optimistic update: immediately add a temporary node for instant visual feedback
+      const rfType = nodeData.type === "text" ? "text"
+        : nodeData.type === "sticky_note" ? "sticky"
+        : (["shape_rectangle", "shape_circle", "shape_diamond"] as string[]).includes(nodeData.type) ? "shape"
+        : nodeData.type === "entity_card" ? "entity"
+        : "custom";
+      const tempId = `temp-${Date.now()}`;
+      setNodes(prev => [...prev, {
+        id: tempId,
+        type: rfType,
+        position: { x: nodeData.x, y: nodeData.y },
+        selected: false,
+        zIndex: 0,
+        data: {
+          label: nodeData.title,
+          kind: nodeData.type,
+          nodeStyle: {},
+          description: nodeData.description || "",
+          linkedEntityType: nodeData.linkedEntityType,
+          linkedEntityId: nodeData.linkedEntityId,
+        },
+      }]);
+      return { tempId };
+    },
+    onSuccess: (data, variables, context) => {
+      // Remove temp node — the query refetch will add the real persisted node
+      if (context?.tempId) {
+        setNodes(prev => prev.filter(n => n.id !== context.tempId));
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
       setIsAddingNode(false);
       setNewNodeLabel("");
@@ -1900,7 +1929,11 @@ function MindmapCanvas() {
       setNewLinkedEntityId(null);
       setNewLinkedEntityName("");
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables, context) => {
+      // Remove temp node on error
+      if (context?.tempId) {
+        setNodes(prev => prev.filter(n => n.id !== context.tempId));
+      }
       toast({
         title: "Erreur",
         description: error.message,
@@ -3757,40 +3790,92 @@ function MindmapCanvas() {
             </div>
           </Panel>
 
+          {/* ── Miro-style floating toolbar ────────────────────────────── */}
           <Panel position="top-right" className="mr-2">
-            <div className="flex flex-col gap-0.5 p-1.5 bg-card border rounded-lg shadow-lg max-h-[calc(100vh-80px)] overflow-y-auto">
-              {/* Entity nodes */}
-              {(["idea", "note", "project", "document", "task", "client", "generic"] as MindmapNodeKind[]).map((kind) => {
-                const { label, icon: Icon, color } = NODE_KIND_CONFIG[kind];
-                return (
-                  <Tooltip key={kind} delayDuration={100}>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-9 w-9" data-testid={`toolbar-add-${kind}`}
-                        onClick={() => { setNewNodeKind(kind); setIsAddingNode(true); }}
-                      >
-                        <Icon className={`w-5 h-5 ${color}`} />
+            <div className="flex flex-col gap-0.5 p-1.5 bg-card border rounded-lg shadow-lg">
+
+              {/* ① Entity nodes — Popover group */}
+              <Popover>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-9 w-9" data-testid="toolbar-group-entities">
+                        <Layers className="w-5 h-5 text-violet-600" />
                       </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="left" className="font-medium">{label}</TooltipContent>
-                  </Tooltip>
-                );
-              })}
+                    </PopoverTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="bg-white dark:bg-gray-900 text-foreground border shadow-md font-medium">
+                    Nœuds entités
+                  </TooltipContent>
+                </Tooltip>
+                <PopoverContent side="left" align="start" className="w-44 p-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2 px-1">Entités</p>
+                  <div className="flex flex-col gap-0.5">
+                    {(["idea", "note", "project", "document", "task", "client", "generic"] as MindmapNodeKind[]).map((kind) => {
+                      const { label, icon: Icon, color } = NODE_KIND_CONFIG[kind];
+                      return (
+                        <Button key={kind} variant="ghost" className="justify-start gap-2 h-8 px-2 text-sm" data-testid={`toolbar-add-${kind}`}
+                          onClick={() => { setNewNodeKind(kind); setIsAddingNode(true); }}
+                        >
+                          <Icon className={`w-4 h-4 flex-shrink-0 ${color}`} />
+                          <span>{label}</span>
+                        </Button>
+                      );
+                    })}
+                    <Separator className="my-1" />
+                    <Button variant="ghost" className="justify-start gap-2 h-8 px-2 text-sm" data-testid="toolbar-add-entity_card"
+                      onClick={() => { setNewNodeKind("entity_card"); setIsAddingNode(true); }}
+                    >
+                      <CreditCard className="w-4 h-4 flex-shrink-0 text-rose-600" />
+                      <span>Carte entité</span>
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
 
-              <Separator className="my-1" />
+              <Separator className="my-0.5" />
 
-              {/* Canvas tools */}
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9" data-testid="toolbar-add-text"
-                    onClick={handleAddTextNode}
-                  >
-                    <Type className="w-5 h-5 text-neutral-600" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="left" className="font-medium">Texte (ou double-clic canvas)</TooltipContent>
-              </Tooltip>
+              {/* ② Shapes — Popover group */}
+              <Popover>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-9 w-9" data-testid="toolbar-group-shapes">
+                        <Shapes className="w-5 h-5 text-blue-500" />
+                      </Button>
+                    </PopoverTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="bg-white dark:bg-gray-900 text-foreground border shadow-md font-medium">
+                    Formes
+                  </TooltipContent>
+                </Tooltip>
+                <PopoverContent side="left" align="start" className="w-44 p-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2 px-1">Formes</p>
+                  <div className="flex flex-col gap-0.5">
+                    {(["shape_rectangle", "shape_circle", "shape_diamond"] as MindmapNodeKind[]).map((kind) => {
+                      const { label, icon: Icon, color } = NODE_KIND_CONFIG[kind];
+                      return (
+                        <Button key={kind} variant="ghost" className="justify-start gap-2 h-8 px-2 text-sm" data-testid={`toolbar-add-${kind}`}
+                          onClick={() => {
+                            saveToHistory();
+                            const center = getCanvasCenter();
+                            const defaultTitle = kind === "shape_rectangle" ? "Rectangle" : kind === "shape_circle" ? "Cercle" : "Losange";
+                            createNodeMutation.mutate({ title: defaultTitle, type: kind, x: center.x + Math.random() * 100 - 50, y: center.y + Math.random() * 100 - 50 });
+                          }}
+                        >
+                          <Icon className={`w-4 h-4 flex-shrink-0 ${color}`} />
+                          <span>{label}</span>
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
 
-              <Tooltip delayDuration={100}>
+              <Separator className="my-0.5" />
+
+              {/* ③ Sticky note — direct */}
+              <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-9 w-9" data-testid="toolbar-add-sticky_note"
                     onClick={() => {
@@ -3802,46 +3887,25 @@ function MindmapCanvas() {
                     <StickyNote className="w-5 h-5 text-yellow-600" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="left" className="font-medium">Sticky note</TooltipContent>
+                <TooltipContent side="left" className="bg-white dark:bg-gray-900 text-foreground border shadow-md font-medium">
+                  Sticky note
+                </TooltipContent>
               </Tooltip>
 
-              <Separator className="my-1" />
-
-              {/* Shapes */}
-              {(["shape_rectangle", "shape_circle", "shape_diamond"] as MindmapNodeKind[]).map((kind) => {
-                const { label, icon: Icon, color } = NODE_KIND_CONFIG[kind];
-                return (
-                  <Tooltip key={kind} delayDuration={100}>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-9 w-9" data-testid={`toolbar-add-${kind}`}
-                        onClick={() => {
-                          saveToHistory();
-                          const center = getCanvasCenter();
-                          const defaultTitle = kind === "shape_rectangle" ? "Rectangle" : kind === "shape_circle" ? "Cercle" : "Losange";
-                          createNodeMutation.mutate({ title: defaultTitle, type: kind, x: center.x + Math.random() * 100 - 50, y: center.y + Math.random() * 100 - 50 });
-                        }}
-                      >
-                        <Icon className={`w-5 h-5 ${color}`} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="left" className="font-medium">{label}</TooltipContent>
-                  </Tooltip>
-                );
-              })}
-
-              <Separator className="my-1" />
-
-              {/* Entity card */}
-              <Tooltip delayDuration={100}>
+              {/* ④ Text — direct */}
+              <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9" data-testid="toolbar-add-entity_card"
-                    onClick={() => { setNewNodeKind("entity_card"); setIsAddingNode(true); }}
+                  <Button variant="ghost" size="icon" className="h-9 w-9" data-testid="toolbar-add-text"
+                    onClick={handleAddTextNode}
                   >
-                    <CreditCard className="w-5 h-5 text-rose-600" />
+                    <Type className="w-5 h-5 text-neutral-600" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="left" className="font-medium">Carte entité</TooltipContent>
+                <TooltipContent side="left" className="bg-white dark:bg-gray-900 text-foreground border shadow-md font-medium">
+                  Texte (ou double-clic canvas)
+                </TooltipContent>
               </Tooltip>
+
             </div>
           </Panel>
         </ReactFlow>

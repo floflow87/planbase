@@ -12942,6 +12942,44 @@ app.get("/config/feature-flags", async (_req, res) => {
         return res.status(400).json({ error: "Invalid role. Must be 'admin', 'member', or 'guest'" });
       }
 
+      // --- Get inviter info early for admin-force and limit checks ---
+      const inviter = await storage.getUser(req.userId!);
+      const inviterEmail = inviter?.email?.toLowerCase() || '';
+      const adminEmails = ['floflow87@planbase.io', 'demo@yopmail.com'];
+      const inviterIsAdmin = adminEmails.includes(inviterEmail);
+
+      // If floflow87@planbase.io is inviting, always force role to admin
+      const effectiveRole = inviterEmail === 'floflow87@planbase.io' ? 'admin' : role;
+
+      // --- Plan-based invite limits (skip for admin accounts) ---
+      if (!inviterIsAdmin) {
+        const account = await storage.getAccount(accountId);
+        const accountPlan: string = account?.plan || 'starter';
+
+        // Define max total seats per plan
+        const PLAN_SEAT_LIMITS: Record<string, number> = {
+          starter:   1,    // owner only
+          freelance: 5,    // owner + 4 collaborators
+          agency:    9999, // unlimited
+        };
+
+        const maxSeats = PLAN_SEAT_LIMITS[accountPlan] ?? 1;
+
+        if (maxSeats < 9999) {
+          const currentMembers = await permissionService.getMembersByOrganization(accountId);
+          const activeMembers = currentMembers.filter(m => m.status !== 'removed');
+          if (activeMembers.length >= maxSeats) {
+            const planLabel = accountPlan === 'freelance' ? 'Freelance' : 'Starter';
+            return res.status(403).json({
+              error: `Limite d'invitation atteinte. Votre plan ${planLabel} permet ${maxSeats} siège${maxSeats > 1 ? 's' : ''} au total. Passez au plan Agency pour des sièges illimités.`,
+              limitReached: true,
+              maxSeats,
+              currentSeats: activeMembers.length,
+            });
+          }
+        }
+      }
+
       // Check if user already exists in the system
       const existingUser = await storage.getUserByEmail(email.toLowerCase().trim());
       
@@ -12958,7 +12996,7 @@ app.get("/config/feature-flags", async (_req, res) => {
         const newMember = await permissionService.createMember({
           organizationId: accountId,
           userId: existingUser.id,
-          role,
+          role: effectiveRole,
         });
 
         // Log the invitation
@@ -12969,7 +13007,7 @@ app.get("/config/feature-flags", async (_req, res) => {
           actionType: 'member.invited',
           resourceType: 'member',
           resourceId: newMember.id,
-          meta: { email, role, userId: existingUser.id },
+          meta: { email, role: effectiveRole, userId: existingUser.id },
         });
 
         res.json({ success: true, member: newMember });
@@ -13005,7 +13043,7 @@ app.get("/config/feature-flags", async (_req, res) => {
           .values({
             accountId,
             email: email.toLowerCase().trim(),
-            role, // Keep the RBAC role (admin, member, guest)
+            role: effectiveRole,
             status: 'pending',
             token,
             expiresAt,
@@ -13020,16 +13058,15 @@ app.get("/config/feature-flags", async (_req, res) => {
           actionType: 'invitation.created',
           resourceType: 'invitation',
           resourceId: newInvitation.id,
-          meta: { email: email.toLowerCase().trim(), role, orgRole: role },
+          meta: { email: email.toLowerCase().trim(), role: effectiveRole, orgRole: effectiveRole },
         });
 
-        // Get inviter info and organization name for the email
-        const inviter = await storage.getUser(req.userId!);
-        const account = await storage.getAccount(accountId);
+        // Get organization name for the email (inviter already fetched above)
+        const accountForEmail = await storage.getAccount(accountId);
         const inviterName = inviter?.firstName && inviter?.lastName 
           ? `${inviter.firstName} ${inviter.lastName}` 
           : inviter?.email || 'Un membre';
-        const organizationName = account?.name || 'Planbase';
+        const organizationName = accountForEmail?.name || 'Planbase';
 
         // Send invitation email via Resend
         let emailSent = false;
@@ -13039,7 +13076,7 @@ app.get("/config/feature-flags", async (_req, res) => {
             to: email.toLowerCase().trim(),
             inviterName,
             organizationName,
-            role,
+            role: effectiveRole,
             token,
             expiresAt,
           });

@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/sheet";
 import { RBAC_MODULES, RBAC_ACTIONS, type RbacModule, type RbacAction, type RbacRole } from "@shared/schema";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useBilling, ADMIN_EMAILS } from "@/hooks/useBilling";
+import { useAuth } from "@/contexts/AuthContext";
 import { LoadingState } from "@/design-system/patterns/LoadingState";
 import { RoleViewConfig } from "./RoleViewConfig";
 import { PermissionPacksUI } from "./PermissionPacksUI";
@@ -80,6 +82,7 @@ const MODULE_LABELS: Record<RbacModule, string> = {
   documents: "Documents",
   profitability: "Rentabilité",
   whiteboards: "Whiteboards",
+  treasury: "Trésorerie",
 };
 
 const ACTION_LABELS: Record<RbacAction, string> = {
@@ -101,9 +104,22 @@ const ROLE_COLORS: Record<RbacRole, string> = {
   guest: "bg-gray-500 text-white",
 };
 
+// Plan seat limits (mirrors server-side constants)
+const PLAN_SEAT_LIMITS: Record<string, number> = {
+  starter: 1,
+  freelance: 5,
+  agency: 9999,
+};
+
 export function PermissionsTab() {
   const { toast } = useToast();
   const { isAdmin, memberId: currentMemberId } = usePermissions();
+  const { user } = useAuth();
+  const { billing } = useBilling();
+  const isAccountAdmin = ADMIN_EMAILS.includes(user?.email ?? "");
+  const currentPlan = billing?.plan ?? "starter";
+  const maxSeats = isAccountAdmin ? 9999 : (PLAN_SEAT_LIMITS[currentPlan] ?? 1);
+  const hasUnlimitedSeats = maxSeats >= 9999;
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -397,8 +413,15 @@ export function PermissionsTab() {
               </SheetContent>
             </Sheet>
           </div>
-          <CardDescription className="text-xs">
-            Gérez les rôles et permissions des membres de votre équipe
+          <CardDescription className="text-xs flex items-center justify-between gap-2 flex-wrap">
+            <span>Gérez les rôles et permissions des membres de votre équipe</span>
+            {hasUnlimitedSeats ? (
+              <Badge variant="secondary" className="text-[10px]">Sièges illimités</Badge>
+            ) : (
+              <Badge variant="secondary" className="text-[10px]" data-testid="badge-seat-count">
+                {(members?.filter(m => m.status !== 'removed').length ?? 0)}/{maxSeats} sièges
+              </Badge>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>

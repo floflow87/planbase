@@ -64,6 +64,8 @@ const MODULE_LABELS: Record<string, string> = {
   notes: "Notes",
   documents: "Documents",
   profitability: "Rentabilité",
+  whiteboards: "Whiteboards",
+  treasury: "Trésorerie",
 };
 
 const ACTION_LABELS: Record<string, string> = {
