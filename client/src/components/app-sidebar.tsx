@@ -38,6 +38,7 @@ const URL_TO_MODULE: Record<string, RbacModule | null> = {
   "/files": "documents",
   "/documents": "documents",
   "/finance": "profitability",
+  "/cashflow": "treasury",
 };
 
 const URL_TO_FEATURE_FLAG: Record<string, string> = {
@@ -51,6 +52,7 @@ const URL_TO_FEATURE_FLAG: Record<string, string> = {
   "/files": "documents_module",
   "/documents": "documents_module",
   "/finance": "profitability_module",
+  "/cashflow": "treasury_module",
 };
 
 export function AppSidebar() {

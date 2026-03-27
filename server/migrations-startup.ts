@@ -2817,6 +2817,33 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Trial cleanup: reset auto-migration trial_ends_at (not explicitly started)");
 
+    // ── Add is_admin_account + strapi_user_id to accounts ──
+    await db.execute(sql`
+      ALTER TABLE accounts
+      ADD COLUMN IF NOT EXISTS is_admin_account BOOLEAN NOT NULL DEFAULT false
+    `);
+    await db.execute(sql`
+      ALTER TABLE accounts
+      ADD COLUMN IF NOT EXISTS strapi_user_id TEXT
+    `);
+    console.log("✅ Accounts: is_admin_account + strapi_user_id columns added");
+
+    // ── Flag floflow87 and demo accounts as admin ──
+    // Find accounts owned by these emails and mark them as platform admins
+    const platformAdminEmails = ['floflow87@planbase.io', 'demo@yopmail.com'];
+    for (const email of platformAdminEmails) {
+      await db.execute(sql`
+        UPDATE accounts a
+        SET is_admin_account = true, updated_at = NOW()
+        FROM app_users u
+        WHERE u.account_id = a.id
+          AND u.email = ${email}
+          AND u.role = 'owner'
+          AND a.is_admin_account = false
+      `);
+    }
+    console.log("✅ Platform admin accounts flagged (floflow87, demo)");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

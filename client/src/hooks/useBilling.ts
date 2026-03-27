@@ -29,6 +29,7 @@ export interface BillingStatus {
   trialEndsAt: string | null;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
+  isAdminAccount?: boolean;
 }
 
 export type PremiumFeature = "treasury" | "finance" | "email_templates" | "multi_users";
@@ -133,7 +134,7 @@ export function useBilling() {
   const qc = useQueryClient();
   const { user } = useAuth();
 
-  const isAdmin = ADMIN_EMAILS.includes(user?.email ?? "");
+  const isEmailAdmin = ADMIN_EMAILS.includes(user?.email ?? "");
   // Collaborators and client_viewers are invited users — they inherit the account owner's billing
   const isInvitedMember = user?.role === 'collaborator' || user?.role === 'client_viewer';
 
@@ -144,14 +145,16 @@ export function useBilling() {
     enabled: !!user,
   });
 
+  // Admin if: email in ADMIN_EMAILS, or account flagged as admin in DB, or invited member
+  const isAdmin = isEmailAdmin || rawBilling?.isAdminAccount === true || isInvitedMember;
+
   // Admins always see full billing regardless of actual DB data
-  // Invited members inherit the account's billing (they don't subscribe themselves)
-  const billing = (isAdmin || isInvitedMember) ? ADMIN_BILLING : rawBilling;
+  const billing = isAdmin ? ADMIN_BILLING : rawBilling;
 
   // ── Single centralized billing state ──────────────────────────────────────
   const billingState = resolveBillingState({
     isLoading,
-    isAdmin: isAdmin || isInvitedMember,
+    isAdmin,
     status: rawBilling?.subscriptionStatus ?? null,
   });
 

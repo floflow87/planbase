@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import path from "node:path";
 import { strapiGet } from "./lib/strapi";
 import billingRouter from "./routes/billing";
+import strapiAdminRouter from "./routes/strapi-admin";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
@@ -575,6 +576,7 @@ app.use("/api/billing/webhook", express.raw({ type: "application/json" }), (req:
   next();
 });
 app.use("/api/billing", billingRouter);
+app.use("/api/strapi", strapiAdminRouter);
 
 app.get("/api/config/feature-flags", async (req, res) => {
   try {

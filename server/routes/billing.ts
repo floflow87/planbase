@@ -15,15 +15,21 @@ import { sql } from "drizzle-orm";
 
 const router = Router();
 
+// Emails that always get full admin access
+const PLATFORM_ADMIN_EMAILS = ['floflow87@planbase.io', 'demo@yopmail.com'];
+
 // ─── Helper: get billing info for an account ──────────────────────────────────
 async function getAccountBilling(accountId: string) {
   const result = await db.execute(sql`
     SELECT
-      id, name, plan, subscription_status, billing_interval,
-      stripe_customer_id, stripe_subscription_id, stripe_price_id,
-      trial_ends_at, current_period_end, cancel_at_period_end,
-      trial_started_explicitly
-    FROM accounts WHERE id = ${accountId}
+      a.id, a.name, a.plan, a.subscription_status, a.billing_interval,
+      a.stripe_customer_id, a.stripe_subscription_id, a.stripe_price_id,
+      a.trial_ends_at, a.current_period_end, a.cancel_at_period_end,
+      a.trial_started_explicitly, a.is_admin_account,
+      u.email as owner_email
+    FROM accounts a
+    LEFT JOIN app_users u ON u.id = a.owner_user_id
+    WHERE a.id = ${accountId}
   `);
   return result[0] as any ?? null;
 }
@@ -34,6 +40,26 @@ router.get("/status", requireAuth, async (req: Request, res: Response) => {
     const accountId = (req as any).accountId;
     const account = await getAccountBilling(accountId);
     if (!account) return res.status(404).json({ error: "Account not found" });
+
+    // Check if this is an admin account (by DB flag or owner email)
+    const isAdminAccount = account.is_admin_account === true ||
+      PLATFORM_ADMIN_EMAILS.includes(account.owner_email ?? "");
+
+    // Admin accounts bypass billing entirely — always active agency plan
+    if (isAdminAccount) {
+      return res.json({
+        plan: "agency",
+        subscriptionStatus: "active",
+        billingInterval: "monthly",
+        stripeCustomerId: account.stripe_customer_id ?? null,
+        stripeSubscriptionId: account.stripe_subscription_id ?? null,
+        stripePriceId: account.stripe_price_id ?? null,
+        trialEndsAt: null,
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
+        isAdminAccount: true,
+      });
+    }
 
     // Derive subscription status from local trial when no Stripe subscription exists
     let effectiveStatus = account.subscription_status ?? null;
@@ -62,6 +88,7 @@ router.get("/status", requireAuth, async (req: Request, res: Response) => {
       trialEndsAt: account.trial_ends_at ?? null,
       currentPeriodEnd: account.current_period_end ?? null,
       cancelAtPeriodEnd: account.cancel_at_period_end ?? false,
+      isAdminAccount: false,
     });
   } catch (err) {
     console.error("billing/status error:", err);

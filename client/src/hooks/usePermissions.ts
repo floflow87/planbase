@@ -12,6 +12,7 @@ interface PermissionMatrix {
   documents: Record<RbacAction, boolean>;
   profitability: Record<RbacAction, boolean>;
   whiteboards: Record<RbacAction, boolean>;
+  treasury: Record<RbacAction, boolean>;
 }
 
 interface RbacData {
