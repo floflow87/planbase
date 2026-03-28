@@ -2466,8 +2466,8 @@ export default function BacklogDetail() {
         {/* Jira-style Scrum Backlog View */}
         {backlog.mode === "scrum" && (
           <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
-            <div className="flex gap-0 h-full">
-              <div className={`flex-1 space-y-4 ${selectedTicket ? 'pr-0' : ''}`}>
+            <div className="flex gap-0 h-full min-w-0">
+              <div className={`flex-1 min-w-0 overflow-x-hidden space-y-4 ${selectedTicket ? 'pr-0' : ''}`}>
                 {/* Hide finished sprints checkbox */}
                 <div className="flex items-center gap-2 mb-3">
                   <Checkbox 

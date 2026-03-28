@@ -1682,15 +1682,15 @@ export function SprintSection({
     </div>
 
     {/* ── Mobile sprint view ── */}
-    <div className="md:hidden border rounded-lg overflow-hidden bg-card" data-testid={`sprint-section-mobile-${sprint.id}`}>
+    <div className="md:hidden w-full max-w-full border rounded-lg overflow-hidden bg-card" data-testid={`sprint-section-mobile-${sprint.id}`}>
       <Collapsible open={isExpanded} onOpenChange={onToggle}>
         {/* Mobile sprint header */}
         <CollapsibleTrigger asChild>
           <div className="flex items-center gap-3 px-4 py-3 bg-violet-50 dark:bg-violet-950/30 cursor-pointer active:bg-violet-100 dark:active:bg-violet-950/50 transition-colors">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm break-words">{sprint.name}</span>
-                <Badge variant="outline" className={cn("text-[10px] px-1.5 flex-shrink-0", statusColor)}>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-semibold text-sm truncate">{sprint.name}</span>
+                <Badge variant="outline" className={cn("text-[10px] px-1.5 flex-shrink-0 whitespace-nowrap", statusColor)}>
                   {statusLabel}
                 </Badge>
               </div>
