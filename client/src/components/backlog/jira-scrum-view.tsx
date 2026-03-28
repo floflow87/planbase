@@ -1329,7 +1329,7 @@ function MobileTicketRow({
   return (
     <div
       className={cn(
-        "flex items-start gap-3 px-4 py-3 border-b border-border/40 active:bg-muted/30 transition-colors cursor-pointer",
+        "flex items-center gap-2 px-4 py-2 border-b border-border/40 active:bg-muted/30 transition-colors cursor-pointer",
         isCompleted && "opacity-60"
       )}
       onClick={() => onMobileSelect(ticket)}
@@ -1337,45 +1337,37 @@ function MobileTicketRow({
     >
       {/* Type icon */}
       <div
-        className="flex items-center justify-center h-7 w-7 rounded flex-shrink-0 mt-0.5"
+        className="flex items-center justify-center h-6 w-6 rounded flex-shrink-0"
         style={{ backgroundColor: pastelColors.bg }}
       >
-        <span style={{ color: pastelColors.text, fontSize: "0.75rem" }}>
+        <span style={{ color: pastelColors.text, fontSize: "0.65rem" }}>
           {ticketTypeIcon(ticket.type)}
         </span>
       </div>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        {rowTicketId && (
-          <span className="text-[10px] font-mono text-muted-foreground/70 block mb-0.5">{rowTicketId}</span>
-        )}
         <p className={cn(
-          "text-sm font-medium leading-snug break-words",
+          "text-sm font-medium leading-tight truncate",
           isCompleted && "line-through text-muted-foreground"
         )}>
           {ticket.title}
         </p>
-        <div className="flex items-center gap-2 mt-1 flex-wrap">
+        <div className="flex items-center gap-1.5 mt-0.5 overflow-hidden">
           {statusOption && (
-            <span className="text-[10px] text-muted-foreground bg-muted/60 rounded px-1.5 py-0.5">
+            <span className="text-[10px] text-muted-foreground bg-muted/60 rounded px-1 py-0 flex-shrink-0">
               {statusOption.label}
             </span>
           )}
           {ticket.priority && priorityOption && (
-            <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+            <span className="text-[10px] text-muted-foreground flex items-center gap-0.5 flex-shrink-0">
               <Flag className="h-2.5 w-2.5" />
               {priorityOption.label}
             </span>
           )}
-          {ticket.estimatePoints != null && (
-            <span className="text-[10px] text-muted-foreground font-mono">
-              {ticket.estimatePoints}pts
-            </span>
-          )}
           {ticketEpic && (
             <span
-              className="text-[10px] px-1.5 py-0.5 rounded text-white max-w-[140px] inline-block truncate"
+              className="text-[10px] px-1 py-0 rounded text-white max-w-[100px] inline-block truncate flex-shrink"
               style={{ backgroundColor: ticketEpic.color || "#7C3AED" }}
               title={ticketEpic.title}
             >
@@ -1385,8 +1377,8 @@ function MobileTicketRow({
         </div>
       </div>
 
-      {/* Assignee + arrow */}
-      <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+      {/* Assignee */}
+      <div className="flex items-center flex-shrink-0">
         {assignee ? (
           <Avatar className="h-6 w-6">
             <AvatarFallback className="text-[10px] bg-primary/20 text-primary">
@@ -1455,7 +1447,7 @@ function MobileTicketSheet({
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="bottom" className="max-h-[65vh] rounded-t-2xl p-0 flex flex-col overflow-hidden [&>button]:hidden">
+      <SheetContent side="bottom" className="h-full rounded-t-none p-0 flex flex-col overflow-hidden [&>button]:hidden">
         {/* Colored top handle bar */}
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
