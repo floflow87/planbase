@@ -1375,8 +1375,9 @@ function MobileTicketRow({
           )}
           {ticketEpic && (
             <span
-              className="text-[10px] px-1.5 py-0.5 rounded text-white"
+              className="text-[10px] px-1.5 py-0.5 rounded text-white max-w-[140px] inline-block truncate"
               style={{ backgroundColor: ticketEpic.color || "#7C3AED" }}
+              title={ticketEpic.title}
             >
               {ticketEpic.title}
             </span>
@@ -1696,7 +1697,7 @@ export function SprintSection({
           <div className="flex items-center gap-3 px-4 py-3 bg-violet-50 dark:bg-violet-950/30 cursor-pointer active:bg-violet-100 dark:active:bg-violet-950/50 transition-colors">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm truncate">{sprint.name}</span>
+                <span className="font-semibold text-sm break-words">{sprint.name}</span>
                 <Badge variant="outline" className={cn("text-[10px] px-1.5 flex-shrink-0", statusColor)}>
                   {statusLabel}
                 </Badge>
