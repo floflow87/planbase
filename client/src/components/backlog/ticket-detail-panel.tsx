@@ -671,7 +671,7 @@ export function TicketDetailPanel({
   const ticketIdLabel = generateTicketId();
   
   return createPortal(
-    <div className="w-full md:w-[400px] border-l bg-card fixed top-0 right-0 h-screen flex flex-col z-[9999] shadow-lg" data-testid="ticket-detail-panel">
+    <div className="w-full md:w-[400px] border-l bg-card fixed top-0 right-0 h-[100dvh] flex flex-col z-[9999] shadow-lg" style={{ height: '100dvh' }} data-testid="ticket-detail-panel">
       <div className="flex items-center justify-between px-4 py-3 border-b">
         {readOnly ? (
           <div className="flex items-center gap-2">
@@ -789,7 +789,7 @@ export function TicketDetailPanel({
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4 pb-20">
+      <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
         <div>
           {!readOnly && isEditingTitle ? (
             <Input
