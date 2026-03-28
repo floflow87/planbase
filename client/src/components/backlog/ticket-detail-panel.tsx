@@ -158,6 +158,14 @@ export function TicketDetailPanel({
   ticketViewSettings,
 }: TicketDetailPanelProps) {
   const { toast } = useToast();
+
+  // Lock body scroll when panel is open to prevent background from scrolling
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(ticket?.title || "");
   const [editedDescription, setEditedDescription] = useState(ticket?.description || "");
@@ -781,7 +789,7 @@ export function TicketDetailPanel({
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4 pb-20">
         <div>
           {!readOnly && isEditingTitle ? (
             <Input
