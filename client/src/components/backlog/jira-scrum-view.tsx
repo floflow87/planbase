@@ -1448,54 +1448,58 @@ function MobileTicketSheet({
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent side="bottom" className="inset-0 h-full rounded-none p-0 flex flex-col overflow-hidden [&>button]:hidden z-[9999]">
-        {/* Colored top handle bar */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+
+        {/* Top bar: type icon + ticket ID + Détail + Close */}
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b flex-shrink-0">
+          <div
+            className="flex items-center justify-center h-6 w-6 rounded flex-shrink-0"
+            style={{ backgroundColor: pastelColors.bg }}
+          >
+            <span style={{ color: pastelColors.text, fontSize: "0.65rem" }}>
+              {ticketTypeIcon(ticket.type)}
+            </span>
+          </div>
+          {ticketId && (
+            <span className="text-xs font-mono text-muted-foreground">{ticketId}</span>
+          )}
+          <div className="flex-1" />
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs"
+            onClick={() => { onClose(); onSelectTicket(ticket); }}
+            data-testid="button-mobile-sheet-open-full"
+          >
+            <ExternalLink className="h-3.5 w-3.5 mr-1" />
+            Détail
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={onClose}
+            data-testid="button-mobile-sheet-close"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
 
-        {/* Header */}
-        <SheetHeader className="px-4 pb-3 border-b">
-          <div className="flex items-center gap-2 mb-2">
-            <div
-              className="flex items-center justify-center h-5 w-5 rounded flex-shrink-0"
-              style={{ backgroundColor: pastelColors.bg }}
-            >
-              <span style={{ color: pastelColors.text, fontSize: "0.7rem" }}>
-                {ticketTypeIcon(ticket.type)}
-              </span>
-            </div>
-            {ticketId && (
-              <span className="text-xs font-mono text-muted-foreground">{ticketId}</span>
-            )}
-            <div className="flex-1" />
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs h-7"
-              onClick={() => { onClose(); onSelectTicket(ticket); }}
-              data-testid="button-mobile-sheet-open-full"
-            >
-              <ExternalLink className="h-3.5 w-3.5 mr-1" />
-              Détail
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={onClose}
-              data-testid="button-mobile-sheet-close"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <SheetTitle className="text-left text-base font-semibold leading-snug">
-            {ticket.title}
-          </SheetTitle>
-        </SheetHeader>
-
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-4 py-2">
-          {/* Quick status + state selector */}
-          <div className="flex items-center gap-2 flex-wrap py-3 border-b border-border/40">
+        <div className="flex-1 overflow-y-auto">
+
+          {/* Title + Description at the top */}
+          <div className="px-4 pt-4 pb-4 border-b border-border/40">
+            <SheetTitle className="text-left text-lg font-semibold leading-snug mb-0">
+              {ticket.title}
+            </SheetTitle>
+            {ticket.description && (
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed whitespace-pre-wrap">
+                {ticket.description}
+              </p>
+            )}
+          </div>
+
+          {/* Quick state + priority + points */}
+          <div className="flex items-center gap-2 flex-wrap px-4 py-3 border-b border-border/40">
             <Select
               value={ticket.state}
               onValueChange={(val) => onUpdateState?.(ticket.id, ticket.type, val)}
@@ -1526,43 +1530,39 @@ function MobileTicketSheet({
           </div>
 
           {/* Info rows */}
-          {infoRow("Assigné à", assignee ? (
-            <div className="flex items-center gap-2">
-              <Avatar className="h-6 w-6">
-                <AvatarFallback className="text-[10px] bg-primary/20 text-primary">
-                  {assignee.firstName?.[0]}{assignee.lastName?.[0]}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-sm">{assignee.firstName} {assignee.lastName}</span>
-            </div>
-          ) : (
-            <span className="text-sm text-muted-foreground">Non assigné</span>
-          ))}
+          <div className="px-4">
+            {infoRow("Assigné à", assignee ? (
+              <div className="flex items-center gap-2">
+                <Avatar className="h-6 w-6">
+                  <AvatarFallback className="text-[10px] bg-primary/20 text-primary">
+                    {assignee.firstName?.[0]}{assignee.lastName?.[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-sm">{assignee.firstName} {assignee.lastName}</span>
+              </div>
+            ) : (
+              <span className="text-sm text-muted-foreground">Non assigné</span>
+            ))}
 
-          {ticketEpic && infoRow("Epic", (
-            <span
-              className="text-xs px-2 py-1 rounded text-white inline-block"
-              style={{ backgroundColor: ticketEpic.color || "#7C3AED" }}
-            >
-              {ticketEpic.title}
-            </span>
-          ))}
+            {ticketEpic && infoRow("Epic", (
+              <span
+                className="text-xs px-2 py-1 rounded text-white inline-block"
+                style={{ backgroundColor: ticketEpic.color || "#7C3AED" }}
+              >
+                {ticketEpic.title}
+              </span>
+            ))}
 
-          {ticketSprint && infoRow("Sprint", (
-            <span className="text-sm">{ticketSprint.name}</span>
-          ))}
+            {ticketSprint && infoRow("Sprint", (
+              <span className="text-sm">{ticketSprint.name}</span>
+            ))}
 
-          {ticket.description && infoRow("Description", (
-            <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-              {ticket.description}
-            </p>
-          ))}
-
-          {ticket.createdAt && infoRow("Créé le", (
-            <span className="text-sm text-muted-foreground">
-              {new Date(ticket.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
-            </span>
-          ))}
+            {ticket.createdAt && infoRow("Créé le", (
+              <span className="text-sm text-muted-foreground">
+                {new Date(ticket.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+              </span>
+            ))}
+          </div>
         </div>
       </SheetContent>
     </Sheet>
@@ -1637,7 +1637,9 @@ export function SprintSection({
   const [isCreating, setIsCreating] = useState(false);
   const [newTicketTitle, setNewTicketTitle] = useState("");
   const [newTicketType, setNewTicketType] = useState<TicketType>("user_story");
-  
+  const [mobileSelectedTicket, setMobileSelectedTicket] = useState<FlatTicket | null>(null);
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+
   const totalPoints = tickets.reduce((sum, t) => sum + (t.estimatePoints || 0), 0);
   const donePoints = tickets
     .filter(t => t.state === "termine")
@@ -1670,6 +1672,23 @@ export function SprintSection({
   
   return (
     <>
+    {/* ── Mobile ticket sheet (bottom drawer) ── */}
+    <div className="md:hidden">
+      <MobileTicketSheet
+        ticket={mobileSelectedTicket}
+        open={mobileSheetOpen}
+        onClose={() => { setMobileSheetOpen(false); setMobileSelectedTicket(null); }}
+        users={users}
+        epics={epics}
+        sprints={sprints}
+        backlogPrefix={backlogPrefix}
+        ticketGlobalIndex={mobileSelectedTicket ? ticketIndexMap?.[mobileSelectedTicket.id] : undefined}
+        onUpdateState={onUpdateState}
+        onUpdateField={onUpdateField}
+        onSelectTicket={(t) => { setMobileSheetOpen(false); setMobileSelectedTicket(null); onSelectTicket(t); }}
+      />
+    </div>
+
     {/* ── Mobile sprint view ── */}
     <div className="md:hidden w-full max-w-full border rounded-lg overflow-hidden bg-card" data-testid={`sprint-section-mobile-${sprint.id}`}>
       <Collapsible open={isExpanded} onOpenChange={onToggle}>
@@ -1717,7 +1736,7 @@ export function SprintSection({
                 sprints={sprints}
                 backlogPrefix={backlogPrefix}
                 ticketGlobalIndex={ticketIndexMap?.[ticket.id]}
-                onMobileSelect={(t) => onSelectTicket(t)}
+                onMobileSelect={(t) => { setMobileSelectedTicket(t); setMobileSheetOpen(true); }}
               />
             ))
           )}
@@ -2127,7 +2146,9 @@ export function BacklogPool({
   const [isCreating, setIsCreating] = useState(false);
   const [newTicketTitle, setNewTicketTitle] = useState("");
   const [newTicketType, setNewTicketType] = useState<TicketType>("user_story");
-  
+  const [mobileSelectedTicket, setMobileSelectedTicket] = useState<FlatTicket | null>(null);
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+
   const totalPoints = tickets.reduce((sum, t) => sum + (t.estimatePoints || 0), 0);
   
   const { isOver, setNodeRef } = useDroppable({
@@ -2144,6 +2165,24 @@ export function BacklogPool({
   };
   
   return (
+    <>
+    {/* ── Mobile ticket sheet for backlog pool ── */}
+    <div className="md:hidden">
+      <MobileTicketSheet
+        ticket={mobileSelectedTicket}
+        open={mobileSheetOpen}
+        onClose={() => { setMobileSheetOpen(false); setMobileSelectedTicket(null); }}
+        users={users}
+        epics={epics}
+        sprints={sprints}
+        backlogPrefix={backlogPrefix}
+        ticketGlobalIndex={mobileSelectedTicket ? ticketIndexMap?.[mobileSelectedTicket.id] : undefined}
+        onUpdateState={onUpdateState}
+        onUpdateField={onUpdateField}
+        onSelectTicket={(t) => { setMobileSheetOpen(false); setMobileSelectedTicket(null); onSelectTicket(t); }}
+      />
+    </div>
+
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
       <div 
         ref={setNodeRef}
@@ -2206,25 +2245,41 @@ export function BacklogPool({
           )}
           <div className="divide-y divide-border/50 overflow-x-hidden">
             {tickets.map(ticket => (
-              <TicketRow 
-                key={`${ticket.type}-${ticket.id}`}
-                ticket={ticket}
-                users={users}
-                sprints={sprints}
-                epics={epics}
-                showEpicColumn={showEpicColumn}
-                onSelect={onSelectTicket}
-                onUpdateState={onUpdateState}
-                onUpdateField={onUpdateField}
-                onConvertType={onConvertType}
-                onTicketAction={onTicketAction}
-                isSelected={selectedTicketId === ticket.id}
-                showCheckbox={true}
-                isChecked={checkedTickets?.has(ticket.id) || false}
-                onCheckChange={onCheckChange}
-                backlogPrefix={backlogPrefix}
-                ticketGlobalIndex={ticketIndexMap?.[ticket.id]}
-              />
+              <div key={`${ticket.type}-${ticket.id}`}>
+                {/* Mobile row */}
+                <div className="md:hidden">
+                  <MobileTicketRow
+                    ticket={ticket}
+                    users={users}
+                    epics={epics}
+                    sprints={sprints}
+                    backlogPrefix={backlogPrefix}
+                    ticketGlobalIndex={ticketIndexMap?.[ticket.id]}
+                    onMobileSelect={(t) => { setMobileSelectedTicket(t); setMobileSheetOpen(true); }}
+                  />
+                </div>
+                {/* Desktop row */}
+                <div className="hidden md:block">
+                  <TicketRow
+                    ticket={ticket}
+                    users={users}
+                    sprints={sprints}
+                    epics={epics}
+                    showEpicColumn={showEpicColumn}
+                    onSelect={onSelectTicket}
+                    onUpdateState={onUpdateState}
+                    onUpdateField={onUpdateField}
+                    onConvertType={onConvertType}
+                    onTicketAction={onTicketAction}
+                    isSelected={selectedTicketId === ticket.id}
+                    showCheckbox={true}
+                    isChecked={checkedTickets?.has(ticket.id) || false}
+                    onCheckChange={onCheckChange}
+                    backlogPrefix={backlogPrefix}
+                    ticketGlobalIndex={ticketIndexMap?.[ticket.id]}
+                  />
+                </div>
+              </div>
             ))}
             
             {tickets.length === 0 && !isCreating && (
@@ -2316,6 +2371,7 @@ export function BacklogPool({
         </CollapsibleContent>
       </div>
     </Collapsible>
+    </>
   );
 }
 
