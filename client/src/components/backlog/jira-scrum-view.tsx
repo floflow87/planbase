@@ -1447,7 +1447,7 @@ function MobileTicketSheet({
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="bottom" className="h-full rounded-t-none p-0 flex flex-col overflow-hidden [&>button]:hidden">
+      <SheetContent side="bottom" className="inset-0 h-full rounded-none p-0 flex flex-col overflow-hidden [&>button]:hidden z-[9999]">
         {/* Colored top handle bar */}
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
@@ -1477,6 +1477,14 @@ function MobileTicketSheet({
             >
               <ExternalLink className="h-3.5 w-3.5 mr-1" />
               Détail
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onClose}
+              data-testid="button-mobile-sheet-close"
+            >
+              <X className="h-4 w-4" />
             </Button>
           </div>
           <SheetTitle className="text-left text-base font-semibold leading-snug">
