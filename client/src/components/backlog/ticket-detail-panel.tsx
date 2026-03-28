@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { 
@@ -661,7 +662,7 @@ export function TicketDetailPanel({
   
   const ticketIdLabel = generateTicketId();
   
-  return (
+  return createPortal(
     <div className="w-full md:w-[400px] border-l bg-card fixed top-0 right-0 h-screen flex flex-col z-[9999] shadow-lg" data-testid="ticket-detail-panel">
       <div className="flex items-center justify-between px-4 py-3 border-b">
         {readOnly ? (
@@ -1970,6 +1971,7 @@ export function TicketDetailPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </div>,
+    document.body
   );
 }

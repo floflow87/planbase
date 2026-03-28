@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useCelebration } from "@/hooks/useCelebration";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
@@ -2581,11 +2582,14 @@ export default function BacklogDetail() {
               {/* Ticket Detail Panel with click-outside-to-close */}
               {selectedTicket && (
                 <>
-                  <div 
-                    className="fixed inset-0 bg-black/10 z-40"
-                    onClick={() => setSelectedTicket(null)}
-                    data-testid="ticket-panel-backdrop"
-                  />
+                  {createPortal(
+                    <div 
+                      className="fixed inset-0 bg-black/10 z-[9998]"
+                      onClick={() => setSelectedTicket(null)}
+                      data-testid="ticket-panel-backdrop"
+                    />,
+                    document.body
+                  )}
                   <div className="relative z-50">
                     <TicketDetailPanel
                       ticket={selectedTicket}
