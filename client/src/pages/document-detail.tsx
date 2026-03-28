@@ -44,16 +44,13 @@ import type { Document, Project, NoteLink, UpdateDocument } from "@shared/schema
 import type { Client } from "@shared/schema";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useBilling } from "@/hooks/useBilling";
-import { Card, CardContent } from "@/components/ui/card";
 import { ShareDrawer } from "@/components/share/ShareDrawer";
 import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow, format as formatDate } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Calendar as CalendarWidget } from "@/components/ui/calendar";
-import { useAuth } from "@/contexts/AuthContext";
 
 type AiAction = "summarize" | "improve" | "recommendations";
 
