@@ -1637,8 +1637,6 @@ export function SprintSection({
   const [isCreating, setIsCreating] = useState(false);
   const [newTicketTitle, setNewTicketTitle] = useState("");
   const [newTicketType, setNewTicketType] = useState<TicketType>("user_story");
-  const [mobileSelectedTicket, setMobileSelectedTicket] = useState<FlatTicket | null>(null);
-  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   
   const totalPoints = tickets.reduce((sum, t) => sum + (t.estimatePoints || 0), 0);
   const donePoints = tickets
@@ -1672,23 +1670,6 @@ export function SprintSection({
   
   return (
     <>
-    {/* ── Mobile ticket sheet (bottom drawer) ── */}
-    <div className="md:hidden">
-      <MobileTicketSheet
-        ticket={mobileSelectedTicket}
-        open={mobileSheetOpen}
-        onClose={() => setMobileSheetOpen(false)}
-        users={users}
-        epics={epics}
-        sprints={sprints}
-        backlogPrefix={backlogPrefix}
-        ticketGlobalIndex={mobileSelectedTicket ? ticketIndexMap?.[mobileSelectedTicket.id] : undefined}
-        onUpdateState={onUpdateState}
-        onUpdateField={onUpdateField}
-        onSelectTicket={(t) => { onSelectTicket(t); }}
-      />
-    </div>
-
     {/* ── Mobile sprint view ── */}
     <div className="md:hidden w-full max-w-full border rounded-lg overflow-hidden bg-card" data-testid={`sprint-section-mobile-${sprint.id}`}>
       <Collapsible open={isExpanded} onOpenChange={onToggle}>
@@ -1736,10 +1717,7 @@ export function SprintSection({
                 sprints={sprints}
                 backlogPrefix={backlogPrefix}
                 ticketGlobalIndex={ticketIndexMap?.[ticket.id]}
-                onMobileSelect={(t) => {
-                  setMobileSelectedTicket(t);
-                  setMobileSheetOpen(true);
-                }}
+                onMobileSelect={(t) => onSelectTicket(t)}
               />
             ))
           )}

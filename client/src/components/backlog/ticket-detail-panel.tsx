@@ -662,7 +662,7 @@ export function TicketDetailPanel({
   const ticketIdLabel = generateTicketId();
   
   return (
-    <div className="w-[400px] border-l bg-card fixed top-0 right-0 h-screen flex flex-col z-50 shadow-lg" data-testid="ticket-detail-panel">
+    <div className="w-full md:w-[400px] border-l bg-card fixed top-0 right-0 h-screen flex flex-col z-[9999] shadow-lg" data-testid="ticket-detail-panel">
       <div className="flex items-center justify-between px-4 py-3 border-b">
         {readOnly ? (
           <div className="flex items-center gap-2">
