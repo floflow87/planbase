@@ -1455,7 +1455,7 @@ function MobileTicketSheet({
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="bottom" className="h-[88vh] rounded-t-2xl p-0 flex flex-col">
+      <SheetContent side="bottom" className="max-h-[65vh] rounded-t-2xl p-0 flex flex-col overflow-hidden [&>button]:hidden">
         {/* Colored top handle bar */}
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
