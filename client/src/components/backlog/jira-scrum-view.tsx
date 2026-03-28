@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, type ReactNode } from "react";
 import { 
   ChevronDown, ChevronRight, ChevronUp, Plus, MoreVertical, 
   Flag, User, Calendar, GripVertical, Play, Pause,
@@ -37,6 +37,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
@@ -1287,6 +1288,270 @@ function BulkActionsDropdown({
   );
 }
 
+// ─── Mobile Ticket Row (compact, tap to open sheet) ─────────────────────────
+function MobileTicketRow({
+  ticket,
+  users,
+  epics,
+  backlogPrefix,
+  ticketGlobalIndex,
+  sprints,
+  onMobileSelect,
+}: {
+  ticket: FlatTicket;
+  users?: AppUser[];
+  epics?: Epic[];
+  sprints?: Sprint[];
+  backlogPrefix?: string;
+  ticketGlobalIndex?: number;
+  onMobileSelect: (ticket: FlatTicket) => void;
+}) {
+  const pastelColors = ticketTypePastelColors(ticket.type, ticket.color);
+  const assignee = users?.find(u => u.id === ticket.assigneeId);
+  const ticketEpic = epics?.find(e => e.id === ticket.epicId);
+  const statusOption = backlogItemStateOptions.find(s => s.value === ticket.state);
+  const priorityOption = backlogPriorityOptions.find(p => p.value === ticket.priority);
+  const isCompleted = ticket.state === "termine";
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-3 px-4 py-3 border-b border-border/40 active:bg-muted/30 transition-colors cursor-pointer",
+        isCompleted && "opacity-60"
+      )}
+      onClick={() => onMobileSelect(ticket)}
+      data-testid={`mobile-ticket-row-${ticket.id}`}
+    >
+      {/* Type icon */}
+      <div
+        className="flex items-center justify-center h-7 w-7 rounded flex-shrink-0"
+        style={{ backgroundColor: pastelColors.bg }}
+      >
+        <span style={{ color: pastelColors.text, fontSize: "0.75rem" }}>
+          {ticketTypeIcon(ticket.type)}
+        </span>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <p className={cn(
+          "text-sm font-medium leading-snug line-clamp-2",
+          isCompleted && "line-through text-muted-foreground"
+        )}>
+          {ticket.title}
+        </p>
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          {statusOption && (
+            <span className="text-[10px] text-muted-foreground bg-muted/60 rounded px-1.5 py-0.5">
+              {statusOption.label}
+            </span>
+          )}
+          {ticket.priority && priorityOption && (
+            <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+              <Flag className="h-2.5 w-2.5" />
+              {priorityOption.label}
+            </span>
+          )}
+          {ticket.estimatePoints != null && (
+            <span className="text-[10px] text-muted-foreground font-mono">
+              {ticket.estimatePoints}pts
+            </span>
+          )}
+          {ticketEpic && (
+            <span
+              className="text-[10px] px-1.5 py-0.5 rounded text-white"
+              style={{ backgroundColor: ticketEpic.color || "#7C3AED" }}
+            >
+              {ticketEpic.title}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Assignee + arrow */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {assignee ? (
+          <Avatar className="h-6 w-6">
+            <AvatarFallback className="text-[10px] bg-primary/20 text-primary">
+              {assignee.firstName?.[0]}{assignee.lastName?.[0]}
+            </AvatarFallback>
+          </Avatar>
+        ) : (
+          <div className="h-6 w-6 rounded-full bg-muted/50 flex items-center justify-center">
+            <User className="h-3 w-3 text-muted-foreground" />
+          </div>
+        )}
+        <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
+      </div>
+    </div>
+  );
+}
+
+// ─── Mobile Ticket Detail Sheet (bottom drawer) ──────────────────────────────
+function MobileTicketSheet({
+  ticket,
+  open,
+  onClose,
+  users,
+  epics,
+  sprints,
+  backlogPrefix,
+  ticketGlobalIndex,
+  onUpdateState,
+  onUpdateField,
+  onSelectTicket,
+}: {
+  ticket: FlatTicket | null;
+  open: boolean;
+  onClose: () => void;
+  users?: AppUser[];
+  epics?: Epic[];
+  sprints?: Sprint[];
+  backlogPrefix?: string;
+  ticketGlobalIndex?: number;
+  onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
+  onUpdateField?: (ticketId: string, type: TicketType, field: string, value: any) => void;
+  onSelectTicket: (ticket: FlatTicket) => void;
+}) {
+  if (!ticket) return null;
+
+  const typeColor = ticketTypeColor(ticket.type, ticket.color);
+  const pastelColors = ticketTypePastelColors(ticket.type, ticket.color);
+  const assignee = users?.find(u => u.id === ticket.assigneeId);
+  const ticketEpic = epics?.find(e => e.id === ticket.epicId);
+  const ticketSprint = sprints?.find(s => s.id === ticket.sprintId);
+  const statusOption = backlogItemStateOptions.find(s => s.value === ticket.state);
+  const priorityOption = backlogPriorityOptions.find(p => p.value === ticket.priority);
+
+  const sprintPfx = ticketSprint ? ticketSprint.name.substring(0, 3).toUpperCase() : "BCK";
+  const idxStr = ticketGlobalIndex !== undefined && ticketGlobalIndex >= 0
+    ? String(ticketGlobalIndex + 1).padStart(2, "0")
+    : null;
+  const ticketId = backlogPrefix && idxStr ? `${backlogPrefix}-${sprintPfx}-${idxStr}` : null;
+
+  const infoRow = (label: string, content: ReactNode) => (
+    <div className="flex items-start gap-3 py-3 border-b border-border/40 last:border-b-0">
+      <span className="text-xs text-muted-foreground w-24 flex-shrink-0 pt-0.5">{label}</span>
+      <div className="flex-1 min-w-0">{content}</div>
+    </div>
+  );
+
+  return (
+    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent side="bottom" className="h-[88vh] rounded-t-2xl p-0 flex flex-col">
+        {/* Colored top handle bar */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+        </div>
+
+        {/* Header */}
+        <SheetHeader className="px-4 pb-3 border-b">
+          <div className="flex items-center gap-2 mb-2">
+            <div
+              className="flex items-center justify-center h-5 w-5 rounded flex-shrink-0"
+              style={{ backgroundColor: pastelColors.bg }}
+            >
+              <span style={{ color: pastelColors.text, fontSize: "0.7rem" }}>
+                {ticketTypeIcon(ticket.type)}
+              </span>
+            </div>
+            {ticketId && (
+              <span className="text-xs font-mono text-muted-foreground">{ticketId}</span>
+            )}
+            <div className="flex-1" />
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs h-7"
+              onClick={() => { onClose(); onSelectTicket(ticket); }}
+              data-testid="button-mobile-sheet-open-full"
+            >
+              <ExternalLink className="h-3.5 w-3.5 mr-1" />
+              Détail
+            </Button>
+          </div>
+          <SheetTitle className="text-left text-base font-semibold leading-snug">
+            {ticket.title}
+          </SheetTitle>
+        </SheetHeader>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-4 py-2">
+          {/* Quick status + state selector */}
+          <div className="flex items-center gap-2 flex-wrap py-3 border-b border-border/40">
+            <Select
+              value={ticket.state}
+              onValueChange={(val) => onUpdateState?.(ticket.id, ticket.type, val)}
+            >
+              <SelectTrigger className="w-auto h-8 text-xs gap-1" data-testid={`mobile-status-select-${ticket.id}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-card">
+                {backlogItemStateOptions.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {ticket.priority && (
+              <Badge variant="outline" className="text-xs h-8 px-2">
+                <Flag className="h-3 w-3 mr-1" />
+                {priorityOption?.label ?? ticket.priority}
+              </Badge>
+            )}
+            {ticket.estimatePoints != null && (
+              <Badge variant="outline" className="text-xs h-8 px-2 font-mono">
+                {ticket.estimatePoints} pts
+              </Badge>
+            )}
+          </div>
+
+          {/* Info rows */}
+          {infoRow("Assigné à", assignee ? (
+            <div className="flex items-center gap-2">
+              <Avatar className="h-6 w-6">
+                <AvatarFallback className="text-[10px] bg-primary/20 text-primary">
+                  {assignee.firstName?.[0]}{assignee.lastName?.[0]}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-sm">{assignee.firstName} {assignee.lastName}</span>
+            </div>
+          ) : (
+            <span className="text-sm text-muted-foreground">Non assigné</span>
+          ))}
+
+          {ticketEpic && infoRow("Epic", (
+            <span
+              className="text-xs px-2 py-1 rounded text-white inline-block"
+              style={{ backgroundColor: ticketEpic.color || "#7C3AED" }}
+            >
+              {ticketEpic.title}
+            </span>
+          ))}
+
+          {ticketSprint && infoRow("Sprint", (
+            <span className="text-sm">{ticketSprint.name}</span>
+          ))}
+
+          {ticket.description && infoRow("Description", (
+            <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+              {ticket.description}
+            </p>
+          ))}
+
+          {ticket.createdAt && infoRow("Créé le", (
+            <span className="text-sm text-muted-foreground">
+              {new Date(ticket.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+            </span>
+          ))}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 interface SprintSectionProps {
   sprint: Sprint;
   tickets: FlatTicket[];
@@ -1355,6 +1620,8 @@ export function SprintSection({
   const [isCreating, setIsCreating] = useState(false);
   const [newTicketTitle, setNewTicketTitle] = useState("");
   const [newTicketType, setNewTicketType] = useState<TicketType>("user_story");
+  const [mobileSelectedTicket, setMobileSelectedTicket] = useState<FlatTicket | null>(null);
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   
   const totalPoints = tickets.reduce((sum, t) => sum + (t.estimatePoints || 0), 0);
   const donePoints = tickets
@@ -1387,7 +1654,116 @@ export function SprintSection({
   });
   
   return (
-    <Collapsible open={isExpanded} onOpenChange={onToggle}>
+    <>
+    {/* ── Mobile ticket sheet (bottom drawer) ── */}
+    <div className="md:hidden">
+      <MobileTicketSheet
+        ticket={mobileSelectedTicket}
+        open={mobileSheetOpen}
+        onClose={() => setMobileSheetOpen(false)}
+        users={users}
+        epics={epics}
+        sprints={sprints}
+        backlogPrefix={backlogPrefix}
+        ticketGlobalIndex={mobileSelectedTicket ? ticketIndexMap?.[mobileSelectedTicket.id] : undefined}
+        onUpdateState={onUpdateState}
+        onUpdateField={onUpdateField}
+        onSelectTicket={(t) => { onSelectTicket(t); }}
+      />
+    </div>
+
+    {/* ── Mobile sprint view ── */}
+    <div className="md:hidden border rounded-lg overflow-hidden bg-card" data-testid={`sprint-section-mobile-${sprint.id}`}>
+      <Collapsible open={isExpanded} onOpenChange={onToggle}>
+        {/* Mobile sprint header */}
+        <CollapsibleTrigger asChild>
+          <div className="flex items-center gap-3 px-4 py-3 bg-violet-50 dark:bg-violet-950/30 cursor-pointer active:bg-violet-100 dark:active:bg-violet-950/50 transition-colors">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-sm truncate">{sprint.name}</span>
+                <Badge variant="outline" className={cn("text-[10px] px-1.5 flex-shrink-0", statusColor)}>
+                  {statusLabel}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[10px] text-muted-foreground">
+                  {doneTickets}/{tickets.length} tickets · {donePoints}/{totalPoints} pts
+                </span>
+                {tickets.length > 0 && (
+                  <div className="flex-1 max-w-[80px]">
+                    <Progress value={(doneTickets / tickets.length) * 100} className="h-1" />
+                  </div>
+                )}
+              </div>
+            </div>
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            )}
+          </div>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent>
+          {tickets.length === 0 ? (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+              Ce sprint est vide
+            </div>
+          ) : (
+            tickets.map((ticket) => (
+              <MobileTicketRow
+                key={ticket.id}
+                ticket={ticket}
+                users={users}
+                epics={epics}
+                sprints={sprints}
+                backlogPrefix={backlogPrefix}
+                ticketGlobalIndex={ticketIndexMap?.[ticket.id]}
+                onMobileSelect={(t) => {
+                  setMobileSelectedTicket(t);
+                  setMobileSheetOpen(true);
+                }}
+              />
+            ))
+          )}
+          {/* Mobile create ticket button */}
+          {!isTemporarySprint && (
+            <button
+              className="w-full px-4 py-3 text-sm text-muted-foreground flex items-center gap-2 border-t border-border/40"
+              onClick={() => setIsCreating(true)}
+              data-testid={`button-mobile-create-ticket-${sprint.id}`}
+            >
+              <Plus className="h-4 w-4" />
+              Créer un ticket
+            </button>
+          )}
+          {isCreating && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-muted/20 border-t">
+              <Input
+                value={newTicketTitle}
+                onChange={(e) => setNewTicketTitle(e.target.value)}
+                placeholder="Titre du ticket..."
+                className="flex-1 h-8 text-sm"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreate();
+                  if (e.key === "Escape") setIsCreating(false);
+                }}
+              />
+              <Button size="sm" className="h-8" onClick={handleCreate}>
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+              <Button size="sm" variant="ghost" className="h-8" onClick={() => setIsCreating(false)}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
+
+    {/* ── Desktop sprint view (unchanged) ── */}
+    <Collapsible open={isExpanded} onOpenChange={onToggle} className="hidden md:block">
       <div 
         ref={setNodeRef}
         className={cn(
@@ -1704,6 +2080,7 @@ export function SprintSection({
         </CollapsibleContent>
       </div>
     </Collapsible>
+    </>
   );
 }
 
