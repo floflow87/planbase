@@ -11,7 +11,8 @@ export type Feature =
   | "treasury"
   | "finance"        // rentabilité
   | "email_templates"
-  | "multi_users";
+  | "multi_users"
+  | "ai_assistant";
 
 // Map of features → minimum plan required
 const FEATURE_PLANS: Record<Feature, Plan[]> = {
@@ -19,6 +20,7 @@ const FEATURE_PLANS: Record<Feature, Plan[]> = {
   finance:         ["agency"],
   email_templates: ["agency"],
   multi_users:     ["agency"],
+  ai_assistant:    ["agency"],
 };
 
 // ─── Check if account has access ────────────────────────────────────────────
@@ -77,7 +79,8 @@ export const PLAN_META = {
       "Templates email",
       "Trésorerie",
       "Rentabilité & finance",
+      "Assistant IA",
     ],
-    premium: ["multi_users", "email_templates", "treasury", "finance"] as Feature[],
+    premium: ["multi_users", "email_templates", "treasury", "finance", "ai_assistant"] as Feature[],
   },
 } as const;

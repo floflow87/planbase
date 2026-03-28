@@ -13,6 +13,7 @@ const FEATURE_LABELS: Record<PremiumFeature, string> = {
   finance: "Rentabilité & Finance",
   email_templates: "Templates Email",
   multi_users: "Multi-utilisateurs",
+  ai_assistant: "Assistant IA",
 };
 
 const FEATURE_DESCRIPTIONS: Record<PremiumFeature, string> = {
@@ -20,6 +21,7 @@ const FEATURE_DESCRIPTIONS: Record<PremiumFeature, string> = {
   finance: "Analysez la rentabilité de vos projets et votre TJM.",
   email_templates: "Créez et réutilisez des modèles d'e-mails professionnels.",
   multi_users: "Invitez votre équipe et gérez les accès par rôle.",
+  ai_assistant: "Synthétisez, améliorez vos notes & documents et analysez vos projets avec l'IA.",
 };
 
 interface PremiumGateProps {

@@ -4,7 +4,7 @@ import {
   ArrowLeft, Trash2, Download, Save, Lock, LockOpen, MoreVertical,
   FolderKanban, ExternalLink, Users, CalendarDays, MessageSquare,
   Share2, X, Check, Send, UserPlus, GitPullRequest, CheckCircle2,
-  CornerDownRight, XCircle,
+  CornerDownRight, XCircle, Bot, Sparkles, Wand2, Lightbulb, Loader2, Crown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,11 +43,303 @@ import { Loader } from "@/components/Loader";
 import type { Document, Project, NoteLink, UpdateDocument } from "@shared/schema";
 import type { Client } from "@shared/schema";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useBilling } from "@/hooks/useBilling";
+import { Card, CardContent } from "@/components/ui/card";
+import { ShareDrawer } from "@/components/share/ShareDrawer";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow, format as formatDate } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Calendar as CalendarWidget } from "@/components/ui/calendar";
 import { useAuth } from "@/contexts/AuthContext";
+
+type AiAction = "summarize" | "improve" | "recommendations";
+
+function DocumentAiActions({ docTitle, content }: { docTitle: string; content: unknown }) {
+  const { hasFeature } = useBilling();
+  const [, setLocation] = useLocation();
+  const [activeAction, setActiveAction] = useState<AiAction | null>(null);
+  const [result, setResult] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!hasFeature("ai_assistant")) {
+    return (
+      <div className="px-6 pb-4" data-testid="document-ai-actions-upgrade">
+        <div className="flex items-center gap-3 rounded-md border px-4 py-2.5 bg-muted/30">
+          <Crown className="w-4 h-4 text-violet-500 shrink-0" />
+          <span className="text-sm text-muted-foreground flex-1">
+            Les actions IA (Synthétiser, Améliorer, Recommandations) sont réservées au plan Agence.
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setLocation("/pricing")}
+            data-testid="button-upgrade-doc-ai"
+          >
+            Passer au plan Agence
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const handleAction = async (action: AiAction) => {
+    setActiveAction(action);
+    setResult(null);
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const endpoint = action === "summarize" ? "/api/ai/summarize"
+        : action === "improve" ? "/api/ai/improve"
+        : "/api/ai/recommendations";
+
+      const res = await apiRequest(endpoint, "POST", {
+        content,
+        title: docTitle,
+        type: "document",
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setResult(data.result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur de l'IA");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const actionLabels: Record<AiAction, string> = {
+    summarize: "Synthétiser",
+    improve: "Améliorer",
+    recommendations: "Recommandations",
+  };
+
+  const actionIcons: Record<AiAction, typeof Bot> = {
+    summarize: Sparkles,
+    improve: Wand2,
+    recommendations: Lightbulb,
+  };
+
+  return (
+    <div className="px-6 pb-4" data-testid="document-ai-actions">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-muted-foreground flex items-center gap-1">
+          <Bot className="w-3 h-3" /> IA
+        </span>
+        {(["summarize", "improve", "recommendations"] as AiAction[]).map((action) => {
+          const Icon = actionIcons[action];
+          return (
+            <Button
+              key={action}
+              variant="outline"
+              size="sm"
+              className="text-xs h-7"
+              onClick={() => handleAction(action)}
+              disabled={isLoading}
+              data-testid={`button-ai-doc-${action}`}
+            >
+              {isLoading && activeAction === action ? (
+                <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+              ) : (
+                <Icon className="w-3 h-3 mr-1.5" />
+              )}
+              {actionLabels[action]}
+            </Button>
+          );
+        })}
+      </div>
+
+      {(result || error) && (
+        <Card className="mt-3">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between mb-2">
+              <Badge variant="secondary" className="text-[10px]">
+                {activeAction ? actionLabels[activeAction] : "IA"} — Résultat
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 text-[10px] text-muted-foreground px-1"
+                onClick={() => { setResult(null); setError(null); setActiveAction(null); }}
+                data-testid="button-ai-doc-result-close"
+              >
+                Fermer
+              </Button>
+            </div>
+            {error ? (
+              <p className="text-sm text-destructive">{error}</p>
+            ) : (
+              <p className="text-sm text-foreground whitespace-pre-wrap">{result}</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+interface CommentData {
+  id: string;
+  content: string;
+  authorId: string;
+  createdAt: string;
+  authorFirstName: string | null;
+  authorLastName: string | null;
+  authorEmail: string | null;
+}
+
+function DocumentComments({ documentId }: { documentId: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { userProfile } = useAuth();
+  const [newComment, setNewComment] = useState("");
+  const [showComments, setShowComments] = useState(false);
+
+  const { data: comments = [], isLoading } = useQuery<CommentData[]>({
+    queryKey: ["/api/documents", documentId, "comments"],
+    enabled: showComments,
+  });
+
+  const addCommentMutation = useMutation({
+    mutationFn: async (content: string) => {
+      const res = await apiRequest(`/api/documents/${documentId}/comments`, "POST", { content });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/documents", documentId, "comments"] });
+      setNewComment("");
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message || "Impossible d'ajouter le commentaire", variant: "destructive" });
+    },
+  });
+
+  const deleteCommentMutation = useMutation({
+    mutationFn: async (commentId: string) => {
+      const res = await apiRequest(`/api/document-comments/${commentId}`, "DELETE");
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/documents", documentId, "comments"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message || "Impossible de supprimer le commentaire", variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = () => {
+    const trimmed = newComment.trim();
+    if (!trimmed) return;
+    addCommentMutation.mutate(trimmed);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
+  return (
+    <div className="px-6 pb-4" data-testid="document-comments-section">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-xs gap-1.5 text-muted-foreground"
+        onClick={() => setShowComments((v) => !v)}
+        data-testid="button-toggle-comments"
+      >
+        <MessageSquare className="w-3.5 h-3.5" />
+        {showComments ? "Masquer les commentaires" : "Commentaires"}
+        {comments.length > 0 && (
+          <Badge variant="secondary" className="text-[10px] ml-1">{comments.length}</Badge>
+        )}
+      </Button>
+
+      {showComments && (
+        <div className="mt-2 space-y-3">
+          {isLoading ? (
+            <div className="flex items-center gap-2 py-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Chargement...</span>
+            </div>
+          ) : comments.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-1">Aucun commentaire pour le moment.</p>
+          ) : (
+            <div className="space-y-2">
+              {comments.map((comment) => (
+                <Card key={comment.id} data-testid={`comment-${comment.id}`}>
+                  <CardContent className="p-3">
+                    <div className="flex items-start gap-2">
+                      <Avatar className="w-6 h-6 shrink-0">
+                        <AvatarFallback className="text-[10px]">
+                          {comment.authorFirstName?.[0] || comment.authorEmail?.[0]?.toUpperCase() || "U"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-medium">
+                            {comment.authorFirstName
+                              ? `${comment.authorFirstName}${comment.authorLastName ? ` ${comment.authorLastName}` : ""}`
+                              : comment.authorEmail || "Utilisateur"}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true, locale: fr })}
+                          </span>
+                        </div>
+                        <p className="text-sm mt-0.5 whitespace-pre-wrap break-words">{comment.content}</p>
+                      </div>
+                      {comment.authorId === userProfile?.id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0 text-muted-foreground"
+                          onClick={() => deleteCommentMutation.mutate(comment.id)}
+                          data-testid={`button-delete-comment-${comment.id}`}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-2 items-end">
+            <Textarea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ajouter un commentaire..."
+              className="resize-none text-sm min-h-[60px]"
+              disabled={addCommentMutation.isPending}
+              data-testid="input-new-comment"
+              rows={2}
+            />
+            <Button
+              size="icon"
+              onClick={handleSubmit}
+              disabled={!newComment.trim() || addCommentMutation.isPending}
+              data-testid="button-submit-comment"
+            >
+              {addCommentMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>();
@@ -1007,6 +1299,12 @@ export default function DocumentDetail() {
             </Tabs>
           </div>
         )}
+
+        {/* AI Actions */}
+        <DocumentAiActions docTitle={title} content={content} />
+
+        {/* Comments */}
+        {id && <DocumentComments documentId={id} />}
       </div>
 
       {/* Voice Recording Button */}

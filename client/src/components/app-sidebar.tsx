@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Settings, Network, HelpCircle, ChevronsLeft, ChevronsRight, Wallet, Zap } from "lucide-react";
+import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Settings, Network, HelpCircle, ChevronsLeft, ChevronsRight, Wallet, Zap, Bot } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { HelpDrawer } from "@/help/HelpDrawer";
 import { getModuleIdFromPath, getModuleHelp, MODULE_HELP } from "@/help/faqs";
+import { useAiAssistantState, AiAssistantDrawer } from "@/components/ai/AiAssistant";
 import defaultAvatar from "@/assets/default-avatar.png";
 import planbaseLogo from "@assets/planbase-logo.png";
 
@@ -65,7 +66,7 @@ export function AppSidebar() {
   const isCollapsed = state === "collapsed";
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const { billingState } = useBilling();
-  // Show upgrade CTA only for non-admin users who don't have an active paid subscription
+  const aiAssistant = useAiAssistantState();
   const showUpgradeCTA = billingState !== "loading" && billingState !== "admin" && billingState !== "active" && billingState !== "past_due";
 
   const moduleId = getModuleIdFromPath(location);
@@ -261,6 +262,33 @@ export function AppSidebar() {
               </SidebarMenuButton>
             )}
           </SidebarMenuItem>
+          {aiAssistant.hasAccess && (
+            <SidebarMenuItem>
+              {isCollapsed ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={aiAssistant.toggle}
+                      className="flex items-center justify-center w-full rounded-md min-h-9 bg-gradient-to-r from-primary to-purple-400 dark:from-primary dark:to-purple-500 text-primary-foreground transition-opacity hover:opacity-90"
+                      data-testid="button-sidebar-ai-assistant"
+                    >
+                      <Bot className="w-4 h-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Assistant IA</TooltipContent>
+                </Tooltip>
+              ) : (
+                <button
+                  onClick={aiAssistant.toggle}
+                  className="flex items-center gap-2 w-full rounded-md px-3 min-h-9 text-sm font-medium bg-gradient-to-r from-primary to-purple-400 dark:from-primary dark:to-purple-500 text-primary-foreground transition-opacity hover:opacity-90"
+                  data-testid="button-sidebar-ai-assistant"
+                >
+                  <Bot className="w-4 h-4" />
+                  <span>Assistant IA</span>
+                </button>
+              )}
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </div>
 
@@ -345,6 +373,12 @@ export function AppSidebar() {
         isOpen={isHelpOpen}
         onClose={() => setIsHelpOpen(false)}
         moduleHelp={effectiveModuleHelp}
+      />
+
+      <AiAssistantDrawer
+        isOpen={aiAssistant.isOpen}
+        onClose={aiAssistant.toggle}
+        projectContext={aiAssistant.projectContext}
       />
     </Sidebar>
   );

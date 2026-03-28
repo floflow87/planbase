@@ -11016,6 +11016,95 @@ app.get("/config/feature-flags", async (_req, res) => {
   });
 
   // ============================================
+  // DOCUMENT COMMENTS
+  // ============================================
+
+  app.get("/api/documents/:documentId/comments", requireAuth, requireOrgMember, requirePermission("documents", "read"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const documentId = req.params.documentId;
+
+      const doc = await storage.getDocument(documentId);
+      if (!doc || doc.accountId !== accountId) return res.status(404).json({ error: "Document not found" });
+
+      const result = await db.select({
+        id: ticketComments.id,
+        content: ticketComments.content,
+        authorId: ticketComments.authorId,
+        createdAt: ticketComments.createdAt,
+        authorFirstName: appUsers.firstName,
+        authorLastName: appUsers.lastName,
+        authorEmail: appUsers.email,
+      })
+        .from(ticketComments)
+        .leftJoin(appUsers, eq(ticketComments.authorId, appUsers.id))
+        .where(and(
+          eq(ticketComments.ticketId, documentId),
+          eq(ticketComments.accountId, accountId),
+          eq(ticketComments.ticketType, "document")
+        ))
+        .orderBy(asc(ticketComments.createdAt));
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/documents/:documentId/comments", requireAuth, requireOrgMember, requirePermission("documents", "create"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const documentId = req.params.documentId;
+
+      const content = (req.body.content || "").trim();
+      if (!content) return res.status(400).json({ error: "Content is required" });
+
+      const doc = await storage.getDocument(documentId);
+      if (!doc || doc.accountId !== accountId) return res.status(404).json({ error: "Document not found" });
+
+      const [comment] = await db.insert(ticketComments).values({
+        content,
+        accountId,
+        ticketId: documentId,
+        ticketType: "document",
+        authorId: userId,
+      }).returning();
+
+      res.status(201).json(comment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/document-comments/:commentId", requireAuth, requireOrgMember, requirePermission("documents", "delete"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const commentId = req.params.commentId;
+
+      const [existingComment] = await db.select()
+        .from(ticketComments)
+        .where(and(eq(ticketComments.id, commentId), eq(ticketComments.accountId, accountId)));
+
+      if (!existingComment) {
+        return res.status(404).json({ error: "Comment not found" });
+      }
+
+      if (existingComment.authorId !== userId) {
+        return res.status(403).json({ error: "Vous ne pouvez supprimer que vos propres commentaires" });
+      }
+
+      await db.delete(ticketComments)
+        .where(and(eq(ticketComments.id, commentId), eq(ticketComments.accountId, accountId)));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // TICKET ACCEPTANCE CRITERIA (Critères d'acceptation)
   // ============================================
 

@@ -54,6 +54,7 @@ import NotFound from "@/pages/not-found";
 import { EmailComposeModal } from "@/components/EmailComposeModal";
 import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote, CalendarPlus, MoreHorizontal, Timer } from "lucide-react";
 import { TrialBanner, TrialExpiredGate } from "@/components/billing/PremiumGate";
+import { AiAssistant } from "@/components/ai/AiAssistant";
 import { AppointmentPanel } from "@/components/appointment-panel";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";

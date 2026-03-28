@@ -32,7 +32,7 @@ export interface BillingStatus {
   isAdminAccount?: boolean;
 }
 
-export type PremiumFeature = "treasury" | "finance" | "email_templates" | "multi_users";
+export type PremiumFeature = "treasury" | "finance" | "email_templates" | "multi_users" | "ai_assistant";
 
 /**
  * BillingState — single source of truth for the UI state machine.
@@ -58,7 +58,7 @@ export type BillingState =
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const AGENCY_FEATURES: PremiumFeature[] = ["treasury", "finance", "email_templates", "multi_users"];
+const AGENCY_FEATURES: PremiumFeature[] = ["treasury", "finance", "email_templates", "multi_users", "ai_assistant"];
 
 export const ADMIN_EMAILS = ["floflow87@planbase.io", "demo@yopmail.com"];
 

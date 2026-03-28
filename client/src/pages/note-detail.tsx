@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation, Link } from "wouter";
-import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink, MessageSquare, GitPullRequest, CheckCircle2, XCircle, CornerDownRight, Pencil, Reply, UserPlus } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink, MessageSquare, GitPullRequest, CheckCircle2, XCircle, CornerDownRight, Pencil, Reply, UserPlus, Bot, Sparkles, Wand2, Lightbulb, Loader2, Crown } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,153 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, X } from "lucide-react";
 import { VoiceRecordingButton } from "@/components/VoiceRecordingButton";
 import { Input } from "@/components/ui/input";
+import { useBilling } from "@/hooks/useBilling";
+
+type AiAction = "summarize" | "improve" | "recommendations";
+
+function NoteAiActions({ noteTitle, content }: { noteTitle: string; content: unknown }) {
+  const { hasFeature } = useBilling();
+  const [, setLocation] = useLocation();
+  const [activeAction, setActiveAction] = useState<AiAction | null>(null);
+  const [result, setResult] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!hasFeature("ai_assistant")) {
+    return (
+      <div className="px-6 pb-4" data-testid="note-ai-actions-upgrade">
+        <div className="flex items-center gap-3 rounded-md border px-4 py-2.5 bg-muted/30">
+          <Crown className="w-4 h-4 text-violet-500 shrink-0" />
+          <span className="text-sm text-muted-foreground flex-1">
+            Les actions IA (Synthétiser, Améliorer, Recommandations) sont réservées au plan Agence.
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setLocation("/pricing")}
+            data-testid="button-upgrade-note-ai"
+          >
+            Passer au plan Agence
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const extractText = (doc: unknown): string => {
+    if (!doc) return "";
+    const parts: string[] = [];
+    const walk = (node: unknown) => {
+      if (!node || typeof node !== "object") return;
+      const n = node as Record<string, unknown>;
+      if (n.type === "text" && typeof n.text === "string") parts.push(n.text);
+      if (Array.isArray(n.content)) n.content.forEach(walk);
+    };
+    walk(doc);
+    return parts.join(" ").trim();
+  };
+
+  const handleAction = async (action: AiAction) => {
+    const text = extractText(content);
+    if (!text) {
+      setError("La note est vide");
+      return;
+    }
+
+    setActiveAction(action);
+    setResult(null);
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const endpoint = action === "summarize" ? "/api/ai/summarize"
+        : action === "improve" ? "/api/ai/improve"
+        : "/api/ai/recommendations";
+
+      const res = await apiRequest(endpoint, "POST", {
+        content,
+        title: noteTitle,
+        type: "note",
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setResult(data.result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur de l'IA");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const actionLabels: Record<AiAction, string> = {
+    summarize: "Synthétiser",
+    improve: "Améliorer",
+    recommendations: "Recommandations",
+  };
+
+  const actionIcons: Record<AiAction, typeof Bot> = {
+    summarize: Sparkles,
+    improve: Wand2,
+    recommendations: Lightbulb,
+  };
+
+  return (
+    <div className="px-6 pb-4" data-testid="note-ai-actions">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-muted-foreground flex items-center gap-1">
+          <Bot className="w-3 h-3" /> IA
+        </span>
+        {(["summarize", "improve", "recommendations"] as AiAction[]).map((action) => {
+          const Icon = actionIcons[action];
+          return (
+            <Button
+              key={action}
+              variant="outline"
+              size="sm"
+              className="text-xs h-7"
+              onClick={() => handleAction(action)}
+              disabled={isLoading}
+              data-testid={`button-ai-note-${action}`}
+            >
+              {isLoading && activeAction === action ? (
+                <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+              ) : (
+                <Icon className="w-3 h-3 mr-1.5" />
+              )}
+              {actionLabels[action]}
+            </Button>
+          );
+        })}
+      </div>
+
+      {(result || error) && (
+        <Card className="mt-3">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between mb-2">
+              <Badge variant="secondary" className="text-[10px]">
+                {activeAction ? actionLabels[activeAction] : "IA"} — Résultat
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 text-[10px] text-muted-foreground px-1"
+                onClick={() => { setResult(null); setError(null); setActiveAction(null); }}
+                data-testid="button-ai-result-close"
+              >
+                Fermer
+              </Button>
+            </div>
+            {error ? (
+              <p className="text-sm text-destructive">{error}</p>
+            ) : (
+              <p className="text-sm text-foreground whitespace-pre-wrap">{result}</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
 
 export default function NoteDetail() {
   const { id } = useParams<{ id: string }>();
@@ -2340,6 +2487,11 @@ export default function NoteDetail() {
             </div>
           );
         })()}
+
+        {/* AI Actions */}
+        {contentReady && (
+          <NoteAiActions noteTitle={title} content={content} />
+        )}
       </div>
 
       {/* Delete Dialog */}

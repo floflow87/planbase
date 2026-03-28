@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation, useSearch } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell, Settings, FolderOpen, Upload, X, Download, Pencil, Image, Target, Lightbulb, FlaskConical } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell, Settings, FolderOpen, Upload, X, Download, Pencil, Image, Target, Lightbulb, FlaskConical, Bot, Loader2, Sparkles, Crown } from "lucide-react";
 import { FileExplorer } from "@/components/file-explorer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +31,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, formatDateForStorage } from "@/lib/queryClient";
+import { useBilling } from "@/hooks/useBilling";
 import { Loader } from "@/components/Loader";
 import { ProjectScopeSection } from "@/components/ProjectScopeSection";
 import { RoadmapTab } from "@/components/roadmap/roadmap-tab";
@@ -2786,6 +2787,7 @@ export default function ProjectDetail() {
   const { toast } = useToast();
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const { hasFeature } = useBilling();
   const { visibleStages: projectStages, getLabel: getStageLabel, getColor: getStageColor } = useProjectStagesUI();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -2800,6 +2802,10 @@ export default function ProjectDetail() {
   });
   const [isBillingSettingsOpen, setIsBillingSettingsOpen] = useState(false);
   const [isSimulationOpen, setIsSimulationOpen] = useState(false);
+  const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
+  const [aiAnalysisResult, setAiAnalysisResult] = useState<string | null>(null);
+  const [isAiAnalysisLoading, setIsAiAnalysisLoading] = useState(false);
+  const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
   
   // Expansion panel states (collapsed by default)
   const [isCdcSectionExpanded, setIsCdcSectionExpanded] = useState(false);
@@ -3622,6 +3628,37 @@ export default function ProjectDetail() {
   };
 
   const getBillingStatusColor = (status: string | null) => getBillingStatusColorClass(status);
+
+  const handleAiProjectAnalysis = async () => {
+    if (!project) return;
+    setIsAiAnalysisLoading(true);
+    setAiAnalysisError(null);
+    setAiAnalysisResult(null);
+    setIsAiAnalysisOpen(true);
+    try {
+      const totalBilledNum = parseFloat(totalBilledValue || "0") || 0;
+      const res = await apiRequest("/api/ai/project-analysis", "POST", {
+        project: {
+          name: project.name,
+          description: project.description || undefined,
+          category: project.category || undefined,
+          budget: project.budget ? parseFloat(String(project.budget)) : undefined,
+          status: project.stage || undefined,
+          timeConsumedHours: projectTimeEntries.reduce((s, e) => s + (e.duration || 0), 0) / 3600,
+          marginPercent: profitabilityMetrics?.marginPercent,
+          totalBilled: totalBilledNum,
+          margin: profitabilityMetrics?.margin,
+        },
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setAiAnalysisResult(data.analysis);
+    } catch (err) {
+      setAiAnalysisError(err instanceof Error ? err.message : "Erreur de l'analyse IA");
+    } finally {
+      setIsAiAnalysisLoading(false);
+    }
+  };
 
   const getBillingDaysOverdue = (billingDueDate: string | null) => {
     if (!billingDueDate) return "";
@@ -5347,9 +5384,37 @@ export default function ProjectDetail() {
             )}
 
             {/* Section Title: Budget et facturation */}
-            <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
               <h3 className="text-lg font-semibold">Budget et facturation</h3>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {hasFeature("ai_assistant") ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={handleAiProjectAnalysis}
+                    disabled={isAiAnalysisLoading}
+                    data-testid="button-ai-project-analysis"
+                  >
+                    {isAiAnalysisLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Bot className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    Analyser avec l'IA
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => setLocation("/pricing")}
+                    data-testid="button-ai-project-analysis-upgrade"
+                  >
+                    <Crown className="h-3.5 w-3.5 mr-1.5 text-violet-500" />
+                    Analyser avec l'IA
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -5372,6 +5437,43 @@ export default function ProjectDetail() {
                 </Button>
               </div>
             </div>
+
+            {/* AI Analysis Result Panel */}
+            {isAiAnalysisOpen && (
+              <Card className="mb-4">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-full bg-violet-100 dark:bg-violet-900/30 p-1">
+                        <Sparkles className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+                      </div>
+                      <span className="text-sm font-semibold">Analyse IA du projet</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs text-muted-foreground px-2"
+                      onClick={() => { setIsAiAnalysisOpen(false); setAiAnalysisResult(null); setAiAnalysisError(null); }}
+                      data-testid="button-close-ai-analysis"
+                    >
+                      Fermer
+                    </Button>
+                  </div>
+                  {isAiAnalysisLoading && (
+                    <div className="flex items-center gap-2 py-4 justify-center">
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Analyse en cours...</span>
+                    </div>
+                  )}
+                  {aiAnalysisError && (
+                    <p className="text-sm text-destructive">{aiAnalysisError}</p>
+                  )}
+                  {aiAnalysisResult && (
+                    <p className="text-sm text-foreground whitespace-pre-wrap">{aiAnalysisResult}</p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* KPIs Facturation - 2 lignes de 3 cartes */}
             {(() => {
