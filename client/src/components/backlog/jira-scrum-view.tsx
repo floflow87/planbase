@@ -247,6 +247,12 @@ function PriorityIcon({ priority, className }: { priority: string | null | undef
 // Export for use in other components
 export { PriorityIcon };
 
+function getSprintPrefix(sprint: Sprint): string {
+  const leadingDigits = sprint.name.match(/^(\d+)/);
+  if (leadingDigits) return leadingDigits[1].padStart(2, "0");
+  return sprint.name.replace(/[^A-Z0-9]/gi, "").substring(0, 3).toUpperCase();
+}
+
 function getPriorityIcon(priority: string | null | undefined) {
   return <PriorityIcon priority={priority} />;
 }
@@ -429,7 +435,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
           <p className="text-xs break-words">
             {backlogPrefix && ticketGlobalIndex !== undefined && ticketGlobalIndex >= 0 && (() => {
               const ticketSprint = ticket.sprintId ? sprints?.find(s => s.id === ticket.sprintId) : null;
-              const sprintPfx = ticketSprint ? ticketSprint.name.substring(0, 3).toUpperCase() : "BCK";
+              const sprintPfx = ticketSprint ? getSprintPrefix(ticketSprint) : "BCK";
               const idxStr = String(ticketGlobalIndex + 1).padStart(2, "0");
               return <span className="font-mono text-muted-foreground mr-1.5">{backlogPrefix}-{sprintPfx}-{idxStr}</span>;
             })()}
@@ -1309,14 +1315,21 @@ function MobileTicketRow({
   const pastelColors = ticketTypePastelColors(ticket.type, ticket.color);
   const assignee = users?.find(u => u.id === ticket.assigneeId);
   const ticketEpic = epics?.find(e => e.id === ticket.epicId);
+  const ticketSprint = sprints?.find(s => s.id === ticket.sprintId);
   const statusOption = backlogItemStateOptions.find(s => s.value === ticket.state);
   const priorityOption = backlogPriorityOptions.find(p => p.value === ticket.priority);
   const isCompleted = ticket.state === "termine";
 
+  const rowSprintPfx = ticketSprint ? getSprintPrefix(ticketSprint) : "BCK";
+  const rowIdxStr = ticketGlobalIndex !== undefined && ticketGlobalIndex >= 0
+    ? String(ticketGlobalIndex + 1).padStart(2, "0")
+    : null;
+  const rowTicketId = backlogPrefix && rowIdxStr ? `${backlogPrefix}-${rowSprintPfx}-${rowIdxStr}` : null;
+
   return (
     <div
       className={cn(
-        "flex items-center gap-3 px-4 py-3 border-b border-border/40 active:bg-muted/30 transition-colors cursor-pointer",
+        "flex items-start gap-3 px-4 py-3 border-b border-border/40 active:bg-muted/30 transition-colors cursor-pointer",
         isCompleted && "opacity-60"
       )}
       onClick={() => onMobileSelect(ticket)}
@@ -1324,7 +1337,7 @@ function MobileTicketRow({
     >
       {/* Type icon */}
       <div
-        className="flex items-center justify-center h-7 w-7 rounded flex-shrink-0"
+        className="flex items-center justify-center h-7 w-7 rounded flex-shrink-0 mt-0.5"
         style={{ backgroundColor: pastelColors.bg }}
       >
         <span style={{ color: pastelColors.text, fontSize: "0.75rem" }}>
@@ -1334,8 +1347,11 @@ function MobileTicketRow({
 
       {/* Content */}
       <div className="flex-1 min-w-0">
+        {rowTicketId && (
+          <span className="text-[10px] font-mono text-muted-foreground/70 block mb-0.5">{rowTicketId}</span>
+        )}
         <p className={cn(
-          "text-sm font-medium leading-snug line-clamp-2",
+          "text-sm font-medium leading-snug break-words",
           isCompleted && "line-through text-muted-foreground"
         )}>
           {ticket.title}
@@ -1369,7 +1385,7 @@ function MobileTicketRow({
       </div>
 
       {/* Assignee + arrow */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
         {assignee ? (
           <Avatar className="h-6 w-6">
             <AvatarFallback className="text-[10px] bg-primary/20 text-primary">
@@ -1423,7 +1439,7 @@ function MobileTicketSheet({
   const statusOption = backlogItemStateOptions.find(s => s.value === ticket.state);
   const priorityOption = backlogPriorityOptions.find(p => p.value === ticket.priority);
 
-  const sprintPfx = ticketSprint ? ticketSprint.name.substring(0, 3).toUpperCase() : "BCK";
+  const sprintPfx = ticketSprint ? getSprintPrefix(ticketSprint) : "BCK";
   const idxStr = ticketGlobalIndex !== undefined && ticketGlobalIndex >= 0
     ? String(ticketGlobalIndex + 1).padStart(2, "0")
     : null;
