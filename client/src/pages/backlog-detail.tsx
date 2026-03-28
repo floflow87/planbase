@@ -2023,7 +2023,7 @@ export default function BacklogDetail() {
   const hasActiveSprint = backlog.sprints.some(s => s.status === "en_cours");
 
   return (
-    <div className="flex flex-col h-full bg-[#F8FAFC] dark:bg-background">
+    <div className="flex flex-col h-full bg-[#F8FAFC] dark:bg-background overflow-x-hidden">
       <div className="flex items-center gap-4 p-4 md:p-6 border-b">
         <Button variant="ghost" size="icon" onClick={() => navigate("/product")} data-testid="button-back">
           <ArrowLeft className="h-5 w-5" />
@@ -2426,7 +2426,7 @@ export default function BacklogDetail() {
         </div>
 
         {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:px-6 md:py-4">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:px-6 md:py-4">
           {/* Kanban Board View */}
         {backlog.mode === "kanban" && (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleKanbanDragEnd}>
