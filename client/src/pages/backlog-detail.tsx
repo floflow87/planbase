@@ -4006,8 +4006,8 @@ function SprintSheet({
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-md dark:bg-card">
-        <SheetHeader className="border-b border-gray-200 pb-4">
+      <SheetContent className="sm:max-w-md w-full overflow-y-auto dark:bg-card">
+        <SheetHeader className="border-b pb-4">
           <SheetTitle className="flex items-center gap-2">
             {sprint ? "Modifier le Sprint" : "Nouveau Sprint"}
             {sprint?.identifier && (
