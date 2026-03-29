@@ -7708,7 +7708,7 @@ function RetrospectiveView({ backlogId, sprints }: { backlogId: string; sprints:
         <Sheet open={createPanelOpen} onOpenChange={setCreatePanelOpen}>
           <SheetContent className="sm:max-w-md w-full overflow-y-auto dark:bg-card">
             <SheetHeader>
-              <SheetTitle Nouvelle rétrospective</SheetTitle>
+              <SheetTitle>Nouvelle rétrospective</SheetTitle>
             </SheetHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
