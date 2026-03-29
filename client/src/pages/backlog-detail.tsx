@@ -3653,7 +3653,7 @@ function EpicDialog({
               <SelectTrigger className="" data-testid="select-epic-priority"><SelectValue /></SelectTrigger>
               <SelectContent className="bg-popover dark:bg-card">
                 {backlogPriorityOptions.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value} {opt.label}</SelectItem>
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -3680,9 +3680,9 @@ function EpicDialog({
                   <SelectValue placeholder="Sélectionner une rubrique" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover dark:bg-card">
-                  <SelectItem value="none" Aucune</SelectItem>
+                  <SelectItem value="none">Aucune</SelectItem>
                   {roadmapRubriques.map((item) => (
-                    <SelectItem key={item.id} value={item.id} 
+                    <SelectItem key={item.id} value={item.id}>
                       {item.title} ({item.roadmapName})
                     </SelectItem>
                   ))}
@@ -3797,9 +3797,9 @@ function UserStoryDialog({
               <Select value={epicId || "none"} onValueChange={(v) => setEpicId(v === "none" ? null : v)}>
                 <SelectTrigger className="" data-testid="select-userstory-epic"><SelectValue placeholder="Aucun" /></SelectTrigger>
                 <SelectContent className="bg-popover dark:bg-card">
-                  <SelectItem value="none" Aucun</SelectItem>
+                  <SelectItem value="none">Aucun</SelectItem>
                   {epics.map(epic => (
-                    <SelectItem key={epic.id} value={epic.id} {epic.title}</SelectItem>
+                    <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -3810,7 +3810,7 @@ function UserStoryDialog({
                 <SelectTrigger className="" data-testid="select-userstory-priority"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-popover dark:bg-card">
                   {backlogPriorityOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value} {opt.label}</SelectItem>
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -3822,9 +3822,9 @@ function UserStoryDialog({
               <Select value={complexity || "none"} onValueChange={(v) => setComplexity(v === "none" ? null : v)}>
                 <SelectTrigger className="" data-testid="select-userstory-complexity"><SelectValue placeholder="--" /></SelectTrigger>
                 <SelectContent className="bg-popover dark:bg-card">
-                  <SelectItem value="none" --</SelectItem>
+                  <SelectItem value="none">--</SelectItem>
                   {complexityOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value} {opt.label}</SelectItem>
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
