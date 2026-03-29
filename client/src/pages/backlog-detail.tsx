@@ -2353,7 +2353,7 @@ export default function BacklogDetail() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="w-full justify-start text-sm text-gray-900 hover:bg-gray-100"
+                      className="w-full justify-start text-sm"
                       onClick={() => setEpicFilter([])}
                     >
                       <Check className={cn("h-4 w-4 mr-2", epicFilter.length === 0 ? "opacity-100" : "opacity-0")} />
@@ -2364,7 +2364,7 @@ export default function BacklogDetail() {
                         key={epic.id}
                         variant="ghost"
                         size="sm"
-                        className="w-full justify-start text-sm text-gray-900 hover:bg-gray-100"
+                        className="w-full justify-start text-sm"
                         onClick={() => {
                           setEpicFilter(prev => 
                             prev.includes(epic.id) 
@@ -3634,32 +3634,32 @@ function EpicDialog({
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-md w-full overflow-y-auto bg-white dark:bg-card">
+      <SheetContent className="sm:max-w-md w-full overflow-y-auto dark:bg-card">
         <SheetHeader>
-          <SheetTitle className="text-gray-900">{epic ? "Modifier l'Epic" : "Nouvel Epic"}</SheetTitle>
+          <SheetTitle>{epic ? "Modifier l'Epic" : "Nouvel Epic"}</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label className="text-gray-700">Titre *</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre de l'epic" className="bg-white text-gray-900 border-gray-300" data-testid="input-epic-title" />
+            <Label>Titre *</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre de l'epic" className="" data-testid="input-epic-title" />
           </div>
           <div className="space-y-2">
-            <Label className="text-gray-700">Description</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="bg-white text-gray-900 border-gray-300" data-testid="input-epic-description" />
+            <Label>Description</Label>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="" data-testid="input-epic-description" />
           </div>
           <div className="space-y-2">
-            <Label className="text-gray-700">Priorité</Label>
+            <Label>Priorité</Label>
             <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger className="bg-white text-gray-900 border-gray-300" data-testid="select-epic-priority"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-white">
+              <SelectTrigger className="" data-testid="select-epic-priority"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-popover dark:bg-card">
                 {backlogPriorityOptions.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value} className="text-gray-900">{opt.label}</SelectItem>
+                  <SelectItem key={opt.value} value={opt.value} {opt.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <Label className="text-gray-700">Couleur</Label>
+            <Label>Couleur</Label>
             <div className="flex gap-2">
               {colors.map((c, i) => (
                 <button
@@ -3674,15 +3674,15 @@ function EpicDialog({
           </div>
           {roadmapRubriques.length > 0 && (
             <div className="space-y-2">
-              <Label className="text-gray-700">Lier à la roadmap</Label>
+              <Label>Lier à la roadmap</Label>
               <Select value={roadmapItemId || "none"} onValueChange={(v) => setRoadmapItemId(v === "none" ? null : v)}>
-                <SelectTrigger className="bg-white text-gray-900 border-gray-300" data-testid="select-epic-roadmap-item">
+                <SelectTrigger className="" data-testid="select-epic-roadmap-item">
                   <SelectValue placeholder="Sélectionner une rubrique" />
                 </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="none" className="text-gray-900">Aucune</SelectItem>
+                <SelectContent className="bg-popover dark:bg-card">
+                  <SelectItem value="none" Aucune</SelectItem>
                   {roadmapRubriques.map((item) => (
-                    <SelectItem key={item.id} value={item.id} className="text-gray-900">
+                    <SelectItem key={item.id} value={item.id} 
                       {item.title} ({item.roadmapName})
                     </SelectItem>
                   ))}
@@ -3692,7 +3692,7 @@ function EpicDialog({
           )}
         </div>
         <SheetFooter className="flex gap-2 pt-4">
-          <Button variant="outline" onClick={onClose} className="text-gray-700" data-testid="button-cancel-epic">Annuler</Button>
+          <Button variant="outline" onClick={onClose} data-testid="button-cancel-epic">Annuler</Button>
           <Button onClick={handleSubmit} disabled={isPending || !title.trim()} data-testid="button-submit-epic">
             {isPending ? "..." : epic ? "Enregistrer" : "Créer"}
           </Button>
@@ -3778,39 +3778,39 @@ function UserStoryDialog({
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-md w-full overflow-y-auto bg-white dark:bg-card">
+      <SheetContent className="sm:max-w-md w-full overflow-y-auto dark:bg-card">
         <SheetHeader>
-          <SheetTitle className="text-gray-900">{userStory ? "Modifier la User Story" : "Nouvelle User Story"}</SheetTitle>
+          <SheetTitle>{userStory ? "Modifier la User Story" : "Nouvelle User Story"}</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label className="text-gray-700">Titre *</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="En tant que..." className="bg-white text-gray-900 border-gray-300" data-testid="input-userstory-title" />
+            <Label>Titre *</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="En tant que..." className="" data-testid="input-userstory-title" />
           </div>
           <div className="space-y-2">
-            <Label className="text-gray-700">Description</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="bg-white text-gray-900 border-gray-300" data-testid="input-userstory-description" />
+            <Label>Description</Label>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="" data-testid="input-userstory-description" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-gray-700">Epic</Label>
+              <Label>Epic</Label>
               <Select value={epicId || "none"} onValueChange={(v) => setEpicId(v === "none" ? null : v)}>
-                <SelectTrigger className="bg-white text-gray-900 border-gray-300" data-testid="select-userstory-epic"><SelectValue placeholder="Aucun" /></SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="none" className="text-gray-900">Aucun</SelectItem>
+                <SelectTrigger className="" data-testid="select-userstory-epic"><SelectValue placeholder="Aucun" /></SelectTrigger>
+                <SelectContent className="bg-popover dark:bg-card">
+                  <SelectItem value="none" Aucun</SelectItem>
                   {epics.map(epic => (
-                    <SelectItem key={epic.id} value={epic.id} className="text-gray-900">{epic.title}</SelectItem>
+                    <SelectItem key={epic.id} value={epic.id} {epic.title}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-gray-700">Priorité</Label>
+              <Label>Priorité</Label>
               <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger className="bg-white text-gray-900 border-gray-300" data-testid="select-userstory-priority"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-white">
+                <SelectTrigger className="" data-testid="select-userstory-priority"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-popover dark:bg-card">
                   {backlogPriorityOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value} className="text-gray-900">{opt.label}</SelectItem>
+                    <SelectItem key={opt.value} value={opt.value} {opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -3818,33 +3818,33 @@ function UserStoryDialog({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-gray-700">Complexité</Label>
+              <Label>Complexité</Label>
               <Select value={complexity || "none"} onValueChange={(v) => setComplexity(v === "none" ? null : v)}>
-                <SelectTrigger className="bg-white text-gray-900 border-gray-300" data-testid="select-userstory-complexity"><SelectValue placeholder="--" /></SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="none" className="text-gray-900">--</SelectItem>
+                <SelectTrigger className="" data-testid="select-userstory-complexity"><SelectValue placeholder="--" /></SelectTrigger>
+                <SelectContent className="bg-popover dark:bg-card">
+                  <SelectItem value="none" --</SelectItem>
                   {complexityOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value} className="text-gray-900">{opt.label}</SelectItem>
+                    <SelectItem key={opt.value} value={opt.value} {opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-gray-700">Story Points</Label>
+              <Label>Story Points</Label>
               <Input 
                 type="number" 
                 value={estimatePoints ?? ""} 
                 onChange={(e) => setEstimatePoints(e.target.value ? parseFloat(e.target.value) : null)} 
                 min={0}
                 step={0.25}
-                className="bg-white text-gray-900 border-gray-300"
+                className=""
                 data-testid="input-userstory-points"
               />
             </div>
           </div>
         </div>
         <SheetFooter className="flex gap-2 pt-4">
-          <Button variant="outline" onClick={onClose} className="text-gray-700" data-testid="button-cancel-userstory">Annuler</Button>
+          <Button variant="outline" onClick={onClose} data-testid="button-cancel-userstory">Annuler</Button>
           <Button onClick={handleSubmit} disabled={isPending || !title.trim()} data-testid="button-submit-userstory">
             {isPending ? "..." : userStory ? "Enregistrer" : "Créer"}
           </Button>
@@ -4006,9 +4006,9 @@ function SprintSheet({
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-md bg-white dark:bg-card">
+      <SheetContent className="sm:max-w-md dark:bg-card">
         <SheetHeader className="border-b border-gray-200 pb-4">
-          <SheetTitle className="text-gray-900 flex items-center gap-2">
+          <SheetTitle className="flex items-center gap-2">
             {sprint ? "Modifier le Sprint" : "Nouveau Sprint"}
             {sprint?.identifier && (
               <span className="text-sm font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
@@ -4019,34 +4019,34 @@ function SprintSheet({
         </SheetHeader>
         <div className="space-y-4 py-6">
           <div className="space-y-2">
-            <Label className="text-gray-700">Nom *</Label>
+            <Label>Nom *</Label>
             <Input 
               value={name} 
               onChange={(e) => setName(e.target.value)} 
               placeholder="Sprint 1" 
-              className="bg-white border-gray-300 text-gray-900"
+              className=""
               data-testid="input-sprint-name" 
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-gray-700">Objectif</Label>
+            <Label>Objectif</Label>
             <Textarea 
               value={goal} 
               onChange={(e) => setGoal(e.target.value)} 
               rows={3} 
               placeholder="Objectif du sprint..." 
-              className="bg-white border-gray-300 text-gray-900"
+              className=""
               data-testid="input-sprint-goal" 
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-gray-700">Date de début</Label>
+              <Label>Date de début</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left font-normal bg-white border-gray-300 text-gray-900"
+                    className="w-full justify-start text-left font-normal"
                     data-testid="input-sprint-start"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 text-violet-500" />
@@ -4057,7 +4057,7 @@ function SprintSheet({
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-white" align="start">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={startDate}
@@ -4068,12 +4068,12 @@ function SprintSheet({
               </Popover>
             </div>
             <div className="space-y-2">
-              <Label className="text-gray-700">Date de fin</Label>
+              <Label>Date de fin</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left font-normal bg-white border-gray-300 text-gray-900"
+                    className="w-full justify-start text-left font-normal"
                     data-testid="input-sprint-end"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 text-violet-500" />
@@ -4084,7 +4084,7 @@ function SprintSheet({
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-white" align="start">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={endDate}
@@ -4098,12 +4098,12 @@ function SprintSheet({
           {/* Roadmap item link */}
           {projectId && roadmapItemsData.length > 0 && (
             <div className="space-y-2">
-              <Label className="text-gray-700">Lier à un élément de roadmap</Label>
+              <Label>Lier à un élément de roadmap</Label>
               <Select 
                 value={roadmapItemId || "none"} 
                 onValueChange={(v) => setRoadmapItemId(v === "none" ? null : v)}
               >
-                <SelectTrigger className="bg-white border-gray-300 text-gray-900" data-testid="select-sprint-roadmap-item">
+                <SelectTrigger className="" data-testid="select-sprint-roadmap-item">
                   <SelectValue placeholder="Aucun élément lié" />
                 </SelectTrigger>
                 <SelectContent className="max-h-60">
@@ -4129,7 +4129,7 @@ function SprintSheet({
           )}
         </div>
         <SheetFooter className="flex gap-2 border-t border-gray-200 pt-4">
-          <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700" data-testid="button-cancel-sprint">
+          <Button variant="outline" onClick={onClose} data-testid="button-cancel-sprint">
             Annuler
           </Button>
           <Button 
@@ -7446,7 +7446,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
             {/* Description */}
             {editingRecipe?.ticketDescription && (
               <div className="space-y-2">
-                <Label className="text-gray-700">Description</Label>
+                <Label>Description</Label>
                 <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md border border-gray-200">
                   {editingRecipe.ticketDescription}
                 </div>
@@ -7455,12 +7455,12 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
             
             {/* Status */}
             <div className="space-y-2">
-              <Label className="text-gray-700">Statut du test</Label>
+              <Label>Statut du test</Label>
               <Select
                 value={recipeFormData.status}
                 onValueChange={(v) => setRecipeFormData(prev => ({ ...prev, status: v as RecipeStatus }))}
               >
-                <SelectTrigger className="bg-white text-gray-900 border-gray-300" data-testid="select-recipe-status">
+                <SelectTrigger className="" data-testid="select-recipe-status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -7481,20 +7481,20 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
 
             {/* Observed Results */}
             <div className="space-y-2">
-              <Label className="text-gray-700">Résultats observés</Label>
+              <Label>Résultats observés</Label>
               <Textarea
                 value={recipeFormData.observedResults}
                 onChange={(e) => setRecipeFormData(prev => ({ ...prev, observedResults: e.target.value }))}
                 placeholder="Décrivez les résultats observés lors du test..."
                 rows={4}
-                className="bg-white text-gray-900 border-gray-300"
+                className=""
                 data-testid="textarea-observed-results"
               />
             </div>
 
             {/* Conclusion */}
             <div className="space-y-2">
-              <Label className="text-gray-700">Conclusion</Label>
+              <Label>Conclusion</Label>
               <Select
                 value={recipeFormData.conclusion || "none"}
                 onValueChange={(v) => {
@@ -7507,7 +7507,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                   }));
                 }}
               >
-                <SelectTrigger className="bg-white text-gray-900 border-gray-300" data-testid="select-recipe-conclusion">
+                <SelectTrigger className="" data-testid="select-recipe-conclusion">
                   <SelectValue placeholder="Sélectionner..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -7529,26 +7529,26 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
 
             {/* Suggestions */}
             <div className="space-y-2">
-              <Label className="text-gray-700">Suggestions</Label>
+              <Label>Suggestions</Label>
               <Textarea
                 value={recipeFormData.suggestions}
                 onChange={(e) => setRecipeFormData(prev => ({ ...prev, suggestions: e.target.value }))}
                 placeholder="Suggérez des améliorations ou corrections..."
                 rows={4}
-                className="bg-white text-gray-900 border-gray-300"
+                className=""
                 data-testid="textarea-suggestions"
               />
             </div>
 
             {/* Remarks / Remarques */}
             <div className="space-y-2">
-              <Label className="text-gray-700">Remarques</Label>
+              <Label>Remarques</Label>
               <Textarea
                 value={recipeFormData.remarks}
                 onChange={(e) => setRecipeFormData(prev => ({ ...prev, remarks: e.target.value }))}
                 placeholder="Notes libres, remarques additionnelles..."
                 rows={3}
-                className="bg-white text-gray-900 border-gray-300"
+                className=""
                 data-testid="textarea-remarks"
               />
             </div>
@@ -7706,13 +7706,13 @@ function RetrospectiveView({ backlogId, sprints }: { backlogId: string; sprints:
         
         {/* Create Retro Side Panel */}
         <Sheet open={createPanelOpen} onOpenChange={setCreatePanelOpen}>
-          <SheetContent className="sm:max-w-md w-full overflow-y-auto bg-white dark:bg-card">
+          <SheetContent className="sm:max-w-md w-full overflow-y-auto dark:bg-card">
             <SheetHeader>
-              <SheetTitle className="text-gray-900">Nouvelle rétrospective</SheetTitle>
+              <SheetTitle Nouvelle rétrospective</SheetTitle>
             </SheetHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label className="text-gray-700">Sprint associé (optionnel)</Label>
+                <Label>Sprint associé (optionnel)</Label>
                 <Popover open={sprintSearchOpen} onOpenChange={setSprintSearchOpen}>
                   <PopoverTrigger asChild>
                     <Button
@@ -7732,7 +7732,7 @@ function RetrospectiveView({ backlogId, sprints }: { backlogId: string; sprints:
                         placeholder="Rechercher un sprint..."
                         value={sprintSearchValue}
                         onChange={(e) => setSprintSearchValue(e.target.value)}
-                        className="bg-white text-gray-900 border-gray-300"
+                        className=""
                         data-testid="input-sprint-search"
                       />
                     </div>
@@ -7778,7 +7778,7 @@ function RetrospectiveView({ backlogId, sprints }: { backlogId: string; sprints:
               </div>
             </div>
             <SheetFooter className="flex gap-2 pt-4">
-              <Button variant="outline" onClick={() => setCreatePanelOpen(false)} className="text-gray-700">Annuler</Button>
+              <Button variant="outline" onClick={() => setCreatePanelOpen(false)}>Annuler</Button>
               <Button 
                 onClick={() => createRetroMutation.mutate(selectedSprintId || null)}
                 disabled={createRetroMutation.isPending}
