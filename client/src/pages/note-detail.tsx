@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation, Link } from "wouter";
-import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink, MessageSquare, GitPullRequest, CheckCircle2, XCircle, CornerDownRight, Pencil, Reply, UserPlus, Bot, Sparkles, Wand2, Lightbulb, Loader2, Crown } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink, MessageSquare, GitPullRequest, CheckCircle2, XCircle, CornerDownRight, Pencil, Reply, UserPlus, Bot, Sparkles, Wand2, Lightbulb, Loader2, Crown, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
@@ -57,34 +57,13 @@ import { useBilling } from "@/hooks/useBilling";
 
 type AiAction = "summarize" | "improve" | "recommendations";
 
-function NoteAiActions({ noteTitle, content }: { noteTitle: string; content: unknown }) {
+function NoteAiActions({ noteTitle, content, collapsed, onToggle }: { noteTitle: string; content: unknown; collapsed: boolean; onToggle: () => void }) {
   const { hasFeature } = useBilling();
   const [, setLocation] = useLocation();
   const [activeAction, setActiveAction] = useState<AiAction | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  if (!hasFeature("ai_assistant")) {
-    return (
-      <div className="px-6 pb-4" data-testid="note-ai-actions-upgrade">
-        <div className="flex items-center gap-3 rounded-md border px-4 py-2.5 bg-muted/30">
-          <Crown className="w-4 h-4 text-violet-500 shrink-0" />
-          <span className="text-sm text-muted-foreground flex-1">
-            Les actions IA (Synthétiser, Améliorer, Recommandations) sont réservées au plan Agence.
-          </span>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setLocation("/pricing")}
-            data-testid="button-upgrade-note-ai"
-          >
-            Passer au plan Agence
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   const extractText = (doc: unknown): string => {
     if (!doc) return "";
@@ -105,22 +84,15 @@ function NoteAiActions({ noteTitle, content }: { noteTitle: string; content: unk
       setError("La note est vide");
       return;
     }
-
     setActiveAction(action);
     setResult(null);
     setError(null);
     setIsLoading(true);
-
     try {
       const endpoint = action === "summarize" ? "/api/ai/summarize"
         : action === "improve" ? "/api/ai/improve"
         : "/api/ai/recommendations";
-
-      const res = await apiRequest(endpoint, "POST", {
-        content,
-        title: noteTitle,
-        type: "note",
-      });
+      const res = await apiRequest(endpoint, "POST", { content, title: noteTitle, type: "note" });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setResult(data.result);
@@ -144,58 +116,114 @@ function NoteAiActions({ noteTitle, content }: { noteTitle: string; content: unk
   };
 
   return (
-    <div className="px-6 pb-4" data-testid="note-ai-actions">
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-muted-foreground flex items-center gap-1">
-          <Bot className="w-3 h-3" /> IA
-        </span>
-        {(["summarize", "improve", "recommendations"] as AiAction[]).map((action) => {
-          const Icon = actionIcons[action];
-          return (
+    <div
+      className={`border-l bg-background flex flex-col flex-shrink-0 transition-all duration-200 overflow-hidden ${collapsed ? 'w-9' : 'w-64'}`}
+      data-testid="note-ai-panel"
+    >
+      {/* Toggle button row */}
+      <div className={`flex items-center border-b px-1.5 py-1.5 flex-shrink-0 ${collapsed ? 'justify-center' : 'justify-between'}`}>
+        {!collapsed && (
+          <span className="text-xs font-medium flex items-center gap-1.5 pl-1 text-muted-foreground">
+            <Bot className="w-3.5 h-3.5 text-violet-500" />
+            Infos IA
+          </span>
+        )}
+        <Tooltip>
+          <TooltipTrigger asChild>
             <Button
-              key={action}
-              variant="outline"
-              size="sm"
-              className="text-xs h-7"
-              onClick={() => handleAction(action)}
-              disabled={isLoading}
-              data-testid={`button-ai-note-${action}`}
+              size="icon"
+              variant="ghost"
+              onClick={onToggle}
+              data-testid="button-toggle-ai-panel"
             >
-              {isLoading && activeAction === action ? (
-                <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
-              ) : (
-                <Icon className="w-3 h-3 mr-1.5" />
-              )}
-              {actionLabels[action]}
+              {collapsed ? <ChevronsLeft className="w-4 h-4" /> : <ChevronsRight className="w-4 h-4" />}
             </Button>
-          );
-        })}
+          </TooltipTrigger>
+          <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md text-xs">
+            {collapsed ? "Afficher le panneau IA" : "Réduire le panneau IA"}
+          </TooltipContent>
+        </Tooltip>
       </div>
 
-      {(result || error) && (
-        <Card className="mt-3">
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between mb-2">
-              <Badge variant="secondary" className="text-[10px]">
-                {activeAction ? actionLabels[activeAction] : "IA"} — Résultat
-              </Badge>
+      {/* Content — only visible when expanded */}
+      {!collapsed && (
+        <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          {!hasFeature("ai_assistant") ? (
+            <div className="space-y-2" data-testid="note-ai-actions-upgrade">
+              <div className="flex flex-col gap-1.5 rounded-md border px-3 py-2.5 bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <Crown className="w-3.5 h-3.5 text-violet-500 shrink-0" />
+                  <span className="text-xs font-medium">Plan Agence requis</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Les actions IA (Synthétiser, Améliorer, Recommandations) sont réservées au plan Agence.
+                </p>
+              </div>
               <Button
-                variant="ghost"
                 size="sm"
-                className="h-5 text-[10px] text-muted-foreground px-1"
-                onClick={() => { setResult(null); setError(null); setActiveAction(null); }}
-                data-testid="button-ai-result-close"
+                variant="outline"
+                className="w-full text-xs"
+                onClick={() => setLocation("/pricing")}
+                data-testid="button-upgrade-note-ai"
               >
-                Fermer
+                Passer au plan Agence
               </Button>
             </div>
-            {error ? (
-              <p className="text-sm text-destructive">{error}</p>
-            ) : (
-              <p className="text-sm text-foreground whitespace-pre-wrap">{result}</p>
-            )}
-          </CardContent>
-        </Card>
+          ) : (
+            <div className="space-y-2" data-testid="note-ai-actions">
+              <p className="text-[11px] text-muted-foreground px-0.5">Actions IA sur cette note :</p>
+              <div className="space-y-1.5">
+                {(["summarize", "improve", "recommendations"] as AiAction[]).map((action) => {
+                  const Icon = actionIcons[action];
+                  return (
+                    <Button
+                      key={action}
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start text-xs h-7 gap-2"
+                      onClick={() => handleAction(action)}
+                      disabled={isLoading}
+                      data-testid={`button-ai-note-${action}`}
+                    >
+                      {isLoading && activeAction === action ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Icon className="w-3 h-3" />
+                      )}
+                      {actionLabels[action]}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              {(result || error) && (
+                <Card className="mt-1">
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <Badge variant="secondary" className="text-[10px]">
+                        {activeAction ? actionLabels[activeAction] : "IA"} — Résultat
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 text-[10px] text-muted-foreground px-1"
+                        onClick={() => { setResult(null); setError(null); setActiveAction(null); }}
+                        data-testid="button-ai-result-close"
+                      >
+                        Fermer
+                      </Button>
+                    </div>
+                    {error ? (
+                      <p className="text-xs text-destructive">{error}</p>
+                    ) : (
+                      <p className="text-xs text-foreground whitespace-pre-wrap">{result}</p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -231,6 +259,7 @@ export default function NoteDetail() {
   const [visibility, setVisibility] = useState<"private" | "account" | "client_ro">("private");
   const [accessLevel, setAccessLevel] = useState<"read" | "comment">("comment");
   const [collabPanelOpen, setCollabPanelOpen] = useState(false);
+  const [aiPanelCollapsed, setAiPanelCollapsed] = useState(true);
   const [activeSelection, setActiveSelection] = useState<NoteSelectionInfo | null>(null);
   const [selectionPopoverOpen, setSelectionPopoverOpen] = useState(false);
   const [collabMode, setCollabMode] = useState<"comment" | "suggest" | null>(null);
@@ -2488,9 +2517,14 @@ export default function NoteDetail() {
           );
         })()}
 
-        {/* AI Actions */}
-        {contentReady && (
-          <NoteAiActions noteTitle={title} content={content} />
+        {/* AI Actions — collapsible right panel */}
+        {!isMobile && contentReady && (
+          <NoteAiActions
+            noteTitle={title}
+            content={content}
+            collapsed={aiPanelCollapsed}
+            onToggle={() => setAiPanelCollapsed(v => !v)}
+          />
         )}
       </div>
 
