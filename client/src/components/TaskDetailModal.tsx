@@ -121,6 +121,20 @@ export function TaskDetailModal({
     },
     enabled: !!task?.id && isOpen,
   });
+  // Autosave status immediately when column changes (mobile UX — no manual save needed)
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ taskId, columnId }: { taskId: string; columnId: string }) => {
+      const col = columns.find((c) => c.id === columnId);
+      const derivedStatus = col ? getStatusFromColumnName(col.name) : "todo";
+      const res = await apiRequest(`/api/tasks/${taskId}`, "PATCH", { columnId, status: derivedStatus });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    },
+  });
+
   const deleteFileMutation = useMutation({
     mutationFn: (fileId: string) => apiRequest(`/api/files/${fileId}`, "DELETE"),
     onSuccess: () => {
@@ -327,7 +341,7 @@ export function TaskDetailModal({
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-lg w-full overflow-y-auto flex flex-col bg-white dark:bg-card p-4" data-testid="dialog-task-detail">
+      <SheetContent className="sm:max-w-lg w-full overflow-y-auto flex flex-col bg-white dark:bg-card px-4 pb-4" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }} data-testid="dialog-task-detail">
         <SheetHeader className="space-y-0 pb-1">
           <div className="flex items-center gap-3">
             <SheetTitle>Détails de la tâche</SheetTitle>
@@ -391,7 +405,13 @@ export function TaskDetailModal({
 
             <div>
               <Label htmlFor="status" className="text-xs">Statut</Label>
-              <Select value={selectedColumnId} onValueChange={setSelectedColumnId}>
+              <Select
+                value={selectedColumnId}
+                onValueChange={(val) => {
+                  setSelectedColumnId(val);
+                  if (task?.id) updateStatusMutation.mutate({ taskId: task.id, columnId: val });
+                }}
+              >
                 <SelectTrigger id="status" className="h-8 text-xs" data-testid="select-task-status">
                   <SelectValue />
                 </SelectTrigger>

@@ -2885,17 +2885,17 @@ export default function Dashboard() {
       {/* Task Reminder — full-screen Sheet on mobile, centered Dialog on desktop */}
       {isMobile ? (
         <Sheet open={showTaskReminder} onOpenChange={setShowTaskReminder}>
-          <SheetContent side="bottom" className="h-full flex flex-col rounded-none px-4 pt-6 pb-4">
-            <SheetHeader className="mb-4">
-              <SheetTitle className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-amber-500" />
+          <SheetContent side="bottom" className="h-full flex flex-col rounded-none px-0 pt-0 pb-4">
+            <SheetHeader className="mb-4 px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-4 bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500">
+              <SheetTitle className="flex items-center gap-2 text-white">
+                <AlertTriangle className="w-5 h-5 text-amber-300" />
                 Tâches à traiter aujourd'hui
               </SheetTitle>
-              <SheetDescription>
+              <SheetDescription className="text-violet-100">
                 Vous avez des tâches urgentes ou en retard qui nécessitent votre attention.
               </SheetDescription>
             </SheetHeader>
-            <div className="flex-1 space-y-3 overflow-y-auto">
+            <div className="px-4 flex-1 space-y-3 overflow-y-auto">
               {[...overdueTasks, ...todaysTasks].slice(0, 5).map((task) => {
                 const project = projects?.find(p => p.id === task.projectId);
                 const isOverdue = task.dueDate && normalizeToLocalDate(task.dueDate) < todayStr;

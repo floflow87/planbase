@@ -130,18 +130,18 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="p-4 border-b border-sidebar-border">
+      <SidebarHeader className="p-4 border-b border-violet-700 bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500">
         {!isCollapsed ? (
           <div className="flex items-center justify-between gap-2">
             <Link href="/" onClick={handleNavigation}>
               <div className="flex items-center cursor-pointer hover-elevate active-elevate-2 rounded-md p-2 gap-2" data-testid="link-logo">
                 <img src={planbaseLogo} alt="PlanBase" className="w-8 h-8 rounded-md flex-shrink-0 transition-all" />
-                <span className="font-semibold text-base italic bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500 bg-clip-text text-transparent" style={{ fontFamily: 'Futura, "Century Gothic", CenturyGothic, AppleGothic, sans-serif' }}>PlanBase</span>
+                <span className="font-semibold text-base italic text-white" style={{ fontFamily: 'Futura, "Century Gothic", CenturyGothic, AppleGothic, sans-serif' }}>PlanBase</span>
               </div>
             </Link>
             <button
               onClick={toggleSidebar}
-              className="p-1.5 rounded-md hover-elevate active-elevate-2 text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors"
+              className="p-1.5 rounded-md hover-elevate active-elevate-2 text-white/70 hover:text-white transition-colors"
               data-testid="button-sidebar-toggle"
             >
               <ChevronsLeft className="w-4 h-4" />
@@ -161,7 +161,7 @@ export function AppSidebar() {
             </Tooltip>
             <button
               onClick={toggleSidebar}
-              className="p-1.5 rounded-md hover-elevate active-elevate-2 text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors"
+              className="p-1.5 rounded-md hover-elevate active-elevate-2 text-white/70 hover:text-white transition-colors"
               data-testid="button-sidebar-toggle-collapsed"
             >
               <ChevronsRight className="w-4 h-4" />
