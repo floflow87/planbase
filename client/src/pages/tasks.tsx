@@ -2244,7 +2244,15 @@ export default function Tasks() {
                     {projectScopeItems.map((si: any) => {
                       const linked = filteredTasks.filter((t: any) => t.scopeItemId === si.id);
                       const done = linked.filter(isDoneTask);
-                      const pct = linked.length > 0 ? Math.round((done.length / linked.length) * 100) : 0;
+                      const isDelivered = si.status === "delivered";
+                      const pct = isDelivered ? 100 : (linked.length > 0 ? Math.round((done.length / linked.length) * 100) : 0);
+                      const statusColorClass = si.status === "delivered"
+                        ? "text-green-600 dark:text-green-500"
+                        : si.status === "in_progress"
+                        ? "text-blue-600 dark:text-blue-400"
+                        : si.status === "in_review"
+                        ? "text-amber-500 dark:text-amber-400"
+                        : "text-muted-foreground";
                       return (
                         <Card key={si.id} className="p-4 space-y-3">
                           <div className="flex items-start justify-between gap-2">
@@ -2257,16 +2265,16 @@ export default function Tasks() {
                               onValueChange={(val) => updateScopeItemStatusMutation.mutate({ itemId: si.id, status: val })}
                             >
                               <SelectTrigger
-                                className="h-6 text-[10px] font-medium px-2 border-0 shadow-none bg-transparent flex-shrink-0 w-auto gap-1 focus:ring-0"
+                                className={`h-6 text-[10px] font-medium px-2 border-0 shadow-none bg-transparent flex-shrink-0 w-auto gap-1 focus:ring-0 ${statusColorClass}`}
                                 data-testid={`select-deliverable-status-${si.id}`}
                               >
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent className="z-[10000]">
-                                <SelectItem value="planned" className="text-xs">Planifié</SelectItem>
-                                <SelectItem value="in_progress" className="text-xs">En cours</SelectItem>
-                                <SelectItem value="in_review" className="text-xs">À réviser</SelectItem>
-                                <SelectItem value="delivered" className="text-xs">Livré</SelectItem>
+                                <SelectItem value="planned" className="text-xs text-muted-foreground">Planifié</SelectItem>
+                                <SelectItem value="in_progress" className="text-xs text-blue-600 dark:text-blue-400">En cours</SelectItem>
+                                <SelectItem value="in_review" className="text-xs text-amber-500 dark:text-amber-400">À réviser</SelectItem>
+                                <SelectItem value="delivered" className="text-xs text-green-600 dark:text-green-500">Livré</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -2278,7 +2286,7 @@ export default function Tasks() {
                           {/* Progress */}
                           <div className="space-y-1">
                             <div className="flex items-center justify-between">
-                              <span className="text-[10px] text-muted-foreground">{done.length} / {linked.length} tâches</span>
+                              <span className="text-[10px] text-muted-foreground">{isDelivered ? linked.length : done.length} / {linked.length} tâches</span>
                               <span className="text-[10px] font-semibold text-foreground">{pct}%</span>
                             </div>
                             <Progress value={pct} className="h-1.5" />

@@ -239,7 +239,7 @@ export function AppSidebar() {
       <div className="border-t border-sidebar-border px-2 py-1">
         <SidebarMenu>
           {aiAssistant.hasAccess && (
-            <SidebarMenuItem>
+            <SidebarMenuItem className="mt-1">
               {isCollapsed ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
