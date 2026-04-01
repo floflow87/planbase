@@ -350,8 +350,8 @@ export function TaskDetailModal({
           </div>
         </SheetHeader>
         
-        <div className="grid gap-2 py-1 flex-1">
-          <div className="grid gap-1">
+        <div className="space-y-2 py-1 flex-1">
+          <div>
             <Label htmlFor="title" className="text-xs">Titre</Label>
             <Input
               id="title"
@@ -362,7 +362,7 @@ export function TaskDetailModal({
             />
           </div>
 
-          <div className="grid gap-1">
+          <div>
             <Label htmlFor="description" className="text-xs">Description</Label>
             <Textarea
               id="description"
@@ -375,7 +375,7 @@ export function TaskDetailModal({
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <div className="grid gap-1">
+            <div>
               <Label htmlFor="priority" className="text-xs">Priorité</Label>
               <Select value={priority} onValueChange={setPriority}>
                 <SelectTrigger id="priority" className="h-8 text-xs" data-testid="select-task-priority">
@@ -389,7 +389,7 @@ export function TaskDetailModal({
               </Select>
             </div>
 
-            <div className="grid gap-1">
+            <div>
               <Label htmlFor="status" className="text-xs">Statut</Label>
               <Select value={selectedColumnId} onValueChange={setSelectedColumnId}>
                 <SelectTrigger id="status" className="h-8 text-xs" data-testid="select-task-status">
@@ -406,7 +406,7 @@ export function TaskDetailModal({
             </div>
           </div>
 
-          <div className="grid gap-1">
+          <div>
             <Label className="text-xs">Effort / Complexité</Label>
             <div className="flex items-center gap-0.5">
               {[1, 2, 3, 4, 5].map(rating => (
@@ -436,7 +436,7 @@ export function TaskDetailModal({
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <div className="grid gap-1">
+            <div>
               <Label htmlFor="assignedTo" className="text-xs">Assigné à</Label>
               <Select 
                 value={assignedToId || "unassigned"} 
@@ -480,7 +480,7 @@ export function TaskDetailModal({
               </Select>
             </div>
 
-            <div className="grid gap-1">
+            <div>
               <Label htmlFor="project" className="text-xs">Projet</Label>
               <Select 
                 value={projectId || "no-project"} 
@@ -508,7 +508,7 @@ export function TaskDetailModal({
           </div>
 
           {task?.projectId && taskScopeItems.length > 0 && (
-            <div className="grid gap-1">
+            <div>
               <Label className="text-xs">Livrable</Label>
               <Select
                 value={scopeItemId || "none"}
@@ -529,7 +529,7 @@ export function TaskDetailModal({
             </div>
           )}
 
-          <div className="grid gap-1">
+          <div>
             <Label className="text-xs">Date d'échéance</Label>
             <Popover>
               <PopoverTrigger asChild>
