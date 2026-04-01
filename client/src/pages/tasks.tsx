@@ -2580,6 +2580,175 @@ export default function Tasks() {
             </SheetHeader>
             <div className="space-y-2 flex-1 py-2">
               <div>
+                <Label htmlFor="task-title" className="text-xs">Titre *</Label>
+                <Input
+                  id="task-title"
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  className="h-8 text-sm"
+                  data-testid="input-new-task-title"
+                />
+              </div>
+              <div>
+                <Label htmlFor="task-description" className="text-xs">Description</Label>
+                <Textarea
+                  id="task-description"
+                  value={newTaskDescription}
+                  onChange={(e) => setNewTaskDescription(e.target.value)}
+                  rows={2}
+                  className="text-sm"
+                  data-testid="textarea-new-task-description"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label htmlFor="task-priority" className="text-xs">Priorité</Label>
+                  <Select
+                    value={newTaskPriority}
+                    onValueChange={(value: "low" | "medium" | "high") => setNewTaskPriority(value)}
+                  >
+                    <SelectTrigger id="task-priority" className="h-8 text-xs" data-testid="select-new-task-priority">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {taskPriorities.map((p: any) => (
+                        <SelectItem key={p.key} value={p.key} className="text-xs">{p.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="task-column" className="text-xs">Statut *</Label>
+                  <Select
+                    value={createTaskColumnId || ""}
+                    onValueChange={(val) => setCreateTaskColumnId(val)}
+                  >
+                    <SelectTrigger id="task-column" className="h-8 text-xs" data-testid="select-new-task-column">
+                      <SelectValue placeholder="Sélectionner..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(() => {
+                        const columnsToDisplay = newTaskProjectId === "none"
+                          ? globalTaskColumns
+                          : (newTaskProjectId ? newTaskProjectColumns : taskColumns);
+                        const uniqueColumns = new Map();
+                        columnsToDisplay
+                          .sort((a, b) => a.order - b.order)
+                          .forEach((column) => {
+                            if (!uniqueColumns.has(column.name)) {
+                              uniqueColumns.set(column.name, column);
+                            }
+                          });
+                        return Array.from(uniqueColumns.values()).map((column) => (
+                          <SelectItem key={column.id} value={column.id} className="text-xs">
+                            {column.name}
+                          </SelectItem>
+                        ));
+                      })()}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Date d'échéance</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full h-8 justify-start text-left font-normal text-xs"
+                      data-testid="button-new-task-due-date"
+                    >
+                      <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                      {newTaskDueDate ? (
+                        formatDate(newTaskDueDate, "PPP", { locale: fr })
+                      ) : (
+                        <span>Choisir une date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 z-[10000]">
+                    <Calendar
+                      mode="single"
+                      selected={newTaskDueDate}
+                      onSelect={setNewTaskDueDate}
+                      initialFocus
+                      weekStartsOn={1}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label className="text-xs">Effort / Complexité</Label>
+                <div className="flex items-center gap-0.5">
+                  {[1, 2, 3, 4, 5].map(rating => (
+                    <button
+                      key={rating}
+                      type="button"
+                      onClick={() => setNewTaskEffort(rating)}
+                      className="focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
+                      data-testid={`button-new-task-effort-${rating}`}
+                    >
+                      <Star
+                        className={`h-4 w-4 transition-colors ${(newTaskEffort ?? 0) >= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-200'}`}
+                      />
+                    </button>
+                  ))}
+                  {newTaskEffort !== null && (
+                    <button
+                      type="button"
+                      onClick={() => setNewTaskEffort(null)}
+                      className="ml-1 text-xs text-muted-foreground hover:text-foreground"
+                      data-testid="button-clear-new-task-effort"
+                    >
+                      Effacer
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="task-assigned" className="text-xs">Assigné à</Label>
+                <Select
+                  value={newTaskAssignedTo || "unassigned"}
+                  onValueChange={(value) => setNewTaskAssignedTo(value === "unassigned" ? undefined : value)}
+                >
+                  <SelectTrigger id="task-assigned" className="h-8" data-testid="select-new-task-assigned">
+                    {(() => {
+                      const sel = users.find(u => u.id === newTaskAssignedTo);
+                      if (!sel) return <span className="text-xs text-muted-foreground">Non assigné</span>;
+                      const initials = sel.firstName ? sel.firstName[0] + (sel.lastName?.[0] || "") : sel.email[0];
+                      const name = sel.firstName ? `${sel.firstName} ${sel.lastName || ""}`.trim() : sel.email;
+                      return (
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Avatar className="h-5 w-5 shrink-0">
+                            <AvatarImage src={sel.avatarUrl || ""} />
+                            <AvatarFallback className="text-[9px]">{initials.toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-xs truncate">{name}</span>
+                        </div>
+                      );
+                    })()}
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned" className="text-xs">Non assigné</SelectItem>
+                    {users.map((u) => {
+                      const initials = u.firstName ? u.firstName[0] + (u.lastName?.[0] || "") : u.email[0];
+                      const name = u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.email;
+                      return (
+                        <SelectItem key={u.id} value={u.id} className="text-xs">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-5 w-5 shrink-0">
+                              <AvatarImage src={u.avatarUrl || ""} />
+                              <AvatarFallback className="text-[9px]">{initials.toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <span>{name}</span>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label className="text-xs">Projet</Label>
                 <Popover open={projectComboboxOpen} onOpenChange={setProjectComboboxOpen}>
                   <PopoverTrigger asChild>
@@ -2598,7 +2767,7 @@ export default function Tasks() {
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-full p-0 ">
+                  <PopoverContent className="w-full p-0">
                     <Command>
                       <CommandInput placeholder="Rechercher un projet..." />
                       <CommandList>
@@ -2645,212 +2814,7 @@ export default function Tasks() {
                   </PopoverContent>
                 </Popover>
               </div>
-              <div>
-                <Label htmlFor="task-title" className="text-xs">Titre *</Label>
-                <Input
-                  id="task-title"
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  className="h-8 text-sm"
-                  data-testid="input-new-task-title"
-                />
-              </div>
-              <div>
-                <Label htmlFor="task-description" className="text-xs">Description</Label>
-                <Textarea
-                  id="task-description"
-                  value={newTaskDescription}
-                  onChange={(e) => setNewTaskDescription(e.target.value)}
-                  rows={2}
-                  className="text-sm"
-                  data-testid="textarea-new-task-description"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label htmlFor="task-priority" className="text-xs">Priorité</Label>
-                  <Select
-                    value={newTaskPriority}
-                    onValueChange={(value: "low" | "medium" | "high") => setNewTaskPriority(value)}
-                  >
-                    <SelectTrigger id="task-priority" className="h-8 text-xs" data-testid="select-new-task-priority">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {taskPriorities.map((p: any) => (
-                        <SelectItem key={p.key} value={p.key} className="text-xs">{p.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="task-assigned" className="text-xs">Assigné à</Label>
-                  <Select
-                    value={newTaskAssignedTo || "unassigned"}
-                    onValueChange={(value) => setNewTaskAssignedTo(value === "unassigned" ? undefined : value)}
-                  >
-                    <SelectTrigger id="task-assigned" className="h-8" data-testid="select-new-task-assigned">
-                      {(() => {
-                        const sel = users.find(u => u.id === newTaskAssignedTo);
-                        if (!sel) return <span className="text-xs text-muted-foreground">Non assigné</span>;
-                        const initials = sel.firstName ? sel.firstName[0] + (sel.lastName?.[0] || "") : sel.email[0];
-                        const name = sel.firstName ? `${sel.firstName} ${sel.lastName || ""}`.trim() : sel.email;
-                        return (
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <Avatar className="h-5 w-5 shrink-0">
-                              <AvatarImage src={sel.avatarUrl || ""} />
-                              <AvatarFallback className="text-[9px]">{initials.toUpperCase()}</AvatarFallback>
-                            </Avatar>
-                            <span className="text-xs truncate">{name}</span>
-                          </div>
-                        );
-                      })()}
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unassigned" className="text-xs">Non assigné</SelectItem>
-                      {users.map((u) => {
-                        const initials = u.firstName ? u.firstName[0] + (u.lastName?.[0] || "") : u.email[0];
-                        const name = u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.email;
-                        return (
-                          <SelectItem key={u.id} value={u.id} className="text-xs">
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-5 w-5 shrink-0">
-                                <AvatarImage src={u.avatarUrl || ""} />
-                                <AvatarFallback className="text-[9px]">{initials.toUpperCase()}</AvatarFallback>
-                              </Avatar>
-                              <span>{name}</span>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs">Effort / Complexité</Label>
-                <div className="flex items-center gap-0.5">
-                  {[1, 2, 3, 4, 5].map(rating => (
-                    <button
-                      key={rating}
-                      type="button"
-                      onClick={() => setNewTaskEffort(rating)}
-                      className="focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
-                      data-testid={`button-new-task-effort-${rating}`}
-                    >
-                      <Star
-                        className={`h-4 w-4 transition-colors ${(newTaskEffort ?? 0) >= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-200'}`}
-                      />
-                    </button>
-                  ))}
-                  {newTaskEffort !== null && (
-                    <button
-                      type="button"
-                      onClick={() => setNewTaskEffort(null)}
-                      className="ml-1 text-xs text-muted-foreground hover:text-foreground"
-                      data-testid="button-clear-new-task-effort"
-                    >
-                      Effacer
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs">Colonne *</Label>
-                <Popover open={columnComboboxOpen} onOpenChange={setColumnComboboxOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={columnComboboxOpen}
-                      className="w-full justify-between h-8 text-xs"
-                      data-testid="button-select-column"
-                    >
-                      {createTaskColumnId
-                        ? (() => {
-                            const columnsToDisplay = newTaskProjectId === "none" 
-                              ? globalTaskColumns 
-                              : (newTaskProjectId ? newTaskProjectColumns : taskColumns);
-                            return columnsToDisplay.find((c) => c.id === createTaskColumnId)?.name;
-                          })()
-                        : "Sélectionner une colonne..."}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0 ">
-                    <Command>
-                      <CommandInput placeholder="Rechercher une colonne..." />
-                      <CommandList>
-                        <CommandEmpty>Aucune colonne trouvée.</CommandEmpty>
-                        <CommandGroup className="">
-                          {(() => {
-                            const columnsToDisplay = newTaskProjectId === "none" 
-                              ? globalTaskColumns 
-                              : (newTaskProjectId ? newTaskProjectColumns : taskColumns);
-                            
-                            // Remove duplicates by name - keep first occurrence
-                            const uniqueColumns = new Map();
-                            columnsToDisplay
-                              .sort((a, b) => a.order - b.order)
-                              .forEach((column) => {
-                                if (!uniqueColumns.has(column.name)) {
-                                  uniqueColumns.set(column.name, column);
-                                }
-                              });
-                            
-                            return Array.from(uniqueColumns.values()).map((column) => (
-                              <CommandItem
-                                key={column.id}
-                                value={column.name}
-                                onSelect={() => {
-                                  setCreateTaskColumnId(column.id);
-                                  setColumnComboboxOpen(false);
-                                }}
-                                data-testid={`column-option-${column.id}`}
-                              >
-                                <Check
-                                  className={`mr-2 h-4 w-4 ${
-                                    createTaskColumnId === column.id ? "opacity-100" : "opacity-0"
-                                  }`}
-                                />
-                                {column.name}
-                              </CommandItem>
-                            ));
-                          })()}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div>
-                <Label className="text-xs">Date d'échéance</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full h-8 justify-start text-left font-normal text-xs"
-                      data-testid="button-new-task-due-date"
-                    >
-                      <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                      {newTaskDueDate ? (
-                        formatDate(newTaskDueDate, "PPP", { locale: fr })
-                      ) : (
-                        <span>Choisir une date</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-[10000]">
-                    <Calendar
-                      mode="single"
-                      selected={newTaskDueDate}
-                      onSelect={setNewTaskDueDate}
-                      initialFocus
-                      weekStartsOn={1}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+
             </div>
             <div className="flex gap-2 justify-end border-t pt-4">
               <Button
