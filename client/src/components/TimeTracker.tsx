@@ -74,7 +74,7 @@ export function TimeTracker() {
   // Fetch active time entry - only when user is authenticated
   const { data: activeEntry, isLoading: isLoadingActive } = useQuery<TimeEntry | null>({
     queryKey: ["/api/time-entries/active"],
-    refetchInterval: 1000, // Refresh every second to update timer
+    refetchInterval: 10000, // Refresh every 10s — display updates locally from startedAt
     enabled: !!user, // Only fetch when user is authenticated
   });
 

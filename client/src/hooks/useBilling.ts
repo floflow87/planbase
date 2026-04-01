@@ -132,13 +132,13 @@ export function hasFeature(billing: BillingStatus | undefined, feature: PremiumF
 
 export function useBilling() {
   const qc = useQueryClient();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const isEmailAdmin = ADMIN_EMAILS.includes(user?.email ?? "");
   // Collaborators and client_viewers are invited users — they inherit the account owner's billing
   const isInvitedMember = user?.role === 'collaborator' || user?.role === 'client_viewer';
 
-  const { data: rawBilling, isLoading } = useQuery<BillingStatus>({
+  const { data: rawBilling, isLoading: billingLoading } = useQuery<BillingStatus>({
     queryKey: ["/api/billing/status"],
     staleTime: 30_000,
     // Only fetch when user is authenticated
@@ -152,6 +152,9 @@ export function useBilling() {
   const billing = isAdmin ? ADMIN_BILLING : rawBilling;
 
   // ── Single centralized billing state ──────────────────────────────────────
+  // Must also wait for auth to resolve — when user is null (authLoading), billing query
+  // is disabled (isLoading=false), which would wrongly resolve to "no_trial" and redirect.
+  const isLoading = authLoading || billingLoading;
   const billingState = resolveBillingState({
     isLoading,
     isAdmin,
