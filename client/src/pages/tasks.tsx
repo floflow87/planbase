@@ -1095,9 +1095,8 @@ export default function Tasks() {
       const response = await apiRequest("/api/tasks", "POST", taskData);
       return response.json();
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      
+    onMutate: (variables) => {
+      // Reset form immediately (optimistic) so the button is never visibly disabled
       if (!variables.keepOpen) {
         setIsCreateTaskDialogOpen(false);
         setNewTaskTitle("");
@@ -1108,14 +1107,22 @@ export default function Tasks() {
         setNewTaskEffort(null);
         setNewTaskProjectId("");
       } else {
-        // Keep open - just clear title
         setNewTaskTitle("");
       }
-      
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         variant: "success",
         title: "Tâche créée",
         description: "La tâche a été créée avec succès.",
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "La tâche n'a pas pu être créée. Veuillez réessayer.",
       });
     },
   });
@@ -1225,7 +1232,7 @@ export default function Tasks() {
 
   const createLivrable = useMutation({
     mutationFn: async ({ projectId, label, estimatedDays }: { projectId: string; label: string; estimatedDays: string }) => {
-      const res = await apiRequest(`/api/projects/${projectId}/scope-items`, "POST", { label, estimatedDays, is_deliverable: true });
+      const res = await apiRequest(`/api/projects/${projectId}/scope-items`, "POST", { label, estimatedDays, isDeliverable: 1 });
       return res.json();
     },
     onSuccess: (_data, vars) => {
@@ -2775,7 +2782,7 @@ export default function Tasks() {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 ">
+                  <PopoverContent className="w-auto p-0 z-[10000]">
                     <Calendar
                       mode="single"
                       selected={newTaskDueDate}
