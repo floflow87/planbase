@@ -2435,7 +2435,7 @@ export default function Tasks() {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="hidden md:block">
+                <div className="hidden md:block overflow-x-auto">
                   <DndContext
                   sensors={sensors}
                   collisionDetection={pointerWithin}
@@ -2443,7 +2443,7 @@ export default function Tasks() {
                   onDragOver={handleDragOver}
                   onDragEnd={handleDragEnd}
                 >
-                  <div className="flex gap-4 flex-wrap pb-4">
+                  <div className="flex gap-3 pb-4 min-w-max">
                     <SortableContext
                       items={sortedColumns.map((c) => c.id)}
                       strategy={horizontalListSortingStrategy}
@@ -2458,7 +2458,7 @@ export default function Tasks() {
                             {showBeforeIndicator && (
                               <div className="w-1 bg-primary rounded-full mx-2 animate-pulse" />
                             )}
-                            <div className="w-[300px] shrink-0">
+                            <div className="w-[250px] shrink-0">
                               <SortableColumn
                                 column={column}
                                 tasks={columnTasks}
@@ -2488,7 +2488,7 @@ export default function Tasks() {
                   </div>
                   <DragOverlay>
                     {activeTaskId ? (
-                      <Card className="w-[300px] opacity-50">
+                      <Card className="w-[250px] opacity-50">
                         <CardContent className="p-3">
                           <div className="text-xs font-medium">
                             {tasks.find((t) => t.id === activeTaskId)?.title}
@@ -2496,7 +2496,7 @@ export default function Tasks() {
                         </CardContent>
                       </Card>
                     ) : activeColumnId ? (
-                      <div className="w-[320px] opacity-50">
+                      <div className="w-[260px] opacity-50">
                         <Card>
                           <CardHeader>
                             <CardTitle className="text-xs">
