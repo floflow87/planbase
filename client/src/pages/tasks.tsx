@@ -2245,8 +2245,6 @@ export default function Tasks() {
                       const linked = filteredTasks.filter((t: any) => t.scopeItemId === si.id);
                       const done = linked.filter(isDoneTask);
                       const pct = linked.length > 0 ? Math.round((done.length / linked.length) * 100) : 0;
-                      const statusLabel = si.status === "delivered" ? "Livré" : si.status === "in_review" ? "À réviser" : si.status === "in_progress" ? "En cours" : "Planifié";
-                      const statusColor = si.status === "delivered" ? "text-primary/60" : si.status === "in_review" ? "text-amber-600" : si.status === "in_progress" ? "text-blue-600" : "text-muted-foreground";
                       return (
                         <Card key={si.id} className="p-4 space-y-3">
                           <div className="flex items-start justify-between gap-2">
@@ -2254,7 +2252,23 @@ export default function Tasks() {
                               <Package className="h-4 w-4 text-primary flex-shrink-0" />
                               <span className="text-sm font-semibold truncate">{si.label}</span>
                             </div>
-                            <span className={`text-[10px] font-medium flex-shrink-0 ${statusColor}`}>{statusLabel}</span>
+                            <Select
+                              value={si.status || "planned"}
+                              onValueChange={(val) => updateScopeItemStatusMutation.mutate({ itemId: si.id, status: val })}
+                            >
+                              <SelectTrigger
+                                className="h-6 text-[10px] font-medium px-2 border-0 shadow-none bg-transparent flex-shrink-0 w-auto gap-1 focus:ring-0"
+                                data-testid={`select-deliverable-status-${si.id}`}
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="z-[10000]">
+                                <SelectItem value="planned" className="text-xs">Planifié</SelectItem>
+                                <SelectItem value="in_progress" className="text-xs">En cours</SelectItem>
+                                <SelectItem value="in_review" className="text-xs">À réviser</SelectItem>
+                                <SelectItem value="delivered" className="text-xs">Livré</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                           {si.dueDate && (
                             <p className="text-[10px] text-muted-foreground">

@@ -284,7 +284,7 @@ export function AppSidebar() {
                   data-testid="button-sidebar-ai-assistant"
                 >
                   <Bot className="w-4 h-4" />
-                  <span>Assistant IA</span>
+                  <span className="text-xs">Assistant IA</span>
                 </button>
               )}
             </SidebarMenuItem>
