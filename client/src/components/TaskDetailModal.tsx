@@ -363,35 +363,6 @@ export function TaskDetailModal({
           </div>
 
           <div>
-            <Label className="text-xs">Date d'échéance</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full h-8 justify-start text-left font-normal text-xs"
-                  data-testid="button-task-due-date"
-                >
-                  <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                  {dueDate ? (
-                    format(dueDate, "PPP", { locale: fr })
-                  ) : (
-                    <span>Choisir une date</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 z-[10000]">
-                <Calendar
-                  mode="single"
-                  selected={dueDate}
-                  onSelect={setDueDate}
-                  initialFocus
-                  weekStartsOn={1}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div>
             <Label htmlFor="description" className="text-xs">Description</Label>
             <Textarea
               id="description"
@@ -433,6 +404,35 @@ export function TaskDetailModal({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div>
+            <Label className="text-xs">Date d'échéance</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full h-8 justify-start text-left font-normal text-xs"
+                  data-testid="button-task-due-date"
+                >
+                  <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                  {dueDate ? (
+                    format(dueDate, "PPP", { locale: fr })
+                  ) : (
+                    <span>Choisir une date</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 z-[10000]">
+                <Calendar
+                  mode="single"
+                  selected={dueDate}
+                  onSelect={setDueDate}
+                  initialFocus
+                  weekStartsOn={1}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div>
