@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Check, Crown, Zap, ArrowRight, Rocket, Lock, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,8 +29,16 @@ const AGENCY_EXTRAS = [
 
 export default function Pricing() {
   const [interval, setInterval] = useState<"monthly" | "yearly">("monthly");
-  const { billing, startCheckout, isCheckingOut, hasNoTrial, isTrialing, isTrialExpired, trialDaysLeft, startTrial, isStartingTrial } = useBilling();
+  const { billing, billingState, startCheckout, isCheckingOut, hasNoTrial, isTrialing, isTrialExpired, trialDaysLeft, startTrial, isStartingTrial } = useBilling();
   const [, setLocation] = useLocation();
+
+  // Redirect to dashboard if user already has full access (admin or active agency/freelance plan)
+  useEffect(() => {
+    if (billingState === "loading") return;
+    if (billingState === "admin" || billingState === "active" || billingState === "trialing" || billingState === "past_due") {
+      setLocation("/");
+    }
+  }, [billingState, setLocation]);
 
   const [checkoutPlan, setCheckoutPlan] = useState<Plan | null>(null);
   const [consent, setConsent] = useState(false);
