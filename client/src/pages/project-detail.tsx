@@ -3788,9 +3788,9 @@ export default function ProjectDetail() {
       />
       <div className="container mx-auto p-6">
         {/* ── COCKPIT HEADER ── */}
-        <div className="mb-5 flex items-start justify-between gap-3">
+        <div className="mb-5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
           {/* Left: back + title block */}
-          <div className="flex items-start gap-2 min-w-0">
+          <div className="flex items-start gap-2 min-w-0 flex-1">
             <Link href="/projects">
               <Button variant="ghost" size="icon" data-testid="button-back" className="shrink-0 mt-0.5">
                 <ArrowLeft className="h-5 w-5" />
@@ -3910,8 +3910,8 @@ export default function ProjectDetail() {
               </div>
             </div>
           </div>
-          {/* Right: prev/next + actions */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          {/* Right: prev/next + actions — row 2 on mobile (indented past back arrow) */}
+          <div className="flex items-center gap-1.5 shrink-0 pl-11 sm:pl-0 self-start sm:self-auto">
             <div className="flex gap-1">
               <Button
                 variant="outline"

@@ -1902,7 +1902,7 @@ export default function Tasks() {
                 </PopoverContent>
               </Popover>
             )}
-            <div className="relative flex-1 min-w-[160px] max-w-[280px]">
+            <div className="relative flex-1 sm:max-w-[280px]">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 value={taskSearchQuery}
@@ -1927,12 +1927,12 @@ export default function Tasks() {
             {viewMode === "list" && (
               <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
                 <SelectTrigger
-                  className="w-44 h-9 bg-white dark:bg-card text-xs font-normal"
+                  className="sm:w-44 w-9 h-9 bg-white dark:bg-card text-xs font-normal shrink-0"
                   data-testid="select-group-by"
                 >
                   <div className="flex items-center gap-1.5">
-                    <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-                    <SelectValue />
+                    <Layers className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="hidden sm:inline truncate"><SelectValue /></span>
                   </div>
                 </SelectTrigger>
                 <SelectContent>
@@ -1961,11 +1961,11 @@ export default function Tasks() {
                     variant="outline"
                     role="combobox"
                     aria-expanded={statusSelectorOpen}
-                    className="w-44 h-9 justify-between bg-white dark:bg-card text-xs font-normal"
+                    className="sm:w-44 w-9 h-9 sm:justify-between justify-center bg-white dark:bg-card text-xs font-normal shrink-0"
                     data-testid="select-status-filter"
                   >
-                    <span className="truncate">{getStatusFilterLabel()}</span>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                    <span className="hidden sm:inline truncate ml-1.5">{getStatusFilterLabel()}</span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[220px] p-0">

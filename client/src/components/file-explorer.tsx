@@ -1004,17 +1004,17 @@ export function FileExplorer({ clientId, projectId }: Props) {
         </nav>
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          <Button size="sm" variant="secondary" className="bg-white text-gray-800 border border-gray-200 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:border-white/20 dark:hover:bg-white/20" onClick={() => { setFolderSheetOpen(true); folderForm.reset(); }} data-testid="button-new-folder">
+          <Button size="sm" variant="secondary" className="bg-white text-gray-800 border border-gray-200 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:border-white/20 dark:hover:bg-white/20" onClick={() => { setFolderSheetOpen(true); folderForm.reset(); }} data-testid="button-new-folder" title="Nouveau dossier">
             <Plus className="w-3.5 h-3.5" />
-            Dossier
+            <span className="hidden sm:inline">Dossier</span>
           </Button>
-          <Button size="sm" variant="secondary" className="bg-white text-gray-800 border border-gray-200 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:border-white/20 dark:hover:bg-white/20" onClick={() => { setNoteSheetOpen(true); noteForm.reset(); }} data-testid="button-new-note">
+          <Button size="sm" variant="secondary" className="bg-white text-gray-800 border border-gray-200 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:border-white/20 dark:hover:bg-white/20" onClick={() => { setNoteSheetOpen(true); noteForm.reset(); }} data-testid="button-new-note" title="Nouvelle note">
             <Plus className="w-3.5 h-3.5" />
-            Note
+            <span className="hidden sm:inline">Note</span>
           </Button>
-          <Button size="sm" variant="secondary" className="bg-white text-gray-800 border border-gray-200 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:border-white/20 dark:hover:bg-white/20" onClick={() => setLocation("/documents/templates")} data-testid="button-new-document">
+          <Button size="sm" variant="secondary" className="bg-white text-gray-800 border border-gray-200 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:border-white/20 dark:hover:bg-white/20" onClick={() => setLocation("/documents/templates")} data-testid="button-new-document" title="Nouveau document">
             <Plus className="w-3.5 h-3.5" />
-            Document
+            <span className="hidden sm:inline">Document</span>
           </Button>
           <Button
             size="sm"
@@ -1023,11 +1023,12 @@ export function FileExplorer({ clientId, projectId }: Props) {
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadingFiles.length > 0}
             data-testid="button-upload-file"
+            title="Importer un fichier"
           >
             {uploadingFiles.length > 0
               ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
               : <Upload className="w-3.5 h-3.5" />}
-            Importer
+            <span className="hidden sm:inline">Importer</span>
           </Button>
           <input
             ref={fileInputRef}

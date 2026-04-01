@@ -81,7 +81,7 @@ export function PostCreationSuggestions({
   const billingMode = project.billingModeSuggested || 'forfait';
   const projectType = project.projectTypeInferred || 'autre';
 
-  const btnClass = "flex items-center gap-1.5 text-xs font-medium bg-white/15 hover:bg-white/30 text-white border border-white/30 rounded px-3 py-2 transition-colors cursor-pointer";
+  const btnClass = "flex items-center gap-1 sm:gap-1.5 text-xs font-medium bg-white/15 hover:bg-white/30 text-white border border-white/30 rounded px-2 sm:px-3 py-1.5 sm:py-2 transition-colors cursor-pointer";
 
   const DismissButton = () => (
     <div className="shrink-0 ml-auto flex items-center gap-1">
@@ -125,13 +125,13 @@ export function PostCreationSuggestions({
             { icon: ListTodo, label: "Backlog", tooltip: "Gérez vos epics, user stories et tickets de développement.", action: () => setLocation(`/backlog?projectId=${project.id}`), testId: "button-suggestion-backlog" },
             { icon: Clock, label: "Temps vs CDC", tooltip: "Comparez le temps réellement passé à vos estimations initiales.", action: () => setLocation(`/projects/${project.id}?tab=time`), testId: "button-suggestion-time-tracking" },
           ].map((item, i) => (
-            <span key={i} className="flex items-center gap-1.5">
+            <span key={i} className="flex items-center gap-1 sm:gap-1.5">
               {i > 0 && <ChevronRight className="h-3 w-3 text-white/40 shrink-0" />}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button onClick={item.action} className={btnClass} data-testid={item.testId}>
                     <item.icon className="h-3.5 w-3.5 shrink-0" />
-                    {item.label}
+                    <span className="hidden sm:inline">{item.label}</span>
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className={tooltipContentClass}>{item.tooltip}</TooltipContent>
@@ -168,13 +168,13 @@ export function PostCreationSuggestions({
           { icon: Calculator, label: "Facturation", tooltip: "Définissez votre TJM, budget et modalités de facturation.", action: () => setLocation(`/projects/${project.id}?tab=billing`), testId: "button-suggestion-billing" },
           { icon: BarChart3, label: "Hypothèses", tooltip: "Posez vos hypothèses de temps et comparez avec le réel.", action: () => setLocation(`/projects/${project.id}?tab=time`), testId: "button-suggestion-hypotheses" },
         ].map((item, i) => (
-          <span key={i} className="flex items-center gap-1.5">
+          <span key={i} className="flex items-center gap-1 sm:gap-1.5">
             {i > 0 && <ChevronRight className="h-3 w-3 text-white/40 shrink-0" />}
             <Tooltip>
               <TooltipTrigger asChild>
                 <button onClick={item.action} className={btnClass} data-testid={item.testId}>
                   <item.icon className="h-3.5 w-3.5 shrink-0" />
-                  {item.label}
+                  <span className="hidden sm:inline">{item.label}</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className={tooltipContentClass}>{item.tooltip}</TooltipContent>

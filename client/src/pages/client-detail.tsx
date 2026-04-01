@@ -1599,8 +1599,8 @@ export default function ClientDetail() {
                 {/* Unified Activities */}
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
-                    <CardTitle className="text-sm font-semibold tracking-tight">Activités</CardTitle>
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    <CardTitle className="text-sm font-semibold tracking-tight shrink-0">Activités</CardTitle>
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       {gmailStatus?.connected && gmailStatus?.canSend && contacts.length > 0 && (
                         <Button
                           onClick={() => {
@@ -1612,17 +1612,18 @@ export default function ClientDetail() {
                           size="sm"
                           variant="outline"
                           className="text-[11px] h-7 px-2"
+                          title="Envoyer un email"
                         >
-                          <Mail className="w-3 h-3 mr-1" />
-                          Email
+                          <Mail className="w-3 h-3" />
+                          <span className="hidden sm:inline ml-1">Email</span>
                         </Button>
                       )}
                       <Button onClick={handleRefreshAll} size="icon" variant="ghost" className="h-7 w-7" title="Mettre à jour" data-testid="button-refresh-activities">
                         <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
                       </Button>
-                      <Button onClick={() => openActivityDialog()} data-testid="button-add-activity" size="sm" className="text-[11px] h-7 px-2">
-                        <Plus className="w-3 h-3 mr-1" />
-                        Nouvelle activité
+                      <Button onClick={() => openActivityDialog()} data-testid="button-add-activity" size="sm" className="text-[11px] h-7 px-2" title="Nouvelle activité">
+                        <Plus className="w-3 h-3" />
+                        <span className="hidden sm:inline ml-1">Nouvelle</span>
                       </Button>
                     </div>
                   </CardHeader>
