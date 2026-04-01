@@ -164,6 +164,15 @@ function getColumnBorderColor(columnName: string, columnColor?: string | null): 
   return getColumnDefaultColor(columnName);
 }
 
+// Converts a hex color to rgba string with given opacity (for dark mode card tint)
+function hexToRgba(hex: string, alpha: number): string {
+  if (!hex || !hex.startsWith('#') || hex.length < 7) return `rgba(148,163,184,${alpha})`;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 // Calendar View Component
 interface CalendarViewProps {
   tasks: Task[];
@@ -479,6 +488,7 @@ interface SortableTaskCardProps{
   canUpdate?: boolean;
   canDelete?: boolean;
   columnColor?: string;
+  columnRawColor?: string;
 }
 
 function SortableTaskCard({
@@ -493,7 +503,10 @@ function SortableTaskCard({
   canUpdate = true,
   canDelete = true,
   columnColor,
+  columnRawColor,
 }: SortableTaskCardProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const {
     attributes,
     listeners,
@@ -530,6 +543,7 @@ function SortableTaskCard({
         style={{
           borderLeft: `3px solid ${columnColor || "#94A3B8"}`,
           borderRadius: "0 0.75rem 0.75rem 0",
+          ...(isDark && columnRawColor ? { backgroundColor: hexToRgba(columnRawColor, 0.08) } : {}),
         }}
       >
         <CardContent className="p-3 space-y-2">
@@ -783,6 +797,7 @@ function SortableColumn({
                 canUpdate={canUpdate}
                 canDelete={canDelete}
                 columnColor={getColumnBorderColor(column.name, column.color)}
+                columnRawColor={column.color || getColumnDefaultColor(column.name)}
               />
             ))}
           </SortableContext>
