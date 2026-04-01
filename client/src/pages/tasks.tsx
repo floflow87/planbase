@@ -1225,7 +1225,7 @@ export default function Tasks() {
 
   const createLivrable = useMutation({
     mutationFn: async ({ projectId, label, estimatedDays }: { projectId: string; label: string; estimatedDays: string }) => {
-      const res = await apiRequest(`/api/projects/${projectId}/scope-items`, "POST", { label, estimatedDays });
+      const res = await apiRequest(`/api/projects/${projectId}/scope-items`, "POST", { label, estimatedDays, is_deliverable: true });
       return res.json();
     },
     onSuccess: (_data, vars) => {
