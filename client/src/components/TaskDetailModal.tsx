@@ -327,8 +327,8 @@ export function TaskDetailModal({
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-lg w-full overflow-y-auto flex flex-col bg-white dark:bg-card" data-testid="dialog-task-detail">
-        <SheetHeader className="space-y-0 pb-2">
+      <SheetContent className="sm:max-w-lg w-full overflow-y-auto flex flex-col bg-white dark:bg-card p-4" data-testid="dialog-task-detail">
+        <SheetHeader className="space-y-0 pb-1">
           <div className="flex items-center gap-3">
             <SheetTitle>Détails de la tâche</SheetTitle>
             {/* Check button just after title on the left */}
@@ -350,7 +350,7 @@ export function TaskDetailModal({
           </div>
         </SheetHeader>
         
-        <div className="grid gap-2 py-2 flex-1">
+        <div className="grid gap-2 py-1 flex-1">
           <div className="grid gap-1">
             <Label htmlFor="title" className="text-xs">Titre</Label>
             <Input
@@ -546,13 +546,13 @@ export function TaskDetailModal({
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
+              <PopoverContent className="w-auto p-0 z-[10000]">
                 <Calendar
                   mode="single"
                   selected={dueDate}
                   onSelect={setDueDate}
                   initialFocus
-                  className="bg-[#ffffff]"
+                  weekStartsOn={1}
                 />
               </PopoverContent>
             </Popover>
