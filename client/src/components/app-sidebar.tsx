@@ -235,33 +235,9 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Aide et support button - above the footer */}
+      {/* Assistant IA + Aide et support - above the footer */}
       <div className="border-t border-sidebar-border px-2 py-1">
         <SidebarMenu>
-          <SidebarMenuItem>
-            {isCollapsed ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <SidebarMenuButton
-                    onClick={handleHelpClick}
-                    className="justify-center"
-                    data-testid="button-aide-support"
-                  >
-                    <HelpCircle className="w-4 h-4" />
-                  </SidebarMenuButton>
-                </TooltipTrigger>
-                <TooltipContent side="right">Aide et support</TooltipContent>
-              </Tooltip>
-            ) : (
-              <SidebarMenuButton
-                onClick={handleHelpClick}
-                data-testid="button-aide-support"
-              >
-                <HelpCircle className="w-4 h-4" />
-                <span>Aide et support</span>
-              </SidebarMenuButton>
-            )}
-          </SidebarMenuItem>
           {aiAssistant.hasAccess && (
             <SidebarMenuItem>
               {isCollapsed ? (
@@ -289,6 +265,30 @@ export function AppSidebar() {
               )}
             </SidebarMenuItem>
           )}
+          <SidebarMenuItem>
+            {isCollapsed ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SidebarMenuButton
+                    onClick={handleHelpClick}
+                    className="justify-center"
+                    data-testid="button-aide-support"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                  </SidebarMenuButton>
+                </TooltipTrigger>
+                <TooltipContent side="right">Aide et support</TooltipContent>
+              </Tooltip>
+            ) : (
+              <SidebarMenuButton
+                onClick={handleHelpClick}
+                data-testid="button-aide-support"
+              >
+                <HelpCircle className="w-4 h-4" />
+                <span>Aide et support</span>
+              </SidebarMenuButton>
+            )}
+          </SidebarMenuItem>
         </SidebarMenu>
       </div>
 
