@@ -638,6 +638,8 @@ interface SortableColumnProps {
   dropIndicator: { columnId: string; position: 'before' | 'after'; type: 'task' | 'column' } | null;
   canUpdate?: boolean;
   canDelete?: boolean;
+  isHidden?: boolean;
+  onToggleHidden?: (columnId: string) => void;
 }
 
 function SortableColumn({
@@ -657,6 +659,8 @@ function SortableColumn({
   dropIndicator,
   canUpdate = true,
   canDelete = true,
+  isHidden = false,
+  onToggleHidden,
 }: SortableColumnProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -692,6 +696,40 @@ function SortableColumn({
   // (Column drags use the before/after line indicators)
   const showDropIndicator = dropIndicator?.columnId === column.id && dropIndicator?.type === 'task';
 
+  if (isHidden) {
+    return (
+      <div ref={setNodeRef} style={style} {...attributes}>
+        <Card
+          className="flex flex-col h-full min-h-[500px] w-8 cursor-pointer items-center"
+          style={{ backgroundColor: isDark ? undefined : column.color }}
+          data-testid={`column-hidden-${column.id}`}
+          onClick={() => onToggleHidden?.(column.id)}
+          title={`Afficher "${column.name}"`}
+        >
+          <div className="flex flex-col items-center gap-2 pt-3 flex-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-6 w-6 shrink-0"
+              onClick={(e) => { e.stopPropagation(); onToggleHidden?.(column.id); }}
+            >
+              <EyeOff className="h-3 w-3 text-muted-foreground" />
+            </Button>
+            <div className="flex-1 flex items-center">
+              <span
+                className="text-[10px] font-medium text-muted-foreground leading-none whitespace-nowrap"
+                style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+              >
+                {column.name}
+              </span>
+            </div>
+            <Badge variant="secondary" className="text-[10px] mb-2 px-1">{tasks.length}</Badge>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
       <Card
@@ -708,6 +746,15 @@ function SortableColumn({
               <Badge variant="secondary" className="text-[10px]">
                 {tasks.length}
               </Badge>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-5 w-5 opacity-50 hover:opacity-100"
+                onClick={(e) => { e.stopPropagation(); onToggleHidden?.(column.id); }}
+                title="Masquer la colonne"
+              >
+                <Eye className="h-3 w-3" />
+              </Button>
               <ColumnHeaderMenu
                 column={column}
                 onRename={onRename}
@@ -812,6 +859,14 @@ export default function Tasks() {
   // Dialog states
   const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false);
   const [isCreateColumnDialogOpen, setIsCreateColumnDialogOpen] = useState(false);
+  const [hiddenColumnIds, setHiddenColumnIds] = useState<Set<string>>(new Set());
+  const toggleColumnVisibility = (columnId: string) => {
+    setHiddenColumnIds(prev => {
+      const next = new Set(prev);
+      if (next.has(columnId)) next.delete(columnId); else next.add(columnId);
+      return next;
+    });
+  };
   const [showQueueView, setShowQueueView] = useState(() => {
     return typeof window !== "undefined" && window.location.search.includes("queue=1");
   });
@@ -2452,13 +2507,14 @@ export default function Tasks() {
                         const columnTasks = filteredTasks.filter((t) => t.columnId === column.id);
                         const showBeforeIndicator = dropIndicator?.columnId === column.id && dropIndicator.position === 'before';
                         const showAfterIndicator = dropIndicator?.columnId === column.id && dropIndicator.position === 'after';
+                        const isHidden = hiddenColumnIds.has(column.id);
                         
                         return (
                           <div key={column.id} className="flex items-stretch">
                             {showBeforeIndicator && (
                               <div className="w-1 bg-primary rounded-full mx-2 animate-pulse" />
                             )}
-                            <div className="w-[250px] shrink-0">
+                            <div className={`shrink-0 transition-all duration-200 ${isHidden ? 'w-8' : 'w-[250px]'}`}>
                               <SortableColumn
                                 column={column}
                                 tasks={columnTasks}
@@ -2476,6 +2532,8 @@ export default function Tasks() {
                                 dropIndicator={dropIndicator}
                                 canUpdate={canUpdate}
                                 canDelete={canDelete}
+                                isHidden={isHidden}
+                                onToggleHidden={toggleColumnVisibility}
                               />
                             </div>
                             {showAfterIndicator && (
