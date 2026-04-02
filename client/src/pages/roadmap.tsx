@@ -140,6 +140,10 @@ export default function RoadmapPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const [nnlGroupBy, setNnlGroupBy] = useState<"none" | "priority" | "action_type">("none");
+  const handleSetNnlGroupBy = (value: "none" | "priority" | "action_type") => {
+    setNnlGroupBy(value);
+    if (activeRoadmapId) localStorage.setItem(`nnlGroupBy_${activeRoadmapId}`, value);
+  };
   const [homeSearchQuery, setHomeSearchQuery] = useState("");
   const [createFromHome, setCreateFromHome] = useState(false);
   const [newCreateProjectId, setNewCreateProjectId] = useState<string | null>(null);
@@ -216,6 +220,14 @@ export default function RoadmapPage() {
   });
 
   const activeRoadmapId = selectedRoadmapId || (roadmaps.length > 0 ? roadmaps[0].id : null);
+
+  // Persist nnlGroupBy per roadmap
+  useEffect(() => {
+    if (!activeRoadmapId) return;
+    const saved = localStorage.getItem(`nnlGroupBy_${activeRoadmapId}`);
+    if (saved === "priority" || saved === "action_type") setNnlGroupBy(saved);
+    else setNnlGroupBy("none");
+  }, [activeRoadmapId]);
 
   const activeRoadmap = roadmaps.find(r => r.id === activeRoadmapId);
 
@@ -1342,9 +1354,9 @@ export default function RoadmapPage() {
                       <>
                         <div className="w-px h-5 bg-border mx-1" />
                         <div className="flex items-center gap-1 border rounded-md p-0.5">
-                          <Button variant="ghost" size="sm" className={`h-7 px-2 text-[11px] ${nnlGroupBy === "none" ? "bg-accent" : ""}`} onClick={() => setNnlGroupBy("none")} data-testid="button-groupby-none">Aucun</Button>
-                          <Button variant="ghost" size="sm" className={`h-7 px-2 text-[11px] ${nnlGroupBy === "priority" ? "bg-accent" : ""}`} onClick={() => setNnlGroupBy("priority")} data-testid="button-groupby-priority">Priorité</Button>
-                          <Button variant="ghost" size="sm" className={`h-7 px-2 text-[11px] ${nnlGroupBy === "action_type" ? "bg-accent" : ""}`} onClick={() => setNnlGroupBy("action_type")} data-testid="button-groupby-action">Action</Button>
+                          <Button variant="ghost" size="sm" className={`h-7 px-2 text-[11px] ${nnlGroupBy === "none" ? "bg-accent" : ""}`} onClick={() => handleSetNnlGroupBy("none")} data-testid="button-groupby-none">Aucun</Button>
+                          <Button variant="ghost" size="sm" className={`h-7 px-2 text-[11px] ${nnlGroupBy === "priority" ? "bg-accent" : ""}`} onClick={() => handleSetNnlGroupBy("priority")} data-testid="button-groupby-priority">Priorité</Button>
+                          <Button variant="ghost" size="sm" className={`h-7 px-2 text-[11px] ${nnlGroupBy === "action_type" ? "bg-accent" : ""}`} onClick={() => handleSetNnlGroupBy("action_type")} data-testid="button-groupby-action">Action</Button>
                         </div>
                       </>
                     )}
