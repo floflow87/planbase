@@ -2092,7 +2092,7 @@ export default function BacklogDetail() {
               placeholder="Rechercher..."
               value={ticketSearch}
               onChange={(e) => setTicketSearch(e.target.value)}
-              className="pl-8 h-8 w-full text-sm bg-white dark:bg-card"
+              className="pl-8 h-8 w-full text-xs placeholder:text-xs bg-white dark:bg-card"
               data-testid="input-ticket-search"
             />
           </div>
@@ -2266,7 +2266,7 @@ export default function BacklogDetail() {
                 placeholder="Rechercher..."
                 value={ticketSearch}
                 onChange={(e) => setTicketSearch(e.target.value)}
-                className="pl-8 h-8 w-[150px] text-xs bg-white dark:bg-card"
+                className="pl-8 h-8 w-[150px] text-xs placeholder:text-xs bg-white dark:bg-card"
                 data-testid="input-ticket-search-desktop"
               />
             </div>
@@ -2334,7 +2334,7 @@ export default function BacklogDetail() {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="w-[150px] h-8 justify-between bg-white dark:bg-card text-gray-900 text-xs"
+                    className="w-[150px] h-8 justify-between bg-white dark:bg-card text-gray-900 dark:text-foreground text-xs"
                     data-testid="button-epic-filter"
                   >
                     <span className="flex items-center gap-1 truncate">
