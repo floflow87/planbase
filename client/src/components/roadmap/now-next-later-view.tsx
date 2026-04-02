@@ -1074,7 +1074,7 @@ export function NowNextLaterView({
                         {availableNotes.length === 0 ? (
                           <p className="text-[11px] text-muted-foreground text-center py-3">{allNotes.length === 0 ? "Chargement..." : "Aucune note disponible"}</p>
                         ) : (
-                          <div className="max-h-52 overflow-y-auto py-1">
+                          <div className="max-h-52 overflow-y-auto py-1" onWheel={(e) => e.stopPropagation()}>
                             {availableNotes.map(note => (
                               <button key={note.id} className="w-full text-left text-[11px] px-3 py-1.5 hover-elevate truncate" onClick={() => linkNoteMutation.mutate(note.id)} disabled={linkNoteMutation.isPending} data-testid={`note-option-${note.id}`}>
                                 {note.title || "Note sans titre"}
