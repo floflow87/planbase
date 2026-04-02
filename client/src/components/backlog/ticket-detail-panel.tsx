@@ -1203,28 +1203,38 @@ export function TicketDetailPanel({
                             )}
                           </CommandEmpty>
                           <CommandGroup>
-                            {allTags
-                              .filter(t => !tagInput || t.toLowerCase().includes(tagInput.toLowerCase()))
-                              .filter(t => !(ticket.tags || []).includes(t))
-                              .map(t => (
-                                <CommandItem
-                                  key={t}
-                                  value={t}
-                                  onSelect={() => {
-                                    const currentTags = ticket.tags || [];
-                                    if (!currentTags.includes(t)) {
-                                      onUpdate(ticket.id, ticket.type, { tags: [...currentTags, t] });
-                                    }
-                                    setTagInput("");
-                                  }}
-                                  className="text-xs"
-                                  data-testid={`option-tag-${t}`}
-                                >
-                                  <Tag className="h-3 w-3 mr-2 text-cyan-500" />
-                                  {t}
-                                </CommandItem>
-                              ))}
-                            {tagInput.trim() && !allTags.find(t => t.toLowerCase() === tagInput.trim().toLowerCase()) && (
+                            {(() => {
+                              const currentTags = ticket.tags || [];
+                              const poolTags = Array.from(new Set([...allTags, ...currentTags])).sort();
+                              const filtered = poolTags.filter(t => !tagInput || t.toLowerCase().includes(tagInput.toLowerCase()));
+                              return filtered.map(t => {
+                                const isSelected = currentTags.includes(t);
+                                return (
+                                  <CommandItem
+                                    key={t}
+                                    value={t}
+                                    onSelect={() => {
+                                      if (isSelected) {
+                                        onUpdate(ticket.id, ticket.type, { tags: currentTags.filter(ct => ct !== t) });
+                                      } else {
+                                        onUpdate(ticket.id, ticket.type, { tags: [...currentTags, t] });
+                                      }
+                                      setTagInput("");
+                                    }}
+                                    className="text-xs"
+                                    data-testid={`option-tag-${t}`}
+                                  >
+                                    <Tag className={`h-3 w-3 mr-2 ${isSelected ? "text-cyan-500" : "text-muted-foreground"}`} />
+                                    <span className={isSelected ? "font-medium" : ""}>{t}</span>
+                                    {isSelected && <Check className="h-3 w-3 ml-auto text-cyan-500" />}
+                                  </CommandItem>
+                                );
+                              });
+                            })()}
+                            {tagInput.trim() && !(() => {
+                              const pool = Array.from(new Set([...allTags, ...(ticket.tags || [])]));
+                              return pool.find(t => t.toLowerCase() === tagInput.trim().toLowerCase());
+                            })() && (
                               <CommandItem
                                 value={`__create__${tagInput.trim()}`}
                                 onSelect={() => {
