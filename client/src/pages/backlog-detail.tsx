@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useCelebration } from "@/hooks/useCelebration";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -1091,13 +1091,22 @@ export default function BacklogDetail() {
     return Array.from(versions).sort();
   }, [flatTickets]);
 
-  // Collect unique tags from all tickets for autocomplete
-  const allTicketTags = useMemo(() => {
-    const tags = new Set<string>();
+  // Persistent tag registry — accumulates all tags ever seen, never shrinks
+  const tagRegistryRef = useRef<Set<string>>(new Set());
+  const [allTicketTags, setAllTicketTags] = useState<string[]>([]);
+  useEffect(() => {
+    let changed = false;
     flatTickets.forEach(t => {
-      (t.tags || []).forEach(tag => tags.add(tag));
+      (t.tags || []).forEach(tag => {
+        if (!tagRegistryRef.current.has(tag)) {
+          tagRegistryRef.current.add(tag);
+          changed = true;
+        }
+      });
     });
-    return Array.from(tags).sort();
+    if (changed) {
+      setAllTicketTags(Array.from(tagRegistryRef.current).sort());
+    }
   }, [flatTickets]);
 
   // Priority order for sorting
