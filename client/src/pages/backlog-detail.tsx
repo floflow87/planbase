@@ -1747,7 +1747,7 @@ export default function BacklogDetail() {
           id: tempId, title, sprintId, priority: "medium", state: "a_faire",
           backlogId: id!, userStoryId: null, epicId: null, description: null,
           estimatePoints: null, complexity: null, assigneeId: defaultAssigneeId, reporterId: null,
-          order: newData.backlogTasks.length, version: null, taskType: "task",
+          order: newData.backlogTasks.length, version: null, taskType: type === "bug" ? "bug" : "task",
           createdAt: new Date().toISOString()
         } as any];
       }
@@ -1767,7 +1767,7 @@ export default function BacklogDetail() {
         data = { title, sprintId, priority: "medium", state: "a_faire", assigneeId: defaultAssigneeId };
       } else {
         endpoint = `/api/backlogs/${id}/tasks`;
-        data = { title, sprintId, priority: "medium", state: "a_faire", order: 0, assigneeId: defaultAssigneeId };
+        data = { title, sprintId, priority: "medium", state: "a_faire", order: 0, assigneeId: defaultAssigneeId, taskType: type === "bug" ? "bug" : "task" };
       }
 
       await apiRequest(endpoint, "POST", data);
@@ -1807,7 +1807,7 @@ export default function BacklogDetail() {
           id: tempId, title, sprintId: null, priority: "medium", state: "a_faire",
           backlogId: id!, userStoryId: null, epicId: null, description: null,
           estimatePoints: null, complexity: null, assigneeId: defaultAssigneeId, reporterId: null,
-          order: newData.backlogTasks.length, version: null, taskType: "task",
+          order: newData.backlogTasks.length, version: null, taskType: type === "bug" ? "bug" : "task",
           createdAt: new Date().toISOString()
         } as any];
       }
@@ -1827,7 +1827,7 @@ export default function BacklogDetail() {
         data = { title, priority: "medium", state: "a_faire", assigneeId: defaultAssigneeId };
       } else {
         endpoint = `/api/backlogs/${id}/tasks`;
-        data = { title, priority: "medium", state: "a_faire", order: 0, assigneeId: defaultAssigneeId };
+        data = { title, priority: "medium", state: "a_faire", order: 0, assigneeId: defaultAssigneeId, taskType: type === "bug" ? "bug" : "task" };
       }
 
       await apiRequest(endpoint, "POST", data);
