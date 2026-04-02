@@ -211,6 +211,7 @@ export interface IStorage {
   // Note Links
   getNoteLinksByNoteId(noteId: string): Promise<NoteLink[]>;
   getNotesByProjectId(projectId: string): Promise<Note[]>;
+  getNotesByEntityLink(targetType: string, targetId: string): Promise<Note[]>;
   getNoteLinksByAccountId(accountId: string): Promise<NoteLink[]>;
   createNoteLink(noteLink: InsertNoteLink): Promise<NoteLink>;
   deleteNoteLink(noteId: string, targetType: string, targetId: string): Promise<boolean>;
@@ -1265,6 +1266,26 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(noteLinks.targetType, "project"),
           eq(noteLinks.targetId, projectId)
+        )
+      );
+    
+    if (links.length === 0) return [];
+    
+    const noteIds = links.map(link => link.noteId);
+    return await db
+      .select()
+      .from(notes)
+      .where(inArray(notes.id, noteIds));
+  }
+
+  async getNotesByEntityLink(targetType: string, targetId: string): Promise<Note[]> {
+    const links = await db
+      .select()
+      .from(noteLinks)
+      .where(
+        and(
+          eq(noteLinks.targetType, targetType),
+          eq(noteLinks.targetId, targetId)
         )
       );
     

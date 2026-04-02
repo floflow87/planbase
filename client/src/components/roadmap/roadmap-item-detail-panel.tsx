@@ -1,15 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Calendar, Clock, Flag, Package, Tag, Link2, CheckCircle2, Circle, AlertCircle, Pencil, ExternalLink, Ticket } from "lucide-react";
+import { Calendar, Clock, Flag, Package, Tag, Link2, CheckCircle2, Circle, AlertCircle, Pencil, ExternalLink, Ticket, FileText, X, Plus, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Loader } from "@/components/Loader";
-import type { RoadmapItem, Epic, BacklogTask } from "@shared/schema";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { RoadmapItem, Epic, BacklogTask, Note } from "@shared/schema";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof Circle }> = {
   planned: { label: "Planifié", color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300", icon: Circle },
@@ -54,11 +58,49 @@ interface RoadmapItemDetailPanelProps {
 }
 
 export function RoadmapItemDetailPanel({ item, open, onOpenChange, onEdit, epics, backlogId }: RoadmapItemDetailPanelProps) {
+  const [noteSelectorOpen, setNoteSelectorOpen] = useState(false);
+  const [noteSearch, setNoteSearch] = useState("");
+
   const linkedEpic = item?.epicId ? epics.find(e => e.id === item.epicId) : null;
 
   const { data: epicTasks = [], isLoading: isLoadingTasks } = useQuery<BacklogTask[]>({
     queryKey: [`/api/backlogs/${backlogId}/tasks`],
     enabled: !!backlogId && !!linkedEpic,
+  });
+
+  const { data: linkedNotes = [], isLoading: isLoadingNotes } = useQuery<Note[]>({
+    queryKey: ["/api/notes/by-entity/roadmap_item", item?.id],
+    enabled: !!item?.id && open,
+  });
+
+  const { data: allNotes = [] } = useQuery<Note[]>({
+    queryKey: ["/api/notes"],
+    enabled: noteSelectorOpen,
+  });
+
+  const linkNoteMutation = useMutation({
+    mutationFn: async (noteId: string) => {
+      const response = await apiRequest(`/api/notes/${noteId}/links`, "POST", {
+        targetType: "roadmap_item",
+        targetId: item!.id,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes/by-entity/roadmap_item", item?.id] });
+      setNoteSelectorOpen(false);
+      setNoteSearch("");
+    },
+  });
+
+  const unlinkNoteMutation = useMutation({
+    mutationFn: async (noteId: string) => {
+      const response = await apiRequest(`/api/notes/${noteId}/links/roadmap_item/${item!.id}`, "DELETE");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes/by-entity/roadmap_item", item?.id] });
+    },
   });
 
   const filteredTasks = linkedEpic
@@ -73,6 +115,11 @@ export function RoadmapItemDetailPanel({ item, open, onOpenChange, onEdit, epics
   };
 
   const taskProgress = taskStats.total > 0 ? Math.round((taskStats.done / taskStats.total) * 100) : 0;
+
+  const availableNotes = allNotes.filter(
+    n => !linkedNotes.some(ln => ln.id === n.id) &&
+    (noteSearch === "" || (n.title || "").toLowerCase().includes(noteSearch.toLowerCase()))
+  );
 
   if (!item) return null;
 
@@ -171,6 +218,7 @@ export function RoadmapItemDetailPanel({ item, open, onOpenChange, onEdit, epics
 
             <Separator />
 
+            {/* Epic section */}
             {linkedEpic ? (
               <div>
                 <div className="flex items-center gap-2 mb-3">
@@ -270,6 +318,95 @@ export function RoadmapItemDetailPanel({ item, open, onOpenChange, onEdit, epics
                 </div>
               </div>
             )}
+
+            <Separator />
+
+            {/* Notes section */}
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <h4 className="text-sm font-semibold">Notes liées</h4>
+                  {linkedNotes.length > 0 && (
+                    <Badge variant="secondary" className="text-xs" data-testid="badge-detail-note-count">{linkedNotes.length}</Badge>
+                  )}
+                </div>
+                <Popover open={noteSelectorOpen} onOpenChange={(o) => { setNoteSelectorOpen(o); if (!o) setNoteSearch(""); }}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" data-testid="button-link-note">
+                      <Plus className="h-3 w-3" />
+                      Lier
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-2 z-[10000]" align="end">
+                    <div className="relative mb-2">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        placeholder="Rechercher une note..."
+                        value={noteSearch}
+                        onChange={e => setNoteSearch(e.target.value)}
+                        className="pl-8 h-8 text-xs"
+                        data-testid="input-note-search"
+                      />
+                    </div>
+                    {availableNotes.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-3">
+                        {allNotes.length === 0 ? "Chargement..." : "Aucune note disponible"}
+                      </p>
+                    ) : (
+                      <div className="max-h-48 overflow-y-auto space-y-0.5">
+                        {availableNotes.map(note => (
+                          <button
+                            key={note.id}
+                            className="w-full text-left text-xs px-2 py-1.5 rounded-md hover-elevate truncate"
+                            onClick={() => linkNoteMutation.mutate(note.id)}
+                            disabled={linkNoteMutation.isPending}
+                            data-testid={`button-select-note-${note.id}`}
+                          >
+                            {note.title || "Note sans titre"}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {isLoadingNotes ? (
+                <div className="flex items-center justify-center py-3">
+                  <Loader />
+                </div>
+              ) : linkedNotes.length === 0 ? (
+                <div className="text-center py-3 text-xs text-muted-foreground border rounded-lg border-dashed">
+                  Aucune note liée à cet élément
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {linkedNotes.map(note => (
+                    <div
+                      key={note.id}
+                      className="flex items-center justify-between gap-2 p-2.5 rounded-lg border"
+                      data-testid={`detail-note-${note.id}`}
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <FileText className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm truncate">{note.title || "Note sans titre"}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 flex-shrink-0 text-muted-foreground"
+                        onClick={() => unlinkNoteMutation.mutate(note.id)}
+                        disabled={unlinkNoteMutation.isPending}
+                        data-testid={`button-unlink-note-${note.id}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </ScrollArea>
       </SheetContent>

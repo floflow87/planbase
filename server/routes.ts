@@ -4387,6 +4387,18 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  app.get("/api/notes/by-entity/:targetType/:targetId", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
+    try {
+      const { targetType, targetId } = req.params;
+      const linkedNotes = await storage.getNotesByEntityLink(targetType, targetId);
+      // Filter to only return notes belonging to this account
+      const accountNotes = linkedNotes.filter(n => n.accountId === req.accountId);
+      res.json(accountNotes);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.get("/api/notes/:id/links", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
     try {
       const note = await storage.getNote(req.params.id);
@@ -4431,6 +4443,12 @@ app.get("/config/feature-flags", async (_req, res) => {
         const client = await storage.getClient(req.accountId!, targetId);
         if (!client) {
           return res.status(404).json({ error: "Client not found or access denied" });
+        }
+      } else if (targetType === "roadmap_item") {
+        const [item] = await db.select().from(roadmapItems)
+          .where(and(eq(roadmapItems.id, targetId), eq(roadmapItems.accountId, req.accountId!)));
+        if (!item) {
+          return res.status(404).json({ error: "Roadmap item not found or access denied" });
         }
       }
 
@@ -9918,6 +9936,11 @@ app.get("/config/feature-flags", async (_req, res) => {
       await db.update(userStories)
         .set({ epicId: null })
         .where(and(eq(userStories.epicId, epicId), eq(userStories.accountId, accountId)));
+      
+      // Also orphan backlog tasks that reference this epic
+      await db.update(backlogTasks)
+        .set({ epicId: null })
+        .where(and(eq(backlogTasks.epicId, epicId), eq(backlogTasks.accountId, accountId)));
       
       // Clear the bidirectional roadmap link if the epic had one
       await db.update(roadmapItems)
