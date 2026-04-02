@@ -139,6 +139,7 @@ export default function RoadmapPage() {
   const [filterType, setFilterType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [nnlGroupBy, setNnlGroupBy] = useState<"none" | "priority" | "action_type">("none");
   const [homeSearchQuery, setHomeSearchQuery] = useState("");
   const [createFromHome, setCreateFromHome] = useState(false);
   const [newCreateProjectId, setNewCreateProjectId] = useState<string | null>(null);
@@ -1337,6 +1338,16 @@ export default function RoadmapPage() {
                         Effacer
                       </Button>
                     )}
+                    {effectiveViewMode === "nnl" && (
+                      <>
+                        <div className="w-px h-5 bg-border mx-1" />
+                        <div className="flex items-center gap-1 border rounded-md p-0.5">
+                          <Button variant="ghost" size="sm" className={`h-7 px-2 text-[11px] ${nnlGroupBy === "none" ? "bg-accent" : ""}`} onClick={() => setNnlGroupBy("none")} data-testid="button-groupby-none">Aucun</Button>
+                          <Button variant="ghost" size="sm" className={`h-7 px-2 text-[11px] ${nnlGroupBy === "priority" ? "bg-accent" : ""}`} onClick={() => setNnlGroupBy("priority")} data-testid="button-groupby-priority">Priorité</Button>
+                          <Button variant="ghost" size="sm" className={`h-7 px-2 text-[11px] ${nnlGroupBy === "action_type" ? "bg-accent" : ""}`} onClick={() => setNnlGroupBy("action_type")} data-testid="button-groupby-action">Action</Button>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* RIGHT — status + view mode + CDC + menu */}
@@ -1493,6 +1504,7 @@ export default function RoadmapPage() {
                       epics={epics}
                       backlogId={backlogId}
                       userStories={userStories}
+                      groupBy={nnlGroupBy}
                     />
                   ) : (
                     <OutputView 

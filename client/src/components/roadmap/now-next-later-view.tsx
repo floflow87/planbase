@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import {
   DndContext,
@@ -27,14 +28,14 @@ import {
   useDroppable,
 } from "@dnd-kit/core";
 import { useDraggable } from "@dnd-kit/core";
-import { 
-  Plus, 
-  Eye, 
-  Target, 
-  TrendingUp, 
-  BarChart3, 
-  Layers, 
-  Tag, 
+import {
+  Plus,
+  Eye,
+  Target,
+  TrendingUp,
+  BarChart3,
+  Layers,
+  Tag,
   CircleDot,
   Package,
   Ticket,
@@ -52,16 +53,15 @@ import {
   ChevronRight,
   Flag,
   Zap,
-  LayoutGrid,
-  ListFilter,
+  Search,
 } from "lucide-react";
-import type { RoadmapItem, Epic, BacklogTask, UserStory } from "@shared/schema";
+import type { RoadmapItem, Epic, BacklogTask, UserStory, Note } from "@shared/schema";
 
 const LANE_CONFIG: Record<string, { label: string; description: string; color: string; headerColor: string; textColor: string; badgeColor: string; borderColor: string }> = {
-  now: { label: "Now", description: "En cours de réalisation", color: "bg-emerald-500/10 border-emerald-500/30", headerColor: "bg-emerald-500", textColor: "text-emerald-700 dark:text-emerald-400", badgeColor: "bg-emerald-500 text-white", borderColor: "border-l-emerald-500" },
+  now: { label: "Now", description: "En cours", color: "bg-emerald-500/10 border-emerald-500/30", headerColor: "bg-emerald-500", textColor: "text-emerald-700 dark:text-emerald-400", badgeColor: "bg-emerald-500 text-white", borderColor: "border-l-emerald-500" },
   next: { label: "Next", description: "Planifié prochainement", color: "bg-blue-500/10 border-blue-500/30", headerColor: "bg-blue-500", textColor: "text-blue-700 dark:text-blue-400", badgeColor: "bg-blue-500 text-white", borderColor: "border-l-blue-500" },
   later: { label: "Later", description: "À envisager plus tard", color: "bg-purple-500/10 border-purple-500/30", headerColor: "bg-purple-500", textColor: "text-purple-700 dark:text-purple-400", badgeColor: "bg-purple-500 text-white", borderColor: "border-l-purple-500" },
-  unqualified: { label: "Non qualifié", description: "Éléments à qualifier", color: "bg-gray-500/10 border-gray-500/30", headerColor: "bg-gray-400", textColor: "text-gray-600 dark:text-gray-400", badgeColor: "bg-gray-400 text-white", borderColor: "border-l-gray-400" },
+  unqualified: { label: "Non qualifié", description: "À qualifier", color: "bg-gray-500/10 border-gray-500/30", headerColor: "bg-gray-400", textColor: "text-gray-600 dark:text-gray-400", badgeColor: "bg-gray-400 text-white", borderColor: "border-l-gray-400" },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof Circle }> = {
@@ -71,23 +71,24 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof
   blocked: { label: "Bloqué", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300", icon: AlertCircle },
 };
 
-const PRIORITY_CONFIG: Record<string, { label: string; color: string; dotColor: string }> = {
-  strategic: { label: "Stratégique", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300", dotColor: "bg-violet-500" },
-  high: { label: "Haute", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300", dotColor: "bg-red-500" },
-  normal: { label: "Normale", color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300", dotColor: "bg-gray-400" },
-  low: { label: "Basse", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300", dotColor: "bg-blue-400" },
+// Updated priority colors: basse=vert, normale=jaune, haute=rouge, critique=violet
+const PRIORITY_CONFIG: Record<string, { label: string; color: string; dotColor: string; groupColor: string; groupBorder: string }> = {
+  critique: { label: "Critique", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300", dotColor: "bg-violet-500", groupColor: "bg-violet-500/5", groupBorder: "border-violet-400/40" },
+  high: { label: "Haute", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300", dotColor: "bg-red-500", groupColor: "bg-red-500/5", groupBorder: "border-red-400/40" },
+  normal: { label: "Normale", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300", dotColor: "bg-yellow-400", groupColor: "bg-yellow-500/5", groupBorder: "border-yellow-400/40" },
+  low: { label: "Basse", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300", dotColor: "bg-green-500", groupColor: "bg-green-500/5", groupBorder: "border-green-400/40" },
 };
 
-const ACTION_TYPE_CONFIG: Record<string, { label: string; color: string; badgeColor: string; headerColor: string; borderColor: string; dotColor: string }> = {
-  discovery: { label: "Discovery", color: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300", badgeColor: "bg-pink-500 text-white", headerColor: "bg-pink-500", borderColor: "border-l-pink-500", dotColor: "bg-pink-500" },
-  develop: { label: "Développer", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300", badgeColor: "bg-blue-500 text-white", headerColor: "bg-blue-500", borderColor: "border-l-blue-500", dotColor: "bg-blue-500" },
-  test: { label: "Tester", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300", badgeColor: "bg-violet-500 text-white", headerColor: "bg-violet-500", borderColor: "border-l-violet-500", dotColor: "bg-violet-500" },
-  review: { label: "Review", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300", badgeColor: "bg-yellow-500 text-white", headerColor: "bg-yellow-500", borderColor: "border-l-yellow-500", dotColor: "bg-yellow-500" },
-  validate: { label: "Valider", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300", badgeColor: "bg-green-500 text-white", headerColor: "bg-green-500", borderColor: "border-l-green-500", dotColor: "bg-green-500" },
-  stop: { label: "Stopper", color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300", badgeColor: "bg-gray-400 text-white", headerColor: "bg-gray-400", borderColor: "border-l-gray-400", dotColor: "bg-gray-400" },
+const ACTION_TYPE_CONFIG: Record<string, { label: string; color: string; dotColor: string; groupColor: string; groupBorder: string }> = {
+  discovery: { label: "Discovery", color: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300", dotColor: "bg-pink-500", groupColor: "bg-pink-500/5", groupBorder: "border-pink-400/40" },
+  develop: { label: "Développer", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300", dotColor: "bg-blue-500", groupColor: "bg-blue-500/5", groupBorder: "border-blue-400/40" },
+  test: { label: "Tester", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300", dotColor: "bg-violet-500", groupColor: "bg-violet-500/5", groupBorder: "border-violet-400/40" },
+  review: { label: "Review", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300", dotColor: "bg-yellow-500", groupColor: "bg-yellow-500/5", groupBorder: "border-yellow-400/40" },
+  validate: { label: "Valider", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300", dotColor: "bg-green-500", groupColor: "bg-green-500/5", groupBorder: "border-green-400/40" },
+  stop: { label: "Stopper", color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300", dotColor: "bg-gray-400", groupColor: "bg-gray-500/5", groupBorder: "border-gray-400/40" },
 };
 
-type GroupByMode = "lane" | "priority" | "action_type";
+type GroupByMode = "none" | "priority" | "action_type";
 
 interface NowNextLaterViewProps {
   items: RoadmapItem[];
@@ -98,6 +99,7 @@ interface NowNextLaterViewProps {
   epics: Epic[];
   backlogId: string | null;
   userStories?: UserStory[];
+  groupBy?: GroupByMode;
 }
 
 function DroppableLane({ id, children, isOver }: { id: string; children: React.ReactNode; isOver?: boolean }) {
@@ -106,7 +108,7 @@ function DroppableLane({ id, children, isOver }: { id: string; children: React.R
   return (
     <div
       ref={setNodeRef}
-      className={`space-y-2 min-h-[100px] rounded-md transition-all duration-200 ${highlighted ? "bg-accent/30 ring-2 ring-primary/20 ring-dashed" : ""}`}
+      className={`space-y-2 min-h-[80px] rounded-md transition-all duration-200 ${highlighted ? "bg-accent/30 ring-2 ring-primary/20 ring-dashed" : ""}`}
     >
       {children}
     </div>
@@ -120,7 +122,6 @@ function DraggableCard({ id, children }: { id: string; children: React.ReactNode
     opacity: isDragging ? 0.4 : 1,
     touchAction: "none",
   };
-
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       {children}
@@ -128,18 +129,105 @@ function DraggableCard({ id, children }: { id: string; children: React.ReactNode
   );
 }
 
-export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onUpdateItem, epics, backlogId, userStories: externalUserStories }: NowNextLaterViewProps) {
+// Combobox pour la sélection d'epic avec autocomplete
+function EpicCombobox({ value, epics, onChange }: { value: string; epics: Epic[]; onChange: (val: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const selectedEpic = epics.find(e => e.id === value);
+  const filtered = epics.filter(e =>
+    search === "" || e.title.toLowerCase().includes(search.toLowerCase())
+  );
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        className="w-full flex items-center justify-between gap-2 border rounded-md px-3 h-9 text-[11px] bg-background hover-elevate"
+        onClick={() => { setOpen(o => !o); setSearch(""); }}
+        data-testid="combobox-epic-trigger"
+      >
+        <span className={selectedEpic ? "text-foreground" : "text-muted-foreground"}>
+          {selectedEpic ? selectedEpic.title : "Aucune epic"}
+        </span>
+        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 z-[10001] bg-popover border rounded-md shadow-lg overflow-hidden">
+          <div className="p-2 border-b">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Rechercher une epic..."
+                className="pl-8 h-7 text-[11px]"
+                autoFocus
+                data-testid="input-epic-search"
+              />
+            </div>
+          </div>
+          <div className="max-h-44 overflow-y-auto py-1">
+            <button
+              className="w-full text-left px-3 py-1.5 text-[11px] hover-elevate text-muted-foreground"
+              onClick={() => { onChange(""); setOpen(false); }}
+              data-testid="epic-option-none"
+            >
+              Aucune epic
+            </button>
+            {filtered.map(epic => (
+              <button
+                key={epic.id}
+                className={`w-full text-left px-3 py-1.5 text-[11px] hover-elevate ${value === epic.id ? "font-medium text-primary" : ""}`}
+                onClick={() => { onChange(epic.id); setOpen(false); }}
+                data-testid={`epic-option-${epic.id}`}
+              >
+                {epic.title}
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <div className="px-3 py-2 text-[11px] text-muted-foreground">Aucune epic trouvée</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function NowNextLaterView({
+  items,
+  roadmapId,
+  onItemClick,
+  onAddItem,
+  onUpdateItem,
+  epics,
+  backlogId,
+  userStories: externalUserStories,
+  groupBy = "none",
+}: NowNextLaterViewProps) {
   const { toast } = useToast();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overLaneId, setOverLaneId] = useState<string | null>(null);
   const [hideUnqualified, setHideUnqualified] = useState(false);
-  const [groupBy, setGroupBy] = useState<GroupByMode>("lane");
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<"create" | "edit">("create");
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [drawerLane, setDrawerLane] = useState<string>("now");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [noteSelectorOpen, setNoteSelectorOpen] = useState(false);
+  const [noteSearch, setNoteSearch] = useState("");
+  const [okrSelectorOpen, setOkrSelectorOpen] = useState(false);
+
   const [form, setForm] = useState<Record<string, string>>({
     title: "",
     vision: "",
@@ -152,6 +240,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     epicId: "",
     priority: "normal",
     actionType: "",
+    objectiveId: "",
   });
 
   const sensors = useSensors(
@@ -173,6 +262,51 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
   });
   const allUserStories = externalUserStories || fetchedUserStories;
 
+  const editingItem = editingItemId ? items.find(i => i.id === editingItemId) : null;
+
+  // Linked notes for the currently editing item
+  const { data: linkedNotes = [] } = useQuery<Note[]>({
+    queryKey: ["/api/notes/by-entity/roadmap_item", editingItemId],
+    enabled: !!editingItemId && drawerOpen && drawerMode === "edit",
+  });
+
+  // All notes for the selector
+  const { data: allNotes = [] } = useQuery<Note[]>({
+    queryKey: ["/api/notes"],
+    enabled: noteSelectorOpen,
+  });
+
+  // OKR objectives for this roadmap
+  const { data: okrObjectives = [] } = useQuery<any[]>({
+    queryKey: [`/api/roadmaps/${roadmapId}/okr-objectives`],
+    enabled: !!roadmapId && drawerOpen,
+  });
+
+  const linkNoteMutation = useMutation({
+    mutationFn: async (noteId: string) => {
+      const res = await apiRequest(`/api/notes/${noteId}/links`, "POST", {
+        targetType: "roadmap_item",
+        targetId: editingItemId,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes/by-entity/roadmap_item", editingItemId] });
+      setNoteSelectorOpen(false);
+      setNoteSearch("");
+    },
+  });
+
+  const unlinkNoteMutation = useMutation({
+    mutationFn: async (noteId: string) => {
+      const res = await apiRequest(`/api/notes/${noteId}/links/roadmap_item/${editingItemId}`, "DELETE");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes/by-entity/roadmap_item", editingItemId] });
+    },
+  });
+
   const updateItemMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<RoadmapItem> }) => {
       const res = await apiRequest(`/api/roadmap-items/${id}`, 'PATCH', data);
@@ -189,11 +323,10 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
       }
       return { previousItems };
     },
-    onError: (error, _variables, context) => {
+    onError: (_error, _variables, context) => {
       if (context?.previousItems) {
         queryClient.setQueryData([`/api/roadmaps/${roadmapId}/items`], context.previousItems);
       }
-      console.error("NNL update error:", error?.message || error);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${roadmapId}/items`] });
@@ -225,7 +358,6 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
       if (context?.previousItems) {
         queryClient.setQueryData([`/api/roadmaps/${roadmapId}/items`], context.previousItems);
       }
-      console.error("NNL delete error:", _error);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${roadmapId}/items`] });
@@ -251,6 +383,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
       if (data.releaseTag) body.releaseTag = data.releaseTag;
       if (data.epicId) body.epicId = data.epicId;
       if (data.actionType) body.actionType = data.actionType;
+      if (data.objectiveId) body.objectiveId = data.objectiveId;
       const res = await apiRequest('/api/roadmap-items', 'POST', body);
       return await res.json();
     },
@@ -260,9 +393,6 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
       setDrawerOpen(false);
       setEditingItemId(null);
     },
-    onError: (error) => {
-      console.error("NNL create error:", error?.message || error);
-    },
   });
 
   const computeLane = (item: RoadmapItem): string => {
@@ -270,17 +400,16 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     if (!item.endDate) return item.lane || "later";
     const now = new Date();
     const end = new Date(item.endDate);
-    const diffMs = end.getTime() - now.getTime();
-    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    const diffDays = (end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
     if (diffDays <= 30) return "now";
     if (diffDays <= 90) return "next";
     return "later";
   };
 
-  const getEpicTickets = (epicId: string | null | undefined): { id: string; title: string; state: string; type: string }[] => {
+  const getEpicTickets = (epicId: string | null | undefined) => {
     if (!epicId) return [];
-    const us = allUserStories.filter(s => s.epicId === epicId).map(s => ({ id: s.id, title: s.title, state: s.state, type: "user_story" as string }));
-    const tasks = epicTasks.filter(t => t.epicId === epicId).map(t => ({ id: t.id, title: t.title, state: t.state, type: "task" as string }));
+    const us = allUserStories.filter(s => s.epicId === epicId).map(s => ({ id: s.id, title: s.title, state: s.state }));
+    const tasks = epicTasks.filter(t => t.epicId === epicId).map(t => ({ id: t.id, title: t.title, state: t.state }));
     return [...us, ...tasks];
   };
 
@@ -291,9 +420,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     unqualified: items.filter(i => computeLane(i) === "unqualified"),
   };
 
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(String(event.active.id));
-  };
+  const handleDragStart = (event: DragStartEvent) => setActiveId(String(event.active.id));
 
   const handleDragOver = (event: DragOverEvent) => {
     const { over } = event;
@@ -308,24 +435,17 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     const { active, over } = event;
     setActiveId(null);
     setOverLaneId(null);
-
     if (!over) return;
-
     const itemId = String(active.id);
     const item = items.find(i => i.id === itemId);
     if (!item) return;
-
     if (item.endDate && item.lane !== "unqualified") {
-      toast({ title: "Info", description: "Cet élément a une date de fin, sa colonne est calculée automatiquement.", variant: "default" });
+      toast({ title: "Info", description: "Cet élément a une date de fin, sa colonne est calculée automatiquement." });
       return;
     }
-
     const targetLane = String(over.id);
     if (!["now", "next", "later", "unqualified"].includes(targetLane)) return;
-
-    const currentLane = computeLane(item);
-    if (currentLane === targetLane) return;
-
+    if (computeLane(item) === targetLane) return;
     updateItemMutation.mutate({ id: itemId, data: { lane: targetLane } });
   };
 
@@ -345,6 +465,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
       epicId: item.epicId || "",
       priority: item.priority || "normal",
       actionType: item.actionType || "",
+      objectiveId: item.objectiveId || "",
     });
     setDrawerOpen(true);
   };
@@ -353,19 +474,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     setDrawerMode("create");
     setEditingItemId(null);
     setDrawerLane(lane);
-    setForm({
-      title: "",
-      vision: "",
-      objectif: "",
-      impact: "",
-      metrics: "",
-      phase: "",
-      releaseTag: "",
-      status: "planned",
-      epicId: "",
-      priority: "normal",
-      actionType: "",
-    });
+    setForm({ title: "", vision: "", objectif: "", impact: "", metrics: "", phase: "", releaseTag: "", status: "planned", epicId: "", priority: "normal", actionType: "", objectiveId: "" });
     setDrawerOpen(true);
   };
 
@@ -375,65 +484,54 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
       createItemMutation.mutate({ ...form, lane: drawerLane });
     } else {
       if (!editingItemId) return;
-      const data: Record<string, unknown> = {
-        title: form.title,
-        vision: form.vision,
-        objectif: form.objectif,
-        impact: form.impact,
-        metrics: form.metrics,
-        phase: form.phase,
-        releaseTag: form.releaseTag,
-        status: form.status,
-        lane: drawerLane,
-        priority: form.priority || "normal",
-        actionType: form.actionType || null,
-      };
-      if (form.epicId) {
-        data.epicId = form.epicId;
-      } else {
-        data.epicId = null;
-      }
       updateItemMutation.mutate({
         id: editingItemId,
-        data: data as Partial<RoadmapItem>,
+        data: {
+          title: form.title,
+          vision: form.vision,
+          objectif: form.objectif,
+          impact: form.impact,
+          metrics: form.metrics,
+          phase: form.phase,
+          releaseTag: form.releaseTag,
+          status: form.status,
+          lane: drawerLane,
+          priority: form.priority || "normal",
+          actionType: form.actionType || null,
+          epicId: form.epicId || null,
+          objectiveId: form.objectiveId || null,
+        } as Partial<RoadmapItem>,
       });
       setDrawerOpen(false);
       setEditingItemId(null);
     }
   };
 
-  const editingItem = editingItemId ? items.find(i => i.id === editingItemId) : null;
-  const linkedEpic = form.epicId ? epics.find(e => e.id === form.epicId) : null;
-  const linkedTasks = linkedEpic ? getEpicTickets(linkedEpic.id) : [];
-
   const activeItem = activeId ? items.find(i => i.id === activeId) : null;
 
   const renderCard = (item: RoadmapItem, isDragOverlay = false) => {
     const statusConfig = STATUS_CONFIG[item.status] || STATUS_CONFIG.planned;
     const StatusIcon = statusConfig.icon;
-    const isGroup = item.isGroup || item.type === "epic_group";
-    const itemLane = computeLane(item);
-    const laneConfig = LANE_CONFIG[itemLane];
     const cardEpic = item.epicId ? epics.find(e => e.id === item.epicId) : null;
     const cardEpicTickets = getEpicTickets(item.epicId);
     const priorityConfig = item.priority ? PRIORITY_CONFIG[item.priority] : null;
     const actionConfig = item.actionType ? ACTION_TYPE_CONFIG[item.actionType] : null;
+    const itemLane = computeLane(item);
+    const laneConfig = LANE_CONFIG[itemLane];
 
     return (
       <Card
         key={item.id}
-        className={`cursor-pointer hover-elevate active-elevate-2 overflow-visible border-l-[3px] ${actionConfig ? actionConfig.borderColor : (laneConfig?.borderColor || "")} ${isDragOverlay ? "shadow-lg ring-2 ring-primary/20" : ""}`}
-        onClick={(e) => { 
-          e.stopPropagation();
-          if (!isDragOverlay) openEditDrawer(item); 
-        }}
+        className={`cursor-pointer hover-elevate active-elevate-2 overflow-visible border-l-[3px] ${actionConfig ? "" : (laneConfig?.borderColor || "")} ${isDragOverlay ? "shadow-lg ring-2 ring-primary/20" : ""}`}
+        style={actionConfig ? { borderLeftColor: "" } : undefined}
+        onClick={(e) => { e.stopPropagation(); if (!isDragOverlay) openEditDrawer(item); }}
         data-testid={`nnl-card-${item.id}`}
       >
         <CardContent className="p-3 space-y-1.5">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-start gap-1.5 flex-1 min-w-0">
               <GripVertical className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0 cursor-grab" />
-              <h4 className={`${isGroup ? "text-[11px]" : "text-xs"} font-medium leading-tight flex-1`}>{item.title}</h4>
+              <h4 className="text-xs font-medium leading-tight flex-1">{item.title}</h4>
             </div>
             <Badge className={`text-[10px] shrink-0 ${statusConfig.color}`}>
               <StatusIcon className="h-2.5 w-2.5 mr-0.5" />
@@ -465,42 +563,26 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                     <Badge className="text-[10px] bg-violet-500 text-white">
                       <Package className="h-2.5 w-2.5 mr-0.5" />
                       {cardEpic.title}
-                      {cardEpicTickets.length > 0 && (
-                        <span className="ml-1 opacity-80">({cardEpicTickets.length})</span>
-                      )}
+                      {cardEpicTickets.length > 0 && <span className="ml-1 opacity-80">({cardEpicTickets.length})</span>}
                     </Badge>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="w-[340px] p-[5px] bg-white dark:bg-slate-900 text-foreground border shadow-md z-[9999]">
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-medium mb-1">{cardEpic.title}</p>
-                    {cardEpicTickets.length > 0 ? (
-                      <>
-                        <p className="text-[11px] text-muted-foreground mb-1">Tickets liés ({cardEpicTickets.length})</p>
-                        <div className="max-h-[200px] overflow-y-auto space-y-0.5 pr-1">
-                          {cardEpicTickets.map(task => {
-                            const stColor = task.state === "done" || task.state === "termine" ? "text-green-600" : (task.state === "in_progress" || task.state === "en_cours") ? "text-amber-600" : "text-muted-foreground";
-                            return (
-                              <div key={task.id} className="flex items-center gap-1.5 text-[11px]">
-                                <Ticket className={`h-2.5 w-2.5 shrink-0 ${stColor}`} />
-                                <span className="truncate">{task.title}</span>
-                              </div>
-                            );
-                          })}
+                <TooltipContent side="bottom" className="w-[320px] p-2 bg-white dark:bg-slate-900 text-foreground border shadow-md z-[9999]">
+                  <p className="text-[11px] font-medium mb-1">{cardEpic.title}</p>
+                  {cardEpicTickets.length > 0 ? (
+                    <div className="max-h-[180px] overflow-y-auto space-y-0.5">
+                      {cardEpicTickets.map(t => (
+                        <div key={t.id} className="flex items-center gap-1.5 text-[11px]">
+                          <Ticket className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+                          <span className="truncate">{t.title}</span>
                         </div>
-                      </>
-                    ) : (
-                      <p className="text-[11px] text-muted-foreground">Aucun ticket lié</p>
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">Aucun ticket lié</p>
+                  )}
                 </TooltipContent>
               </Tooltip>
-            )}
-            {item.phase && (
-              <Badge variant="outline" className="text-[10px]">
-                <Layers className="h-2.5 w-2.5 mr-0.5" />
-                {item.phase}
-              </Badge>
             )}
             {item.releaseTag && (
               <Badge variant="outline" className="text-[10px]">
@@ -514,182 +596,116 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     );
   };
 
+  // Render items possibly grouped within a lane
+  const renderLaneItems = (laneItemsList: RoadmapItem[], laneKey: string) => {
+    if (groupBy === "none" || laneItemsList.length === 0) {
+      return (
+        <DroppableLane id={laneKey} isOver={overLaneId === laneKey && activeId !== null}>
+          {laneItemsList.map(item => (
+            <DraggableCard key={item.id} id={item.id}>{renderCard(item)}</DraggableCard>
+          ))}
+          {laneItemsList.length === 0 && (
+            <div className="border-2 border-dashed rounded-md p-4 text-center text-xs text-muted-foreground">Aucun élément</div>
+          )}
+        </DroppableLane>
+      );
+    }
+
+    // Sub-groups within the lane
+    type GroupDef = { key: string; label: string; dotColor: string; groupColor: string; groupBorder: string };
+    const groups: GroupDef[] = groupBy === "priority"
+      ? [
+          { key: "critique", label: "Critique", dotColor: "bg-violet-500", groupColor: "bg-violet-500/5", groupBorder: "border-violet-400/30" },
+          { key: "high", label: "Haute", dotColor: "bg-red-500", groupColor: "bg-red-500/5", groupBorder: "border-red-400/30" },
+          { key: "normal", label: "Normale", dotColor: "bg-yellow-400", groupColor: "bg-yellow-500/5", groupBorder: "border-yellow-400/30" },
+          { key: "low", label: "Basse", dotColor: "bg-green-500", groupColor: "bg-green-500/5", groupBorder: "border-green-400/30" },
+        ]
+      : [
+          { key: "discovery", label: "Discovery", dotColor: "bg-pink-500", groupColor: "bg-pink-500/5", groupBorder: "border-pink-400/30" },
+          { key: "develop", label: "Développer", dotColor: "bg-blue-500", groupColor: "bg-blue-500/5", groupBorder: "border-blue-400/30" },
+          { key: "test", label: "Tester", dotColor: "bg-violet-500", groupColor: "bg-violet-500/5", groupBorder: "border-violet-400/30" },
+          { key: "review", label: "Review", dotColor: "bg-yellow-500", groupColor: "bg-yellow-500/5", groupBorder: "border-yellow-400/30" },
+          { key: "validate", label: "Valider", dotColor: "bg-green-500", groupColor: "bg-green-500/5", groupBorder: "border-green-400/30" },
+          { key: "stop", label: "Stopper", dotColor: "bg-gray-400", groupColor: "bg-gray-500/5", groupBorder: "border-gray-400/30" },
+          { key: "__none__", label: "Sans action", dotColor: "bg-gray-300", groupColor: "bg-gray-500/5", groupBorder: "border-gray-400/30" },
+        ];
+
+    return (
+      <DroppableLane id={laneKey} isOver={overLaneId === laneKey && activeId !== null}>
+        <div className="space-y-3">
+          {groups.map(g => {
+            const groupItems = laneItemsList.filter(i => {
+              if (groupBy === "priority") return (i.priority || "normal") === g.key;
+              if (g.key === "__none__") return !i.actionType;
+              return i.actionType === g.key;
+            });
+            if (groupItems.length === 0) return null;
+            return (
+              <div key={g.key} className={`rounded-md border ${g.groupBorder} ${g.groupColor} p-2`}>
+                <div className="flex items-center gap-1.5 mb-2 px-0.5">
+                  <div className={`w-2 h-2 rounded-full ${g.dotColor}`} />
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{g.label}</span>
+                  <Badge className="text-[9px] bg-muted text-muted-foreground ml-auto no-default-hover-elevate no-default-active-elevate">{groupItems.length}</Badge>
+                </div>
+                <div className="space-y-1.5">
+                  {groupItems.map(item => (
+                    <DraggableCard key={item.id} id={item.id}>{renderCard(item)}</DraggableCard>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </DroppableLane>
+    );
+  };
+
   const renderLane = (laneKey: string) => {
     const config = LANE_CONFIG[laneKey];
     if (!config) return null;
     const laneItemsList = laneItems[laneKey] || [];
-
     if (laneKey === "unqualified" && hideUnqualified) return null;
-
     const isDropTarget = overLaneId === laneKey && activeId !== null;
 
     return (
-      <div className={`flex-1 ${laneKey === "unqualified" ? "min-w-[240px]" : "min-w-[280px]"}`} data-testid={`nnl-lane-${laneKey}`}>
-        <div className={`rounded-lg border ${config.color} p-3 transition-all duration-200 ${isDropTarget ? "ring-2 ring-primary/30 scale-[1.01]" : ""}`}>
-          <div className="flex items-center justify-between mb-1 gap-2">
-            <div className="flex items-center gap-2">
+      <div className="flex-1 min-w-[280px]" key={laneKey} data-testid={`nnl-lane-${laneKey}`}>
+        <div className={`rounded-lg border ${config.color} p-3 transition-all ${isDropTarget ? "ring-2 ring-primary/30 scale-[1.01]" : ""}`}>
+          <div className="flex items-center justify-between mb-2 gap-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <div className={`w-2.5 h-2.5 rounded-full ${config.headerColor}`} />
               <h3 className={`text-xs font-semibold ${config.textColor}`}>{config.label}</h3>
               <Badge className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${config.badgeColor}`}>{laneItemsList.length}</Badge>
-              <span className={`text-[10px] italic text-muted-foreground`}>{config.description}</span>
+              <span className="text-[10px] italic text-muted-foreground hidden sm:inline">{config.description}</span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               {laneKey === "unqualified" && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setHideUnqualified(true)}
-                  data-testid="button-hide-unqualified"
-                >
+                <Button variant="ghost" size="icon" onClick={() => setHideUnqualified(true)} data-testid="button-hide-unqualified">
                   <EyeOff className="h-3.5 w-3.5" />
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => openCreateDrawer(laneKey)}
-                data-testid={`button-add-nnl-${laneKey}`}
-              >
+              <Button variant="ghost" size="icon" onClick={() => openCreateDrawer(laneKey)} data-testid={`button-add-nnl-${laneKey}`}>
                 <Plus className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
-          <DroppableLane id={laneKey} isOver={isDropTarget}>
-            {laneItemsList.map(item => (
-              <DraggableCard key={item.id} id={item.id}>
-                {renderCard(item)}
-              </DraggableCard>
-            ))}
-            {laneItemsList.length === 0 && (
-              <div className="border-2 border-dashed rounded-md p-4 text-center text-xs text-muted-foreground">
-                Aucun élément
-              </div>
-            )}
-          </DroppableLane>
+          {renderLaneItems(laneItemsList, laneKey)}
         </div>
-      </div>
-    );
-  };
-
-  // Grouped view rendering (by priority or action_type)
-  const renderGroupedView = () => {
-    type GroupEntry = { key: string; label: string; color: string; headerColor: string; dotColor: string; badgeColor: string };
-    let groups: GroupEntry[] = [];
-
-    if (groupBy === "priority") {
-      groups = [
-        { key: "strategic", label: "Stratégique", color: "bg-violet-500/10 border-violet-500/30", headerColor: "bg-violet-500", dotColor: "bg-violet-500", badgeColor: "bg-violet-500 text-white" },
-        { key: "high", label: "Haute priorité", color: "bg-red-500/10 border-red-500/30", headerColor: "bg-red-500", dotColor: "bg-red-500", badgeColor: "bg-red-500 text-white" },
-        { key: "normal", label: "Priorité normale", color: "bg-gray-500/10 border-gray-500/30", headerColor: "bg-gray-400", dotColor: "bg-gray-400", badgeColor: "bg-gray-400 text-white" },
-        { key: "low", label: "Basse priorité", color: "bg-blue-500/10 border-blue-500/30", headerColor: "bg-blue-400", dotColor: "bg-blue-400", badgeColor: "bg-blue-400 text-white" },
-      ];
-    } else {
-      groups = Object.entries(ACTION_TYPE_CONFIG).map(([key, cfg]) => ({
-        key,
-        label: cfg.label,
-        color: cfg.color.replace("text-", "border-").replace(/ text-\S+/, "").replace("bg-", "bg-") + "/10 border-" + cfg.dotColor.replace("bg-", "") + "/30",
-        headerColor: cfg.headerColor,
-        dotColor: cfg.dotColor,
-        badgeColor: cfg.badgeColor,
-      }));
-      // Add "none" group
-      groups.push({ key: "none", label: "Sans action", color: "bg-gray-500/10 border-gray-500/30", headerColor: "bg-gray-300", dotColor: "bg-gray-300", badgeColor: "bg-gray-300 text-gray-700" });
-    }
-
-    return (
-      <div className="flex gap-3 overflow-x-auto pb-4">
-        {groups.map(group => {
-          const groupItems = items.filter(i => {
-            if (groupBy === "priority") return (i.priority || "normal") === group.key;
-            if (group.key === "none") return !i.actionType;
-            return i.actionType === group.key;
-          });
-
-          if (groupItems.length === 0 && group.key === "none") return null;
-
-          return (
-            <div key={group.key} className="flex-1 min-w-[280px]" data-testid={`nnl-group-${group.key}`}>
-              <div className={`rounded-lg border bg-muted/5 border-muted p-3`}>
-                <div className="flex items-center justify-between mb-1 gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2.5 h-2.5 rounded-full ${group.headerColor}`} />
-                    <h3 className="text-xs font-semibold">{group.label}</h3>
-                    <Badge className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${group.badgeColor}`}>{groupItems.length}</Badge>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => openCreateDrawer("now")}
-                    data-testid={`button-add-group-${group.key}`}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-                <div className="space-y-2 min-h-[80px]">
-                  {groupItems.map(item => (
-                    <div key={item.id} onClick={() => openEditDrawer(item)}>
-                      {renderCard(item)}
-                    </div>
-                  ))}
-                  {groupItems.length === 0 && (
-                    <div className="border-2 border-dashed rounded-md p-4 text-center text-xs text-muted-foreground">
-                      Aucun élément
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
       </div>
     );
   };
 
   const drawerLaneConfig = LANE_CONFIG[drawerLane];
   const drawerEpic = form.epicId ? epics.find(e => e.id === form.epicId) : null;
+  const linkedEpic = drawerEpic;
+  const linkedTasks = getEpicTickets(linkedEpic?.id);
+  const linkedObjective = form.objectiveId ? okrObjectives.find((o: any) => o.id === form.objectiveId) : null;
+  const availableNotes = allNotes.filter(
+    n => !linkedNotes.some(ln => ln.id === n.id) &&
+    (noteSearch === "" || (n.title || "").toLowerCase().includes(noteSearch.toLowerCase()))
+  );
 
   return (
     <div>
-      {/* GroupBy toolbar */}
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-          <ListFilter className="h-3.5 w-3.5" />
-          Grouper par
-        </span>
-        <div className="flex items-center gap-1 border rounded-md p-0.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-6 px-2 text-[11px] ${groupBy === "lane" ? "bg-accent" : ""}`}
-            onClick={() => setGroupBy("lane")}
-            data-testid="button-groupby-lane"
-          >
-            <LayoutGrid className="h-3 w-3 mr-1" />
-            Colonne
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-6 px-2 text-[11px] ${groupBy === "priority" ? "bg-accent" : ""}`}
-            onClick={() => setGroupBy("priority")}
-            data-testid="button-groupby-priority"
-          >
-            <Flag className="h-3 w-3 mr-1" />
-            Priorité
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-6 px-2 text-[11px] ${groupBy === "action_type" ? "bg-accent" : ""}`}
-            onClick={() => setGroupBy("action_type")}
-            data-testid="button-groupby-action"
-          >
-            <Zap className="h-3 w-3 mr-1" />
-            Action
-          </Button>
-        </div>
-      </div>
-
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -697,94 +713,81 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        {groupBy === "lane" ? (
-          <div className="flex gap-3 overflow-x-auto pb-4">
-            {renderLane("now")}
-            {renderLane("next")}
-            {renderLane("later")}
-            {laneItems.unqualified.length > 0 && renderLane("unqualified")}
-            {hideUnqualified && laneItems.unqualified.length > 0 && (
-              <div className="self-start shrink-0 pt-1">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setHideUnqualified(false)}
-                      data-testid="button-show-unqualified"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Afficher la colonne Non qualifié(s)</TooltipContent>
-                </Tooltip>
-              </div>
-            )}
-          </div>
-        ) : (
-          renderGroupedView()
-        )}
+        <div className="flex gap-3 overflow-x-auto pb-4">
+          {renderLane("now")}
+          {renderLane("next")}
+          {renderLane("later")}
+          {laneItems.unqualified.length > 0 && renderLane("unqualified")}
+          {hideUnqualified && laneItems.unqualified.length > 0 && (
+            <div className="self-start shrink-0 pt-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={() => setHideUnqualified(false)} data-testid="button-show-unqualified">
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Afficher Non qualifié(s)</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
+        </div>
 
         <DragOverlay dropAnimation={null}>
-          {activeItem ? (
-            <div className="w-[280px]">
-              {renderCard(activeItem, true)}
-            </div>
-          ) : null}
+          {activeItem ? <div className="w-[280px]">{renderCard(activeItem, true)}</div> : null}
         </DragOverlay>
       </DndContext>
 
+      {/* DRAWER */}
       <Sheet open={drawerOpen} onOpenChange={(open) => { if (!open) { setDrawerOpen(false); setEditingItemId(null); setIsEditingTitle(false); } }}>
         <SheetContent className="w-[500px] sm:max-w-[500px] overflow-hidden flex flex-col p-0 bg-white dark:bg-slate-900 [&>button:last-child]:hidden">
-          <div className="px-4 pt-4 pb-3">
+          <div className="px-4 pt-4 pb-3 border-b">
             <SheetHeader className="space-y-0">
               <SheetDescription className="sr-only">
-                {drawerMode === "create" ? "Créer un nouvel élément" : "Paramètres de l'élément"}
+                {drawerMode === "create" ? "Créer un nouvel élément" : "Modifier l'élément"}
               </SheetDescription>
 
-              <div className="flex items-center gap-2 flex-wrap">
-                <Select
-                  value={form.epicId || "none"}
-                  onValueChange={(v) => {
-                    const newEpicId = v === "none" ? "" : v;
-                    setForm(prev => ({ ...prev, epicId: newEpicId }));
-                    if (drawerMode === "edit" && editingItemId) {
-                      updateItemMutation.mutate({ id: editingItemId, data: { epicId: newEpicId || null } as Partial<RoadmapItem> });
-                    }
-                  }}
-                >
-                  <SelectTrigger className="border-none shadow-none p-0 h-auto w-auto gap-0 focus:ring-0 [&>svg]:hidden" data-testid="select-nnl-epic">
-                    <Badge className="text-[10px] bg-violet-500 text-white cursor-pointer">
-                      <Package className="h-2.5 w-2.5 mr-0.5" />
-                      {drawerEpic ? drawerEpic.title : "Epic"}
-                    </Badge>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucune epic</SelectItem>
-                    {epics.map(epic => (
-                      <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {/* Badge row: Epic, Priority, Action, OKR, Lane, Trash, Close */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+
+                {/* Epic combobox-badge */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className="shrink-0" data-testid="badge-trigger-epic">
+                      <Badge className="text-[10px] bg-violet-500 text-white cursor-pointer">
+                        <Package className="h-2.5 w-2.5 mr-0.5" />
+                        {drawerEpic ? drawerEpic.title : "Epic"}
+                      </Badge>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-0 z-[10001]" align="start">
+                    <EpicCombobox
+                      value={form.epicId}
+                      epics={epics}
+                      onChange={(v) => {
+                        setForm(prev => ({ ...prev, epicId: v }));
+                        if (drawerMode === "edit" && editingItemId) {
+                          updateItemMutation.mutate({ id: editingItemId, data: { epicId: v || null } as Partial<RoadmapItem> });
+                        }
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
 
                 {/* Priority badge selector */}
-                <Select
-                  value={form.priority || "normal"}
-                  onValueChange={(v) => {
-                    setForm(prev => ({ ...prev, priority: v }));
-                    if (drawerMode === "edit" && editingItemId) {
-                      updateItemMutation.mutate({ id: editingItemId, data: { priority: v } as Partial<RoadmapItem> });
-                    }
-                  }}
-                >
+                <Select value={form.priority || "normal"} onValueChange={(v) => {
+                  setForm(prev => ({ ...prev, priority: v }));
+                  if (drawerMode === "edit" && editingItemId) {
+                    updateItemMutation.mutate({ id: editingItemId, data: { priority: v } as Partial<RoadmapItem> });
+                  }
+                }}>
                   <SelectTrigger className="border-none shadow-none p-0 h-auto w-auto gap-0 focus:ring-0 [&>svg]:hidden" data-testid="select-nnl-priority-badge">
                     <Badge className={`text-[10px] cursor-pointer ${PRIORITY_CONFIG[form.priority || "normal"]?.color || ""}`}>
                       <Flag className="h-2.5 w-2.5 mr-0.5" />
                       {PRIORITY_CONFIG[form.priority || "normal"]?.label || "Priorité"}
                     </Badge>
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="strategic">Stratégique</SelectItem>
+                  <SelectContent className="z-[10001]">
+                    <SelectItem value="critique">Critique</SelectItem>
                     <SelectItem value="high">Haute</SelectItem>
                     <SelectItem value="normal">Normale</SelectItem>
                     <SelectItem value="low">Basse</SelectItem>
@@ -792,23 +795,20 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                 </Select>
 
                 {/* Action type badge selector */}
-                <Select
-                  value={form.actionType || "none"}
-                  onValueChange={(v) => {
-                    const val = v === "none" ? "" : v;
-                    setForm(prev => ({ ...prev, actionType: val }));
-                    if (drawerMode === "edit" && editingItemId) {
-                      updateItemMutation.mutate({ id: editingItemId, data: { actionType: val || null } as Partial<RoadmapItem> });
-                    }
-                  }}
-                >
+                <Select value={form.actionType || "none"} onValueChange={(v) => {
+                  const val = v === "none" ? "" : v;
+                  setForm(prev => ({ ...prev, actionType: val }));
+                  if (drawerMode === "edit" && editingItemId) {
+                    updateItemMutation.mutate({ id: editingItemId, data: { actionType: val || null } as Partial<RoadmapItem> });
+                  }
+                }}>
                   <SelectTrigger className="border-none shadow-none p-0 h-auto w-auto gap-0 focus:ring-0 [&>svg]:hidden" data-testid="select-nnl-action-badge">
                     <Badge className={`text-[10px] cursor-pointer ${form.actionType && ACTION_TYPE_CONFIG[form.actionType] ? ACTION_TYPE_CONFIG[form.actionType].color : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"}`}>
                       <Zap className="h-2.5 w-2.5 mr-0.5" />
                       {form.actionType && ACTION_TYPE_CONFIG[form.actionType] ? ACTION_TYPE_CONFIG[form.actionType].label : "Action"}
                     </Badge>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[10001]">
                     <SelectItem value="none">Aucune action</SelectItem>
                     <SelectItem value="discovery">Discovery</SelectItem>
                     <SelectItem value="develop">Développer</SelectItem>
@@ -819,22 +819,53 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                   </SelectContent>
                 </Select>
 
-                {drawerMode === "edit" && editingItem && !editingItem.endDate && (
-                  <Select
-                    value={drawerLane}
-                    onValueChange={(v) => {
-                      setDrawerLane(v);
-                      if (editingItemId) {
-                        updateItemMutation.mutate({ id: editingItemId, data: { lane: v } });
-                      }
-                    }}
-                  >
+                {/* OKR badge selector */}
+                <Popover open={okrSelectorOpen} onOpenChange={setOkrSelectorOpen}>
+                  <PopoverTrigger asChild>
+                    <button data-testid="badge-trigger-okr">
+                      <Badge className={`text-[10px] cursor-pointer ${linkedObjective ? "bg-violet-500 text-white" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"}`}>
+                        <Target className="h-2.5 w-2.5 mr-0.5" />
+                        {linkedObjective ? linkedObjective.title.slice(0, 18) + (linkedObjective.title.length > 18 ? "…" : "") : "OKR"}
+                      </Badge>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-2 z-[10001]" align="start">
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 px-1">Objectif OKR</p>
+                    {okrObjectives.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground px-1 py-2">Aucun objectif OKR disponible pour ce projet</p>
+                    ) : (
+                      <div className="max-h-48 overflow-y-auto space-y-0.5">
+                        {linkedObjective && (
+                          <button className="w-full text-left text-[11px] px-2 py-1.5 rounded-md hover-elevate text-muted-foreground" onClick={() => {
+                            setForm(prev => ({ ...prev, objectiveId: "" }));
+                            if (drawerMode === "edit" && editingItemId) updateItemMutation.mutate({ id: editingItemId, data: { objectiveId: null } as any });
+                            setOkrSelectorOpen(false);
+                          }}>Aucun (retirer)</button>
+                        )}
+                        {okrObjectives.map((obj: any) => (
+                          <button key={obj.id} className={`w-full text-left text-[11px] px-2 py-1.5 rounded-md hover-elevate truncate ${form.objectiveId === obj.id ? "bg-violet-50 dark:bg-violet-900/20 font-medium text-violet-700 dark:text-violet-300" : ""}`} onClick={() => {
+                            setForm(prev => ({ ...prev, objectiveId: obj.id }));
+                            if (drawerMode === "edit" && editingItemId) updateItemMutation.mutate({ id: editingItemId, data: { objectiveId: obj.id } as any });
+                            setOkrSelectorOpen(false);
+                          }} data-testid={`okr-option-${obj.id}`}>{obj.title}</button>
+                        ))}
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+
+                {/* Lane selector */}
+                {(drawerMode === "create" || (drawerMode === "edit" && !editingItem?.endDate)) && (
+                  <Select value={drawerLane} onValueChange={(v) => {
+                    setDrawerLane(v);
+                    if (drawerMode === "edit" && editingItemId) updateItemMutation.mutate({ id: editingItemId, data: { lane: v } });
+                  }}>
                     <SelectTrigger className="border-none shadow-none p-0 h-auto w-auto gap-0 focus:ring-0 [&>svg]:hidden" data-testid="select-nnl-lane-header">
                       <Badge className={`text-[10px] cursor-pointer ${drawerLaneConfig?.badgeColor || "bg-gray-400 text-white"}`}>
                         {drawerLaneConfig?.label || drawerLane}
                       </Badge>
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[10001]">
                       <SelectItem value="now">Now</SelectItem>
                       <SelectItem value="next">Next</SelectItem>
                       <SelectItem value="later">Later</SelectItem>
@@ -843,79 +874,45 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                   </Select>
                 )}
                 {drawerMode === "edit" && editingItem?.endDate && (
-                  <Badge className={`text-[10px] ${drawerLaneConfig?.badgeColor || "bg-gray-400 text-white"}`}>
-                    {drawerLaneConfig?.label || drawerLane}
-                  </Badge>
-                )}
-                {drawerMode === "create" && (
-                  <Select value={drawerLane} onValueChange={setDrawerLane}>
-                    <SelectTrigger className="border-none shadow-none p-0 h-auto w-auto gap-0 focus:ring-0 [&>svg]:hidden" data-testid="select-nnl-create-lane">
-                      <Badge className={`text-[10px] cursor-pointer ${drawerLaneConfig?.badgeColor || "bg-gray-400 text-white"}`}>
-                        {drawerLaneConfig?.label || drawerLane}
-                      </Badge>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="now">Now</SelectItem>
-                      <SelectItem value="next">Next</SelectItem>
-                      <SelectItem value="later">Later</SelectItem>
-                      <SelectItem value="unqualified">Non qualifié</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Badge className={`text-[10px] ${drawerLaneConfig?.badgeColor || "bg-gray-400 text-white"}`}>{drawerLaneConfig?.label || drawerLane}</Badge>
                 )}
 
-                {drawerMode === "edit" && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      if (editingItemId) {
-                        deleteItemMutation.mutate(editingItemId);
-                      }
-                    }}
-                    disabled={deleteItemMutation.isPending}
-                    data-testid="button-nnl-delete"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                <div className="ml-auto flex items-center gap-0.5">
+                  {drawerMode === "edit" && (
+                    <Button variant="ghost" size="icon" onClick={() => { if (editingItemId) deleteItemMutation.mutate(editingItemId); }} disabled={deleteItemMutation.isPending} data-testid="button-nnl-delete">
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" onClick={() => { setDrawerOpen(false); setEditingItemId(null); setIsEditingTitle(false); }} data-testid="button-nnl-close">
+                    <X className="h-4 w-4" />
                   </Button>
-                )}
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="ml-auto"
-                  onClick={() => { setDrawerOpen(false); setEditingItemId(null); setIsEditingTitle(false); }}
-                  data-testid="button-nnl-close"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                </div>
               </div>
 
-              <div className="pt-3">
+              {/* Title */}
+              <div className="pt-2">
                 {drawerMode === "create" ? (
-                  <SheetTitle className="text-base leading-tight">Nouvel élément</SheetTitle>
+                  <Input
+                    value={form.title}
+                    onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Nom de l'élément"
+                    className="text-base font-semibold border-none shadow-none px-0 focus-visible:ring-0 h-auto"
+                    autoFocus
+                    data-testid="input-nnl-create-title"
+                  />
                 ) : isEditingTitle ? (
                   <Input
                     value={form.title}
                     onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
                     onBlur={() => {
                       setIsEditingTitle(false);
-                      if (editingItemId && form.title.trim()) {
-                        updateItemMutation.mutate({ id: editingItemId, data: { title: form.title.trim() } as Partial<RoadmapItem> });
-                      }
+                      if (editingItemId && form.title.trim()) updateItemMutation.mutate({ id: editingItemId, data: { title: form.title.trim() } as Partial<RoadmapItem> });
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        setIsEditingTitle(false);
-                        if (editingItemId && form.title.trim()) {
-                          updateItemMutation.mutate({ id: editingItemId, data: { title: form.title.trim() } as Partial<RoadmapItem> });
-                        }
-                      }
-                      if (e.key === "Escape") {
-                        setIsEditingTitle(false);
-                        if (editingItem) setForm(prev => ({ ...prev, title: editingItem.title }));
-                      }
+                      if (e.key === "Enter") { setIsEditingTitle(false); if (editingItemId && form.title.trim()) updateItemMutation.mutate({ id: editingItemId, data: { title: form.title.trim() } as Partial<RoadmapItem> }); }
+                      if (e.key === "Escape") { setIsEditingTitle(false); if (editingItem) setForm(prev => ({ ...prev, title: editingItem.title })); }
                     }}
-                    className="text-base font-semibold"
+                    className="text-base font-semibold border-none shadow-none px-0 focus-visible:ring-0 h-auto"
                     autoFocus
                     data-testid="input-nnl-edit-title"
                   />
@@ -932,25 +929,13 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
             </SheetHeader>
           </div>
 
-          <ScrollArea className="flex-1 pb-6">
-            <div className="space-y-3 px-4 pr-5">
-              {drawerMode === "create" && (
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Titre</Label>
-                  <Input
-                    value={form.title}
-                    onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Nom de l'élément"
-                    className="text-[11px] placeholder:text-[11px]"
-                    data-testid="input-nnl-create-title"
-                  />
-                </div>
-              )}
+          <ScrollArea className="flex-1 pb-4">
+            <div className="space-y-4 px-4 pt-3 pr-5">
 
+              {/* Status */}
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <CircleDot className="h-3 w-3" />
-                  Statut
+                  <CircleDot className="h-3 w-3" />Statut
                 </Label>
                 <Select value={form.status || "planned"} onValueChange={(v) => setForm(prev => ({ ...prev, status: v }))}>
                   <SelectTrigger className="text-[11px]" data-testid="select-nnl-status">
@@ -967,73 +952,45 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
 
               <Separator />
 
+              {/* Vision */}
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Eye className="h-3 w-3" />
-                  Vision
+                  <Eye className="h-3 w-3" />Vision
                 </Label>
-                <Textarea
-                  value={form.vision || ""}
-                  onChange={(e) => setForm(prev => ({ ...prev, vision: e.target.value }))}
-                  placeholder="Quelle est la vision de cet élément ?"
-                  className="resize-none text-[11px] placeholder:text-[11px]"
-                  rows={2}
-                  data-testid="input-nnl-vision"
-                />
+                <Textarea value={form.vision || ""} onChange={(e) => setForm(prev => ({ ...prev, vision: e.target.value }))} placeholder="Quelle est la vision ?" className="resize-none text-[11px] placeholder:text-[11px]" rows={2} data-testid="input-nnl-vision" />
               </div>
 
+              {/* Objectif */}
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Target className="h-3 w-3" />
-                  Objectif
+                  <Target className="h-3 w-3" />Objectif
                 </Label>
-                <Textarea
-                  value={form.objectif || ""}
-                  onChange={(e) => setForm(prev => ({ ...prev, objectif: e.target.value }))}
-                  placeholder="Quel est l'objectif à atteindre ?"
-                  className="resize-none text-[11px] placeholder:text-[11px]"
-                  rows={2}
-                  data-testid="input-nnl-objectif"
-                />
+                <Textarea value={form.objectif || ""} onChange={(e) => setForm(prev => ({ ...prev, objectif: e.target.value }))} placeholder="Quel objectif à atteindre ?" className="resize-none text-[11px] placeholder:text-[11px]" rows={2} data-testid="input-nnl-objectif" />
               </div>
 
+              {/* Impact */}
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <TrendingUp className="h-3 w-3" />
-                  Impact
+                  <TrendingUp className="h-3 w-3" />Impact
                 </Label>
-                <Textarea
-                  value={form.impact || ""}
-                  onChange={(e) => setForm(prev => ({ ...prev, impact: e.target.value }))}
-                  placeholder="Quel impact attendu ?"
-                  className="resize-none text-[11px] placeholder:text-[11px]"
-                  rows={2}
-                  data-testid="input-nnl-impact"
-                />
+                <Textarea value={form.impact || ""} onChange={(e) => setForm(prev => ({ ...prev, impact: e.target.value }))} placeholder="Impact attendu ?" className="resize-none text-[11px] placeholder:text-[11px]" rows={2} data-testid="input-nnl-impact" />
               </div>
 
+              {/* Métriques */}
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <BarChart3 className="h-3 w-3" />
-                  Métriques
+                  <BarChart3 className="h-3 w-3" />Métriques
                 </Label>
-                <Textarea
-                  value={form.metrics || ""}
-                  onChange={(e) => setForm(prev => ({ ...prev, metrics: e.target.value }))}
-                  placeholder="Comment mesurer le succès ?"
-                  className="resize-none text-[11px] placeholder:text-[11px]"
-                  rows={2}
-                  data-testid="input-nnl-metrics"
-                />
+                <Textarea value={form.metrics || ""} onChange={(e) => setForm(prev => ({ ...prev, metrics: e.target.value }))} placeholder="Comment mesurer le succès ?" className="resize-none text-[11px] placeholder:text-[11px]" rows={2} data-testid="input-nnl-metrics" />
               </div>
 
               <Separator />
 
+              {/* Phase + Version */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Layers className="h-3 w-3" />
-                    Phase
+                    <Layers className="h-3 w-3" />Phase
                   </Label>
                   <Select value={form.phase || ""} onValueChange={(v) => setForm(prev => ({ ...prev, phase: v }))}>
                     <SelectTrigger className="text-[11px]" data-testid="select-nnl-phase">
@@ -1047,28 +1004,38 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                     </SelectContent>
                   </Select>
                 </div>
-
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Tag className="h-3 w-3" />
-                    Version
+                    <Tag className="h-3 w-3" />Version
                   </Label>
-                  <Input
-                    value={form.releaseTag || ""}
-                    onChange={(e) => setForm(prev => ({ ...prev, releaseTag: e.target.value }))}
-                    placeholder="Ex: MVP, V1..."
-                    className="text-[11px] placeholder:text-[11px]"
-                    data-testid="input-nnl-version"
-                  />
+                  <Input value={form.releaseTag || ""} onChange={(e) => setForm(prev => ({ ...prev, releaseTag: e.target.value }))} placeholder="MVP, V1..." className="text-[11px] placeholder:text-[11px]" data-testid="input-nnl-version" />
                 </div>
               </div>
 
+              {/* Epic full selector */}
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Package className="h-3 w-3" />Epic liée
+                </Label>
+                <EpicCombobox
+                  value={form.epicId}
+                  epics={epics}
+                  onChange={(v) => {
+                    setForm(prev => ({ ...prev, epicId: v }));
+                    if (drawerMode === "edit" && editingItemId) {
+                      updateItemMutation.mutate({ id: editingItemId, data: { epicId: v || null } as Partial<RoadmapItem> });
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Tickets sous l'epic */}
               {linkedEpic && linkedTasks.length > 0 && (
-                <Collapsible defaultOpen={false} className="mt-1">
+                <Collapsible defaultOpen={false}>
                   <CollapsibleTrigger asChild>
-                    <button className="flex items-center w-full gap-2 px-0 py-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors" data-testid="button-nnl-tickets-toggle">
+                    <button className="flex items-center w-full gap-2 py-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors" data-testid="button-nnl-tickets-toggle">
                       <Ticket className="h-3 w-3" />
-                      <span>Tickets ({linkedTasks.length})</span>
+                      Tickets ({linkedTasks.length})
                       <ChevronRight className="h-3 w-3 ml-auto transition-transform [[data-state=open]_&]:rotate-90" />
                     </button>
                   </CollapsibleTrigger>
@@ -1076,23 +1043,20 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                     <div className="divide-y mt-1">
                       {linkedTasks.map(task => {
                         const stateMap: Record<string, { label: string; color: string }> = {
-                          "a_faire": { label: "À faire", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
                           "todo": { label: "À faire", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
+                          "a_faire": { label: "À faire", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
                           "in_progress": { label: "En cours", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" },
                           "en_cours": { label: "En cours", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" },
                           "testing": { label: "En test", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" },
                           "to_fix": { label: "À corriger", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
                           "done": { label: "Terminé", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
                           "termine": { label: "Terminé", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
-                          "blocked": { label: "Bloqué", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
                         };
                         const st = stateMap[task.state || ""] || { label: task.state || "—", color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300" };
                         return (
                           <div key={task.id} className="flex items-center justify-between gap-2 py-1.5 text-[11px]">
-                            <span className="flex-1 min-w-0 break-words">{task.title}</span>
-                            <Badge className={`text-[9px] shrink-0 ${st.color}`}>
-                              {st.label}
-                            </Badge>
+                            <span className="flex-1 min-w-0 truncate">{task.title}</span>
+                            <Badge className={`text-[9px] shrink-0 ${st.color}`}>{st.label}</Badge>
                           </div>
                         );
                       })}
@@ -1101,26 +1065,70 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                 </Collapsible>
               )}
 
-              {drawerMode === "edit" && editingItem?.sourceType === "cdc" && (
-                <div className="p-2 rounded-md border bg-muted/30 mt-2">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-3 w-3 text-muted-foreground" />
-                    <Badge variant="secondary" className="text-[9px]">CDC</Badge>
-                    <span className="text-[10px] text-muted-foreground">Source : Cahier des charges</span>
+              <Separator />
+
+              {/* Notes liées */}
+              {drawerMode === "edit" && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <FileText className="h-3 w-3" />Notes liées
+                      {linkedNotes.length > 0 && <Badge variant="secondary" className="text-[9px] ml-1">{linkedNotes.length}</Badge>}
+                    </Label>
+                    <Popover open={noteSelectorOpen} onOpenChange={(o) => { setNoteSelectorOpen(o); if (!o) setNoteSearch(""); }}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-6 px-2 text-[10px] gap-1" data-testid="button-link-note-nnl">
+                          <Plus className="h-2.5 w-2.5" />Lier
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 p-2 z-[10001]" align="end">
+                        <div className="relative mb-2">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <Input value={noteSearch} onChange={e => setNoteSearch(e.target.value)} placeholder="Rechercher une note..." className="pl-8 h-7 text-[11px]" data-testid="input-note-search-nnl" />
+                        </div>
+                        {availableNotes.length === 0 ? (
+                          <p className="text-[11px] text-muted-foreground text-center py-2">{allNotes.length === 0 ? "Chargement..." : "Aucune note disponible"}</p>
+                        ) : (
+                          <div className="max-h-44 overflow-y-auto space-y-0.5">
+                            {availableNotes.map(note => (
+                              <button key={note.id} className="w-full text-left text-[11px] px-2 py-1.5 rounded-md hover-elevate truncate" onClick={() => linkNoteMutation.mutate(note.id)} disabled={linkNoteMutation.isPending} data-testid={`note-option-${note.id}`}>
+                                {note.title || "Note sans titre"}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
                   </div>
+
+                  {linkedNotes.length === 0 ? (
+                    <div className="border-2 border-dashed rounded-md p-3 text-center text-[11px] text-muted-foreground">Aucune note liée</div>
+                  ) : (
+                    <div className="space-y-1">
+                      {linkedNotes.map(note => (
+                        <div key={note.id} className="flex items-center justify-between gap-2 p-2 rounded-md border" data-testid={`nnl-linked-note-${note.id}`}>
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                            <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
+                            <span className="text-[11px] truncate">{note.title || "Note sans titre"}</span>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => unlinkNoteMutation.mutate(note.id)} disabled={unlinkNoteMutation.isPending} data-testid={`button-unlink-note-nnl-${note.id}`}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </ScrollArea>
 
           <div className="border-t px-4 py-3 flex items-center justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => { setDrawerOpen(false); setEditingItemId(null); }} data-testid="button-nnl-cancel">
-              Annuler
-            </Button>
-            <Button 
-              size="sm" 
-              onClick={handleSave} 
-              disabled={(drawerMode === "create" && !form.title.trim()) || createItemMutation.isPending || updateItemMutation.isPending} 
+            <Button variant="outline" size="sm" onClick={() => { setDrawerOpen(false); setEditingItemId(null); }} data-testid="button-nnl-cancel">Annuler</Button>
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={(drawerMode === "create" && !form.title.trim()) || createItemMutation.isPending || updateItemMutation.isPending}
               data-testid="button-nnl-save"
             >
               <Save className="h-3.5 w-3.5 mr-1" />

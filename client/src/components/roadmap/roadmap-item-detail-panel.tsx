@@ -24,10 +24,11 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof
 };
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
-  strategic: { label: "Stratégique", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300" },
+  critique: { label: "Critique", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300" },
+  strategic: { label: "Critique", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300" },
   high: { label: "Haute", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
-  normal: { label: "Normale", color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300" },
-  low: { label: "Basse", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
+  normal: { label: "Normale", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300" },
+  low: { label: "Basse", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
 };
 
 const TYPE_CONFIG: Record<string, { label: string; color: string }> = {
