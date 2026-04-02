@@ -64,6 +64,7 @@ export interface FlatTicket {
   createdAt?: string | null;
   updatedAt?: string | null;
   version?: string | null;
+  tag?: string | null;
   metrics01Label?: string | null;
   metrics01Value?: number | null;
   metrics02Label?: string | null;
@@ -446,6 +447,23 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
       
       {/* Right columns container with larger spacing */}
       <div className="flex items-center gap-4">
+      {/* Tag badge */}
+      {ticket.tag && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge
+              variant="outline"
+              className="text-[10px] px-1.5 py-0 border-cyan-400 text-cyan-600 dark:text-cyan-400 dark:border-cyan-500 flex-shrink-0 max-w-[80px] truncate"
+              data-testid={`ticket-tag-${ticket.id}`}
+            >
+              {ticket.tag}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md">
+            <p className="text-xs">Tag : {ticket.tag}</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
       {/* Inline Points Editor with Tooltip */}
       {onUpdateField ? (
         <Popover open={pointsPopoverOpen} onOpenChange={setPointsPopoverOpen}>
@@ -1848,6 +1866,48 @@ export function SprintSection({
             </span>
           )}
           
+          {/* Assignee avatars for sprint members */}
+          {(() => {
+            const assigneeIds = Array.from(new Set(tickets.map(t => t.assigneeId).filter(Boolean))) as string[];
+            const assignees = assigneeIds.map(id => users?.find(u => u.id === id)).filter(Boolean);
+            if (assignees.length === 0) return null;
+            const maxShown = 5;
+            const shown = assignees.slice(0, maxShown);
+            const extra = assignees.length - maxShown;
+            return (
+              <div className="flex items-center">
+                {shown.map((user, i) => (
+                  <Tooltip key={user!.id}>
+                    <TooltipTrigger asChild>
+                      <Avatar
+                        className="h-6 w-6 ring-2 ring-card"
+                        style={{ marginLeft: i > 0 ? "-8px" : "0" }}
+                      >
+                        <AvatarFallback className="text-[9px] bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-200">
+                          {user!.firstName?.charAt(0) || user!.email?.charAt(0) || "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md">
+                      <p className="text-xs">
+                        {user!.firstName && user!.lastName
+                          ? `${user!.firstName} ${user!.lastName}`
+                          : user!.email}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+                {extra > 0 && (
+                  <Avatar className="h-6 w-6 ring-2 ring-card" style={{ marginLeft: "-8px" }}>
+                    <AvatarFallback className="text-[9px] bg-muted text-muted-foreground">
+                      +{extra}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+              </div>
+            );
+          })()}
+          
           <div className="flex-1" />
           
           <div className="flex items-center gap-2">
@@ -2413,6 +2473,7 @@ export function transformToFlatTickets(
       reporterId: story.reporterId || null,
       order: story.order,
       version: (story as any).version || null,
+      tag: (story as any).tag || null,
       createdAt: story.createdAt?.toString() || null,
       updatedAt: story.updatedAt?.toString() || null,
       metrics01Label: (story as any).metrics01Label || null,
@@ -2442,6 +2503,7 @@ export function transformToFlatTickets(
       reporterId: task.reporterId || null,
       order: task.order,
       version: (task as any).version || null,
+      tag: (task as any).tag || null,
       createdAt: task.createdAt?.toString() || null,
       updatedAt: task.updatedAt?.toString() || null,
       metrics01Label: (task as any).metrics01Label || null,

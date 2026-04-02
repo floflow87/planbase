@@ -1091,6 +1091,15 @@ export default function BacklogDetail() {
     return Array.from(versions).sort();
   }, [flatTickets]);
 
+  // Collect unique tags from all tickets for autocomplete
+  const allTicketTags = useMemo(() => {
+    const tags = new Set<string>();
+    flatTickets.forEach(t => {
+      if (t.tag) tags.add(t.tag);
+    });
+    return Array.from(tags).sort();
+  }, [flatTickets]);
+
   // Priority order for sorting
   const priorityOrder: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
   const stateOrder: Record<string, number> = { a_faire: 1, en_cours: 2, testing: 3, to_fix: 4, review: 5, termine: 6 };
@@ -2611,6 +2620,7 @@ export default function BacklogDetail() {
                       }}
                       currentUserId={currentDbUser?.id}
                       ticketViewSettings={editTicketViewSettings}
+                      allTags={allTicketTags}
                     />
                   </div>
                 </>
@@ -2897,6 +2907,7 @@ export default function BacklogDetail() {
                     }}
                     currentUserId={currentDbUser?.id}
                     ticketViewSettings={editTicketViewSettings}
+                    allTags={allTicketTags}
                   />
                 </div>
               </>
@@ -4057,7 +4068,7 @@ function SprintSheet({
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 z-[10001]" align="start">
                   <Calendar
                     mode="single"
                     selected={startDate}
@@ -4084,7 +4095,7 @@ function SprintSheet({
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 z-[10001]" align="start">
                   <Calendar
                     mode="single"
                     selected={endDate}

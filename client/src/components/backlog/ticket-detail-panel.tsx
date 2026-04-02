@@ -135,6 +135,7 @@ interface TicketDetailPanelProps {
   onOpenRecipe?: (ticketId: string, sprintId: string) => void;
   currentUserId?: string;
   ticketViewSettings?: TicketViewSettings | null;
+  allTags?: string[];
 }
 
 export function TicketDetailPanel({ 
@@ -156,6 +157,7 @@ export function TicketDetailPanel({
   onOpenRecipe,
   currentUserId,
   ticketViewSettings,
+  allTags = [],
 }: TicketDetailPanelProps) {
   const { toast } = useToast();
 
@@ -185,6 +187,10 @@ export function TicketDetailPanel({
   const [createTaskProjectId, setCreateTaskProjectId] = useState<string>("");
   const [createTaskTitle, setCreateTaskTitle] = useState("");
   const [projectSearchOpen, setProjectSearchOpen] = useState(false);
+
+  // Tag state
+  const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
+  const [tagInput, setTagInput] = useState("");
   
   
   // Fetch comments for the ticket - only fetch when ticket is selected
@@ -1127,6 +1133,116 @@ export function TicketDetailPanel({
             </Select>
           </div>}
           
+          {/* Tag (free-form) */}
+          {!isFieldHidden("tag") && (
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground flex items-center gap-2">
+                <Tag className="h-3 w-3" />
+                Tag
+              </Label>
+              {!readOnly ? (
+                <Popover open={tagPopoverOpen} onOpenChange={(open) => { setTagPopoverOpen(open); if (open) setTagInput(""); }}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs w-[140px] justify-between"
+                      data-testid="button-tag-selector"
+                    >
+                      {ticket.tag ? (
+                        <span className="truncate text-cyan-600 dark:text-cyan-400">{ticket.tag}</span>
+                      ) : (
+                        <span className="text-muted-foreground">Aucun</span>
+                      )}
+                      <ChevronsUpDown className="h-3 w-3 opacity-50 flex-shrink-0 ml-1" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-52 p-0 z-[10001]" align="end">
+                    <Command>
+                      <CommandInput
+                        placeholder="Rechercher ou créer un tag..."
+                        value={tagInput}
+                        onValueChange={setTagInput}
+                        className="text-xs"
+                        data-testid="input-tag-search"
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          {tagInput.trim() ? (
+                            <button
+                              className="w-full text-left px-3 py-2 text-xs text-cyan-600 dark:text-cyan-400 hover:bg-muted"
+                              onClick={() => {
+                                onUpdate(ticket.id, ticket.type, { tag: tagInput.trim() });
+                                setTagPopoverOpen(false);
+                              }}
+                              data-testid="button-create-tag"
+                            >
+                              Créer « {tagInput.trim()} »
+                            </button>
+                          ) : (
+                            <p className="px-3 py-2 text-xs text-muted-foreground">Aucun tag trouvé</p>
+                          )}
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {ticket.tag && (
+                            <CommandItem
+                              value="__remove__"
+                              onSelect={() => {
+                                onUpdate(ticket.id, ticket.type, { tag: null });
+                                setTagPopoverOpen(false);
+                              }}
+                              className="text-xs text-muted-foreground"
+                              data-testid="option-tag-remove"
+                            >
+                              <X className="h-3 w-3 mr-2" />
+                              Supprimer le tag
+                            </CommandItem>
+                          )}
+                          {allTags
+                            .filter(t => !tagInput || t.toLowerCase().includes(tagInput.toLowerCase()))
+                            .filter(t => t !== ticket.tag)
+                            .map(t => (
+                              <CommandItem
+                                key={t}
+                                value={t}
+                                onSelect={() => {
+                                  onUpdate(ticket.id, ticket.type, { tag: t });
+                                  setTagPopoverOpen(false);
+                                }}
+                                className="text-xs"
+                                data-testid={`option-tag-${t}`}
+                              >
+                                <Tag className="h-3 w-3 mr-2 text-cyan-500" />
+                                {t}
+                              </CommandItem>
+                            ))}
+                          {tagInput.trim() && !allTags.find(t => t.toLowerCase() === tagInput.trim().toLowerCase()) && (
+                            <CommandItem
+                              value={`__create__${tagInput.trim()}`}
+                              onSelect={() => {
+                                onUpdate(ticket.id, ticket.type, { tag: tagInput.trim() });
+                                setTagPopoverOpen(false);
+                              }}
+                              className="text-xs text-cyan-600 dark:text-cyan-400"
+                              data-testid="option-tag-create"
+                            >
+                              <Plus className="h-3 w-3 mr-2" />
+                              Créer « {tagInput.trim()} »
+                            </CommandItem>
+                          )}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                <span className="text-xs text-cyan-600 dark:text-cyan-400">
+                  {ticket.tag || <span className="text-muted-foreground">Aucun</span>}
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Linked Notes Section */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">

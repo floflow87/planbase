@@ -2851,6 +2851,11 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Roadmap items action_type column added");
 
+    // Add free-form tag column to user_stories and backlog_tasks
+    await db.execute(sql`ALTER TABLE user_stories ADD COLUMN IF NOT EXISTS tag TEXT`);
+    await db.execute(sql`ALTER TABLE backlog_tasks ADD COLUMN IF NOT EXISTS tag TEXT`);
+    console.log("✅ Tag column added to user_stories and backlog_tasks");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
