@@ -1223,7 +1223,7 @@ export default function RoadmapPage() {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                       <DropdownMenuItem onClick={() => {
-                                        if (roadmap.projectId) setSelectedProjectId(roadmap.projectId);
+                                        setSelectedProjectId(roadmap.projectId || "__unlinked__");
                                         setSelectedRoadmapRef(roadmap);
                                         setSelectedRoadmapId(roadmap.id);
                                       }} data-testid={`button-home-open-roadmap-${roadmap.id}`}>
@@ -1255,7 +1255,7 @@ export default function RoadmapPage() {
                                 key={roadmap.id}
                                 className="hover:bg-muted/30 cursor-pointer group"
                                 onClick={() => {
-                                  if (roadmap.projectId) setSelectedProjectId(roadmap.projectId);
+                                  setSelectedProjectId(roadmap.projectId || "__unlinked__");
                                   setSelectedRoadmapRef(roadmap);
                                   setSelectedRoadmapId(roadmap.id);
                                 }}
