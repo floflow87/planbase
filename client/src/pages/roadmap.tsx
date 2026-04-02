@@ -2154,6 +2154,7 @@ export default function RoadmapPage() {
         onEdit={handleOpenEditItem}
         epics={epics}
         backlogId={backlogId}
+        roadmapId={activeRoadmapId}
       />
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

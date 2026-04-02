@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Calendar, Clock, Flag, Package, Tag, Link2, CheckCircle2, Circle, AlertCircle, Pencil, ExternalLink, Ticket, FileText, X, Plus, Search } from "lucide-react";
+import { Calendar, Clock, Flag, Package, Tag, Link2, CheckCircle2, Circle, AlertCircle, Pencil, ExternalLink, Ticket, FileText, X, Plus, Search, Target, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader } from "@/components/Loader";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { RoadmapItem, Epic, BacklogTask, Note } from "@shared/schema";
@@ -48,6 +49,15 @@ const TICKET_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   to_fix: { label: "À corriger", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
 };
 
+const ACTION_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
+  discovery: { label: "Discovery", color: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300" },
+  develop: { label: "Développer", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
+  test: { label: "Tester", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300" },
+  review: { label: "Review", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300" },
+  validate: { label: "Valider", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
+  stop: { label: "Stopper", color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300" },
+};
+
 interface RoadmapItemDetailPanelProps {
   item: RoadmapItem | null;
   open: boolean;
@@ -55,11 +65,13 @@ interface RoadmapItemDetailPanelProps {
   onEdit: (item: RoadmapItem) => void;
   epics: Epic[];
   backlogId: string | null;
+  roadmapId?: string | null;
 }
 
-export function RoadmapItemDetailPanel({ item, open, onOpenChange, onEdit, epics, backlogId }: RoadmapItemDetailPanelProps) {
+export function RoadmapItemDetailPanel({ item, open, onOpenChange, onEdit, epics, backlogId, roadmapId }: RoadmapItemDetailPanelProps) {
   const [noteSelectorOpen, setNoteSelectorOpen] = useState(false);
   const [noteSearch, setNoteSearch] = useState("");
+  const [okrSelectorOpen, setOkrSelectorOpen] = useState(false);
 
   const linkedEpic = item?.epicId ? epics.find(e => e.id === item.epicId) : null;
 
@@ -76,6 +88,24 @@ export function RoadmapItemDetailPanel({ item, open, onOpenChange, onEdit, epics
   const { data: allNotes = [] } = useQuery<Note[]>({
     queryKey: ["/api/notes"],
     enabled: noteSelectorOpen,
+  });
+
+  const { data: okrObjectives = [] } = useQuery<any[]>({
+    queryKey: [`/api/roadmaps/${roadmapId}/okr-objectives`],
+    enabled: !!roadmapId && open,
+  });
+
+  const linkedObjective = item?.objectiveId ? okrObjectives.find((o: any) => o.id === item.objectiveId) : null;
+
+  const updateOkrLinkMutation = useMutation({
+    mutationFn: async (objectiveId: string | null) => {
+      const res = await apiRequest(`/api/roadmap-items/${item!.id}`, "PATCH", { objectiveId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${roadmapId}/items`] });
+      setOkrSelectorOpen(false);
+    },
   });
 
   const linkNoteMutation = useMutation({
@@ -126,6 +156,7 @@ export function RoadmapItemDetailPanel({ item, open, onOpenChange, onEdit, epics
   const statusConfig = STATUS_CONFIG[item.status] || STATUS_CONFIG.planned;
   const priorityConfig = PRIORITY_CONFIG[item.priority] || PRIORITY_CONFIG.normal;
   const typeConfig = TYPE_CONFIG[item.type] || TYPE_CONFIG.deliverable;
+  const actionConfig = item.actionType ? ACTION_TYPE_CONFIG[item.actionType] : null;
   const StatusIcon = statusConfig.icon;
 
   return (
@@ -160,6 +191,12 @@ export function RoadmapItemDetailPanel({ item, open, onOpenChange, onEdit, epics
               <Flag className="h-3 w-3 mr-1" />
               {priorityConfig.label}
             </Badge>
+            {actionConfig && (
+              <Badge className={`text-xs ${actionConfig.color}`} data-testid="badge-detail-action-type">
+                <Zap className="h-3 w-3 mr-1" />
+                {actionConfig.label}
+              </Badge>
+            )}
             {item.releaseTag && (
               <Badge variant="outline" className="text-xs">
                 <Tag className="h-3 w-3 mr-1" />
@@ -215,6 +252,84 @@ export function RoadmapItemDetailPanel({ item, open, onOpenChange, onEdit, epics
                 </div>
               </div>
             )}
+
+            <Separator />
+
+            {/* OKR Objective section */}
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-muted-foreground" />
+                  <h4 className="text-sm font-semibold">Objectif OKR</h4>
+                </div>
+                <Popover open={okrSelectorOpen} onOpenChange={setOkrSelectorOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" data-testid="button-link-okr">
+                      {linkedObjective ? <Pencil className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                      {linkedObjective ? "Changer" : "Lier"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-2 z-[10000]" align="end">
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2 px-1">
+                      {okrObjectives.length === 0 ? "Aucun objectif OKR disponible pour ce projet" : "Objectifs OKR du projet"}
+                    </p>
+                    {okrObjectives.length > 0 && (
+                      <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                        {linkedObjective && (
+                          <button
+                            className="w-full text-left text-xs px-2 py-1.5 rounded-md hover-elevate text-muted-foreground"
+                            onClick={() => updateOkrLinkMutation.mutate(null)}
+                            disabled={updateOkrLinkMutation.isPending}
+                            data-testid="button-unlink-okr"
+                          >
+                            Aucun (retirer le lien)
+                          </button>
+                        )}
+                        {okrObjectives.map((obj: any) => (
+                          <button
+                            key={obj.id}
+                            className={`w-full text-left text-xs px-2 py-1.5 rounded-md hover-elevate truncate ${item.objectiveId === obj.id ? "bg-violet-50 dark:bg-violet-900/20 font-medium" : ""}`}
+                            onClick={() => updateOkrLinkMutation.mutate(obj.id)}
+                            disabled={updateOkrLinkMutation.isPending}
+                            data-testid={`button-select-okr-${obj.id}`}
+                          >
+                            {obj.title}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {linkedObjective ? (
+                <div className="p-3 rounded-lg border bg-violet-50 dark:bg-violet-900/10 border-violet-200 dark:border-violet-800">
+                  <div className="flex items-start gap-2">
+                    <Target className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-violet-800 dark:text-violet-300 leading-tight" data-testid="text-detail-okr-title">{linkedObjective.title}</p>
+                      {linkedObjective.description && (
+                        <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{linkedObjective.description}</p>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 flex-shrink-0 text-muted-foreground"
+                      onClick={() => updateOkrLinkMutation.mutate(null)}
+                      disabled={updateOkrLinkMutation.isPending}
+                      data-testid="button-remove-okr"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-3 text-xs text-muted-foreground border rounded-lg border-dashed">
+                  Aucun objectif OKR lié
+                </div>
+              )}
+            </div>
 
             <Separator />
 

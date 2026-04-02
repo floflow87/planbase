@@ -49,7 +49,11 @@ import {
   Trash2,
   X,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Flag,
+  Zap,
+  LayoutGrid,
+  ListFilter,
 } from "lucide-react";
 import type { RoadmapItem, Epic, BacklogTask, UserStory } from "@shared/schema";
 
@@ -66,6 +70,24 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof
   done: { label: "Terminé", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300", icon: CheckCircle2 },
   blocked: { label: "Bloqué", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300", icon: AlertCircle },
 };
+
+const PRIORITY_CONFIG: Record<string, { label: string; color: string; dotColor: string }> = {
+  strategic: { label: "Stratégique", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300", dotColor: "bg-violet-500" },
+  high: { label: "Haute", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300", dotColor: "bg-red-500" },
+  normal: { label: "Normale", color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300", dotColor: "bg-gray-400" },
+  low: { label: "Basse", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300", dotColor: "bg-blue-400" },
+};
+
+const ACTION_TYPE_CONFIG: Record<string, { label: string; color: string; badgeColor: string; headerColor: string; borderColor: string; dotColor: string }> = {
+  discovery: { label: "Discovery", color: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300", badgeColor: "bg-pink-500 text-white", headerColor: "bg-pink-500", borderColor: "border-l-pink-500", dotColor: "bg-pink-500" },
+  develop: { label: "Développer", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300", badgeColor: "bg-blue-500 text-white", headerColor: "bg-blue-500", borderColor: "border-l-blue-500", dotColor: "bg-blue-500" },
+  test: { label: "Tester", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300", badgeColor: "bg-violet-500 text-white", headerColor: "bg-violet-500", borderColor: "border-l-violet-500", dotColor: "bg-violet-500" },
+  review: { label: "Review", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300", badgeColor: "bg-yellow-500 text-white", headerColor: "bg-yellow-500", borderColor: "border-l-yellow-500", dotColor: "bg-yellow-500" },
+  validate: { label: "Valider", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300", badgeColor: "bg-green-500 text-white", headerColor: "bg-green-500", borderColor: "border-l-green-500", dotColor: "bg-green-500" },
+  stop: { label: "Stopper", color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300", badgeColor: "bg-gray-400 text-white", headerColor: "bg-gray-400", borderColor: "border-l-gray-400", dotColor: "bg-gray-400" },
+};
+
+type GroupByMode = "lane" | "priority" | "action_type";
 
 interface NowNextLaterViewProps {
   items: RoadmapItem[];
@@ -111,6 +133,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overLaneId, setOverLaneId] = useState<string | null>(null);
   const [hideUnqualified, setHideUnqualified] = useState(false);
+  const [groupBy, setGroupBy] = useState<GroupByMode>("lane");
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<"create" | "edit">("create");
@@ -127,6 +150,8 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     releaseTag: "",
     status: "planned",
     epicId: "",
+    priority: "normal",
+    actionType: "",
   });
 
   const sensors = useSensors(
@@ -213,7 +238,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
         roadmapId,
         title: data.title,
         type: 'deliverable',
-        priority: 'normal',
+        priority: data.priority || 'normal',
         status: data.status || 'planned',
         lane: data.lane,
         orderIndex: items.length,
@@ -225,6 +250,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
       if (data.phase) body.phase = data.phase;
       if (data.releaseTag) body.releaseTag = data.releaseTag;
       if (data.epicId) body.epicId = data.epicId;
+      if (data.actionType) body.actionType = data.actionType;
       const res = await apiRequest('/api/roadmap-items', 'POST', body);
       return await res.json();
     },
@@ -317,6 +343,8 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
       releaseTag: item.releaseTag || "",
       status: item.status,
       epicId: item.epicId || "",
+      priority: item.priority || "normal",
+      actionType: item.actionType || "",
     });
     setDrawerOpen(true);
   };
@@ -335,6 +363,8 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
       releaseTag: "",
       status: "planned",
       epicId: "",
+      priority: "normal",
+      actionType: "",
     });
     setDrawerOpen(true);
   };
@@ -355,6 +385,8 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
         releaseTag: form.releaseTag,
         status: form.status,
         lane: drawerLane,
+        priority: form.priority || "normal",
+        actionType: form.actionType || null,
       };
       if (form.epicId) {
         data.epicId = form.epicId;
@@ -384,11 +416,13 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     const laneConfig = LANE_CONFIG[itemLane];
     const cardEpic = item.epicId ? epics.find(e => e.id === item.epicId) : null;
     const cardEpicTickets = getEpicTickets(item.epicId);
+    const priorityConfig = item.priority ? PRIORITY_CONFIG[item.priority] : null;
+    const actionConfig = item.actionType ? ACTION_TYPE_CONFIG[item.actionType] : null;
 
     return (
       <Card
         key={item.id}
-        className={`cursor-pointer hover-elevate active-elevate-2 overflow-visible border-l-[3px] ${laneConfig?.borderColor || ""} ${isDragOverlay ? "shadow-lg ring-2 ring-primary/20" : ""}`}
+        className={`cursor-pointer hover-elevate active-elevate-2 overflow-visible border-l-[3px] ${actionConfig ? actionConfig.borderColor : (laneConfig?.borderColor || "")} ${isDragOverlay ? "shadow-lg ring-2 ring-primary/20" : ""}`}
         onClick={(e) => { 
           e.stopPropagation();
           if (!isDragOverlay) openEditDrawer(item); 
@@ -412,6 +446,18 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
           )}
 
           <div className="flex flex-wrap items-center gap-1.5 pl-5">
+            {actionConfig && (
+              <Badge className={`text-[10px] ${actionConfig.color}`}>
+                <Zap className="h-2.5 w-2.5 mr-0.5" />
+                {actionConfig.label}
+              </Badge>
+            )}
+            {priorityConfig && item.priority !== "normal" && (
+              <Badge className={`text-[10px] ${priorityConfig.color}`}>
+                <Flag className="h-2.5 w-2.5 mr-0.5" />
+                {priorityConfig.label}
+              </Badge>
+            )}
             {cardEpic && (
               <Tooltip delayDuration={200}>
                 <TooltipTrigger asChild>
@@ -525,11 +571,125 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     );
   };
 
+  // Grouped view rendering (by priority or action_type)
+  const renderGroupedView = () => {
+    type GroupEntry = { key: string; label: string; color: string; headerColor: string; dotColor: string; badgeColor: string };
+    let groups: GroupEntry[] = [];
+
+    if (groupBy === "priority") {
+      groups = [
+        { key: "strategic", label: "Stratégique", color: "bg-violet-500/10 border-violet-500/30", headerColor: "bg-violet-500", dotColor: "bg-violet-500", badgeColor: "bg-violet-500 text-white" },
+        { key: "high", label: "Haute priorité", color: "bg-red-500/10 border-red-500/30", headerColor: "bg-red-500", dotColor: "bg-red-500", badgeColor: "bg-red-500 text-white" },
+        { key: "normal", label: "Priorité normale", color: "bg-gray-500/10 border-gray-500/30", headerColor: "bg-gray-400", dotColor: "bg-gray-400", badgeColor: "bg-gray-400 text-white" },
+        { key: "low", label: "Basse priorité", color: "bg-blue-500/10 border-blue-500/30", headerColor: "bg-blue-400", dotColor: "bg-blue-400", badgeColor: "bg-blue-400 text-white" },
+      ];
+    } else {
+      groups = Object.entries(ACTION_TYPE_CONFIG).map(([key, cfg]) => ({
+        key,
+        label: cfg.label,
+        color: cfg.color.replace("text-", "border-").replace(/ text-\S+/, "").replace("bg-", "bg-") + "/10 border-" + cfg.dotColor.replace("bg-", "") + "/30",
+        headerColor: cfg.headerColor,
+        dotColor: cfg.dotColor,
+        badgeColor: cfg.badgeColor,
+      }));
+      // Add "none" group
+      groups.push({ key: "none", label: "Sans action", color: "bg-gray-500/10 border-gray-500/30", headerColor: "bg-gray-300", dotColor: "bg-gray-300", badgeColor: "bg-gray-300 text-gray-700" });
+    }
+
+    return (
+      <div className="flex gap-3 overflow-x-auto pb-4">
+        {groups.map(group => {
+          const groupItems = items.filter(i => {
+            if (groupBy === "priority") return (i.priority || "normal") === group.key;
+            if (group.key === "none") return !i.actionType;
+            return i.actionType === group.key;
+          });
+
+          if (groupItems.length === 0 && group.key === "none") return null;
+
+          return (
+            <div key={group.key} className="flex-1 min-w-[280px]" data-testid={`nnl-group-${group.key}`}>
+              <div className={`rounded-lg border bg-muted/5 border-muted p-3`}>
+                <div className="flex items-center justify-between mb-1 gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2.5 h-2.5 rounded-full ${group.headerColor}`} />
+                    <h3 className="text-xs font-semibold">{group.label}</h3>
+                    <Badge className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${group.badgeColor}`}>{groupItems.length}</Badge>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => openCreateDrawer("now")}
+                    data-testid={`button-add-group-${group.key}`}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <div className="space-y-2 min-h-[80px]">
+                  {groupItems.map(item => (
+                    <div key={item.id} onClick={() => openEditDrawer(item)}>
+                      {renderCard(item)}
+                    </div>
+                  ))}
+                  {groupItems.length === 0 && (
+                    <div className="border-2 border-dashed rounded-md p-4 text-center text-xs text-muted-foreground">
+                      Aucun élément
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const drawerLaneConfig = LANE_CONFIG[drawerLane];
   const drawerEpic = form.epicId ? epics.find(e => e.id === form.epicId) : null;
 
   return (
     <div>
+      {/* GroupBy toolbar */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+          <ListFilter className="h-3.5 w-3.5" />
+          Grouper par
+        </span>
+        <div className="flex items-center gap-1 border rounded-md p-0.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`h-6 px-2 text-[11px] ${groupBy === "lane" ? "bg-accent" : ""}`}
+            onClick={() => setGroupBy("lane")}
+            data-testid="button-groupby-lane"
+          >
+            <LayoutGrid className="h-3 w-3 mr-1" />
+            Colonne
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`h-6 px-2 text-[11px] ${groupBy === "priority" ? "bg-accent" : ""}`}
+            onClick={() => setGroupBy("priority")}
+            data-testid="button-groupby-priority"
+          >
+            <Flag className="h-3 w-3 mr-1" />
+            Priorité
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`h-6 px-2 text-[11px] ${groupBy === "action_type" ? "bg-accent" : ""}`}
+            onClick={() => setGroupBy("action_type")}
+            data-testid="button-groupby-action"
+          >
+            <Zap className="h-3 w-3 mr-1" />
+            Action
+          </Button>
+        </div>
+      </div>
+
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -537,29 +697,34 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-3 overflow-x-auto pb-4">
-          {renderLane("now")}
-          {renderLane("next")}
-          {renderLane("later")}
-          {laneItems.unqualified.length > 0 && renderLane("unqualified")}
-          {hideUnqualified && laneItems.unqualified.length > 0 && (
-            <div className="self-start shrink-0 pt-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setHideUnqualified(false)}
-                    data-testid="button-show-unqualified"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Afficher la colonne Non qualifié(s)</TooltipContent>
-              </Tooltip>
-            </div>
-          )}
-        </div>
+        {groupBy === "lane" ? (
+          <div className="flex gap-3 overflow-x-auto pb-4">
+            {renderLane("now")}
+            {renderLane("next")}
+            {renderLane("later")}
+            {laneItems.unqualified.length > 0 && renderLane("unqualified")}
+            {hideUnqualified && laneItems.unqualified.length > 0 && (
+              <div className="self-start shrink-0 pt-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setHideUnqualified(false)}
+                      data-testid="button-show-unqualified"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Afficher la colonne Non qualifié(s)</TooltipContent>
+                </Tooltip>
+              </div>
+            )}
+          </div>
+        ) : (
+          renderGroupedView()
+        )}
+
         <DragOverlay dropAnimation={null}>
           {activeItem ? (
             <div className="w-[280px]">
@@ -599,6 +764,58 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                     {epics.map(epic => (
                       <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Priority badge selector */}
+                <Select
+                  value={form.priority || "normal"}
+                  onValueChange={(v) => {
+                    setForm(prev => ({ ...prev, priority: v }));
+                    if (drawerMode === "edit" && editingItemId) {
+                      updateItemMutation.mutate({ id: editingItemId, data: { priority: v } as Partial<RoadmapItem> });
+                    }
+                  }}
+                >
+                  <SelectTrigger className="border-none shadow-none p-0 h-auto w-auto gap-0 focus:ring-0 [&>svg]:hidden" data-testid="select-nnl-priority-badge">
+                    <Badge className={`text-[10px] cursor-pointer ${PRIORITY_CONFIG[form.priority || "normal"]?.color || ""}`}>
+                      <Flag className="h-2.5 w-2.5 mr-0.5" />
+                      {PRIORITY_CONFIG[form.priority || "normal"]?.label || "Priorité"}
+                    </Badge>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="strategic">Stratégique</SelectItem>
+                    <SelectItem value="high">Haute</SelectItem>
+                    <SelectItem value="normal">Normale</SelectItem>
+                    <SelectItem value="low">Basse</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Action type badge selector */}
+                <Select
+                  value={form.actionType || "none"}
+                  onValueChange={(v) => {
+                    const val = v === "none" ? "" : v;
+                    setForm(prev => ({ ...prev, actionType: val }));
+                    if (drawerMode === "edit" && editingItemId) {
+                      updateItemMutation.mutate({ id: editingItemId, data: { actionType: val || null } as Partial<RoadmapItem> });
+                    }
+                  }}
+                >
+                  <SelectTrigger className="border-none shadow-none p-0 h-auto w-auto gap-0 focus:ring-0 [&>svg]:hidden" data-testid="select-nnl-action-badge">
+                    <Badge className={`text-[10px] cursor-pointer ${form.actionType && ACTION_TYPE_CONFIG[form.actionType] ? ACTION_TYPE_CONFIG[form.actionType].color : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"}`}>
+                      <Zap className="h-2.5 w-2.5 mr-0.5" />
+                      {form.actionType && ACTION_TYPE_CONFIG[form.actionType] ? ACTION_TYPE_CONFIG[form.actionType].label : "Action"}
+                    </Badge>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Aucune action</SelectItem>
+                    <SelectItem value="discovery">Discovery</SelectItem>
+                    <SelectItem value="develop">Développer</SelectItem>
+                    <SelectItem value="test">Tester</SelectItem>
+                    <SelectItem value="review">Review</SelectItem>
+                    <SelectItem value="validate">Valider</SelectItem>
+                    <SelectItem value="stop">Stopper</SelectItem>
                   </SelectContent>
                 </Select>
 

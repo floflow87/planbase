@@ -2844,6 +2844,13 @@ export async function runStartupMigrations() {
     }
     console.log("✅ Platform admin accounts flagged (floflow87, demo)");
 
+    // Add action_type and okr_objective_id link columns to roadmap_items (NNL)
+    await db.execute(sql`
+      ALTER TABLE roadmap_items
+      ADD COLUMN IF NOT EXISTS action_type TEXT;
+    `);
+    console.log("✅ Roadmap items action_type column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

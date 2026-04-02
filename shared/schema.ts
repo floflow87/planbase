@@ -1105,10 +1105,11 @@ export const roadmapItems = pgTable("roadmap_items", {
   objectif: text("objectif"),
   impact: text("impact"),
   metrics: text("metrics"),
+  actionType: text("action_type"), // 'discovery', 'develop', 'test', 'review', 'validate', 'stop'
   
-  // ========== Future OKR integration (prepared, not active) ==========
-  objectiveId: uuid("objective_id"), // Link to future Objective
-  keyResultId: uuid("key_result_id"), // Link to future Key Result
+  // ========== OKR integration ==========
+  objectiveId: uuid("objective_id"), // Link to OKR Objective
+  keyResultId: uuid("key_result_id"), // Link to OKR Key Result
   
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

@@ -7248,6 +7248,25 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  // Get OKR objectives for a roadmap (via its linked project)
+  app.get("/api/roadmaps/:id/okr-objectives", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const roadmap = await storage.getRoadmap(req.params.id);
+      if (!roadmap || roadmap.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      if (!roadmap.projectId) {
+        return res.json([]);
+      }
+      const objectives = await db.select().from(okrObjectives)
+        .where(and(eq(okrObjectives.accountId, req.accountId!), eq(okrObjectives.projectId, roadmap.projectId)))
+        .orderBy(okrObjectives.position);
+      res.json(objectives);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Create a dependency
   app.post("/api/roadmap-items/:id/dependencies", requireAuth, requireOrgMember, requirePermission("roadmap", "create"), async (req, res) => {
     try {
