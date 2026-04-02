@@ -1,7 +1,7 @@
 // Tasks page - Complete duplicate of tasks tab from projects page
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useCelebration } from "@/hooks/useCelebration";
-import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight, Eye, EyeOff, Search, X, Play, Layers, Package, CheckCircle2, Circle } from "lucide-react";
+import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight, Eye, EyeOff, Search, X, Play, Layers, Package, CheckCircle2, Circle, SlidersHorizontal } from "lucide-react";
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -868,6 +868,7 @@ export default function Tasks() {
     return saved !== null ? JSON.parse(saved) : true; // Default: hide completed tasks
   });
   const [statusSelectorOpen, setStatusSelectorOpen] = useState(false);
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [quickAddTaskTitle, setQuickAddTaskTitle] = useState("");
   const [isQuickAddingTask, setIsQuickAddingTask] = useState(false);
 
@@ -1923,16 +1924,27 @@ export default function Tasks() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-            {/* Group by dropdown — only in list view */}
+            {/* Mobile filter button - only on mobile */}
+            <Button
+              variant="outline"
+              size="icon"
+              className="sm:hidden h-9 w-9 shrink-0 bg-white dark:bg-card"
+              onClick={() => setMobileFilterOpen(true)}
+              data-testid="button-mobile-filters"
+              title="Filtres"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+            </Button>
+            {/* Group by dropdown — only in list view, hidden on mobile */}
             {viewMode === "list" && (
               <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
                 <SelectTrigger
-                  className="sm:w-44 w-9 h-9 bg-white dark:bg-card text-xs font-normal shrink-0"
+                  className="hidden sm:flex sm:w-44 bg-white dark:bg-card text-xs font-normal shrink-0"
                   data-testid="select-group-by"
                 >
                   <div className="flex items-center gap-1.5">
                     <Layers className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="hidden sm:inline truncate"><SelectValue /></span>
+                    <span className="truncate"><SelectValue /></span>
                   </div>
                 </SelectTrigger>
                 <SelectContent>
@@ -1961,11 +1973,11 @@ export default function Tasks() {
                     variant="outline"
                     role="combobox"
                     aria-expanded={statusSelectorOpen}
-                    className="sm:w-44 w-9 h-9 sm:justify-between justify-center bg-white dark:bg-card text-xs font-normal shrink-0"
+                    className="hidden sm:flex sm:w-44 sm:justify-between bg-white dark:bg-card text-xs font-normal shrink-0"
                     data-testid="select-status-filter"
                   >
                     <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                    <span className="hidden sm:inline truncate ml-1.5">{getStatusFilterLabel()}</span>
+                    <span className="truncate ml-1.5">{getStatusFilterLabel()}</span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[220px] p-0">
@@ -2142,6 +2154,68 @@ export default function Tasks() {
             )}
           </div>
         </div>
+
+        {/* Mobile Filter Sheet */}
+        <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
+          <SheetContent side="bottom" className="h-auto max-h-[75vh] bg-card overflow-y-auto rounded-t-xl" data-testid="sheet-mobile-task-filters">
+            <SheetHeader className="mb-4">
+              <SheetTitle>Filtres et tri</SheetTitle>
+            </SheetHeader>
+            <div className="space-y-4 pb-6">
+              {viewMode === "list" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Groupement</Label>
+                  <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
+                    <SelectTrigger className="w-full h-9 text-sm" data-testid="select-group-by-mobile">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="status">Groupé par Statut</SelectItem>
+                      <SelectItem value="deliverable">Groupé par Livrable</SelectItem>
+                      <SelectItem value="none">Aucun groupement</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {viewMode !== "kanban" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Statut</Label>
+                  <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                    <div
+                      className="flex items-center gap-2 px-2 py-1.5 rounded hover-elevate cursor-pointer"
+                      onClick={() => toggleStatusSelection("all")}
+                    >
+                      <Checkbox checked={statusFilter.includes("all")} />
+                      <span className="text-sm">Tous les statuts</span>
+                    </div>
+                    {taskColumns
+                      .filter((col: TaskColumn) => selectedProjectIds.includes("all") || (col.projectId && selectedProjectIds.includes(col.projectId)))
+                      .map((column: TaskColumn) => (
+                        <div
+                          key={column.id}
+                          className="flex items-center gap-2 px-2 py-1.5 rounded hover-elevate cursor-pointer"
+                          onClick={() => toggleStatusSelection(column.id)}
+                        >
+                          <Checkbox checked={statusFilter.includes(column.id)} />
+                          <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: column.color }} />
+                          <span className="text-sm">{column.name}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="mobile-hide-completed"
+                  checked={hideCompletedTasks}
+                  onCheckedChange={(checked) => setHideCompletedTasks(checked === true)}
+                  data-testid="checkbox-hide-completed-mobile"
+                />
+                <label htmlFor="mobile-hide-completed" className="text-sm cursor-pointer">Masquer les tâches terminées</label>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
 
         {/* Progress bar */}
         {(selectedProjectIds.includes("all") || selectedProjectIds.length !== 1) ? (

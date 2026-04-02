@@ -4536,11 +4536,11 @@ export default function Projects() {
 
       {/* Filter Panel Sheet */}
       <Sheet open={isFilterPanelOpen} onOpenChange={setIsFilterPanelOpen}>
-        <SheetContent className="w-80 flex flex-col" data-testid="sheet-filter-panel" side="right">
-          <SheetHeader>
+        <SheetContent className="h-auto max-h-[80vh] overflow-y-auto rounded-t-xl" data-testid="sheet-filter-panel" side="bottom">
+          <SheetHeader className="mb-4">
             <SheetTitle>Filtres</SheetTitle>
           </SheetHeader>
-          <div className="py-4 space-y-6 flex-1 overflow-y-auto">
+          <div className="space-y-6 pb-6">
             {/* Stage Filters */}
             <div>
               <Label className="text-sm font-medium mb-2 block">Étape du projet</Label>

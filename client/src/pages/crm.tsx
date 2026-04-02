@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Filter, Download, LayoutGrid, Table2, Plus, MoreVertical, Edit, MessageSquare, Trash2, TrendingUp, Users as UsersIcon, Target, Euro, X, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Settings2, Phone, Mail, Building2, Columns3, Eye, EyeOff } from "lucide-react";
+import { Search, Filter, Download, LayoutGrid, Table2, Plus, MoreVertical, Edit, MessageSquare, Trash2, TrendingUp, Users as UsersIcon, Target, Euro, X, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Settings2, Phone, Mail, Building2, Columns3, Eye, EyeOff, SlidersHorizontal } from "lucide-react";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -393,6 +393,7 @@ export default function CRM() {
   
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [crmMobileFilterOpen, setCrmMobileFilterOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
@@ -970,8 +971,8 @@ export default function CRM() {
 
         {/* Filters bar with search, status filter, view toggles, export and new client button */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1 w-full sm:w-auto">
-            <div className="relative flex-1 w-full sm:max-w-sm">
+          <div className="flex flex-row sm:flex-row items-center gap-2 flex-1 w-full sm:w-auto">
+            <div className="relative flex-1 sm:max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Rechercher un contact..."
@@ -981,8 +982,20 @@ export default function CRM() {
                 data-testid="input-search-clients"
               />
             </div>
+            {/* Mobile filter button */}
+            <Button
+              variant="outline"
+              size="icon"
+              className="sm:hidden shrink-0 bg-white dark:bg-card"
+              onClick={() => setCrmMobileFilterOpen(true)}
+              data-testid="button-crm-mobile-filters"
+              title="Filtres"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+            </Button>
+            {/* Desktop status filter */}
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full sm:w-[180px] bg-card" data-testid="select-filter-status">
+              <SelectTrigger className="hidden sm:flex w-[180px] bg-card" data-testid="select-filter-status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-card">
@@ -1582,6 +1595,60 @@ export default function CRM() {
                   />
                 </div>
               ))}
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* Mobile Filter Sheet */}
+        <Sheet open={crmMobileFilterOpen} onOpenChange={setCrmMobileFilterOpen}>
+          <SheetContent side="bottom" className="h-auto max-h-[75vh] bg-card overflow-y-auto rounded-t-xl" data-testid="sheet-crm-mobile-filters">
+            <SheetHeader className="mb-4">
+              <SheetTitle>Filtres</SheetTitle>
+            </SheetHeader>
+            <div className="space-y-4 pb-6">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Statut</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-full h-9 text-sm" data-testid="select-filter-status-mobile">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card">
+                    <SelectItem value="all">Tous les statuts</SelectItem>
+                    <SelectItem value="prospecting">Prospect</SelectItem>
+                    <SelectItem value="qualified">Qualifié</SelectItem>
+                    <SelectItem value="negotiation">Négociation</SelectItem>
+                    <SelectItem value="quote_sent">Devis envoyé</SelectItem>
+                    <SelectItem value="quote_approved">Devis validé</SelectItem>
+                    <SelectItem value="won">Gagné</SelectItem>
+                    <SelectItem value="lost">Perdu</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Affichage</Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={viewMode === "table" ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => { setViewMode("table"); setCrmMobileFilterOpen(false); }}
+                    data-testid="button-view-table-mobile"
+                  >
+                    <Table2 className="w-4 h-4 mr-2" />
+                    Tableau
+                  </Button>
+                  <Button
+                    variant={viewMode === "kanban" ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => { setViewMode("kanban"); setCrmMobileFilterOpen(false); }}
+                    data-testid="button-view-kanban-mobile"
+                  >
+                    <Columns3 className="w-4 h-4 mr-2" />
+                    Kanban
+                  </Button>
+                </div>
+              </div>
             </div>
           </SheetContent>
         </Sheet>

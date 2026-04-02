@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ElementType } from "react";
 import { useLocation } from "wouter";
 import { FileText, Map, Calculator, X, BarChart3, ListTodo, Clock, CheckCircle2, ChevronRight, Sparkles } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -102,87 +102,80 @@ export function PostCreationSuggestions({
     </div>
   );
 
+  const ButtonRow = ({ items }: { items: { icon: ElementType; label: string; tooltip: string; action: () => void; testId: string }[] }) => (
+    <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto">
+      {items.map((item, i) => (
+        <span key={i} className="flex items-center gap-1">
+          {i > 0 && <ChevronRight className="h-3 w-3 text-white/40 shrink-0" />}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button onClick={item.action} className={btnClass} data-testid={item.testId}>
+                <item.icon className="h-3.5 w-3.5 shrink-0" />
+                <span className="hidden sm:inline">{item.label}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className={tooltipContentClass}>{item.tooltip}</TooltipContent>
+          </Tooltip>
+        </span>
+      ))}
+    </div>
+  );
+
   if (hasCdc) {
     return (
-      <div
-        className="w-full bg-primary px-4 py-2.5 flex items-center gap-3 flex-wrap"
-        data-testid="card-post-creation-suggestions"
-      >
-        <CheckCircle2 className="h-4 w-4 text-white/80 shrink-0" />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="text-xs font-semibold text-white shrink-0 cursor-help underline decoration-dotted underline-offset-2">
-              Base de pilotage définie
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className={tooltipContentClass}>
-            Votre Cahier des Charges a été généré avec {scopeItems.length} item{scopeItems.length > 1 ? "s" : ""}. Le temps loggé sera comparé à vos estimations pour mesurer la rentabilité en temps réel.
-          </TooltipContent>
-        </Tooltip>
-        <div className="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap">
-          {[
+      <div className="w-full bg-primary px-4 py-2 flex flex-col sm:flex-row sm:items-center sm:gap-3" data-testid="card-post-creation-suggestions">
+        <div className="flex items-center gap-2 min-w-0">
+          <CheckCircle2 className="h-4 w-4 text-white/80 shrink-0" />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="text-xs font-semibold text-white shrink-0 cursor-help underline decoration-dotted underline-offset-2">
+                Base de pilotage définie
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className={tooltipContentClass}>
+              Votre Cahier des Charges a été généré avec {scopeItems.length} item{scopeItems.length > 1 ? "s" : ""}. Le temps loggé sera comparé à vos estimations pour mesurer la rentabilité en temps réel.
+            </TooltipContent>
+          </Tooltip>
+          <div className="ml-auto sm:hidden"><DismissButton /></div>
+        </div>
+        <div className="flex items-center sm:flex-1 sm:min-w-0 mt-1 sm:mt-0">
+          <ButtonRow items={[
             { icon: Map, label: "Roadmap", tooltip: "Planifiez vos milestones et jalons sur la timeline du projet.", action: () => setLocation(`/roadmap?projectId=${project.id}`), testId: "button-suggestion-roadmap" },
             { icon: ListTodo, label: "Backlog", tooltip: "Gérez vos epics, user stories et tickets de développement.", action: () => setLocation(`/backlog?projectId=${project.id}`), testId: "button-suggestion-backlog" },
             { icon: Clock, label: "Temps vs CDC", tooltip: "Comparez le temps réellement passé à vos estimations initiales.", action: () => setLocation(`/projects/${project.id}?tab=time`), testId: "button-suggestion-time-tracking" },
-          ].map((item, i) => (
-            <span key={i} className="flex items-center gap-1 sm:gap-1.5">
-              {i > 0 && <ChevronRight className="h-3 w-3 text-white/40 shrink-0" />}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button onClick={item.action} className={btnClass} data-testid={item.testId}>
-                    <item.icon className="h-3.5 w-3.5 shrink-0" />
-                    <span className="hidden sm:inline">{item.label}</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className={tooltipContentClass}>{item.tooltip}</TooltipContent>
-              </Tooltip>
-            </span>
-          ))}
+          ]} />
         </div>
-        <DismissButton />
+        <div className="hidden sm:block"><DismissButton /></div>
       </div>
     );
   }
 
   return (
-    <div
-      className="w-full bg-primary px-4 py-2.5 flex items-center gap-3 flex-wrap"
-      data-testid="card-post-creation-suggestions"
-    >
-      <Sparkles className="h-4 w-4 text-white/80 shrink-0" />
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="text-xs font-semibold text-white shrink-0 cursor-help underline decoration-dotted underline-offset-2">
-            Projet pré-configuré
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className={`${tooltipContentClass} space-y-1`}>
-          <p className="font-medium">{PROJECT_TYPE_LABELS[projectType] || 'Projet'} · {BILLING_MODE_LABELS[billingMode] || billingMode}</p>
-          <p className="text-muted-foreground">{PROJECT_TYPE_DESCRIPTIONS[projectType]}</p>
-          <p className="text-muted-foreground">{BILLING_MODE_DESCRIPTIONS[billingMode]}</p>
-        </TooltipContent>
-      </Tooltip>
-      <div className="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap">
-        {[
+    <div className="w-full bg-primary px-4 py-2 flex flex-col sm:flex-row sm:items-center sm:gap-3" data-testid="card-post-creation-suggestions">
+      <div className="flex items-center gap-2 min-w-0">
+        <Sparkles className="h-4 w-4 text-white/80 shrink-0" />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-xs font-semibold text-white shrink-0 cursor-help underline decoration-dotted underline-offset-2">
+              Projet pré-configuré
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className={`${tooltipContentClass} space-y-1`}>
+            <p className="font-medium">{PROJECT_TYPE_LABELS[projectType] || 'Projet'} · {BILLING_MODE_LABELS[billingMode] || billingMode}</p>
+            <p className="text-muted-foreground">{PROJECT_TYPE_DESCRIPTIONS[projectType]}</p>
+            <p className="text-muted-foreground">{BILLING_MODE_DESCRIPTIONS[billingMode]}</p>
+          </TooltipContent>
+        </Tooltip>
+        <div className="ml-auto sm:hidden"><DismissButton /></div>
+      </div>
+      <div className="flex items-center sm:flex-1 sm:min-w-0 mt-1 sm:mt-0">
+        <ButtonRow items={[
           { icon: FileText, label: "CDC guidé", tooltip: "Générez votre Cahier des Charges pas à pas avec nos questions guidées.", action: onOpenCdcWizard, testId: "button-suggestion-cdc" },
           { icon: Calculator, label: "Facturation", tooltip: "Définissez votre TJM, budget et modalités de facturation.", action: () => setLocation(`/projects/${project.id}?tab=billing`), testId: "button-suggestion-billing" },
           { icon: BarChart3, label: "Hypothèses", tooltip: "Posez vos hypothèses de temps et comparez avec le réel.", action: () => setLocation(`/projects/${project.id}?tab=time`), testId: "button-suggestion-hypotheses" },
-        ].map((item, i) => (
-          <span key={i} className="flex items-center gap-1 sm:gap-1.5">
-            {i > 0 && <ChevronRight className="h-3 w-3 text-white/40 shrink-0" />}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button onClick={item.action} className={btnClass} data-testid={item.testId}>
-                  <item.icon className="h-3.5 w-3.5 shrink-0" />
-                  <span className="hidden sm:inline">{item.label}</span>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className={tooltipContentClass}>{item.tooltip}</TooltipContent>
-            </Tooltip>
-          </span>
-        ))}
+        ]} />
       </div>
-      <DismissButton />
+      <div className="hidden sm:block"><DismissButton /></div>
     </div>
   );
 }
