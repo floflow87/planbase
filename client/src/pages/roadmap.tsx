@@ -406,6 +406,7 @@ export default function RoadmapPage() {
     },
     onSuccess: (newRoadmap: Roadmap, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', 'all'] });
+      setSelectedRoadmapRef(newRoadmap);
       if (variables.fromHome && newRoadmap.projectId) {
         queryClient.invalidateQueries({ queryKey: [`/api/projects/${newRoadmap.projectId}/roadmaps`] });
         setSelectedProjectId(newRoadmap.projectId);
@@ -1596,6 +1597,23 @@ export default function RoadmapPage() {
                     placeholder="Ex: 2025-Q1"
                     data-testid="input-roadmap-horizon"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="roadmap-project">Projet (optionnel)</Label>
+                  <Select
+                    value={newCreateProjectId || "__none__"}
+                    onValueChange={(v) => setNewCreateProjectId(v === "__none__" ? null : v)}
+                  >
+                    <SelectTrigger id="roadmap-project" data-testid="select-roadmap-project">
+                      <SelectValue placeholder="Aucun projet" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Aucun projet</SelectItem>
+                      {projects.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             ) : (
