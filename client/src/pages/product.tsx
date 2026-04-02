@@ -545,8 +545,8 @@ export default function Product() {
           </div>
           {canCreate && (
             <Button onClick={() => navigate("/product/backlog/new")} data-testid="button-create-backlog" className="text-xs">
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Nouveau Backlog
+              <Plus className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Nouveau Backlog</span>
             </Button>
           )}
         </div>
