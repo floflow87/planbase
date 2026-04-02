@@ -105,7 +105,14 @@ export default function RoadmapPage() {
     const saved = localStorage.getItem("roadmap-selected-project");
     return saved || null;
   });
-  const [selectedRoadmapId, setSelectedRoadmapId] = useState<string | null>(null);
+  const [selectedRoadmapId, setSelectedRoadmapIdRaw] = useState<string | null>(() => {
+    return localStorage.getItem("last-selected-roadmap-id") || null;
+  });
+  const setSelectedRoadmapId = (id: string | null) => {
+    setSelectedRoadmapIdRaw(id);
+    if (id) localStorage.setItem("last-selected-roadmap-id", id);
+    else localStorage.removeItem("last-selected-roadmap-id");
+  };
   const [selectedRoadmapRef, setSelectedRoadmapRef] = useState<any>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = localStorage.getItem("roadmap-view-mode");
@@ -220,6 +227,14 @@ export default function RoadmapPage() {
   });
 
   const activeRoadmapId = selectedRoadmapId || (roadmaps.length > 0 ? roadmaps[0].id : null);
+
+  // If saved roadmap ID no longer exists in the list, clear it
+  useEffect(() => {
+    if (roadmaps.length === 0) return;
+    if (selectedRoadmapId && !roadmaps.find(r => r.id === selectedRoadmapId)) {
+      setSelectedRoadmapId(null);
+    }
+  }, [roadmaps]);
 
   // Persist nnlGroupBy per roadmap
   useEffect(() => {
