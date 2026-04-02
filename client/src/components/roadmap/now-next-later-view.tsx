@@ -550,7 +550,7 @@ export function NowNextLaterView({
                 {actionConfig.label}
               </Badge>
             )}
-            {priorityConfig && item.priority !== "normal" && (
+            {priorityConfig && (
               <Badge className={`text-[10px] ${priorityConfig.color}`}>
                 <Flag className="h-2.5 w-2.5 mr-0.5" />
                 {priorityConfig.label}
@@ -1012,23 +1012,6 @@ export function NowNextLaterView({
                 </div>
               </div>
 
-              {/* Epic full selector */}
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Package className="h-3 w-3" />Epic liée
-                </Label>
-                <EpicCombobox
-                  value={form.epicId}
-                  epics={epics}
-                  onChange={(v) => {
-                    setForm(prev => ({ ...prev, epicId: v }));
-                    if (drawerMode === "edit" && editingItemId) {
-                      updateItemMutation.mutate({ id: editingItemId, data: { epicId: v || null } as Partial<RoadmapItem> });
-                    }
-                  }}
-                />
-              </div>
-
               {/* Tickets sous l'epic */}
               {linkedEpic && linkedTasks.length > 0 && (
                 <Collapsible defaultOpen={false}>
@@ -1081,17 +1064,19 @@ export function NowNextLaterView({
                           <Plus className="h-2.5 w-2.5" />Lier
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-64 p-2 z-[10001]" align="end">
-                        <div className="relative mb-2">
-                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                          <Input value={noteSearch} onChange={e => setNoteSearch(e.target.value)} placeholder="Rechercher une note..." className="pl-8 h-7 text-[11px]" data-testid="input-note-search-nnl" />
+                      <PopoverContent className="w-64 p-0 z-[10001] overflow-hidden" align="end">
+                        <div className="p-2 border-b">
+                          <div className="relative">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                            <Input value={noteSearch} onChange={e => setNoteSearch(e.target.value)} placeholder="Rechercher une note..." className="pl-8 h-7 text-[11px]" data-testid="input-note-search-nnl" />
+                          </div>
                         </div>
                         {availableNotes.length === 0 ? (
-                          <p className="text-[11px] text-muted-foreground text-center py-2">{allNotes.length === 0 ? "Chargement..." : "Aucune note disponible"}</p>
+                          <p className="text-[11px] text-muted-foreground text-center py-3">{allNotes.length === 0 ? "Chargement..." : "Aucune note disponible"}</p>
                         ) : (
-                          <div className="max-h-44 overflow-y-auto space-y-0.5">
+                          <div className="max-h-52 overflow-y-auto py-1">
                             {availableNotes.map(note => (
-                              <button key={note.id} className="w-full text-left text-[11px] px-2 py-1.5 rounded-md hover-elevate truncate" onClick={() => linkNoteMutation.mutate(note.id)} disabled={linkNoteMutation.isPending} data-testid={`note-option-${note.id}`}>
+                              <button key={note.id} className="w-full text-left text-[11px] px-3 py-1.5 hover-elevate truncate" onClick={() => linkNoteMutation.mutate(note.id)} disabled={linkNoteMutation.isPending} data-testid={`note-option-${note.id}`}>
                                 {note.title || "Note sans titre"}
                               </button>
                             ))}
