@@ -2266,7 +2266,7 @@ export default function BacklogDetail() {
                 placeholder="Rechercher..."
                 value={ticketSearch}
                 onChange={(e) => setTicketSearch(e.target.value)}
-                className="pl-8 h-8 w-[150px] text-sm bg-white dark:bg-card"
+                className="pl-8 h-8 w-[150px] text-xs bg-white dark:bg-card"
                 data-testid="input-ticket-search-desktop"
               />
             </div>
@@ -2302,9 +2302,9 @@ export default function BacklogDetail() {
                 />
                 <label 
                   htmlFor="show-epic-column" 
-                  className="text-sm text-muted-foreground cursor-pointer flex items-center gap-1"
+                  className="text-xs text-muted-foreground cursor-pointer flex items-center gap-1"
                 >
-                  <Layers className="h-4 w-4" />
+                  <Layers className="h-3.5 w-3.5" />
                   Epic
                 </label>
               </div>
@@ -2312,9 +2312,9 @@ export default function BacklogDetail() {
             
             {/* Priority filter */}
             <div className="flex flex-col gap-1">
-              <Label className="text-xs text-muted-foreground">Priorité</Label>
+              <Label className="text-[10px] text-muted-foreground">Priorité</Label>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger className="w-[130px] h-8 text-sm" data-testid="select-priority-filter">
+                <SelectTrigger className="w-[130px] h-8 text-xs" data-testid="select-priority-filter">
                   <SelectValue placeholder="Toutes" />
                 </SelectTrigger>
                 <SelectContent>
@@ -2328,13 +2328,13 @@ export default function BacklogDetail() {
             
             {/* Epic filter (multi-select) */}
             <div className="flex flex-col gap-1">
-              <Label className="text-xs text-muted-foreground">Epic</Label>
+              <Label className="text-[10px] text-muted-foreground">Epic</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="w-[150px] h-8 justify-between bg-white dark:bg-card text-gray-900"
+                    className="w-[150px] h-8 justify-between bg-white dark:bg-card text-gray-900 text-xs"
                     data-testid="button-epic-filter"
                   >
                     <span className="flex items-center gap-1 truncate">
@@ -2389,9 +2389,9 @@ export default function BacklogDetail() {
             {/* Version filter */}
             {uniqueVersions.length > 0 && (
               <div className="flex flex-col gap-1">
-                <Label className="text-xs text-muted-foreground">Version</Label>
+                <Label className="text-[10px] text-muted-foreground">Version</Label>
                 <Select value={versionFilter} onValueChange={setVersionFilter}>
-                  <SelectTrigger className="w-[150px] h-8 text-sm" data-testid="select-version-filter">
+                  <SelectTrigger className="w-[150px] h-8 text-xs" data-testid="select-version-filter">
                     <SelectValue placeholder="Toutes les versions" />
                   </SelectTrigger>
                   <SelectContent>
@@ -2407,9 +2407,9 @@ export default function BacklogDetail() {
             
             {/* Sort by */}
             <div className="flex flex-col gap-1">
-              <Label className="text-xs text-muted-foreground">Trier par</Label>
+              <Label className="text-[10px] text-muted-foreground">Trier par</Label>
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-[150px] h-8 text-sm" data-testid="select-sort-by">
+                <SelectTrigger className="w-[150px] h-8 text-xs" data-testid="select-sort-by">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -2479,7 +2479,7 @@ export default function BacklogDetail() {
                   />
                   <label 
                     htmlFor="hide-finished-sprints" 
-                    className="text-sm text-muted-foreground cursor-pointer"
+                    className="text-xs text-muted-foreground cursor-pointer"
                   >
                     Masquer les sprints terminés
                   </label>

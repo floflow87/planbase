@@ -130,11 +130,11 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="p-4 border-b border-sidebar-border">
+      <SidebarHeader className="py-2 px-3 border-b border-sidebar-border">
         {!isCollapsed ? (
           <div className="flex items-center justify-between gap-2">
             <Link href="/" onClick={handleNavigation}>
-              <div className="flex items-center cursor-pointer hover-elevate active-elevate-2 rounded-md p-2 gap-2" data-testid="link-logo">
+              <div className="flex items-center cursor-pointer hover-elevate active-elevate-2 rounded-md p-1 gap-2" data-testid="link-logo">
                 <img src={planbaseLogo} alt="PlanBase" className="w-8 h-8 rounded-md flex-shrink-0 transition-all" />
                 <span className="font-semibold text-base italic bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500 bg-clip-text text-transparent" style={{ fontFamily: 'Futura, "Century Gothic", CenturyGothic, AppleGothic, sans-serif' }}>PlanBase</span>
               </div>
@@ -148,11 +148,11 @@ export function AppSidebar() {
             </button>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-1.5">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link href="/" onClick={handleNavigation}>
-                  <div className="flex items-center justify-center cursor-pointer hover-elevate active-elevate-2 rounded-md p-2" data-testid="link-logo-collapsed">
+                  <div className="flex items-center justify-center cursor-pointer hover-elevate active-elevate-2 rounded-md p-1" data-testid="link-logo-collapsed">
                     <img src={planbaseLogo} alt="PlanBase" className="w-8 h-8 rounded-md flex-shrink-0" />
                   </div>
                 </Link>
