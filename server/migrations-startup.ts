@@ -2851,10 +2851,16 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Roadmap items action_type column added");
 
-    // Add free-form tag column to user_stories and backlog_tasks
+    // Ensure legacy single-tag column still exists (for backward compat during migration)
     await db.execute(sql`ALTER TABLE user_stories ADD COLUMN IF NOT EXISTS tag TEXT`);
     await db.execute(sql`ALTER TABLE backlog_tasks ADD COLUMN IF NOT EXISTS tag TEXT`);
-    console.log("✅ Tag column added to user_stories and backlog_tasks");
+    // Add multiple-tags column (TEXT[])
+    await db.execute(sql`ALTER TABLE user_stories ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'`);
+    await db.execute(sql`ALTER TABLE backlog_tasks ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'`);
+    // Migrate existing single tag values into the new array column (one-time, idempotent)
+    await db.execute(sql`UPDATE user_stories SET tags = ARRAY[tag] WHERE tag IS NOT NULL AND (tags IS NULL OR array_length(tags, 1) IS NULL OR array_length(tags, 1) = 0)`);
+    await db.execute(sql`UPDATE backlog_tasks SET tags = ARRAY[tag] WHERE tag IS NOT NULL AND (tags IS NULL OR array_length(tags, 1) IS NULL OR array_length(tags, 1) = 0)`);
+    console.log("✅ Tags column added/migrated for user_stories and backlog_tasks");
 
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {

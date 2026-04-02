@@ -34,7 +34,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -64,7 +64,7 @@ export interface FlatTicket {
   createdAt?: string | null;
   updatedAt?: string | null;
   version?: string | null;
-  tag?: string | null;
+  tags?: string[];
   metrics01Label?: string | null;
   metrics01Value?: number | null;
   metrics02Label?: string | null;
@@ -447,22 +447,38 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
       
       {/* Right columns container with larger spacing */}
       <div className="flex items-center gap-4">
-      {/* Tag badge */}
-      {ticket.tag && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge
-              variant="outline"
-              className="text-[10px] px-1.5 py-0 border-cyan-400 text-cyan-600 dark:text-cyan-400 dark:border-cyan-500 flex-shrink-0 max-w-[80px] truncate"
-              data-testid={`ticket-tag-${ticket.id}`}
-            >
-              {ticket.tag}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md">
-            <p className="text-xs">Tag : {ticket.tag}</p>
-          </TooltipContent>
-        </Tooltip>
+      {/* Tag badges (multiple) */}
+      {(ticket.tags || []).length > 0 && (
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {(ticket.tags || []).slice(0, 2).map(tag => (
+            <Tooltip key={tag}>
+              <TooltipTrigger asChild>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] px-1.5 py-0 border-cyan-400 text-cyan-600 dark:text-cyan-400 dark:border-cyan-500 max-w-[70px] truncate"
+                  data-testid={`ticket-tag-${ticket.id}`}
+                >
+                  {tag}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md">
+                <p className="text-xs">Tag : {tag}</p>
+              </TooltipContent>
+            </Tooltip>
+          ))}
+          {(ticket.tags || []).length > 2 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-cyan-400 text-cyan-600 dark:text-cyan-400 dark:border-cyan-500">
+                  +{(ticket.tags || []).length - 2}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md">
+                <p className="text-xs">{(ticket.tags || []).join(", ")}</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       )}
       {/* Inline Points Editor with Tooltip */}
       {onUpdateField ? (
@@ -572,6 +588,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                 >
                   {assignee ? (
                     <Avatar className="h-6 w-6 ring-2 ring-transparent hover:ring-primary/30 transition-all">
+                      <AvatarImage src={assignee.avatarUrl || undefined} />
                       <AvatarFallback className="text-xs bg-primary/10">
                         {assignee.firstName?.charAt(0) || assignee.email?.charAt(0) || "?"}
                       </AvatarFallback>
@@ -617,6 +634,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                   }}
                 >
                   <Avatar className="h-4 w-4">
+                    <AvatarImage src={user.avatarUrl || undefined} />
                     <AvatarFallback className="text-[10px]">
                       {user.firstName?.charAt(0) || user.email?.charAt(0) || "?"}
                     </AvatarFallback>
@@ -2473,7 +2491,7 @@ export function transformToFlatTickets(
       reporterId: story.reporterId || null,
       order: story.order,
       version: (story as any).version || null,
-      tag: (story as any).tag || null,
+      tags: (story as any).tags || [],
       createdAt: story.createdAt?.toString() || null,
       updatedAt: story.updatedAt?.toString() || null,
       metrics01Label: (story as any).metrics01Label || null,
@@ -2503,7 +2521,7 @@ export function transformToFlatTickets(
       reporterId: task.reporterId || null,
       order: task.order,
       version: (task as any).version || null,
-      tag: (task as any).tag || null,
+      tags: (task as any).tags || [],
       createdAt: task.createdAt?.toString() || null,
       updatedAt: task.updatedAt?.toString() || null,
       metrics01Label: (task as any).metrics01Label || null,

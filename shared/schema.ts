@@ -1513,7 +1513,7 @@ export const userStories = pgTable("user_stories", {
   order: integer("order").notNull().default(0),
   dueDate: date("due_date"),
   version: text("version"), // Version de produit (nullable)
-  tag: text("tag"), // Free-form tag (nullable)
+  tags: text("tags").array().default([]), // Multiple free-form tags
   ownerId: uuid("owner_id").references(() => appUsers.id, { onDelete: "set null" }),
   assigneeId: uuid("assignee_id").references(() => appUsers.id, { onDelete: "set null" }),
   reporterId: uuid("reporter_id").references(() => appUsers.id, { onDelete: "set null" }),
@@ -1553,7 +1553,7 @@ export const backlogTasks = pgTable("backlog_tasks", {
   order: integer("order").notNull().default(0),
   dueDate: date("due_date"),
   version: text("version"), // Version de produit (nullable)
-  tag: text("tag"), // Free-form tag (nullable)
+  tags: text("tags").array().default([]), // Multiple free-form tags
   assigneeId: uuid("assignee_id").references(() => appUsers.id, { onDelete: "set null" }),
   reporterId: uuid("reporter_id").references(() => appUsers.id, { onDelete: "set null" }),
   metrics01Label: text("metrics_01_label"),

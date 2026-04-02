@@ -9964,7 +9964,7 @@ app.get("/config/feature-flags", async (_req, res) => {
       // Clear the bidirectional roadmap link if the epic had one
       await db.update(roadmapItems)
         .set({ epicId: null })
-        .where(and(eq(roadmapItems.epicId, epicId), eq(roadmapItems.accountId, accountId)));
+        .where(eq(roadmapItems.epicId, epicId));
       
       // Then delete the epic
       const [deleted] = await db.delete(epics)

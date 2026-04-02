@@ -1095,7 +1095,7 @@ export default function BacklogDetail() {
   const allTicketTags = useMemo(() => {
     const tags = new Set<string>();
     flatTickets.forEach(t => {
-      if (t.tag) tags.add(t.tag);
+      (t.tags || []).forEach(tag => tags.add(tag));
     });
     return Array.from(tags).sort();
   }, [flatTickets]);
