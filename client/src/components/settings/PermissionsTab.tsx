@@ -286,12 +286,23 @@ export function PermissionsTab() {
       const response = await apiRequest(`/api/rbac/members/${memberId}`, "DELETE");
       return response.json();
     },
+    onMutate: async (memberId) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/rbac/members"] });
+      const previousMembers = queryClient.getQueryData<Member[]>(["/api/rbac/members"]);
+      queryClient.setQueryData<Member[]>(["/api/rbac/members"], (old) =>
+        old ? old.filter((m) => m.id !== memberId) : []
+      );
+      setSelectedMemberId(null);
+      return { previousMembers };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
-      setSelectedMemberId(null);
       toast({ title: "Membre supprimé", description: "Le membre a été retiré de l'organisation.", variant: "success" });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _memberId, context: any) => {
+      if (context?.previousMembers) {
+        queryClient.setQueryData(["/api/rbac/members"], context.previousMembers);
+      }
       toast({ title: "Erreur", description: error.message || "Impossible de supprimer le membre.", variant: "destructive" });
     },
   });
@@ -471,6 +482,14 @@ export function PermissionsTab() {
                         )}
                       </div>
                       {!isPending && <p className="text-xs text-muted-foreground">{member.user?.email}</p>}
+                      {member.createdAt && (
+                        <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+                          {isPending ? "Invité le " : "Membre depuis le "}
+                          {new Date(member.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
+                          {" à "}
+                          {new Date(member.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
