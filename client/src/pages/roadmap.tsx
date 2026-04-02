@@ -208,9 +208,11 @@ export default function RoadmapPage() {
   }, [selectedProjectId]);
 
 
-  useEffect(() => {
-    localStorage.setItem("roadmap-view-mode", viewMode);
-  }, [viewMode]);
+  const handleSetViewMode = (mode: ViewMode) => {
+    setViewMode(mode);
+    if (activeRoadmapId) localStorage.setItem(`roadmap-view-mode_${activeRoadmapId}`, mode);
+    localStorage.setItem("roadmap-view-mode", mode);
+  };
 
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -236,12 +238,18 @@ export default function RoadmapPage() {
     }
   }, [roadmaps]);
 
-  // Persist nnlGroupBy per roadmap
+  // Persist nnlGroupBy and viewMode per roadmap
   useEffect(() => {
     if (!activeRoadmapId) return;
-    const saved = localStorage.getItem(`nnlGroupBy_${activeRoadmapId}`);
-    if (saved === "priority" || saved === "action_type") setNnlGroupBy(saved);
+    const savedGroup = localStorage.getItem(`nnlGroupBy_${activeRoadmapId}`);
+    if (savedGroup === "priority" || savedGroup === "action_type") setNnlGroupBy(savedGroup);
     else setNnlGroupBy("none");
+    // Only restore viewMode for non-NNL-type roadmaps (NNL type is always forced)
+    const roadmapType = roadmaps.find(r => r.id === activeRoadmapId)?.type;
+    if (roadmapType !== "now_next_later") {
+      const savedView = localStorage.getItem(`roadmap-view-mode_${activeRoadmapId}`);
+      if (savedView) setViewMode(savedView as ViewMode);
+    }
   }, [activeRoadmapId]);
 
   const activeRoadmap = roadmaps.find(r => r.id === activeRoadmapId);
@@ -1389,7 +1397,7 @@ export default function RoadmapPage() {
                         <Button
                           variant={effectiveViewMode === "gantt" ? "default" : "ghost"}
                           size="sm"
-                          onClick={() => setViewMode("gantt")}
+                          onClick={() => handleSetViewMode("gantt")}
                           className="h-7 px-3"
                           data-testid="button-view-gantt"
                         >
@@ -1399,7 +1407,7 @@ export default function RoadmapPage() {
                         <Button
                           variant={effectiveViewMode === "output" ? "default" : "ghost"}
                           size="sm"
-                          onClick={() => setViewMode("output")}
+                          onClick={() => handleSetViewMode("output")}
                           className="h-7 px-3"
                           data-testid="button-view-output"
                         >
