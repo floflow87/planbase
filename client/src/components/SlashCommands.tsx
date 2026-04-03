@@ -24,7 +24,10 @@ import {
   Users,
   ListTree,
   ChevronDown,
+  Columns2,
+  Columns3,
 } from 'lucide-react';
+import { insertColumnBlock } from '@/components/ColumnExtension';
 
 export interface SlashCommand {
   id: string;
@@ -314,6 +317,24 @@ export const SLASH_COMMANDS: SlashCommand[] = [
       
       // Insert the table of contents
       editor.chain().focus().insertContent(tocContent).run();
+    },
+  },
+  {
+    id: 'columnx2',
+    label: '2 colonnes',
+    description: 'Diviser la page en 2 colonnes côte à côte',
+    icon: Columns2,
+    command: ({ editor, range }) => {
+      insertColumnBlock(editor, range, 2);
+    },
+  },
+  {
+    id: 'columnx3',
+    label: '3 colonnes',
+    description: 'Diviser la page en 3 colonnes côte à côte',
+    icon: Columns3,
+    command: ({ editor, range }) => {
+      insertColumnBlock(editor, range, 3);
     },
   },
 ];

@@ -18,6 +18,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import ResizableImageExtension from 'tiptap-extension-resize-image';
 import { SlashCommands } from '@/components/SlashCommands';
 import { Details, DetailsSummary, DetailsContent } from '@/components/DetailsExtension';
+import { Column, ColumnBlock } from '@/components/ColumnExtension';
 import { MermaidBlock, hasMermaidBlock, extractMermaidBlocks } from '@/components/MermaidBlock';
 import { SearchReplaceExtension, searchPluginKey } from '@/components/SearchReplaceExtension';
 import { TextSelection } from 'prosemirror-state';
@@ -324,6 +325,8 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       Details,
       DetailsSummary,
       DetailsContent,
+      Column,
+      ColumnBlock,
       MermaidBlock,
       SearchReplaceExtension,
     ],
