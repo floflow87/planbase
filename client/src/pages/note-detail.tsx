@@ -475,23 +475,28 @@ export default function NoteDetail() {
   }, []);
 
   const handleDeleteConfirm = useCallback(async () => {
+    setDeleteDialogOpen(false);
+    // Optimistically remove from cache then navigate immediately
+    queryClient.setQueryData<Note[]>(["/api/notes"], (old) =>
+      old ? old.filter((n) => n.id !== id) : []
+    );
+    navigate("/notes");
     try {
       await apiRequest(`/api/notes/${id}`, "DELETE");
-      await queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
       toast({
         title: "Note supprimée",
         description: "La note a été supprimée avec succès",
         variant: "success",
       });
-      navigate("/notes");
     } catch (error: any) {
+      // Rollback on failure
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
       toast({
         title: "Erreur",
         description: error.message || "Impossible de supprimer la note",
         variant: "destructive",
       });
-    } finally {
-      setDeleteDialogOpen(false);
     }
   }, [id, navigate, queryClient, toast]);
 
