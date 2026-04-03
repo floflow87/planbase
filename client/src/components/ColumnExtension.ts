@@ -79,10 +79,10 @@ function makeColumnBlockContent(columns: number): object {
 }
 
 export function insertColumnBlock(editor: any, range: any, columns: number) {
-  editor
-    .chain()
-    .focus()
-    .deleteRange(range)
-    .insertContent(makeColumnBlockContent(columns))
-    .run();
+  const chain = editor.chain().focus();
+  if (range) {
+    chain.deleteRange(range).insertContent(makeColumnBlockContent(columns)).run();
+  } else {
+    chain.insertContent(makeColumnBlockContent(columns)).run();
+  }
 }

@@ -56,7 +56,10 @@ import {
   Paintbrush,
   Check,
   AlignVerticalSpaceAround,
+  Columns2,
+  CaseSensitive,
 } from 'lucide-react';
+import { insertColumnBlock } from '@/components/ColumnExtension';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -86,8 +89,45 @@ declare module '@tiptap/core' {
       setLineHeight: (lineHeight: string) => ReturnType;
       unsetLineHeight: () => ReturnType;
     };
+    fontSize: {
+      setFontSize: (size: string) => ReturnType;
+      unsetFontSize: () => ReturnType;
+    };
   }
 }
+
+const FONT_SIZES = [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28];
+
+const FontSize = Extension.create({
+  name: 'fontSize',
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['textStyle'],
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: (element) => element.style.fontSize || null,
+            renderHTML: (attributes) => {
+              if (!attributes.fontSize) return {};
+              return { style: `font-size: ${attributes.fontSize}` };
+            },
+          },
+        },
+      },
+    ];
+  },
+  addCommands() {
+    return {
+      setFontSize: (size: string) => ({ chain }) => {
+        return chain().setMark('textStyle', { fontSize: size + 'px' }).run();
+      },
+      unsetFontSize: () => ({ chain }) => {
+        return chain().setMark('textStyle', { fontSize: null }).run();
+      },
+    };
+  },
+});
 
 const LineHeight = Extension.create({
   name: 'lineHeight',
@@ -332,6 +372,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       DetailsContent,
       Column,
       ColumnBlock,
+      FontSize,
       MermaidBlock,
       SearchReplaceExtension,
     ],
@@ -1263,6 +1304,25 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
               <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()} className={editor.isActive('heading', { level: 4 }) ? 'bg-accent' : ''}><Heading4 className="w-4 h-4 mr-2" /><span className="text-sm font-bold">Titre 4</span></DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          {/* Font size dropdown */}
+          <DropdownMenu onOpenChange={(open) => { bubbleAnyPopoverOpenRef.current = open; }}>
+            <Tooltip><TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 px-1.5 gap-0.5 min-w-[2.5rem] font-mono text-xs">
+                  <CaseSensitive className="w-3.5 h-3.5" />
+                  <span className="text-xs leading-none">{editor.getAttributes('textStyle').fontSize?.replace('px','') || '—'}</span>
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger><TooltipContent className="bg-white dark:bg-gray-900 text-foreground border" style={{ zIndex: 10001 }}>Taille du texte</TooltipContent></Tooltip>
+            <DropdownMenuContent align="start" style={{ zIndex: 10000 }} className="bg-white dark:bg-gray-900 min-w-[80px]">
+              <DropdownMenuItem onClick={() => editor.chain().focus().unsetFontSize().run()} className={!editor.getAttributes('textStyle').fontSize ? 'bg-accent' : ''}>Par défaut</DropdownMenuItem>
+              {FONT_SIZES.map(size => (
+                <DropdownMenuItem key={size} onClick={() => editor.chain().focus().setFontSize(String(size)).run()} className={editor.getAttributes('textStyle').fontSize === size + 'px' ? 'bg-accent' : ''}>
+                  <span style={{ fontSize: Math.min(size, 14) + 'px' }}>{size}px</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <div className="w-px h-5 bg-border mx-0.5 shrink-0" />
           {/* Basic formatting */}
           <Tooltip><TooltipTrigger asChild>
@@ -1352,6 +1412,20 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
           <Tooltip><TooltipTrigger asChild>
             <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().setHorizontalRule().run()} className="h-7 w-7 p-0"><Minus className="w-3.5 h-3.5" /></Button>
           </TooltipTrigger><TooltipContent className="bg-white dark:bg-gray-900 text-foreground border" style={{ zIndex: 10001 }}>Séparateur</TooltipContent></Tooltip>
+          {/* Columns */}
+          <DropdownMenu onOpenChange={(open) => { bubbleAnyPopoverOpenRef.current = open; }}>
+            <Tooltip><TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button variant={editor.isActive('columnBlock') ? 'secondary' : 'ghost'} size="sm" className="h-7 w-7 p-0"><Columns2 className="w-3.5 h-3.5" /></Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger><TooltipContent className="bg-white dark:bg-gray-900 text-foreground border" style={{ zIndex: 10001 }}>Colonnes</TooltipContent></Tooltip>
+            <DropdownMenuContent align="start" style={{ zIndex: 10000 }} className="bg-white dark:bg-gray-900">
+              <DropdownMenuItem onClick={() => editor.chain().focus().run()}>1 colonne (défaut)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => insertColumnBlock(editor, null, 2)}>2 colonnes</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => insertColumnBlock(editor, null, 3)}>3 colonnes</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => insertColumnBlock(editor, null, 4)}>4 colonnes</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <div className="w-px h-5 bg-border mx-0.5 shrink-0" />
           {/* Link & Upload */}
           <Tooltip><TooltipTrigger asChild>
@@ -1488,6 +1562,49 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                   <Heading4 className="w-4 h-4 mr-2" />
                   <span className="text-sm font-bold">Titre 4</span>
                 </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Font size dropdown - static toolbar */}
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="gap-1 font-mono text-xs">
+                      <CaseSensitive className="w-4 h-4" />
+                      <span className="text-xs leading-none">{editor.getAttributes('textStyle').fontSize?.replace('px','') || '—'}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Taille du texte</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="start" className="bg-white dark:bg-gray-900 min-w-[80px]">
+                <DropdownMenuItem onClick={() => editor.chain().focus().unsetFontSize().run()} className={!editor.getAttributes('textStyle').fontSize ? 'bg-accent' : ''}>Par défaut</DropdownMenuItem>
+                {FONT_SIZES.map(size => (
+                  <DropdownMenuItem key={size} onClick={() => editor.chain().focus().setFontSize(String(size)).run()} className={editor.getAttributes('textStyle').fontSize === size + 'px' ? 'bg-accent' : ''}>
+                    <span style={{ fontSize: Math.min(size, 14) + 'px' }}>{size}px</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Columns dropdown - static toolbar */}
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant={editor.isActive('columnBlock') ? 'secondary' : 'ghost'} size="sm">
+                      <Columns2 className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Colonnes</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="start" className="bg-white dark:bg-gray-900">
+                <DropdownMenuItem onClick={() => editor.chain().focus().run()}>1 colonne (défaut)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => insertColumnBlock(editor, null, 2)}>2 colonnes</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => insertColumnBlock(editor, null, 3)}>3 colonnes</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => insertColumnBlock(editor, null, 4)}>4 colonnes</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
