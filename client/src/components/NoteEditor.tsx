@@ -256,6 +256,11 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
   const bubbleMenuRef = useRef<HTMLDivElement>(null);
   const bubbleAnyPopoverOpenRef = useRef(false);
 
+  // Context menu (right-click) state
+  const [contextMenuVisible, setContextMenuVisible] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState({ top: 0, left: 0 });
+  const contextMenuCleanupRef = useRef<(() => void) | null>(null);
+
   // Outline bar state (Notion-like)
   interface HeadingInfo {
     id: string;
@@ -1227,11 +1232,11 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
           />
         </div>
       )}
-      {/* Floating bubble menu for text selection (desktop borderless mode) - full toolbar */}
-      {borderless && bubbleMenuVisible && editor && (
+      {/* Floating bubble menu for text selection / right-click context menu */}
+      {((borderless && bubbleMenuVisible) || contextMenuVisible) && editor && (
         <div
           ref={bubbleMenuRef}
-          style={{ position: 'fixed', top: bubbleMenuPos.top, left: bubbleMenuPos.left, zIndex: 9999 }}
+          style={{ position: 'fixed', top: contextMenuVisible ? contextMenuPos.top : bubbleMenuPos.top, left: contextMenuVisible ? contextMenuPos.left : bubbleMenuPos.left, zIndex: 9999 }}
           className="flex items-center gap-px p-1.5 rounded-md bg-white dark:bg-gray-900 border border-primary/50 shadow-lg pointer-events-auto overflow-x-auto whitespace-nowrap max-w-[90vw]"
           onMouseDown={(e) => e.preventDefault()}
         >
@@ -2097,6 +2102,33 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       <div 
         ref={editorContainerRef}
         className={`relative bg-white dark:bg-background ${isMobile ? 'min-h-[calc(100vh-180px)]' : borderless ? 'min-h-[calc(100vh-120px)]' : ''}`}
+        onContextMenu={(e) => {
+          if (!editor || !editable) return;
+          e.preventDefault();
+          // Close existing cleanup
+          if (contextMenuCleanupRef.current) {
+            contextMenuCleanupRef.current();
+            contextMenuCleanupRef.current = null;
+          }
+          const TOOLBAR_HEIGHT = 48;
+          const OFFSET = 10;
+          const showBelow = e.clientY < TOOLBAR_HEIGHT + OFFSET + 40;
+          const top = showBelow ? e.clientY + OFFSET : e.clientY - TOOLBAR_HEIGHT - OFFSET;
+          const left = Math.max(8, Math.min(e.clientX - 140, window.innerWidth - 580));
+          setContextMenuPos({ top, left });
+          setContextMenuVisible(true);
+          // Close on next mousedown outside the toolbar
+          const close = (ev: MouseEvent) => {
+            if (bubbleMenuRef.current && !bubbleMenuRef.current.contains(ev.target as Node)) {
+              setContextMenuVisible(false);
+              contextMenuCleanupRef.current = null;
+            }
+          };
+          setTimeout(() => {
+            document.addEventListener('mousedown', close, { once: true });
+            contextMenuCleanupRef.current = () => document.removeEventListener('mousedown', close);
+          }, 0);
+        }}
       >
         <div className="flex h-full">
           <div className="flex-1 min-w-0">
