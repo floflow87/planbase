@@ -153,8 +153,11 @@ export default function Notes() {
   });
   const [currentPage, setCurrentPage] = useState(1);
   
-  // Group by - always none (grouping UI removed)
-  const [groupBy] = useState<"none" | "project" | "status" | "visibility" | "favorite" | "tag">("none");
+  // Group by state with localStorage persistence
+  const [groupBy, setGroupBy] = useState<"none" | "project" | "status" | "visibility" | "favorite" | "tag">(() => {
+    const saved = localStorage.getItem('noteListGroupBy');
+    return (saved as "none" | "project" | "status" | "visibility" | "favorite" | "tag") || "none";
+  });
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   
   // Advanced filter panel state with localStorage persistence
@@ -376,6 +379,12 @@ export default function Notes() {
     localStorage.setItem('noteListPageSize', pageSize.toString());
   }, [pageSize]);
   
+
+  // Save groupBy to localStorage when it changes and reset collapsed groups
+  useEffect(() => {
+    localStorage.setItem('noteListGroupBy', groupBy);
+    setCollapsedGroups(new Set());
+  }, [groupBy]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -1000,6 +1009,19 @@ export default function Notes() {
               <option value="draft">Brouillons</option>
               <option value="active">Publiées</option>
               <option value="archived">Archivées</option>
+            </select>
+            <select
+              className="border border-border rounded-md px-3 h-9 text-xs bg-card"
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value as any)}
+              data-testid="select-group-by"
+            >
+              <option value="none">Sans groupage</option>
+              <option value="project">Par projet</option>
+              <option value="status">Par statut</option>
+              <option value="visibility">Par visibilité</option>
+              <option value="favorite">Par favoris</option>
+              <option value="tag">Par tag</option>
             </select>
             <Button
               variant={showFilterPanel ? "default" : "outline"}
