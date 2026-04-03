@@ -26,6 +26,7 @@ import {
   ChevronDown,
   Columns2,
   Columns3,
+  Columns4,
 } from 'lucide-react';
 import { insertColumnBlock } from '@/components/ColumnExtension';
 
@@ -335,6 +336,15 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     icon: Columns3,
     command: ({ editor, range }) => {
       insertColumnBlock(editor, range, 3);
+    },
+  },
+  {
+    id: 'columnx4',
+    label: '4 colonnes',
+    description: 'Diviser la page en 4 colonnes côte à côte',
+    icon: Columns4,
+    command: ({ editor, range }) => {
+      insertColumnBlock(editor, range, 4);
     },
   },
 ];

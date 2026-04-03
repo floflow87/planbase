@@ -406,12 +406,21 @@
     grid-template-columns: repeat(3, 1fr);
   }
 
+  .tiptap-column-block.columns-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
   .tiptap-column {
     min-width: 0;
     padding: 0.5rem 0.75rem;
     border-radius: 0.375rem;
-    border: 1px solid hsl(var(--border));
+    border: 1px solid transparent;
     min-height: 2.5rem;
+    transition: border-color 0.15s ease;
+  }
+
+  .tiptap-column:hover {
+    border-color: hsl(var(--border));
   }
 
   .tiptap-column > *:first-child {
@@ -422,8 +431,9 @@
     margin-bottom: 0;
   }
 
-  /* Read-only view: no border */
-  .ProseMirror[contenteditable="false"] .tiptap-column {
+  /* Read-only view: never show border */
+  .ProseMirror[contenteditable="false"] .tiptap-column,
+  .ProseMirror[contenteditable="false"] .tiptap-column:hover {
     border-color: transparent;
     padding: 0;
   }
