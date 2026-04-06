@@ -1480,7 +1480,7 @@ function AppLayout() {
         <div className="flex flex-col flex-1 overflow-hidden bg-card">
           <header className="flex items-center justify-between h-14 px-2 sm:px-4 border-b border-border bg-card shrink-0">
             <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
-              <SidebarTrigger className="md:hidden flex-shrink-0 h-8 w-8" data-testid="button-sidebar-trigger-mobile" />
+              <SidebarTrigger className="md:hidden flex-shrink-0 h-9 w-9" data-testid="button-sidebar-trigger-mobile" />
               <GlobalSearch />
               {/* Tab System */}
               <div className="flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto scrollbar-hide">
