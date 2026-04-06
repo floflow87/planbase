@@ -34,6 +34,29 @@ function useIsMobile() {
   return isMobile;
 }
 
+// Locks body scroll in a way that works on iOS Safari.
+// Saves scroll position, fixes body, restores on unlock.
+function lockBodyScroll() {
+  const scrollY = window.scrollY;
+  document.body.dataset.scrollY = String(scrollY);
+  document.body.style.position = "fixed";
+  document.body.style.top = `-${scrollY}px`;
+  document.body.style.left = "0";
+  document.body.style.right = "0";
+  document.body.style.overflow = "hidden";
+}
+
+function unlockBodyScroll() {
+  const scrollY = parseInt(document.body.dataset.scrollY || "0", 10);
+  document.body.style.position = "";
+  document.body.style.top = "";
+  document.body.style.left = "";
+  document.body.style.right = "";
+  document.body.style.overflow = "";
+  delete document.body.dataset.scrollY;
+  window.scrollTo(0, scrollY);
+}
+
 export function GlobalSearch() {
   const [, setLocation] = useLocation();
   const [open, setOpen] = useState(false);
@@ -41,6 +64,7 @@ export function GlobalSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
   const { data: clients = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/clients"] });
@@ -122,6 +146,34 @@ export function GlobalSearch() {
     setQuery("");
   };
 
+  // Lock / unlock body scroll on iOS when modal is open.
+  // We use the position:fixed trick which is the only reliable method on iOS Safari.
+  useEffect(() => {
+    if (isMobile && open) {
+      lockBodyScroll();
+    } else {
+      unlockBodyScroll();
+    }
+    return () => unlockBodyScroll();
+  }, [isMobile, open]);
+
+  // Block touchmove on the modal BACKDROP (header bar) to prevent any body scroll leak.
+  // The results area handles its own scrolling via overscroll-behavior: contain.
+  useEffect(() => {
+    if (!isMobile || !open) return;
+
+    const preventTouchMove = (e: TouchEvent) => {
+      // Allow scrolling only inside the results container
+      if (resultsRef.current && resultsRef.current.contains(e.target as Node)) {
+        return; // let it scroll naturally (contained by CSS)
+      }
+      e.preventDefault();
+    };
+
+    document.addEventListener("touchmove", preventTouchMove, { passive: false });
+    return () => document.removeEventListener("touchmove", preventTouchMove);
+  }, [isMobile, open]);
+
   // Desktop: close on outside click
   useEffect(() => {
     if (isMobile) return;
@@ -147,16 +199,6 @@ export function GlobalSearch() {
     return () => document.removeEventListener("keydown", handler);
   }, [isMobile]);
 
-  // Lock body scroll on mobile modal
-  useEffect(() => {
-    if (isMobile && open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => { document.body.style.overflow = ""; };
-  }, [isMobile, open]);
-
   // ── Mobile full-screen modal (via portal) ──────────────────────
   const mobileModal = isMobile && open ? createPortal(
     <div
@@ -164,7 +206,7 @@ export function GlobalSearch() {
       style={{ animation: "fadeIn 120ms ease-out forwards" }}
       data-testid="search-modal-mobile"
     >
-      {/* Top bar */}
+      {/* Top bar — non-scrollable, touchmove blocked globally for this area */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
         <div className="flex-1 flex items-center gap-2 bg-muted rounded-xl px-3 py-2">
           <Search className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -198,8 +240,15 @@ export function GlobalSearch() {
         </button>
       </div>
 
-      {/* Results */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Results — independently scrollable, scroll contained here */}
+      <div
+        ref={resultsRef}
+        className="flex-1 overflow-y-auto"
+        style={{
+          overscrollBehavior: "contain",
+          WebkitOverflowScrolling: "touch" as any,
+        }}
+      >
         {q.length > 0 && !hasResults ? (
           <div className="px-4 py-8 text-sm text-muted-foreground text-center">
             Aucun résultat pour « {query} »
@@ -234,6 +283,9 @@ export function GlobalSearch() {
             Tapez pour rechercher
           </div>
         )}
+
+        {/* Bottom padding so last item isn't hidden behind keyboard */}
+        <div className="h-16" />
       </div>
     </div>,
     document.body
