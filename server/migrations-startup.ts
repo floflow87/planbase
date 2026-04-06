@@ -2870,6 +2870,74 @@ export async function runStartupMigrations() {
     await db.execute(sql`UPDATE backlog_tasks SET tags = ARRAY[tag] WHERE tag IS NOT NULL AND (tags IS NULL OR array_length(tags, 1) IS NULL OR array_length(tags, 1) = 0)`);
     console.log("✅ Tags column added/migrated for user_stories and backlog_tasks");
 
+    // ─────────────────────────────────────────────────────────────
+    // ONE-SHOT CLEANUP: Delete gravemarie@gmail.com's independent org
+    // and all her data. This is safe to run multiple times (idempotent).
+    // After this, she can be re-invited fresh with a clean slate.
+    // ─────────────────────────────────────────────────────────────
+    try {
+      // Find the user by email
+      const graveResult = await db.execute(sql`
+        SELECT id, account_id FROM app_users WHERE email = 'gravemarie@gmail.com' LIMIT 1
+      `);
+      const graveRows = (graveResult as any)?.rows ?? (graveResult as any) ?? [];
+      const graveUser = Array.isArray(graveRows) ? graveRows[0] : graveRows?.rows?.[0];
+
+      if (graveUser) {
+        const graveUserId = graveUser.id;
+        const graveAccountId = graveUser.account_id;
+
+        // Safety: never touch floflow87's account
+        const floResult = await db.execute(sql`
+          SELECT id, account_id FROM app_users WHERE email = 'floflow87@planbase.io' LIMIT 1
+        `);
+        const floRows = (floResult as any)?.rows ?? (floResult as any) ?? [];
+        const floUser = Array.isArray(floRows) ? floRows[0] : floRows?.rows?.[0];
+        const safeToDelete = !floUser || graveAccountId !== (floUser as any)?.account_id;
+
+        if (safeToDelete && graveAccountId) {
+          // Delete her independent account — cascades to all her org data,
+          // all organization_members rows, all permissions, etc.
+          await db.execute(sql`DELETE FROM accounts WHERE id = ${graveAccountId}`);
+          console.log(`✅ Deleted gravemarie's independent account (${graveAccountId}) and all org data`);
+        }
+
+        // Also clean up any remaining app_users row and org memberships in other orgs
+        await db.execute(sql`DELETE FROM organization_members WHERE user_id = ${graveUserId}`);
+        await db.execute(sql`DELETE FROM app_users WHERE id = ${graveUserId}`);
+        console.log(`✅ Deleted gravemarie's app_users record and cross-org memberships`);
+
+        // Delete from Supabase Auth (non-blocking)
+        try {
+          const { supabaseAdmin } = await import("./lib/supabase");
+          await supabaseAdmin.auth.admin.deleteUser(graveUserId);
+          console.log(`✅ Deleted gravemarie from Supabase Auth`);
+        } catch (authErr: any) {
+          console.warn(`⚠️  Could not delete gravemarie from Supabase Auth (may not exist):`, authErr.message);
+        }
+      } else {
+        console.log("ℹ️  gravemarie@gmail.com not in app_users — checking Supabase Auth...");
+      }
+
+      // Always ensure gravemarie is removed from Supabase Auth (even if already gone from app_users)
+      try {
+        const { supabaseAdmin } = await import("./lib/supabase");
+        const { data: { users } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+        const graveAuthUser = users?.find((u: any) => u.email === 'gravemarie@gmail.com');
+        if (graveAuthUser) {
+          await supabaseAdmin.auth.admin.deleteUser(graveAuthUser.id);
+          console.log(`✅ Deleted gravemarie@gmail.com from Supabase Auth (id: ${graveAuthUser.id})`);
+        } else {
+          console.log("ℹ️  gravemarie@gmail.com not in Supabase Auth — fully cleaned");
+        }
+      } catch (authCleanupErr: any) {
+        console.warn("⚠️  Supabase Auth cleanup for gravemarie (non-blocking):", authCleanupErr.message);
+      }
+    } catch (cleanupErr: any) {
+      console.warn("⚠️  gravemarie cleanup (non-blocking):", cleanupErr.message);
+    }
+    // ─────────────────────────────────────────────────────────────
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

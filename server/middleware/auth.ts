@@ -71,22 +71,38 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     });
     
     if (!accountId) {
-      // No account_id in metadata - create a new account for this user
-      console.log(`Creating new account for first-time user: ${userEmail}`);
-      const newAccount = await storage.createAccount({
-        name: userEmail.split('@')[0] + "'s Account",
-        ownerUserId: user.id, // Supabase Auth user ID
-      });
-      accountId = newAccount.id;
-
-      // Update Supabase user metadata with the new account_id
-      await supabaseAdmin.auth.admin.updateUserById(user.id, {
-        user_metadata: {
-          ...user.user_metadata,
-          account_id: accountId,
-          role: 'owner',
-        },
-      });
+      // No account_id in metadata — check if this user already exists in app_users by email.
+      // This happens when an invited user logs in via a different auth method (e.g. Google OAuth)
+      // after accepting their invitation. We MUST NOT create a new org for them.
+      const existingByEmail = await storage.getUserByEmail(userEmail);
+      if (existingByEmail) {
+        // Re-link to their existing account
+        accountId = existingByEmail.accountId;
+        console.log(`🔗 AUTH: Found existing user by email ${userEmail}, linking to accountId ${accountId}`);
+        // Sync Supabase metadata so this doesn't repeat every login
+        await supabaseAdmin.auth.admin.updateUserById(user.id, {
+          user_metadata: {
+            ...user.user_metadata,
+            account_id: accountId,
+            role: existingByEmail.role === 'owner' ? 'owner' : 'collaborator',
+          },
+        });
+      } else {
+        // Truly new user (e.g. direct signup via Google) — create their own account
+        console.log(`Creating new account for first-time user: ${userEmail}`);
+        const newAccount = await storage.createAccount({
+          name: userEmail.split('@')[0] + "'s Account",
+          ownerUserId: user.id,
+        });
+        accountId = newAccount.id;
+        await supabaseAdmin.auth.admin.updateUserById(user.id, {
+          user_metadata: {
+            ...user.user_metadata,
+            account_id: accountId,
+            role: 'owner',
+          },
+        });
+      }
     }
 
     // Verify/create account
