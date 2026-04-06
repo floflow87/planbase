@@ -12794,14 +12794,18 @@ app.get("/config/feature-flags", async (_req, res) => {
       await db.delete(organizationMembers).where(eq(organizationMembers.id, memberId));
       console.log("✅ Member deleted from organization_members");
 
-      // For invited users (non-owners), completely delete their account
-      // They should not have a standalone account - they only exist in the inviting organization
-      if (targetUser && targetUser.role !== 'owner') {
-        console.log("🗑️ Deleting invited user completely...");
+      // Completely delete the user's account so they can be re-invited fresh
+      // (the owner-of-this-org is already protected above and can never reach this point)
+      if (targetUser) {
+        console.log("🗑️ Deleting user account completely...");
         
         // Delete from app_users
-        await db.delete(appUsers).where(eq(appUsers.id, targetUser.id));
-        console.log("✅ User deleted from app_users");
+        try {
+          await db.delete(appUsers).where(eq(appUsers.id, targetUser.id));
+          console.log("✅ User deleted from app_users");
+        } catch (dbError: any) {
+          console.error("⚠️ Failed to delete from app_users (non-blocking):", dbError.message);
+        }
         
         // Delete from Supabase Auth
         try {
@@ -12811,11 +12815,10 @@ app.get("/config/feature-flags", async (_req, res) => {
             process.env.SUPABASE_SERVICE_ROLE_KEY!,
             { auth: { autoRefreshToken: false, persistSession: false } }
           );
-          
           await supabaseAdmin.auth.admin.deleteUser(targetUser.id);
           console.log("✅ User deleted from Supabase Auth");
-        } catch (authError) {
-          console.error("⚠️ Failed to delete from Supabase Auth (non-blocking):", authError);
+        } catch (authError: any) {
+          console.error("⚠️ Failed to delete from Supabase Auth (non-blocking):", authError.message);
         }
       }
 
@@ -13080,8 +13083,7 @@ app.get("/config/feature-flags", async (_req, res) => {
       const adminEmails = ['floflow87@planbase.io', 'demo@yopmail.com'];
       const inviterIsAdmin = adminEmails.includes(inviterEmail);
 
-      // If floflow87@planbase.io is inviting, always force role to admin
-      const effectiveRole = inviterEmail === 'floflow87@planbase.io' ? 'admin' : role;
+      const effectiveRole = role; // already validated as 'admin' | 'member' | 'guest' above
 
       // --- Plan-based invite limits (skip for admin accounts) ---
       if (!inviterIsAdmin) {
