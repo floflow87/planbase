@@ -52,7 +52,7 @@ import Emails from "@/pages/emails";
 import EmailTemplates from "@/pages/email-templates";
 import NotFound from "@/pages/not-found";
 import { EmailComposeModal } from "@/components/EmailComposeModal";
-import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote, CalendarPlus, MoreHorizontal, Timer } from "lucide-react";
+import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote, CalendarPlus, MoreVertical, Timer } from "lucide-react";
 import { TrialBanner, TrialExpiredGate } from "@/components/billing/PremiumGate";
 import { AiAssistant } from "@/components/ai/AiAssistant";
 import { AppointmentPanel } from "@/components/appointment-panel";
@@ -328,6 +328,7 @@ function QuickCreateMenu() {
   const [isAppointmentPanelOpen, setIsAppointmentPanelOpen] = useState(false);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [composeInitial, setComposeInitial] = useState<any>({});
+  const [isMobileCreateOpen, setIsMobileCreateOpen] = useState(false);
 
   const { data: gmailStatus } = useQuery<{ connected: boolean; email?: string; canSend?: boolean }>({
     queryKey: ["/api/gmail/status"],
@@ -520,9 +521,10 @@ function QuickCreateMenu() {
 
   return (
     <>
+      {/* Desktop: Popover */}
       <Popover>
         <PopoverTrigger asChild>
-          <Button size="sm" className="gap-1" data-testid="button-quick-create">
+          <Button size="sm" className="hidden sm:flex gap-1" data-testid="button-quick-create">
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Nouveau</span>
           </Button>
@@ -554,6 +556,46 @@ function QuickCreateMenu() {
           </div>
         </PopoverContent>
       </Popover>
+
+      {/* Mobile: bottom sheet */}
+      <Button
+        size="icon"
+        className="sm:hidden"
+        onClick={() => setIsMobileCreateOpen(true)}
+        data-testid="button-quick-create-mobile"
+      >
+        <Plus className="w-4 h-4" />
+      </Button>
+      <Sheet open={isMobileCreateOpen} onOpenChange={setIsMobileCreateOpen}>
+        <SheetContent side="bottom" className="h-auto rounded-t-xl bg-card pb-8" data-testid="sheet-mobile-create">
+          <SheetHeader className="pb-2">
+            <SheetTitle className="text-base">Créer</SheetTitle>
+          </SheetHeader>
+          <div className="grid grid-cols-3 gap-3 pt-2">
+            {quickActions.map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                onClick={action.disabled ? undefined : () => { setIsMobileCreateOpen(false); action.onClick(); }}
+                disabled={action.disabled}
+                title={action.disabled && action.label === "Email" ? "Gmail non connecté" : undefined}
+                className={cn(
+                  "flex flex-col items-center gap-2 p-3 rounded-xl",
+                  action.disabled
+                    ? "opacity-40 cursor-not-allowed"
+                    : "hover-elevate active-elevate-2 cursor-pointer"
+                )}
+                data-testid={`mobile-${action.testId}`}
+              >
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${action.color}`}>
+                  <action.icon className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-medium text-foreground/80 leading-tight text-center">{action.label}</span>
+              </button>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Client Sheet */}
       <Sheet open={isClientSheetOpen} onOpenChange={setIsClientSheetOpen}>
@@ -1083,6 +1125,7 @@ function AppLayout() {
   const isAuthPage = location === "/login" || location === "/signup" || location.startsWith("/accept-invitation");
   const isStandalone = useIsStandalone();
   const { user } = useAuth();
+  const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
   
   // Fetch data for dynamic tab titles
   const { data: projects } = useQuery<{ id: string; name: string }[]>({
@@ -1513,37 +1556,64 @@ function AppLayout() {
               >
                 <Calendar className="w-4 h-4 text-primary dark:text-white" />
               </Button>
-              {/* Mobile: collapsed dropdown — all three items use identical icon+text layout */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="sm:hidden" data-testid="button-header-more">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-card min-w-[180px]">
-                  {isTimeTrackingEnabled && (
-                    <DropdownMenuItem
-                      onSelect={(e) => e.preventDefault()}
-                      onClick={() => {
-                        const btn = document.querySelector<HTMLElement>('[data-testid="button-time-tracker"]');
-                        btn?.click();
-                      }}
-                      data-testid="button-time-tracker-mobile"
+              {/* Mobile: bottom sheet */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="sm:hidden"
+                onClick={() => setIsMobileMoreOpen(true)}
+                data-testid="button-header-more"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+              <Sheet open={isMobileMoreOpen} onOpenChange={setIsMobileMoreOpen}>
+                <SheetContent side="bottom" className="h-auto rounded-t-xl bg-card pb-8" data-testid="sheet-mobile-more">
+                  <SheetHeader className="pb-2">
+                    <SheetTitle className="text-base">Actions</SheetTitle>
+                  </SheetHeader>
+                  <div className="flex flex-col gap-1 pt-1">
+                    {isTimeTrackingEnabled && (
+                      <button
+                        type="button"
+                        className="flex items-center gap-3 w-full px-3 py-3 rounded-lg hover-elevate active-elevate-2 text-left"
+                        onClick={() => {
+                          setIsMobileMoreOpen(false);
+                          const btn = document.querySelector<HTMLElement>('[data-testid="button-time-tracker"]');
+                          btn?.click();
+                        }}
+                        data-testid="button-time-tracker-mobile"
+                      >
+                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <Timer className="w-4 h-4 text-primary" />
+                        </div>
+                        <span className="text-sm font-medium">Time tracker</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="flex items-center gap-3 w-full px-3 py-3 rounded-lg hover-elevate active-elevate-2 text-left"
+                      onClick={() => { setIsMobileMoreOpen(false); setLocation("/emails"); }}
+                      data-testid="button-mail-mobile"
                     >
-                      <Timer className="w-4 h-4 text-primary dark:text-white" />
-                      <span>Time tracker</span>
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={() => setLocation("/emails")} data-testid="button-mail-mobile">
-                    <Mail className="w-4 h-4 text-primary dark:text-white" />
-                    <span>Mails</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setLocation("/calendar")} data-testid="button-calendar-mobile">
-                    <Calendar className="w-4 h-4 text-primary dark:text-white" />
-                    <span>Calendrier</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                      <div className="w-9 h-9 rounded-full bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center flex-shrink-0">
+                        <Mail className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                      </div>
+                      <span className="text-sm font-medium">Mails</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="flex items-center gap-3 w-full px-3 py-3 rounded-lg hover-elevate active-elevate-2 text-left"
+                      onClick={() => { setIsMobileMoreOpen(false); setLocation("/calendar"); }}
+                      data-testid="button-calendar-mobile"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center flex-shrink-0">
+                        <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <span className="text-sm font-medium">Calendrier</span>
+                    </button>
+                  </div>
+                </SheetContent>
+              </Sheet>
               <UserMenu />
             </div>
           </header>
