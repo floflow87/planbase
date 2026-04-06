@@ -446,57 +446,58 @@ export function PermissionsTab() {
               return (
                 <div
                   key={member.id}
-                  className={`flex items-center justify-between p-3 rounded-md border cursor-pointer hover-elevate transition-colors ${
+                  className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-md border cursor-pointer hover-elevate transition-colors ${
                     selectedMemberId === member.id ? "border-primary bg-primary/5" : ""
                   }`}
                   onClick={() => setSelectedMemberId(member.id)}
                   data-testid={`member-row-${member.id}`}
                 >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="w-8 h-8">
+                  {/* Avatar + info */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar className="w-8 h-8 shrink-0">
                       <AvatarImage src={member.user?.avatarUrl || undefined} />
                       <AvatarFallback className="text-xs">
                         {member.user?.firstName?.[0] || member.user?.email?.[0]?.toUpperCase()}
                         {member.user?.lastName?.[0] || ""}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm font-medium truncate max-w-[160px] sm:max-w-none">
                           {isPending ? member.user?.email : displayName}
                         </p>
                         {isPending && member.emailBounced && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-red-600 border-red-300 bg-red-50">
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-red-600 border-red-300 bg-red-50 shrink-0">
                             Non délivré
                           </Badge>
                         )}
                         {isPending && !member.emailBounced && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600 border-amber-300 bg-amber-50">
-                            Invitation en attente
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600 border-amber-300 bg-amber-50 shrink-0">
+                            En attente
                           </Badge>
                         )}
                         {!isPending && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-green-600 border-green-300 bg-green-50">
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-green-600 border-green-300 bg-green-50 shrink-0">
                             Actif
                           </Badge>
                         )}
                       </div>
-                      {!isPending && <p className="text-xs text-muted-foreground">{member.user?.email}</p>}
+                      {!isPending && <p className="text-xs text-muted-foreground truncate">{member.user?.email}</p>}
                       {member.createdAt && (
                         <p className="text-[11px] text-muted-foreground/70 mt-0.5">
-                          {isPending ? "Invité le " : "Membre depuis le "}
+                          {isPending ? "Invité le " : "Depuis le "}
                           {new Date(member.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
-                          {" à "}
-                          {new Date(member.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                         </p>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={ROLE_COLORS[member.role]} data-testid={`badge-role-${member.id}`}>
+
+                  {/* Role badge + action buttons */}
+                  <div className="flex items-center gap-1.5 shrink-0 ml-11 sm:ml-0">
+                    <Badge className={`${ROLE_COLORS[member.role]} shrink-0`} data-testid={`badge-role-${member.id}`}>
                       {ROLE_LABELS[member.role]}
                     </Badge>
-                    {isPending && member.invitationToken && (
+                    {isPending && (
                       <>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -518,7 +519,7 @@ export function PermissionsTab() {
                           </TooltipTrigger>
                           <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">
                             {copiedInvitationId === member.id 
-                              ? "Lien d'inscription copié" 
+                              ? "Lien copié !" 
                               : "Copier le lien d'inscription"
                             }
                           </TooltipContent>
@@ -542,8 +543,8 @@ export function PermissionsTab() {
                               )}
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border max-w-[220px] text-center">
-                            Renvoyer avec un nouveau lien — l'ancien lien sera révoqué
+                          <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border max-w-[200px] text-center text-xs">
+                            Renvoyer — l'ancien lien sera révoqué
                           </TooltipContent>
                         </Tooltip>
                       </>
@@ -556,7 +557,7 @@ export function PermissionsTab() {
                         }}
                         disabled={updateRoleMutation.isPending || member.isOwner}
                       >
-                        <SelectTrigger className="w-[130px] h-8 text-xs" onClick={(e) => e.stopPropagation()}>
+                        <SelectTrigger className="w-[110px] h-8 text-xs" onClick={(e) => e.stopPropagation()}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>

@@ -13121,7 +13121,10 @@ app.get("/config/feature-flags", async (_req, res) => {
         const existingMember = members.find(m => m.userId === existingUser.id);
         
         if (existingMember) {
-          return res.status(400).json({ error: "Cet utilisateur est déjà membre de votre organisation" });
+          // Member already exists — delete the stale record so we can re-add them cleanly
+          // (handles cases where a previous deletion didn't fully complete)
+          await db.delete(organizationMembers).where(eq(organizationMembers.id, existingMember.id));
+          console.log("♻️ Removed stale org_member record before re-adding:", existingMember.id);
         }
 
         // Add user as a member of this organization
@@ -13164,9 +13167,10 @@ app.get("/config/feature-flags", async (_req, res) => {
           .limit(1);
 
         if (existingInvitation.length > 0) {
-          return res.status(400).json({ 
-            error: "Une invitation est déjà en attente pour cet email." 
-          });
+          // Delete the stale pending invitation so we can create a fresh one
+          // (handles cases where a previous deletion didn't fully complete)
+          await db.delete(invitations).where(eq(invitations.id, existingInvitation[0].id));
+          console.log("♻️ Removed stale pending invitation before re-inviting:", existingInvitation[0].id);
         }
 
         // Create the pending invitation
