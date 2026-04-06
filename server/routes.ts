@@ -13116,40 +13116,21 @@ app.get("/config/feature-flags", async (_req, res) => {
 
       // Check if user already exists in the system
       const existingUser = await storage.getUserByEmail(email.toLowerCase().trim());
-      
+
+      // Check if already an ACTIVE member of this org (block duplicate active member)
       if (existingUser) {
-        // Check if user is already a member of this organization
         const members = await permissionService.getMembersByOrganization(accountId);
         const existingMember = members.find(m => m.userId === existingUser.id);
-        
         if (existingMember) {
-          // Member already exists — delete the stale record so we can re-add them cleanly
-          // (handles cases where a previous deletion didn't fully complete)
-          await db.delete(organizationMembers).where(eq(organizationMembers.id, existingMember.id));
-          console.log("♻️ Removed stale org_member record before re-adding:", existingMember.id);
+          return res.status(400).json({ error: "Cet utilisateur est déjà membre de votre organisation." });
         }
+      }
 
-        // Add user as a member of this organization
-        const newMember = await permissionService.createMember({
-          organizationId: accountId,
-          userId: existingUser.id,
-          role: effectiveRole,
-        });
-
-        // Log the invitation
-        const { logAuditEvent } = await import("./services/auditService");
-        await logAuditEvent({
-          organizationId: accountId,
-          actorMemberId,
-          actionType: 'member.invited',
-          resourceType: 'member',
-          resourceId: newMember.id,
-          meta: { email, role: effectiveRole, userId: existingUser.id },
-        });
-
-        res.json({ success: true, member: newMember });
-      } else {
-        // User doesn't exist - create a pending invitation
+      // Always go through the pending invitation flow (whether user exists or not)
+      // This ensures the invited person appears as "pending" with resend/copy buttons,
+      // and their role is set correctly when they accept the invitation.
+      {
+        // Create a pending invitation
         const { invitations } = await import("@shared/schema");
         const token = crypto.randomUUID();
         const expiresAt = new Date();
@@ -13507,7 +13488,36 @@ app.get("/config/feature-flags", async (_req, res) => {
       // Check if user already exists with this email
       const existingUser = await storage.getUserByEmail(invitation.email);
       if (existingUser) {
-        return res.status(400).json({ error: "Un compte existe déjà avec cet email. Connectez-vous pour rejoindre l'organisation." });
+        // User already has a Planbase account (e.g. they were deleted and re-invited).
+        // Just add them to the organization with the invited role and mark invitation accepted.
+        const alreadyMember = await db
+          .select()
+          .from(organizationMembers)
+          .where(
+            and(
+              eq(organizationMembers.organizationId, invitation.accountId),
+              eq(organizationMembers.userId, existingUser.id)
+            )
+          )
+          .limit(1);
+
+        if (alreadyMember.length === 0) {
+          await permissionService.createMember({
+            organizationId: invitation.accountId,
+            userId: existingUser.id,
+            role: invitation.role as 'admin' | 'member' | 'guest',
+          });
+        }
+
+        await db
+          .update(invitations)
+          .set({ status: 'accepted' })
+          .where(eq(invitations.id, invitation.id));
+
+        return res.json({
+          success: true,
+          message: "Vous avez rejoint l'organisation. Connectez-vous pour accéder à votre espace.",
+        });
       }
 
       // Create user in Supabase Auth
