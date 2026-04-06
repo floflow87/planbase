@@ -12623,6 +12623,33 @@ app.get("/config/feature-flags", async (_req, res) => {
           )
         );
 
+      // Build a set of emails that are already active members — never show them as pending
+      const activeMemberEmails = new Set(
+        enrichedMembers.map((m) => m.user?.email?.toLowerCase()).filter(Boolean)
+      );
+
+      // Auto-close stale pending invitations for already-active members (fire-and-forget)
+      const staleInvitations = pendingInvitations.filter(
+        (inv) => activeMemberEmails.has(inv.email?.toLowerCase())
+      );
+      if (staleInvitations.length > 0) {
+        db.update(invitations)
+          .set({ status: 'accepted' })
+          .where(
+            and(
+              eq(invitations.accountId, accountId),
+              eq(invitations.status, "pending"),
+              inArray(invitations.id, staleInvitations.map((i) => i.id))
+            )
+          )
+          .catch((err: any) => console.warn("⚠️ Stale invitation cleanup failed:", err.message));
+      }
+
+      // Only show truly pending invitations (email not already an active member)
+      const filteredPendingInvitations = pendingInvitations.filter(
+        (inv) => !activeMemberEmails.has(inv.email?.toLowerCase())
+      );
+
       // Map legacy roles to RBAC roles
       const mapLegacyRole = (role: string): string => {
         if (role === 'collaborator') return 'member';
@@ -12630,7 +12657,7 @@ app.get("/config/feature-flags", async (_req, res) => {
         return role; // Already RBAC role (admin, member, guest)
       };
 
-      const pendingMembers = pendingInvitations.map((inv) => ({
+      const pendingMembers = filteredPendingInvitations.map((inv) => ({
         id: `invitation-${inv.id}`,
         organizationId: inv.accountId,
         userId: null,

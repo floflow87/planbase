@@ -2938,6 +2938,28 @@ export async function runStartupMigrations() {
     }
     // ─────────────────────────────────────────────────────────────
 
+    // ── Auto-close stale pending invitations for already-active members ──
+    try {
+      const staleResult = await db.execute(sql`
+        UPDATE invitations i
+        SET status = 'accepted'
+        WHERE i.status = 'pending'
+          AND EXISTS (
+            SELECT 1 FROM organization_members om
+            JOIN app_users u ON u.id = om.user_id
+            WHERE om.organization_id = i.account_id
+              AND lower(u.email) = lower(i.email)
+          )
+      `);
+      const count = (staleResult as any)?.rowCount ?? 0;
+      if (count > 0) {
+        console.log(`✅ Closed ${count} stale pending invitation(s) for already-active members`);
+      }
+    } catch (staleErr: any) {
+      console.warn("⚠️  Stale invitation cleanup (non-blocking):", staleErr.message);
+    }
+    // ─────────────────────────────────────────────────────────────
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
