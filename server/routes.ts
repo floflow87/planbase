@@ -13528,82 +13528,118 @@ app.get("/config/feature-flags", async (_req, res) => {
         { auth: { autoRefreshToken: false, persistSession: false } }
       );
 
+      const userMetadata = {
+        account_id: invitation.accountId,
+        role: invitation.role === 'admin' ? 'collaborator' : invitation.role === 'guest' ? 'client_viewer' : 'collaborator',
+        firstName: firstName || '',
+        lastName: lastName || '',
+        displayName: `${firstName || ''} ${lastName || ''}`.trim(),
+      };
+
+      let authUserId: string;
+
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: invitation.email,
         password,
         email_confirm: true,
-        user_metadata: {
-          account_id: invitation.accountId,
-          role: invitation.role === 'admin' ? 'collaborator' : invitation.role === 'guest' ? 'client_viewer' : 'collaborator',
-          firstName: firstName || '',
-          lastName: lastName || '',
-          displayName: `${firstName || ''} ${lastName || ''}`.trim(),
-        },
+        user_metadata: userMetadata,
       });
 
-      if (authError || !authData.user) {
-        console.error("Supabase auth error:", authError);
-        return res.status(400).json({ error: authError?.message || "Erreur lors de la création du compte" });
+      if (authError) {
+        // User may already exist in Supabase Auth (e.g. partial previous signup)
+        // Try to find them and update their metadata instead
+        if (authError.message?.toLowerCase().includes('already') || authError.status === 422) {
+          console.warn("⚠️ Supabase user already exists, looking up by email...");
+          const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+          const existing = listData?.users?.find(u => u.email === invitation.email);
+          if (existing) {
+            // Update their password and metadata to reflect the new invitation
+            await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+              password,
+              user_metadata: userMetadata,
+            });
+            authUserId = existing.id;
+            console.log("✅ Re-used existing Supabase auth user:", authUserId);
+          } else {
+            console.error("Supabase auth error (cannot recover):", authError);
+            return res.status(400).json({ error: authError?.message || "Erreur lors de la création du compte" });
+          }
+        } else {
+          console.error("Supabase auth error:", authError);
+          return res.status(400).json({ error: authError?.message || "Erreur lors de la création du compte" });
+        }
+      } else if (!authData?.user) {
+        return res.status(400).json({ error: "Erreur lors de la création du compte" });
+      } else {
+        authUserId = authData.user.id;
+        console.log("✅ SUPABASE USER CREATED:", { id: authUserId, email: invitation.email });
       }
 
-      console.log("✅ SUPABASE USER CREATED:", { 
-        id: authData.user.id, 
-        email: authData.user.email,
-        metadata: authData.user.user_metadata 
-      });
-
-      // Create user in our database (id must match Supabase auth.users.id)
-      // Map RBAC role to app_users role: admin→collaborator, member→collaborator, guest→client_viewer
+      // Map RBAC role to app_users role
       const appUserRole = invitation.role === 'admin' ? 'collaborator' 
         : invitation.role === 'guest' ? 'client_viewer' 
         : 'collaborator';
-      
-      const newUser = await storage.createUser({
-        id: authData.user.id,
-        email: invitation.email,
-        firstName: firstName || '',
-        lastName: lastName || '',
-        accountId: invitation.accountId,
-        role: appUserRole,
-      });
-      
-      console.log("✅ USER CREATED:", { 
-        id: newUser.id, 
-        email: newUser.email, 
-        firstName: newUser.firstName, 
-        lastName: newUser.lastName,
-        accountId: newUser.accountId 
-      });
 
-      // Create organization member with the invited role
-      const newMember = await permissionService.createMember({
-        organizationId: invitation.accountId,
-        userId: newUser.id,
-        role: invitation.role,
-      });
+      // Create (or update) app_users record
+      let newUser: any;
+      const existingByAuthId = await storage.getUser(authUserId);
+      if (existingByAuthId) {
+        // User already in app_users (from a previous partial attempt) — update their accountId
+        await db.execute(
+          sql`UPDATE app_users SET account_id = ${invitation.accountId}, first_name = ${firstName || ''}, last_name = ${lastName || ''} WHERE id = ${authUserId}`
+        );
+        newUser = { ...existingByAuthId, accountId: invitation.accountId };
+        console.log("✅ Updated existing app_users record:", authUserId);
+      } else {
+        newUser = await storage.createUser({
+          id: authUserId,
+          email: invitation.email,
+          firstName: firstName || '',
+          lastName: lastName || '',
+          accountId: invitation.accountId,
+          role: appUserRole,
+        });
+        console.log("✅ USER CREATED:", { id: newUser.id, email: newUser.email, accountId: newUser.accountId });
+      }
 
-      // Mark invitation as accepted
+      // Create organization member (skip if already exists)
+      let newMember: any;
+      const existingOrgMember = await db.select().from(organizationMembers)
+        .where(and(eq(organizationMembers.organizationId, invitation.accountId), eq(organizationMembers.userId, authUserId)))
+        .limit(1);
+      if (existingOrgMember.length > 0) {
+        newMember = existingOrgMember[0];
+        console.log("✅ Org member already exists, reusing:", newMember.id);
+      } else {
+        newMember = await permissionService.createMember({
+          organizationId: invitation.accountId,
+          userId: newUser.id,
+          role: invitation.role,
+        });
+        console.log("✅ ORG MEMBER CREATED:", newMember.id);
+      }
+
+      // Mark invitation as accepted — do this BEFORE optional operations so it always runs
       await db
         .update(invitations)
         .set({ status: 'accepted' })
         .where(eq(invitations.id, invitation.id));
+      console.log("✅ Invitation marked as accepted:", invitation.id);
 
-      // Log the acceptance
-      const { logAuditEvent } = await import("./services/auditService");
-      await logAuditEvent({
-        organizationId: invitation.accountId,
-        actorMemberId: newMember.id,
-        actionType: 'invitation.accepted',
-        resourceType: 'invitation',
-        resourceId: invitation.id,
-        meta: { email: invitation.email, role: invitation.role },
-      });
-
-      // Sign in the user
-      const { data: signInData, error: signInError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'magiclink',
-        email: invitation.email,
-      });
+      // Log the acceptance (non-blocking)
+      try {
+        const { logAuditEvent } = await import("./services/auditService");
+        await logAuditEvent({
+          organizationId: invitation.accountId,
+          actorMemberId: newMember.id,
+          actionType: 'invitation.accepted',
+          resourceType: 'invitation',
+          resourceId: invitation.id,
+          meta: { email: invitation.email, role: invitation.role },
+        });
+      } catch (logErr: any) {
+        console.warn("⚠️ Audit log failed (non-blocking):", logErr.message);
+      }
 
       res.json({
         success: true,

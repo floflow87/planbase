@@ -13,7 +13,8 @@ import {
   Users, 
   PackagePlus,
   Check,
-  X
+  X,
+  Banknote
 } from "lucide-react";
 import {
   Dialog,
@@ -53,6 +54,7 @@ const PACK_ICONS: Record<string, React.ReactNode> = {
   eye: <Eye className="h-5 w-5" />,
   building: <Building className="h-5 w-5" />,
   users: <Users className="h-5 w-5" />,
+  banknote: <Banknote className="h-5 w-5" />,
 };
 
 const MODULE_LABELS: Record<string, string> = {

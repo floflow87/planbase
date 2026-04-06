@@ -35,6 +35,7 @@ export const PERMISSION_PACKS: PermissionPack[] = [
       { module: 'documents', actions: ['read', 'create', 'update', 'delete'] },
       { module: 'profitability', actions: ['read', 'create', 'update', 'delete'] },
       { module: 'whiteboards', actions: ['read', 'create', 'update', 'delete'] },
+      { module: 'treasury', actions: ['read', 'create', 'update', 'delete'] },
     ],
     defaultSubviews: {
       crm: ['crm.clients', 'crm.opportunities', 'crm.kpis'],
@@ -62,6 +63,7 @@ export const PERMISSION_PACKS: PermissionPack[] = [
       { module: 'documents', actions: ['read', 'create', 'update'] },
       { module: 'profitability', actions: ['read'] },
       { module: 'whiteboards', actions: ['read', 'create', 'update'] },
+      { module: 'treasury', actions: ['read'] },
     ],
     defaultSubviews: {
       crm: ['crm.clients', 'crm.opportunities', 'crm.kpis'],
@@ -132,6 +134,25 @@ export const PERMISSION_PACKS: PermissionPack[] = [
       roadmap: ['roadmap.gantt', 'roadmap.output'],
       documents: ['documents.list', 'documents.upload'],
       projects: ['projects.list', 'projects.details', 'projects.scope'],
+    },
+  },
+  {
+    id: 'financial_manager',
+    name: 'Responsable financier',
+    nameEn: 'Financial Manager',
+    description: 'Accès complet à la trésorerie et à la rentabilité, lecture seule sur les autres modules',
+    descriptionEn: 'Full access to treasury and profitability, read-only on other modules',
+    icon: 'banknote',
+    permissions: [
+      { module: 'crm', actions: ['read'] },
+      { module: 'projects', actions: ['read'] },
+      { module: 'tasks', actions: ['read'] },
+      { module: 'profitability', actions: ['read', 'create', 'update', 'delete'] },
+      { module: 'treasury', actions: ['read', 'create', 'update', 'delete'] },
+    ],
+    defaultSubviews: {
+      profitability: ['profitability.overview', 'profitability.byProject', 'profitability.simulations', 'profitability.resources'],
+      projects: ['projects.list', 'projects.details'],
     },
   },
 ];
