@@ -63,6 +63,7 @@ const DEFAULT_PERMISSIONS: Record<RbacRole, Record<RbacModule, RbacAction[]>> = 
     documents: ['read', 'create', 'update', 'delete'],
     profitability: ['read', 'create', 'update', 'delete'],
     whiteboards: ['read', 'create', 'update', 'delete'],
+    treasury: ['read', 'create', 'update', 'delete'],
   },
   admin: {
     crm: ['read', 'create', 'update', 'delete'],
@@ -74,6 +75,7 @@ const DEFAULT_PERMISSIONS: Record<RbacRole, Record<RbacModule, RbacAction[]>> = 
     documents: ['read', 'create', 'update', 'delete'],
     profitability: ['read', 'create', 'update', 'delete'],
     whiteboards: ['read', 'create', 'update', 'delete'],
+    treasury: ['read', 'create', 'update', 'delete'],
   },
   member: {
     crm: ['read', 'create', 'update'],
@@ -85,6 +87,7 @@ const DEFAULT_PERMISSIONS: Record<RbacRole, Record<RbacModule, RbacAction[]>> = 
     documents: ['read', 'create', 'update'],
     profitability: ['read'],
     whiteboards: ['read', 'create', 'update'],
+    treasury: ['read'],
   },
   guest: {
     crm: ['read'],
@@ -96,6 +99,7 @@ const DEFAULT_PERMISSIONS: Record<RbacRole, Record<RbacModule, RbacAction[]>> = 
     documents: ['read'],
     profitability: [],
     whiteboards: ['read'],
+    treasury: [],
   },
 };
 
