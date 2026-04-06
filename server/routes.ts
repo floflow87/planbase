@@ -13260,11 +13260,7 @@ app.get("/config/feature-flags", async (_req, res) => {
       if (!invitation) {
         return res.status(404).json({ error: "Invitation non trouvée ou déjà acceptée" });
       }
-
-      // Check if invitation is expired
-      if (invitation.expiresAt && new Date(invitation.expiresAt) < new Date()) {
-        return res.status(400).json({ error: "Cette invitation a expiré. Veuillez en créer une nouvelle." });
-      }
+      // Note: expired invitations are allowed here — we'll generate a fresh token
 
       // Get account and inviter info for the email
       const account = await storage.getAccount(accountId);
@@ -13275,30 +13271,42 @@ app.get("/config/feature-flags", async (_req, res) => {
         ? `${inviter.firstName} ${inviter.lastName}` 
         : inviter?.email || 'Un membre de votre équipe';
 
-      // Send the invitation email
+      // Generate a new token (revokes the previous one)
+      const { randomUUID } = await import("crypto");
+      const newToken = randomUUID();
+      const newExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+      // Update invitation with new token and reset emailBounced
+      await db
+        .update(invitations)
+        .set({
+          token: newToken,
+          expiresAt: newExpiresAt,
+          emailBounced: false,
+        })
+        .where(eq(invitations.id, invitationId));
+
+      // Send the invitation email with the new token
       const { sendInvitationEmail } = await import("./services/emailService");
       const emailResult = await sendInvitationEmail({
         to: invitation.email,
         inviterName,
         organizationName,
         role: invitation.role as 'admin' | 'member' | 'guest',
-        token: invitation.token,
-        expiresAt: new Date(invitation.expiresAt!),
+        token: newToken,
+        expiresAt: newExpiresAt,
       });
 
       if (!emailResult.success) {
+        // Rollback token change on email failure
+        await db
+          .update(invitations)
+          .set({ token: invitation.token, expiresAt: invitation.expiresAt, emailBounced: invitation.emailBounced })
+          .where(eq(invitations.id, invitationId));
         return res.status(500).json({ error: `Échec de l'envoi de l'email: ${emailResult.error}` });
       }
 
-      // Reset emailBounced flag if it was set
-      if (invitation.emailBounced) {
-        await db
-          .update(invitations)
-          .set({ emailBounced: false })
-          .where(eq(invitations.id, invitationId));
-      }
-
-      res.json({ success: true, message: "Invitation renvoyée avec succès" });
+      res.json({ success: true, message: "Invitation renvoyée avec un nouveau lien (l'ancien lien a été révoqué)" });
     } catch (error: any) {
       console.error("Resend invitation error:", error);
       res.status(500).json({ error: error.message });

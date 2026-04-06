@@ -138,7 +138,7 @@ export function PermissionsTab() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
-      toast({ title: "Invitation renvoyée", description: "L'email d'invitation a été renvoyé avec succès.", variant: "success" });
+      toast({ title: "Invitation renvoyée", description: "Un nouveau lien a été envoyé. L'ancien lien est désormais révoqué.", variant: "success" });
       setResendingInvitationId(null);
     },
     onError: (error: Error) => {
@@ -542,8 +542,8 @@ export function PermissionsTab() {
                               )}
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">
-                            Renvoyer l'invitation par email
+                          <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border max-w-[220px] text-center">
+                            Renvoyer avec un nouveau lien — l'ancien lien sera révoqué
                           </TooltipContent>
                         </Tooltip>
                       </>
