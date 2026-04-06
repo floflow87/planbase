@@ -56,6 +56,7 @@ import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, 
 import { TrialBanner, TrialExpiredGate } from "@/components/billing/PremiumGate";
 import { AiAssistant } from "@/components/ai/AiAssistant";
 import { AppointmentPanel } from "@/components/appointment-panel";
+import { MobileSidebarSheet } from "@/components/MobileSidebarSheet";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { SafeAreaTopBar, useIsStandalone } from "@/design-system/primitives/SafeAreaTopBar";
@@ -1126,6 +1127,7 @@ function AppLayout() {
   const isStandalone = useIsStandalone();
   const { user } = useAuth();
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
   // Fetch data for dynamic tab titles
   const { data: projects } = useQuery<{ id: string; name: string }[]>({
@@ -1480,7 +1482,20 @@ function AppLayout() {
         <div className="flex flex-col flex-1 overflow-hidden bg-card">
           <header className="flex items-center justify-between h-14 px-2 sm:px-4 border-b border-border bg-card shrink-0">
             <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
-              <SidebarTrigger className="md:hidden flex-shrink-0 h-9 w-9" data-testid="button-sidebar-trigger-mobile" />
+              {/* Mobile: custom bottom-sheet sidebar trigger */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden flex-shrink-0 h-9 w-9"
+                onClick={() => setIsMobileSidebarOpen(true)}
+                data-testid="button-sidebar-trigger-mobile"
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-muted-foreground" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+                  <line x1="2" y1="4.5" x2="16" y2="4.5" />
+                  <line x1="2" y1="9" x2="16" y2="9" />
+                  <line x1="2" y1="13.5" x2="16" y2="13.5" />
+                </svg>
+              </Button>
               <GlobalSearch />
               {/* Tab System */}
               <div className="flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto scrollbar-hide">
@@ -1627,6 +1642,11 @@ function AppLayout() {
           </main>
         </div>
       </div>
+      {/* Mobile sidebar — bottom sheet with two-step animation */}
+      <MobileSidebarSheet
+        open={isMobileSidebarOpen}
+        onClose={() => setIsMobileSidebarOpen(false)}
+      />
     </SidebarProvider>
   );
 }
