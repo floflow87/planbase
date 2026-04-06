@@ -1940,6 +1940,8 @@ export async function runStartupMigrations() {
         notes: ['read', 'create', 'update', 'delete'],
         documents: ['read', 'create', 'update', 'delete'],
         profitability: ['read', 'create', 'update', 'delete'],
+        whiteboards: ['read', 'create', 'update', 'delete'],
+        treasury: ['read', 'create', 'update', 'delete'],
       },
       admin: {
         crm: ['read', 'create', 'update', 'delete'],
@@ -1950,6 +1952,8 @@ export async function runStartupMigrations() {
         notes: ['read', 'create', 'update', 'delete'],
         documents: ['read', 'create', 'update', 'delete'],
         profitability: ['read', 'create', 'update', 'delete'],
+        whiteboards: ['read', 'create', 'update', 'delete'],
+        treasury: ['read', 'create', 'update', 'delete'],
       },
       member: {
         crm: ['read', 'create', 'update'],
@@ -1960,6 +1964,8 @@ export async function runStartupMigrations() {
         notes: ['read', 'create', 'update', 'delete'],
         documents: ['read', 'create', 'update'],
         profitability: ['read'],
+        whiteboards: ['read', 'create', 'update'],
+        treasury: ['read'],
       },
       guest: {
         crm: ['read'],
@@ -1970,6 +1976,8 @@ export async function runStartupMigrations() {
         notes: ['read'],
         documents: ['read'],
         profitability: [],
+        whiteboards: ['read'],
+        treasury: [],
       },
     };
 
@@ -1987,7 +1995,7 @@ export async function runStartupMigrations() {
       const role = (member.role as string) || 'member';
       const rolePerms = DEFAULT_PERMISSIONS_BY_ROLE[role] || DEFAULT_PERMISSIONS_BY_ROLE.member;
       
-      const modules = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability'];
+      const modules = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability', 'whiteboards', 'treasury'];
       const actions = ['read', 'create', 'update', 'delete'];
       
       for (const mod of modules) {
@@ -2036,7 +2044,7 @@ export async function runStartupMigrations() {
           const newMemberId = (result.rows[0] as any)?.id;
           if (newMemberId) {
             // Initialize permissions for this new admin member
-            const modules = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability', 'whiteboards'];
+            const modules = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability', 'whiteboards', 'treasury'];
             const actions = ['read', 'create', 'update', 'delete'];
             for (const mod of modules) {
               for (const action of actions) {
@@ -2059,7 +2067,7 @@ export async function runStartupMigrations() {
             UPDATE organization_members SET role = 'admin' WHERE id = ${memberId}
           `);
           // Update permissions to admin level
-          const modules = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability', 'whiteboards'];
+          const modules = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability', 'whiteboards', 'treasury'];
           const actions = ['read', 'create', 'update', 'delete'];
           for (const mod of modules) {
             for (const action of actions) {

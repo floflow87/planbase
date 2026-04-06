@@ -309,12 +309,13 @@ export const permissionService = {
   },
 
   async initializeDefaultPermissions(organizationId: string, memberId: string, role: RbacRole): Promise<void> {
-    const defaultPerms = DEFAULT_PERMISSIONS[role];
+    // Fallback to 'member' if role is somehow unexpected
+    const defaultPerms = DEFAULT_PERMISSIONS[role] ?? DEFAULT_PERMISSIONS['member'];
     
     const permissionRecords: InsertPermission[] = [];
     
     for (const module of RBAC_MODULES) {
-      const allowedActions = defaultPerms[module];
+      const allowedActions = defaultPerms[module] ?? [];
       for (const action of RBAC_ACTIONS) {
         permissionRecords.push({
           organizationId,
