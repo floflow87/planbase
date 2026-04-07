@@ -222,8 +222,11 @@ export function MobileSidebarSheet({ open, onClose }: Props) {
         }}
         data-testid="mobile-sidebar-sheet"
       >
-        {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1 shrink-0">
+        {/* Drag handle — top padding includes safe-area-inset-top so it clears the status bar in PWA standalone */}
+        <div
+          className="flex justify-center pb-1 shrink-0"
+          style={{ paddingTop: "calc(var(--safe-top, 0px) + 10px)" }}
+        >
           <div className="w-10 h-1 rounded-full bg-border" />
         </div>
 

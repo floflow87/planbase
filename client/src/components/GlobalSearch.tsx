@@ -206,8 +206,11 @@ export function GlobalSearch() {
       style={{ animation: "fadeIn 120ms ease-out forwards" }}
       data-testid="search-modal-mobile"
     >
-      {/* Top bar — non-scrollable, touchmove blocked globally for this area */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
+      {/* Top bar — non-scrollable; safe-area-inset-top so it clears the status bar in PWA standalone */}
+      <div
+        className="flex items-center gap-2 px-4 border-b border-border shrink-0"
+        style={{ paddingTop: "max(var(--safe-top, 12px), 12px)", paddingBottom: "12px" }}
+      >
         <div className="flex-1 flex items-center gap-2 bg-muted rounded-xl px-3 py-2">
           <Search className="w-4 h-4 text-muted-foreground shrink-0" />
           <input
