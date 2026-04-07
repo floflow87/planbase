@@ -64,10 +64,10 @@ const ALL_NAV = [
 ];
 
 // ─── Two-step animation heights ───────────────────────────────────────────────
-// Step 1 = 52 vh  →  Step 2 = 90 vh
+// Step 1 = 52 vh  →  Step 2 = 93 vh (93 to leave room for browser chrome in non-PWA mode)
 // Spring-like cubic-bezier for step 2
 const STEP1_H = "52vh";
-const STEP2_H = "90vh";
+const STEP2_H = "93vh";
 const SPRING = "cubic-bezier(0.34, 1.30, 0.64, 1)";
 
 type Props = {
@@ -238,7 +238,7 @@ export function MobileSidebarSheet({ open, onClose }: Props) {
               className="font-semibold text-base italic bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500 bg-clip-text text-transparent"
               style={{ fontFamily: 'Futura, "Century Gothic", CenturyGothic, AppleGothic, sans-serif' }}
             >
-              Navigation
+              PlanBase
             </span>
           </div>
           <button
