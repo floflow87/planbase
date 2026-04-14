@@ -2664,15 +2664,15 @@ export default function BacklogDetail() {
               ? (backlog.sprints || []).map(s => s.id)
               : [statSprintId];
           const tickets = (backlog.userStories || []).filter(s => s.sprintId && selectedSprintIds.includes(s.sprintId));
-          const priorityOrder = ["critique", "high", "normal", "low"];
+          const priorityOrder = ["critical", "high", "medium", "low"];
           const priorityColors: Record<string, string> = {
-            critique: "#7C3AED",
-            high: "#EF4444",
-            normal: "#F59E0B",
-            low: "#10B981",
+            critical: "#EF4444",
+            high: "#F97316",
+            medium: "#EAB308",
+            low: "#8B5CF6",
           };
           const priorityLabels: Record<string, string> = {
-            critique: "Critique", high: "Haute", normal: "Normale", low: "Basse"
+            critical: "Critique", high: "Haute", medium: "Moyenne", low: "Basse"
           };
           const assigneeMap: Record<string, { name: string; counts: Record<string, number> }> = {};
           for (const ticket of tickets) {
@@ -2680,9 +2680,9 @@ export default function BacklogDetail() {
             const assignee = users.find(u => u.id === ticket.assigneeId);
             const name = assignee ? (assignee.displayName || `${assignee.firstName || ""} ${assignee.lastName || ""}`.trim() || assignee.email || "?") : "Non assigné";
             if (!assigneeMap[assigneeId]) {
-              assigneeMap[assigneeId] = { name, counts: { critique: 0, high: 0, normal: 0, low: 0 } };
+              assigneeMap[assigneeId] = { name, counts: { critical: 0, high: 0, medium: 0, low: 0 } };
             }
-            const p = ticket.priority || "normal";
+            const p = ticket.priority || "medium";
             assigneeMap[assigneeId].counts[p] = (assigneeMap[assigneeId].counts[p] || 0) + 1;
           }
           const chartData = Object.entries(assigneeMap).map(([, v]) => ({
@@ -2768,7 +2768,7 @@ export default function BacklogDetail() {
                       <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
                       <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: "transparent" }} />
                       {priorityOrder.map(p => (
-                        <Bar key={p} dataKey={p} stackId="a" fill={priorityColors[p]} radius={p === "critique" ? [3, 3, 0, 0] : [0, 0, 0, 0]} />
+                        <Bar key={p} dataKey={p} stackId="a" fill={priorityColors[p]} radius={p === "critical" ? [3, 3, 0, 0] : [0, 0, 0, 0]} />
                       ))}
                     </BarChart>
                   </ResponsiveContainer>

@@ -1111,22 +1111,22 @@ function BulkActionsDropdown({
             <ChevronDown className="h-3 w-3" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56 bg-white dark:bg-card text-[12px]" align="start">
+        <DropdownMenuContent className="w-56 bg-white dark:bg-card text-xs" align="start">
           {/* Change State */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="text-foreground">
-              <Check className="h-4 w-4 mr-2" />
+            <DropdownMenuSubTrigger className="text-foreground text-xs">
+              <Check className="h-3.5 w-3.5 mr-2 shrink-0" />
               Changer l'étape
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="bg-white dark:bg-card">
+            <DropdownMenuSubContent className="bg-white dark:bg-card text-xs">
               {backlogItemStateOptions.map(opt => (
                 <DropdownMenuItem 
                   key={opt.value}
                   onClick={() => onBulkAction({ type: "bulk_change_state", ticketIds: selectedTickets, state: opt.value })}
-                  className="text-foreground"
+                  className="text-foreground text-xs"
                   data-testid={`bulk-action-state-${opt.value}`}
                 >
-                  <span className={cn("w-2 h-2 rounded-full mr-2", getStateDot(opt.value))} />
+                  <span className={cn("w-2 h-2 rounded-full mr-2 shrink-0", getStateDot(opt.value))} />
                   {opt.label}
                 </DropdownMenuItem>
               ))}
@@ -1135,19 +1135,19 @@ function BulkActionsDropdown({
           
           {/* Change Priority */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="text-foreground">
-              <Flag className="h-4 w-4 mr-2" />
+            <DropdownMenuSubTrigger className="text-foreground text-xs">
+              <Flag className="h-3.5 w-3.5 mr-2 shrink-0" />
               Changer la priorité
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="bg-white dark:bg-card">
+            <DropdownMenuSubContent className="bg-white dark:bg-card text-xs">
               {backlogPriorityOptions.map(opt => (
                 <DropdownMenuItem 
                   key={opt.value}
                   onClick={() => onBulkAction({ type: "bulk_change_priority", ticketIds: selectedTickets, priority: opt.value })}
-                  className="text-foreground"
+                  className="text-foreground text-xs"
                   data-testid={`bulk-action-priority-${opt.value}`}
                 >
-                  <span className="mr-2"><PriorityIcon priority={opt.value} /></span>
+                  <span className="mr-2 shrink-0"><PriorityIcon priority={opt.value} /></span>
                   {opt.label}
                 </DropdownMenuItem>
               ))}
@@ -1156,17 +1156,17 @@ function BulkActionsDropdown({
           
           {/* Assign to */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="text-foreground">
-              <UserPlus className="h-4 w-4 mr-2" />
+            <DropdownMenuSubTrigger className="text-foreground text-xs">
+              <UserPlus className="h-3.5 w-3.5 mr-2 shrink-0" />
               Assigner à
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="bg-white dark:bg-card max-h-[300px] overflow-y-auto">
+            <DropdownMenuSubContent className="bg-white dark:bg-card max-h-[300px] overflow-y-auto text-xs">
               <DropdownMenuItem 
                 onClick={() => onBulkAction({ type: "bulk_assign", ticketIds: selectedTickets, assigneeId: null })}
-                className="text-foreground"
+                className="text-foreground text-xs"
                 data-testid="bulk-action-unassign"
               >
-                <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                <User className="h-3.5 w-3.5 mr-2 text-muted-foreground shrink-0" />
                 Non assigné
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -1174,10 +1174,10 @@ function BulkActionsDropdown({
                 <DropdownMenuItem 
                   key={user.id}
                   onClick={() => onBulkAction({ type: "bulk_assign", ticketIds: selectedTickets, assigneeId: user.id })}
-                  className="text-foreground"
+                  className="text-foreground text-xs"
                   data-testid={`bulk-action-assign-${user.id}`}
                 >
-                  <Avatar className="h-4 w-4 mr-2">
+                  <Avatar className="h-4 w-4 mr-2 shrink-0">
                     <AvatarFallback className="text-[8px]">
                       {user.firstName?.charAt(0) || user.email?.charAt(0) || "?"}
                     </AvatarFallback>
@@ -1190,16 +1190,16 @@ function BulkActionsDropdown({
           
           {/* Set Estimate Points */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="text-foreground">
-              <Hash className="h-4 w-4 mr-2" />
+            <DropdownMenuSubTrigger className="text-foreground text-xs">
+              <Hash className="h-3.5 w-3.5 mr-2 shrink-0" />
               Ajouter un estimate point
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="bg-white dark:bg-card">
+            <DropdownMenuSubContent className="bg-white dark:bg-card text-xs">
               {[0, 0.25, 0.5, 1, 2, 3, 5, 8, 13, 21].map(points => (
                 <DropdownMenuItem 
                   key={points}
                   onClick={() => onBulkAction({ type: "bulk_set_estimate", ticketIds: selectedTickets, estimatePoints: points })}
-                  className="text-foreground"
+                  className="text-foreground text-xs"
                   data-testid={`bulk-action-estimate-${points}`}
                 >
                   <Badge variant="outline" className="text-xs mr-2">{points}</Badge>
@@ -1211,17 +1211,17 @@ function BulkActionsDropdown({
           
           {/* Link to Epic */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="text-foreground">
-              <Link2 className="h-4 w-4 mr-2" />
+            <DropdownMenuSubTrigger className="text-foreground text-xs">
+              <Link2 className="h-3.5 w-3.5 mr-2 shrink-0" />
               Lier à l'Epic
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="bg-white dark:bg-card max-h-[300px] overflow-y-auto">
+            <DropdownMenuSubContent className="bg-white dark:bg-card max-h-[300px] overflow-y-auto text-xs">
               <DropdownMenuItem 
                 onClick={() => onBulkAction({ type: "bulk_link_epic", ticketIds: selectedTickets, epicId: null })}
-                className="text-foreground"
+                className="text-foreground text-xs"
                 data-testid="bulk-action-unlink-epic"
               >
-                <Layers className="h-4 w-4 mr-2 text-muted-foreground" />
+                <Layers className="h-3.5 w-3.5 mr-2 text-muted-foreground shrink-0" />
                 Aucun Epic
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -1229,11 +1229,11 @@ function BulkActionsDropdown({
                 <DropdownMenuItem 
                   key={epic.id}
                   onClick={() => onBulkAction({ type: "bulk_link_epic", ticketIds: selectedTickets, epicId: epic.id })}
-                  className="text-foreground"
+                  className="text-foreground text-xs"
                   data-testid={`bulk-action-epic-${epic.id}`}
                 >
                   <div 
-                    className="h-3 w-3 rounded mr-2" 
+                    className="h-3 w-3 rounded mr-2 shrink-0" 
                     style={{ backgroundColor: epic.color || "#8B5CF6" }}
                   />
                   {epic.title}
@@ -1244,19 +1244,19 @@ function BulkActionsDropdown({
           
           {/* Move to Sprint */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="text-foreground">
-              <Play className="h-4 w-4 mr-2" />
+            <DropdownMenuSubTrigger className="text-foreground text-xs">
+              <Play className="h-3.5 w-3.5 mr-2 shrink-0" />
               Déplacer vers le sprint
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="bg-white dark:bg-card max-h-[300px] overflow-y-auto">
+            <DropdownMenuSubContent className="bg-white dark:bg-card max-h-[300px] overflow-y-auto text-xs">
               {sprints?.filter(s => s.status !== "termine").map(sprint => (
                 <DropdownMenuItem 
                   key={sprint.id}
                   onClick={() => onBulkAction({ type: "bulk_move_sprint", ticketIds: selectedTickets, sprintId: sprint.id })}
-                  className="text-foreground"
+                  className="text-foreground text-xs"
                   data-testid={`bulk-action-sprint-${sprint.id}`}
                 >
-                  <Calendar className="h-4 w-4 mr-2" />
+                  <Calendar className="h-3.5 w-3.5 mr-2 shrink-0" />
                   {sprint.name}
                 </DropdownMenuItem>
               ))}
@@ -1266,26 +1266,26 @@ function BulkActionsDropdown({
           {/* Move to Backlog */}
           <DropdownMenuItem 
             onClick={() => onBulkAction({ type: "bulk_move_backlog", ticketIds: selectedTickets })}
-            className="text-foreground"
+            className="text-foreground text-xs"
             data-testid="bulk-action-move-backlog"
           >
-            <AlertCircle className="h-4 w-4 mr-2" />
+            <AlertCircle className="h-3.5 w-3.5 mr-2 shrink-0" />
             Déplacer vers le backlog
           </DropdownMenuItem>
           
           {/* Set Version */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="text-foreground">
-              <Tag className="h-4 w-4 mr-2" />
+            <DropdownMenuSubTrigger className="text-foreground text-xs">
+              <Tag className="h-3.5 w-3.5 mr-2 shrink-0" />
               Définir la version
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="bg-white dark:bg-card">
               <DropdownMenuItem 
                 onClick={() => onBulkAction({ type: "bulk_set_version", ticketIds: selectedTickets, version: null })}
-                className="text-foreground"
+                className="text-foreground text-xs"
                 data-testid="bulk-action-remove-version"
               >
-                <X className="h-4 w-4 mr-2 text-muted-foreground" />
+                <X className="h-3.5 w-3.5 mr-2 text-muted-foreground shrink-0" />
                 Aucune version
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -1293,7 +1293,7 @@ function BulkActionsDropdown({
                 <DropdownMenuItem 
                   key={version}
                   onClick={() => onBulkAction({ type: "bulk_set_version", ticketIds: selectedTickets, version })}
-                  className="text-foreground"
+                  className="text-foreground text-xs"
                   data-testid={`bulk-action-version-${version}`}
                 >
                   <Badge variant="outline" className="text-xs mr-2">{version}</Badge>
@@ -1308,10 +1308,10 @@ function BulkActionsDropdown({
           {/* Delete */}
           <DropdownMenuItem 
             onClick={() => onBulkAction({ type: "bulk_delete", ticketIds: selectedTickets })}
-            className="text-red-600"
+            className="text-red-600 text-xs"
             data-testid="bulk-action-delete"
           >
-            <Trash2 className="h-4 w-4 mr-2" />
+            <Trash2 className="h-3.5 w-3.5 mr-2 shrink-0" />
             Supprimer
           </DropdownMenuItem>
         </DropdownMenuContent>
