@@ -198,6 +198,8 @@ export default function BacklogDetail() {
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("state");
   const [ticketSearch, setTicketSearch] = useState<string>("");
+  const [showStatsPanel, setShowStatsPanel] = useState(false);
+  const [statSprintId, setStatSprintId] = useState<string>("active");
   const [showEpicColumn, setShowEpicColumn] = useState<boolean>(() => {
     const saved = localStorage.getItem('backlog-show-epic-column');
     return saved === 'true';
@@ -2308,6 +2310,19 @@ export default function BacklogDetail() {
           
           {/* Right: Filters and Sort */}
           <div className="flex flex-wrap items-end gap-3">
+            {/* Stats panel toggle */}
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground invisible">Stats</Label>
+              <Button
+                size="icon"
+                variant={showStatsPanel ? "secondary" : "outline"}
+                className="h-8 w-8"
+                onClick={() => setShowStatsPanel(v => !v)}
+                data-testid="button-toggle-stats"
+              >
+                <BarChart3 className="h-4 w-4" />
+              </Button>
+            </div>
             {/* Epic column toggle - left aligned with icon and text centered */}
             <div className="flex flex-col gap-1">
               <Label className="text-xs text-muted-foreground invisible">Epic</Label>
@@ -2444,8 +2459,9 @@ export default function BacklogDetail() {
           </div>
         </div>
 
-        {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:px-6 md:py-4">
+        {/* Scrollable Content Area - flex-row to allow stats panel side-by-side */}
+        <div className="flex-1 overflow-hidden flex flex-row">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:px-6 md:py-4 min-w-0">
           {/* Kanban Board View */}
         {backlog.mode === "kanban" && (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleKanbanDragEnd}>
@@ -2637,6 +2653,157 @@ export default function BacklogDetail() {
             </div>
           </DndContext>
         )}
+        </div>
+
+        {/* Stats Side Panel - pushes content from right */}
+        {showStatsPanel && (() => {
+          const activeSprints = (backlog.sprints || []).filter(s => s.status === "en_cours");
+          const selectedSprintIds = statSprintId === "active"
+            ? activeSprints.map(s => s.id)
+            : statSprintId === "all"
+              ? (backlog.sprints || []).map(s => s.id)
+              : [statSprintId];
+          const tickets = (backlog.userStories || []).filter(s => s.sprintId && selectedSprintIds.includes(s.sprintId));
+          const priorityOrder = ["critique", "high", "normal", "low"];
+          const priorityColors: Record<string, string> = {
+            critique: "#7C3AED",
+            high: "#EF4444",
+            normal: "#F59E0B",
+            low: "#10B981",
+          };
+          const priorityLabels: Record<string, string> = {
+            critique: "Critique", high: "Haute", normal: "Normale", low: "Basse"
+          };
+          const assigneeMap: Record<string, { name: string; counts: Record<string, number> }> = {};
+          for (const ticket of tickets) {
+            const assigneeId = ticket.assigneeId || "__unassigned__";
+            const assignee = users.find(u => u.id === ticket.assigneeId);
+            const name = assignee ? (assignee.displayName || `${assignee.firstName || ""} ${assignee.lastName || ""}`.trim() || assignee.email || "?") : "Non assigné";
+            if (!assigneeMap[assigneeId]) {
+              assigneeMap[assigneeId] = { name, counts: { critique: 0, high: 0, normal: 0, low: 0 } };
+            }
+            const p = ticket.priority || "normal";
+            assigneeMap[assigneeId].counts[p] = (assigneeMap[assigneeId].counts[p] || 0) + 1;
+          }
+          const chartData = Object.entries(assigneeMap).map(([, v]) => ({
+            name: v.name.length > 12 ? v.name.slice(0, 12) + "…" : v.name,
+            ...v.counts,
+            total: Object.values(v.counts).reduce((a, b) => a + b, 0),
+          }));
+          const CustomTooltip = ({ active, payload, label }: any) => {
+            if (!active || !payload?.length) return null;
+            return (
+              <div className="bg-white dark:bg-gray-900 border border-border rounded-md shadow-lg p-3 text-xs space-y-1">
+                <p className="font-semibold text-foreground mb-1.5">{label}</p>
+                {priorityOrder.map(p => {
+                  const entry = payload.find((e: any) => e.dataKey === p);
+                  if (!entry || entry.value === 0) return null;
+                  return (
+                    <div key={p} className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: priorityColors[p] }} />
+                      <span className="text-muted-foreground">{priorityLabels[p]}</span>
+                      <span className="ml-auto font-medium text-foreground">{entry.value}</span>
+                    </div>
+                  );
+                })}
+                <div className="flex items-center gap-2 pt-1 border-t mt-1">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="ml-auto font-semibold text-foreground">
+                    {payload.reduce((a: number, e: any) => a + (e.value || 0), 0)}
+                  </span>
+                </div>
+              </div>
+            );
+          };
+          return (
+            <div className="w-[360px] xl:w-[420px] border-l bg-background flex flex-col flex-shrink-0 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0">
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-violet-600" />
+                  Stats sprint
+                </h3>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setShowStatsPanel(false)}>
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+
+              {/* Sprint selector */}
+              {activeSprints.length > 1 && (
+                <div className="px-4 pt-3 flex-shrink-0">
+                  <Select value={statSprintId} onValueChange={setStatSprintId}>
+                    <SelectTrigger className="h-8 text-xs w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active" className="text-xs">Sprints en cours</SelectItem>
+                      {activeSprints.map(s => (
+                        <SelectItem key={s.id} value={s.id} className="text-xs">{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {activeSprints.length === 0 && (
+                <div className="flex-1 flex items-center justify-center p-6">
+                  <p className="text-xs text-muted-foreground text-center">Aucun sprint actif.<br />Démarrez un sprint pour voir les statistiques.</p>
+                </div>
+              )}
+              {activeSprints.length > 0 && chartData.length === 0 && (
+                <div className="flex-1 flex items-center justify-center p-6">
+                  <p className="text-xs text-muted-foreground text-center">Aucun ticket dans ce sprint.</p>
+                </div>
+              )}
+              {activeSprints.length > 0 && chartData.length > 0 && (
+                <div className="flex-1 overflow-y-auto p-4 space-y-5">
+                  {/* Total count */}
+                  <div className="text-xs text-muted-foreground">
+                    <span className="font-semibold text-foreground text-lg">{tickets.length}</span> ticket{tickets.length > 1 ? "s" : ""} au total
+                  </div>
+
+                  {/* Stacked bar chart */}
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={chartData} margin={{ top: 8, right: 8, left: -28, bottom: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} />
+                      <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                      <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: "transparent" }} />
+                      {priorityOrder.map(p => (
+                        <Bar key={p} dataKey={p} stackId="a" fill={priorityColors[p]} radius={p === "critique" ? [3, 3, 0, 0] : [0, 0, 0, 0]} />
+                      ))}
+                    </BarChart>
+                  </ResponsiveContainer>
+
+                  {/* Legend */}
+                  <div className="flex flex-wrap gap-3">
+                    {priorityOrder.map(p => (
+                      <div key={p} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: priorityColors[p] }} />
+                        {priorityLabels[p]}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Summary table */}
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Par assigné</p>
+                    {chartData.sort((a, b) => b.total - a.total).map((row, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs">
+                        <span className="flex-1 truncate text-foreground">{row.name}</span>
+                        {priorityOrder.map(p => (row as any)[p] > 0 && (
+                          <span key={p} className="flex items-center gap-0.5">
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: priorityColors[p] }} />
+                            <span className="text-muted-foreground">{(row as any)[p]}</span>
+                          </span>
+                        ))}
+                        <span className="text-[11px] font-semibold text-foreground ml-1">{row.total}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
         </div>
         {/* End Scrollable Content Area */}
         </TabsContent>

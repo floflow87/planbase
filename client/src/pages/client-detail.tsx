@@ -1135,15 +1135,23 @@ export default function ClientDetail() {
   const updateClientStatus = async (newStatus: string) => {
     try {
       const oldStatus = client?.status;
-      // Immediately update CRM kanban cache so stage change reflects instantly on return
+      // Immediately update both caches so status badge + kanban update without waiting for API
+      queryClient.setQueryData(['/api/clients', id], (old: Client | undefined) => {
+        if (!old) return old;
+        return { ...old, status: newStatus };
+      });
       queryClient.setQueryData(['/api/accounts', accountId, 'clients'], (old: Client[] | undefined) => {
         if (!old) return old;
         return old.map((c: Client) => c.id === id ? { ...c, status: newStatus } : c);
       });
-      await apiRequest(`/api/clients/${id}`, "PATCH", { status: newStatus });
-      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/clients', id] });
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountId, 'clients'] });
+      // Close popover and show toast immediately — don't wait for server
+      setIsStatusPopoverOpen(false);
+      toast({ title: "Statut mis à jour", variant: "success" });
+      apiRequest(`/api/clients/${id}`, "PATCH", { status: newStatus }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/clients', id] });
+        queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountId, 'clients'] });
+      });
       if (oldStatus && oldStatus !== newStatus) {
         const statusLabels: Record<string, string> = {
           prospecting: "Prospect", qualified: "Qualifié", negotiation: "Négociation",
@@ -1158,8 +1166,6 @@ export default function ClientDetail() {
         });
         queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'activities'] });
       }
-      setIsStatusPopoverOpen(false);
-      toast({ title: "Statut mis à jour", variant: "success" });
     } catch (error) {
       toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
     }
