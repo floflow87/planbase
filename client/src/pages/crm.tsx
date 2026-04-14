@@ -405,6 +405,8 @@ export default function CRM() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [personFirstName, setPersonFirstName] = useState("");
+  const [personLastName, setPersonLastName] = useState("");
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<ColumnId | null>(() => {
@@ -736,6 +738,31 @@ export default function CRM() {
     }
   }, [editingClient, accountId, currentUser, form, prefilledStatus]);
 
+  // Watch type field for person/company conditional fields
+  const clientType = form.watch("type");
+
+  // When type switches to person, split existing name into first/last
+  useEffect(() => {
+    if (clientType === "person") {
+      const currentName = form.getValues("name") || "";
+      const spaceIdx = currentName.indexOf(" ");
+      if (spaceIdx > -1) {
+        setPersonFirstName(currentName.substring(0, spaceIdx));
+        setPersonLastName(currentName.substring(spaceIdx + 1));
+      } else {
+        setPersonFirstName(currentName);
+        setPersonLastName("");
+      }
+    }
+  }, [clientType]);
+
+  // When firstName or lastName changes, sync to form name field
+  useEffect(() => {
+    if (clientType === "person") {
+      form.setValue("name", `${personFirstName} ${personLastName}`.trim(), { shouldValidate: false });
+    }
+  }, [personFirstName, personLastName, clientType]);
+
   // Save sort preferences to localStorage
   useEffect(() => {
     if (sortColumn) {
@@ -1002,7 +1029,7 @@ export default function CRM() {
             </Button>
             {/* Desktop status filter */}
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="hidden sm:flex w-[180px] bg-card" data-testid="select-filter-status">
+              <SelectTrigger className="hidden sm:flex w-[180px] bg-card text-xs" data-testid="select-filter-status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-card">
@@ -1082,25 +1109,52 @@ export default function CRM() {
             setPrefilledStatus(null);
           }
         }}>
-          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-create-client">
+          <SheetContent className="sm:max-w-md w-full overflow-y-auto flex flex-col" data-testid="dialog-create-client">
             <SheetHeader>
               <SheetTitle>{editingClient ? "Modifier le client" : "Nouveau client"}</SheetTitle>
             </SheetHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex-1 py-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
+                {clientType === "person" ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormItem>
+                      <FormLabel>Prénom *</FormLabel>
+                      <FormControl>
+                        <Input
+                          value={personFirstName}
+                          onChange={e => setPersonFirstName(e.target.value)}
+                          placeholder="Prénom"
+                          data-testid="input-client-firstname"
+                        />
+                      </FormControl>
+                    </FormItem>
                     <FormItem>
                       <FormLabel>Nom *</FormLabel>
                       <FormControl>
-                        <Input {...field} data-testid="input-client-name" />
+                        <Input
+                          value={personLastName}
+                          onChange={e => setPersonLastName(e.target.value)}
+                          placeholder="Nom de famille"
+                          data-testid="input-client-lastname"
+                        />
                       </FormControl>
-                      <FormMessage />
                     </FormItem>
-                  )}
-                />
+                  </div>
+                ) : (
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nom *</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-client-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -1116,7 +1170,7 @@ export default function CRM() {
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="company">Entreprise</SelectItem>
-                            <SelectItem value="person">Personne</SelectItem>
+                            <SelectItem value="person">Particulier</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />

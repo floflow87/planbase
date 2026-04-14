@@ -304,6 +304,7 @@ export default function ClientDetail() {
         refetchActivities(),
         refetchLinkedEmails(),
       ]);
+      toast({ title: "Activités mises à jour", variant: "success" });
     } finally {
       setIsRefreshing(false);
     }
@@ -1134,6 +1135,11 @@ export default function ClientDetail() {
   const updateClientStatus = async (newStatus: string) => {
     try {
       const oldStatus = client?.status;
+      // Immediately update CRM kanban cache so stage change reflects instantly on return
+      queryClient.setQueryData(['/api/accounts', accountId, 'clients'], (old: Client[] | undefined) => {
+        if (!old) return old;
+        return old.map((c: Client) => c.id === id ? { ...c, status: newStatus } : c);
+      });
       await apiRequest(`/api/clients/${id}`, "PATCH", { status: newStatus });
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       queryClient.invalidateQueries({ queryKey: ['/api/clients', id] });

@@ -147,6 +147,8 @@ export default function Notes() {
   const [bulkPublishDialogOpen, setBulkPublishDialogOpen] = useState(false);
   const [quickAddNoteTitle, setQuickAddNoteTitle] = useState("");
   const [isQuickAddingNote, setIsQuickAddingNote] = useState(false);
+  const [newTagName, setNewTagName] = useState("");
+  const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [pageSize, setPageSize] = useState(() => {
     const saved = localStorage.getItem('noteListPageSize');
     return saved ? parseInt(saved) : 20;
@@ -1629,7 +1631,7 @@ export default function Notes() {
                             </Button>
                           )}
                         </PopoverTrigger>
-                        <PopoverContent className="w-48 p-2 bg-white dark:bg-gray-900" align="start">
+                        <PopoverContent className="w-52 p-2 bg-white dark:bg-gray-900" align="start">
                           <div className="space-y-1">
                             {noteCategories.map((category) => (
                               <Button
@@ -1654,6 +1656,37 @@ export default function Notes() {
                                 Aucun tag disponible
                               </div>
                             )}
+                            <div className="border-t pt-1.5 mt-1.5 flex gap-1">
+                              <Input
+                                value={newTagName}
+                                onChange={e => setNewTagName(e.target.value)}
+                                placeholder="Nouveau tag..."
+                                className="h-6 text-[11px] px-2"
+                                onKeyDown={e => {
+                                  if (e.key === "Enter" && newTagName.trim()) {
+                                    e.preventDefault();
+                                    createCategoryMutation.mutate(newTagName.trim());
+                                    setNewTagName("");
+                                  }
+                                }}
+                                data-testid="input-new-tag-name"
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6 shrink-0"
+                                disabled={!newTagName.trim() || createCategoryMutation.isPending}
+                                onClick={() => {
+                                  if (newTagName.trim()) {
+                                    createCategoryMutation.mutate(newTagName.trim());
+                                    setNewTagName("");
+                                  }
+                                }}
+                                data-testid="button-create-tag"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </Button>
+                            </div>
                           </div>
                         </PopoverContent>
                       </Popover>
@@ -1801,8 +1834,8 @@ export default function Notes() {
                   ),
                   project: (
                     <div key="project" className="flex-1 min-w-0 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                      <Popover>
+                        <PopoverTrigger asChild>
                           {linkedProject ? (
                             <Badge
                               className="text-[10px] bg-violet-600 text-white border-violet-600 cursor-pointer hover-elevate"
@@ -1819,36 +1852,47 @@ export default function Notes() {
                               Aucun
                             </Badge>
                           )}
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className=" max-h-[300px] overflow-y-auto">
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              linkProjectMutation.mutate({ 
-                                noteId: note.id, 
-                                projectId: null
-                              });
-                            }}
-                          >
-                            Aucun
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          {projects.map((project) => (
-                            <DropdownMenuItem
-                              key={project.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                linkProjectMutation.mutate({ 
-                                  noteId: note.id, 
-                                  projectId: project.id
-                                });
-                              }}
-                            >
-                              {project.name}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[260px] p-0 bg-white dark:bg-gray-900" align="start">
+                          <Command className="bg-white dark:bg-gray-900">
+                            <CommandInput
+                              placeholder="Rechercher un projet..."
+                              value={projectSearchQuery}
+                              onValueChange={setProjectSearchQuery}
+                            />
+                            <CommandList>
+                              <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                              <CommandGroup>
+                                <CommandItem
+                                  value="none"
+                                  onSelect={() => {
+                                    linkProjectMutation.mutate({ noteId: note.id, projectId: null });
+                                    setProjectSearchQuery("");
+                                  }}
+                                >
+                                  <Check className={`mr-2 h-4 w-4 ${!linkedProject ? "opacity-100" : "opacity-0"}`} />
+                                  Aucun
+                                </CommandItem>
+                                {projects
+                                  .filter(p => !projectSearchQuery || p.name.toLowerCase().includes(projectSearchQuery.toLowerCase()))
+                                  .map((project) => (
+                                  <CommandItem
+                                    key={project.id}
+                                    value={project.name}
+                                    onSelect={() => {
+                                      linkProjectMutation.mutate({ noteId: note.id, projectId: project.id });
+                                      setProjectSearchQuery("");
+                                    }}
+                                  >
+                                    <Check className={`mr-2 h-4 w-4 ${linkedProject?.id === project.id ? "opacity-100" : "opacity-0"}`} />
+                                    {project.name}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   ),
                   actions: (
