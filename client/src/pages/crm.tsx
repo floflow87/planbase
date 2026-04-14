@@ -206,12 +206,6 @@ function DraggableKanbanCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-card">
-              {canDo("crm", "update") && (
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }} data-testid={`kanban-edit-${client.id}`}>
-                  <Edit className="w-4 h-4 mr-2" />
-                  Modifier
-                </DropdownMenuItem>
-              )}
               <Link href={`/crm/${client.id}`}>
                 <DropdownMenuItem data-testid={`kanban-view-${client.id}`}>
                   <Building2 className="w-4 h-4 mr-2" />
@@ -250,7 +244,7 @@ function DraggableKanbanCard({
         )}
         
         <div className="pt-1">
-          <span className="text-sm font-bold text-primary">€ {totalBudget.toLocaleString()}</span>
+          <span className="text-sm font-bold text-primary dark:text-white">€ {totalBudget.toLocaleString()}</span>
         </div>
       </CardContent>
     </Card>
@@ -269,6 +263,7 @@ function DroppableKanbanColumn({
   onDeleteClient,
   isCollapsed,
   onToggleCollapse,
+  onAddClient,
 }: {
   status: typeof KANBAN_STATUSES[0];
   clients: Client[];
@@ -278,6 +273,7 @@ function DroppableKanbanColumn({
   onDeleteClient: (clientId: string) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  onAddClient?: () => void;
 }) {
   const { isOver, setNodeRef } = useDroppable({
     id: `column-${status.id}`,
@@ -372,6 +368,16 @@ function DroppableKanbanColumn({
               Aucun client
             </div>
           )}
+          {onAddClient && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onAddClient(); }}
+              className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover-elevate transition-colors mt-1"
+              data-testid={`button-add-client-column-${status.id}`}
+            >
+              <Plus className="w-3 h-3" />
+              Client
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -395,6 +401,7 @@ export default function CRM() {
   const [searchQuery, setSearchQuery] = useState("");
   const [crmMobileFilterOpen, setCrmMobileFilterOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [prefilledStatus, setPrefilledStatus] = useState<string | null>(null);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -719,7 +726,7 @@ export default function CRM() {
         accountId: accountId || "",
         name: "",
         type: "company",
-        status: "prospecting",
+        status: prefilledStatus || "prospecting",
         budget: "0",
         tags: [],
         contacts: [],
@@ -727,7 +734,7 @@ export default function CRM() {
         createdBy: currentUser?.id || "",
       });
     }
-  }, [editingClient, accountId, currentUser, form]);
+  }, [editingClient, accountId, currentUser, form, prefilledStatus]);
 
   // Save sort preferences to localStorage
   useEffect(() => {
@@ -999,14 +1006,14 @@ export default function CRM() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-card">
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="prospecting">Prospect</SelectItem>
-                <SelectItem value="qualified">Qualifié</SelectItem>
-                <SelectItem value="negotiation">Négociation</SelectItem>
-                <SelectItem value="quote_sent">Devis envoyé</SelectItem>
-                <SelectItem value="quote_approved">Devis validé</SelectItem>
-                <SelectItem value="won">Gagné</SelectItem>
-                <SelectItem value="lost">Perdu</SelectItem>
+                <SelectItem value="all" className="text-xs">Tous les statuts</SelectItem>
+                <SelectItem value="prospecting" className="text-xs">Prospect</SelectItem>
+                <SelectItem value="qualified" className="text-xs">Qualifié</SelectItem>
+                <SelectItem value="negotiation" className="text-xs">Négociation</SelectItem>
+                <SelectItem value="quote_sent" className="text-xs">Devis envoyé</SelectItem>
+                <SelectItem value="quote_approved" className="text-xs">Devis validé</SelectItem>
+                <SelectItem value="won" className="text-xs">Gagné</SelectItem>
+                <SelectItem value="lost" className="text-xs">Perdu</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1072,6 +1079,7 @@ export default function CRM() {
           if (!open) {
             setIsCreateDialogOpen(false);
             setEditingClient(null);
+            setPrefilledStatus(null);
           }
         }}>
           <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-create-client">
@@ -1468,6 +1476,10 @@ export default function CRM() {
                             }}
                             isCollapsed={!!kanbanColumnCollapsed[status.id]}
                             onToggleCollapse={() => toggleColumnCollapse(status.id)}
+                            onAddClient={() => {
+                              setPrefilledStatus(status.id);
+                              setIsCreateDialogOpen(true);
+                            }}
                           />
                         );
                       })}

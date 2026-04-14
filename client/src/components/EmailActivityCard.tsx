@@ -92,6 +92,7 @@ function DeliveryStatus({ direction }: { direction: "sent" | "received" }) {
 function HtmlEmailBody({ html }: { html: string }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(200);
+  const isDark = document.documentElement.classList.contains("dark");
 
   const adjustHeight = useCallback(() => {
     const iframe = iframeRef.current;
@@ -108,6 +109,12 @@ function HtmlEmailBody({ html }: { html: string }) {
     const doc = iframe.contentDocument;
     if (!doc) return;
 
+    const textColor = isDark ? "#e5e7eb" : "#333";
+    const bgColor = isDark ? "transparent" : "transparent";
+    const linkColor = isDark ? "#93c5fd" : "#2563eb";
+    const blockquoteColor = isDark ? "#9ca3af" : "#666";
+    const blockquoteBorder = isDark ? "#4b5563" : "#ddd";
+
     doc.open();
     doc.write(`
       <!DOCTYPE html>
@@ -118,15 +125,16 @@ function HtmlEmailBody({ html }: { html: string }) {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
               font-size: 13px;
               line-height: 1.5;
-              color: #333;
+              color: ${textColor};
+              background: ${bgColor};
               margin: 0;
               padding: 8px;
               word-wrap: break-word;
               overflow-wrap: break-word;
             }
             img { max-width: 100%; height: auto; }
-            a { color: #2563eb; }
-            blockquote { border-left: 3px solid #ddd; margin: 8px 0; padding-left: 12px; color: #666; }
+            a { color: ${linkColor}; }
+            blockquote { border-left: 3px solid ${blockquoteBorder}; margin: 8px 0; padding-left: 12px; color: ${blockquoteColor}; }
             pre { white-space: pre-wrap; word-wrap: break-word; }
             table { max-width: 100%; border-collapse: collapse; }
             td, th { padding: 4px 8px; }
@@ -139,7 +147,7 @@ function HtmlEmailBody({ html }: { html: string }) {
 
     setTimeout(adjustHeight, 100);
     setTimeout(adjustHeight, 500);
-  }, [html, adjustHeight]);
+  }, [html, adjustHeight, isDark]);
 
   return (
     <iframe
