@@ -36,6 +36,25 @@ const TECH_IMAGES = [
   "/covers/tech/Tech14.jpg",
 ];
 
+const NATURE_IMAGES = [
+  "/covers/nature/Nature01.jpg",
+  "/covers/nature/Nature02.jpg",
+  "/covers/nature/Nature03.jpg",
+  "/covers/nature/Nature04.jpg",
+  "/covers/nature/Nature05.jpg",
+  "/covers/nature/Nature06.jpg",
+  "/covers/nature/Nature07.jpg",
+  "/covers/nature/Nature08.jpg",
+  "/covers/nature/Nature09.jpg",
+  "/covers/nature/Nature10.jpg",
+  "/covers/nature/Nature11.jpg",
+  "/covers/nature/Nature12.jpg",
+  "/covers/nature/Nature13.jpg",
+  "/covers/nature/Nature14.jpg",
+  "/covers/nature/Nature15.jpg",
+  "/covers/nature/Nature16.jpg",
+];
+
 type Tab = "galerie" | "charger" | "lien";
 
 interface CoverGalleryPanelProps {
@@ -216,6 +235,20 @@ export function CoverGalleryPanel({
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Tech</p>
             <div className="grid grid-cols-4 gap-1.5">
               {TECH_IMAGES.map((src) => (
+                <LazyImage
+                  key={src}
+                  src={src}
+                  onClick={() => { onSelectImage(src); onClose(); }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Nature images */}
+          <div>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Nature</p>
+            <div className="grid grid-cols-4 gap-1.5">
+              {NATURE_IMAGES.map((src) => (
                 <LazyImage
                   key={src}
                   src={src}
