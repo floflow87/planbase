@@ -58,6 +58,9 @@ import { AiAssistant } from "@/components/ai/AiAssistant";
 import { AppointmentPanel } from "@/components/appointment-panel";
 import { MobileSidebarSheet } from "@/components/MobileSidebarSheet";
 import { useState, useEffect } from "react";
+import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
+import { SortableContext, horizontalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Button } from "@/components/ui/button";
 import { SafeAreaTopBar, useIsStandalone } from "@/design-system/primitives/SafeAreaTopBar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -1121,6 +1124,67 @@ interface Tab {
   title: string;
 }
 
+interface SortableTabProps {
+  tab: Tab;
+  isActive: boolean;
+  showClose: boolean;
+  onTabClick: (tab: Tab) => void;
+  onCloseTab: (e: React.MouseEvent, tabId: string) => void;
+  tooltipContent: string;
+}
+
+function SortableTab({ tab, isActive, showClose, onTabClick, onCloseTab, tooltipContent }: SortableTabProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          ref={setNodeRef}
+          style={style}
+          className={`
+            group flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-medium 
+            transition-colors min-w-0 max-w-[120px] sm:max-w-[160px] flex-shrink-0 select-none
+            ${isActive
+              ? 'bg-primary/10 text-primary dark:text-white border border-primary/20'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            }
+            ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}
+          `}
+          onClick={() => onTabClick(tab)}
+          data-testid={`tab-${tab.id}`}
+          {...attributes}
+          {...listeners}
+        >
+          <span className="truncate">{tab.title}</span>
+          {showClose && (
+            <button
+              onClick={(e) => onCloseTab(e, tab.id)}
+              className={`
+                flex-shrink-0 p-0.5 rounded hover:bg-destructive/20 hover:text-destructive
+                ${isActive ? 'visible' : 'invisible group-hover:visible'}
+              `}
+              data-testid={`close-tab-${tab.id}`}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">
+        {tooltipContent}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 function AppLayout() {
   const [location, setLocation] = useLocation();
   const isAuthPage = location === "/login" || location === "/signup" || location.startsWith("/accept-invitation");
@@ -1457,6 +1521,23 @@ function AppLayout() {
     }
   };
 
+  const handleReorderTabs = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = tabs.findIndex(t => t.id === active.id);
+    const newIndex = tabs.findIndex(t => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(tabs, oldIndex, newIndex);
+    setTabs(reordered);
+    if (tabsStorageKey) {
+      localStorage.setItem(tabsStorageKey, JSON.stringify(reordered));
+    }
+  };
+
+  const tabSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+  );
+
   if (isAuthPage) {
     return (
       <>
@@ -1497,58 +1578,38 @@ function AppLayout() {
                 </svg>
               </Button>
               <GlobalSearch />
-              {/* Tab System */}
-              <div className="flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto scrollbar-hide">
-                {tabs.map((tab) => (
-                  <Tooltip key={tab.id}>
-                    <TooltipTrigger asChild>
-                      <div
-                        onClick={() => handleTabClick(tab)}
-                        className={`
-                          group flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-medium 
-                          transition-colors min-w-0 max-w-[120px] sm:max-w-[160px] flex-shrink-0 cursor-pointer
-                          ${activeTabId === tab.id 
-                            ? 'bg-primary/10 text-primary dark:text-white border border-primary/20' 
-                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                          }
-                        `}
-                        data-testid={`tab-${tab.id}`}
-                      >
-                        <span className="truncate">{tab.title}</span>
-                        {tabs.length > 1 && (
-                          <button
-                            onClick={(e) => handleCloseTab(e, tab.id)}
-                            className={`
-                              flex-shrink-0 p-0.5 rounded hover:bg-destructive/20 hover:text-destructive
-                              ${activeTabId === tab.id ? 'visible' : 'invisible group-hover:visible'}
-                            `}
-                            data-testid={`close-tab-${tab.id}`}
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">
-                      {getFullPageTitle(tab.path)}
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
+              {/* Tab System — drag-and-drop reorderable */}
+              <DndContext sensors={tabSensors} collisionDetection={closestCenter} onDragEnd={handleReorderTabs}>
+                <SortableContext items={tabs.map(t => t.id)} strategy={horizontalListSortingStrategy}>
+                  <div className="flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto scrollbar-hide">
+                    {tabs.map((tab) => (
+                      <SortableTab
+                        key={tab.id}
+                        tab={tab}
+                        isActive={activeTabId === tab.id}
+                        showClose={tabs.length > 1}
+                        onTabClick={handleTabClick}
+                        onCloseTab={handleCloseTab}
+                        tooltipContent={getFullPageTitle(tab.path)}
+                      />
+                    ))}
                 
-                {/* Add Tab Button */}
-                {tabs.length < 5 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleAddTab}
-                    className="h-7 w-7 p-0 flex-shrink-0"
-                    data-testid="button-add-tab"
-                    title="Nouvel onglet"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
+                    {/* Add Tab Button */}
+                    {tabs.length < 5 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleAddTab}
+                        className="h-7 w-7 p-0 flex-shrink-0"
+                        data-testid="button-add-tab"
+                        title="Nouvel onglet"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </SortableContext>
+              </DndContext>
             </div>
             <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
               <QuickCreateMenu />
