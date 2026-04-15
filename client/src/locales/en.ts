@@ -1,0 +1,286 @@
+const en = {
+  // Navigation
+  nav: {
+    dashboard: "Dashboard",
+    crm: "CRM",
+    projects: "Projects",
+    product: "Product",
+    roadmap: "Roadmap",
+    notes: "Notes",
+    tasks: "Tasks",
+    whiteboards: "Whiteboards",
+    files: "Files",
+    cashflow: "Cash Flow",
+    finance: "Profitability",
+    settings: "Settings",
+    logout: "Log out",
+  },
+
+  // Common
+  common: {
+    save: "Save",
+    cancel: "Cancel",
+    delete: "Delete",
+    edit: "Edit",
+    create: "Create",
+    add: "Add",
+    search: "Search",
+    close: "Close",
+    confirm: "Confirm",
+    back: "Back",
+    next: "Next",
+    previous: "Previous",
+    yes: "Yes",
+    no: "No",
+    loading: "Loading...",
+    error: "An error occurred",
+    success: "Success",
+    actions: "Actions",
+    view: "View",
+    open: "Open",
+    name: "Name",
+    description: "Description",
+    date: "Date",
+    status: "Status",
+    priority: "Priority",
+    type: "Type",
+    filter: "Filter",
+    sort: "Sort",
+    export: "Export",
+    import: "Import",
+    refresh: "Refresh",
+    noResults: "No results",
+    noData: "No data",
+    optional: "optional",
+    required: "required",
+    total: "Total",
+    all: "All",
+    none: "None",
+    from: "From",
+    to: "To",
+    by: "By",
+    on: "On",
+    at: "At",
+    and: "and",
+    or: "or",
+    active: "Active",
+    inactive: "Inactive",
+    enabled: "Enabled",
+    disabled: "Disabled",
+    beta: "Beta",
+    new: "New",
+    updated: "Updated",
+    copied: "Copied!",
+    copy: "Copy",
+    send: "Send",
+    apply: "Apply",
+    reset: "Reset",
+    select: "Select",
+    upload: "Upload",
+    download: "Download",
+    preview: "Preview",
+    today: "Today",
+    yesterday: "Yesterday",
+    thisWeek: "This week",
+    thisMonth: "This month",
+    thisYear: "This year",
+    overdue: "Overdue",
+    completed: "Completed",
+    archived: "Archived",
+  },
+
+  // Settings
+  settings: {
+    title: "Settings",
+    tabs: {
+      informations: "Information",
+      config: "Configuration",
+      permissions: "Permissions",
+      integrations: "Integrations",
+      templates: "Templates",
+      security: "Security",
+      subscription: "Subscription",
+      preferences: "Preferences",
+    },
+    preferences: {
+      title: "Preferences",
+      subtitle: "Customize your Planbase experience",
+      theme: {
+        label: "Theme",
+        description: "Choose the interface appearance",
+        light: "Light",
+        dark: "Dark",
+        system: "System",
+      },
+      language: {
+        label: "Language",
+        description: "Display language of the application",
+        fr: "Français",
+        en: "English",
+      },
+      taskReminder: {
+        label: "Task reminders",
+        description: "Show a notification on startup if you have urgent or overdue tasks",
+      },
+    },
+  },
+
+  // Dashboard
+  dashboard: {
+    title: "Dashboard",
+    welcome: "Hello",
+    kpis: "Key metrics",
+    revenueChart: "Monthly Revenue",
+    activityFeed: "Recent activity",
+    recentProjects: "Recent projects",
+    myDay: "My Day",
+    recentNotes: "Recent notes",
+    recentBacklog: "Recent backlog",
+    noTasks: "No tasks for today",
+    taskReminder: {
+      title: "Tasks to handle today",
+      description: "You have urgent or overdue tasks that need your attention.",
+      viewTasks: "View my tasks",
+      close: "Close",
+    },
+  },
+
+  // Priority
+  priority: {
+    low: "Low",
+    medium: "Medium",
+    high: "High",
+    critical: "Critical",
+  },
+
+  // Status
+  status: {
+    todo: "To do",
+    inProgress: "In progress",
+    done: "Done",
+    cancelled: "Cancelled",
+    blocked: "Blocked",
+    review: "In review",
+  },
+
+  // Tasks
+  tasks: {
+    title: "Tasks",
+    new: "New task",
+    edit: "Edit task",
+    delete: "Delete task",
+    noTasks: "No tasks",
+    dueDate: "Due date",
+    assignee: "Assignee",
+    overdue: "Overdue",
+    today: "Today",
+    upcoming: "Upcoming",
+  },
+
+  // Projects
+  projects: {
+    title: "Projects",
+    new: "New project",
+    edit: "Edit project",
+    delete: "Delete project",
+    noProjects: "No projects",
+    client: "Client",
+    budget: "Budget",
+    startDate: "Start date",
+    endDate: "End date",
+    stages: {
+      prospect: "Prospect",
+      signed: "Signed",
+      inProgress: "In progress",
+      delivered: "Delivered",
+      completed: "Completed",
+    },
+  },
+
+  // CRM
+  crm: {
+    title: "CRM",
+    clients: "Clients",
+    deals: "Deals",
+    pipeline: "Pipeline",
+    contacts: "Contacts",
+    newClient: "New client",
+    newDeal: "New deal",
+  },
+
+  // Notes
+  notes: {
+    title: "Notes",
+    new: "New note",
+    edit: "Edit note",
+    delete: "Delete note",
+    noNotes: "No notes",
+    untitled: "Untitled note",
+    addCover: "Add cover",
+    gallery: {
+      title: "Gallery",
+      upload: "Upload",
+      link: "Link",
+      colors: "Colors",
+      gradients: "Gradients",
+      tech: "Tech",
+      nature: "Nature",
+      remove: "Remove",
+      chooseFile: "Choose a file",
+      pasteLink: "Paste an image link",
+      apply: "Apply",
+      fileTypes: "JPG, PNG, GIF, WEBP — max 10 MB",
+    },
+  },
+
+  // Files
+  files: {
+    title: "Files",
+    upload: "Upload",
+    newFolder: "New folder",
+    noFiles: "No files",
+  },
+
+  // Product / Backlog
+  product: {
+    title: "Product",
+    backlogs: "Backlogs",
+    newBacklog: "New backlog",
+    scrum: "Scrum",
+    kanban: "Kanban",
+    features: "Features",
+    tickets: "Tickets",
+  },
+
+  // Roadmap
+  roadmap: {
+    title: "Roadmap",
+    phases: "Phases",
+    features: "Features",
+    timeline: "Timeline",
+  },
+
+  // Auth
+  auth: {
+    login: "Log in",
+    logout: "Log out",
+    email: "Email",
+    password: "Password",
+    forgotPassword: "Forgot password?",
+    register: "Sign up",
+    noAccount: "Don't have an account?",
+    alreadyAccount: "Already have an account?",
+  },
+
+  // Errors
+  errors: {
+    notFound: "Page not found",
+    unauthorized: "Unauthorized",
+    forbidden: "Access denied",
+    serverError: "Server error",
+    networkError: "Network error",
+    tryAgain: "Try again",
+  },
+} as const;
+
+export default en;

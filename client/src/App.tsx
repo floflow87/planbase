@@ -12,6 +12,8 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { OnboardingProvider } from "@/contexts/OnboardingContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
+import { PreferencesProvider } from "@/contexts/PreferencesContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Login from "@/pages/login";
 import Signup from "@/pages/signup";
@@ -1716,16 +1718,20 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AuthProvider>
-          <OnboardingProvider>
-            <TooltipProvider>
-              <AppLayout />
-              <UnifiedAvatar />
-              <CelebrationLayer />
-              <Toaster />
-            </TooltipProvider>
-          </OnboardingProvider>
-        </AuthProvider>
+        <LanguageProvider>
+          <PreferencesProvider>
+            <AuthProvider>
+              <OnboardingProvider>
+                <TooltipProvider>
+                  <AppLayout />
+                  <UnifiedAvatar />
+                  <CelebrationLayer />
+                  <Toaster />
+                </TooltipProvider>
+              </OnboardingProvider>
+            </AuthProvider>
+          </PreferencesProvider>
+        </LanguageProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

@@ -28,6 +28,7 @@ import type { Project, Client, Activity, AppUser, InsertClient, InsertProject, T
 import { insertClientSchema, insertProjectSchema } from "@shared/schema";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
+import { usePreferences } from "@/contexts/PreferencesContext";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { Switch } from "@/components/ui/switch";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
@@ -563,6 +564,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const { taskReminderEnabled } = usePreferences();
   const { getLabel: getStageLabel, getColor: getStageColor } = useProjectStagesUI();
   const [isCreateClientDialogOpen, setIsCreateClientDialogOpen] = useState(false);
   const [isCreateProjectDialogOpen, setIsCreateProjectDialogOpen] = useState(false);
@@ -1129,6 +1131,9 @@ export default function Dashboard() {
 
   // Show task reminder popup when page loads if there are tasks due today or overdue
   useEffect(() => {
+    // Respect user preference
+    if (!taskReminderEnabled) return;
+
     // Only show once per session using sessionStorage
     const hasShownReminder = sessionStorage.getItem("taskReminderShown");
     if (hasShownReminder) return;
@@ -1151,7 +1156,7 @@ export default function Dashboard() {
       setShowTaskReminder(true);
       sessionStorage.setItem("taskReminderShown", "true");
     }
-  }, [tasks, tasksLoading]);
+  }, [tasks, tasksLoading, taskReminderEnabled]);
 
   // Helper function to normalize any date value to local YYYY-MM-DD string
   const normalizeToLocalDate = (dateValue: any): string => {

@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useConfigAll } from "@/hooks/useConfigAll";
 import { useBilling } from "@/hooks/useBilling";
+import { useLanguage } from "@/contexts/LanguageContext";
 import type { RbacModule } from "@shared/schema";
 import {
   Sidebar,
@@ -61,6 +62,7 @@ export function AppSidebar() {
   const { userProfile, user } = useAuth();
   const { isAdmin, role, can } = usePermissions();
   const { data: configData } = useConfigAll();
+  const { t } = useLanguage();
   const featureFlags = configData?.featureFlagsMap ?? {};
   const { state, setOpenMobile, isMobile, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
@@ -106,17 +108,17 @@ export function AppSidebar() {
   };
 
   const allNavItems = [
-    { title: "Tableau de bord", url: "/", icon: Home },
-    { title: "CRM", url: "/crm", icon: Users },
-    { title: "Projets", url: "/projects", icon: FolderKanban },
-    { title: "Product", url: "/product", icon: Package },
-    { title: "Roadmap", url: "/roadmap", icon: Rocket },
-    { title: "Notes", url: "/notes", icon: FileText },
-    { title: "Tâches", url: "/tasks", icon: CheckSquare },
-    { title: "Whiteboards", url: "/mindmaps", icon: Network, badge: "Beta" },
-    { title: "Fichiers", url: "/files", icon: FolderOpen },
-    { title: "Trésorerie", url: "/cashflow", icon: Wallet },
-    { title: "Rentabilité", url: "/finance", icon: DollarSign, badge: "Beta" },
+    { title: t.nav.dashboard, url: "/", icon: Home },
+    { title: t.nav.crm, url: "/crm", icon: Users },
+    { title: t.nav.projects, url: "/projects", icon: FolderKanban },
+    { title: t.nav.product, url: "/product", icon: Package },
+    { title: t.nav.roadmap, url: "/roadmap", icon: Rocket },
+    { title: t.nav.notes, url: "/notes", icon: FileText },
+    { title: t.nav.tasks, url: "/tasks", icon: CheckSquare },
+    { title: t.nav.whiteboards, url: "/mindmaps", icon: Network, badge: t.common.beta },
+    { title: t.nav.files, url: "/files", icon: FolderOpen },
+    { title: t.nav.cashflow, url: "/cashflow", icon: Wallet },
+    { title: t.nav.finance, url: "/finance", icon: DollarSign, badge: t.common.beta },
   ];
 
   const navItems = allNavItems.filter(item => canAccessModule(item.url));

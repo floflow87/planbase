@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,8 +21,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { 
   Loader2, User, Mail, Briefcase, UserCircle, Phone, Building2, Lock, Eye, EyeOff, 
   Settings as SettingsIcon, Puzzle, Shield, Clock, AlertTriangle, Save, RotateCcw, 
-  DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check, Users, Trash2, CreditCard, Camera, LayoutTemplate
+  DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check, Users, Trash2, CreditCard, Camera, LayoutTemplate,
+  SunMedium, Moon, Monitor, Languages, Bell
 } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useLanguage, type Language } from "@/contexts/LanguageContext";
+import { usePreferences } from "@/contexts/PreferencesContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PermissionsTab } from "@/components/settings/PermissionsTab";
 import { IntegrationsTab } from "@/components/settings/IntegrationsTab";
@@ -1125,6 +1131,10 @@ export default function Settings() {
               <CreditCard className="w-3.5 h-3.5" />
               Abonnement
             </TabsTrigger>
+            <TabsTrigger value="preferences" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-preferences">
+              <Palette className="w-3.5 h-3.5" />
+              Préférences
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="informations" className="space-y-4">
@@ -1778,10 +1788,139 @@ export default function Settings() {
           <TabsContent value="subscription" className="space-y-6">
             <SubscriptionTab />
           </TabsContent>
+
+          <TabsContent value="preferences" className="space-y-6">
+            <PreferencesTabContent />
+          </TabsContent>
         </Tabs>
 
         <ConfigDebugPanel />
       </div>
+    </div>
+  );
+}
+
+function PreferencesTabContent() {
+  const { theme, setTheme } = useTheme();
+  const { language, setLanguage } = useLanguage();
+  const { taskReminderEnabled, setTaskReminderEnabled } = usePreferences();
+
+  return (
+    <div className="space-y-6" data-testid="section-preferences">
+      {/* Header */}
+      <div>
+        <h2 className="text-base font-semibold">Préférences</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">Personnalisez votre expérience Planbase</p>
+      </div>
+
+      {/* Theme */}
+      <Card data-testid="card-theme-preferences">
+        <CardHeader className="pb-3 flex flex-row items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <SunMedium className="w-4 h-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-semibold">Thème</CardTitle>
+          </div>
+          <CardDescription className="text-xs mt-0">Choisissez l'apparence de l'interface</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RadioGroup
+            value={theme}
+            onValueChange={(val) => setTheme(val as "light" | "dark" | "system")}
+            className="flex flex-col gap-3 sm:flex-row sm:gap-6"
+            data-testid="radio-theme"
+          >
+            <div className="flex items-center gap-2.5">
+              <RadioGroupItem value="light" id="theme-light" data-testid="radio-theme-light" />
+              <Label htmlFor="theme-light" className="flex items-center gap-1.5 cursor-pointer font-normal text-sm">
+                <SunMedium className="w-4 h-4 text-amber-500" />
+                Clair
+              </Label>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <RadioGroupItem value="dark" id="theme-dark" data-testid="radio-theme-dark" />
+              <Label htmlFor="theme-dark" className="flex items-center gap-1.5 cursor-pointer font-normal text-sm">
+                <Moon className="w-4 h-4 text-violet-500" />
+                Sombre
+              </Label>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <RadioGroupItem value="system" id="theme-system" data-testid="radio-theme-system" />
+              <Label htmlFor="theme-system" className="flex items-center gap-1.5 cursor-pointer font-normal text-sm">
+                <Monitor className="w-4 h-4 text-cyan-500" />
+                Système
+              </Label>
+            </div>
+          </RadioGroup>
+        </CardContent>
+      </Card>
+
+      {/* Language */}
+      <Card data-testid="card-language-preferences">
+        <CardHeader className="pb-3 flex flex-row items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Languages className="w-4 h-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-semibold">Langue</CardTitle>
+          </div>
+          <CardDescription className="text-xs mt-0">Langue d'affichage de l'application</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Select value={language} onValueChange={(val) => setLanguage(val as Language)} data-testid="select-language">
+            <SelectTrigger className="w-56" data-testid="trigger-language">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="fr" data-testid="option-lang-fr">
+                <span className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-muted-foreground bg-muted rounded px-1 py-0.5">FR</span>
+                  Français
+                </span>
+              </SelectItem>
+              <SelectItem value="en" data-testid="option-lang-en">
+                <span className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-muted-foreground bg-muted rounded px-1 py-0.5">EN</span>
+                  English
+                </span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground mt-2">
+            {language === "fr"
+              ? "L'interface sera affichée en français."
+              : "The interface will be displayed in English."}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Task Reminder */}
+      <Card data-testid="card-task-reminder-preferences">
+        <CardHeader className="pb-3 flex flex-row items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Bell className="w-4 h-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-semibold">Rappel des tâches</CardTitle>
+          </div>
+          <CardDescription className="text-xs mt-0">
+            Afficher une notification au démarrage si vous avez des tâches urgentes ou en retard
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3">
+            <Switch
+              id="task-reminder-toggle"
+              checked={taskReminderEnabled}
+              onCheckedChange={setTaskReminderEnabled}
+              data-testid="switch-task-reminder"
+            />
+            <Label htmlFor="task-reminder-toggle" className="text-sm cursor-pointer font-normal">
+              {taskReminderEnabled ? "Activé" : "Désactivé"}
+            </Label>
+          </div>
+          {!taskReminderEnabled && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Les rappels de tâches urgentes ne s'afficheront plus au démarrage.
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

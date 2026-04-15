@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useConfigAll } from "@/hooks/useConfigAll";
 import { useBilling } from "@/hooks/useBilling";
@@ -78,7 +79,8 @@ type Props = {
 export function MobileSidebarSheet({ open, onClose }: Props) {
   const [location, setLocation] = useLocation();
   const { user, userProfile, signOut } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { resolvedTheme, toggleTheme } = useTheme();
+  const { t } = useLanguage();
   const { isAdmin, role, can } = usePermissions();
   const { data: configData } = useConfigAll();
   const featureFlags = configData?.featureFlagsMap ?? {};
@@ -155,7 +157,20 @@ export function MobileSidebarSheet({ open, onClose }: Props) {
     return can(module, "read");
   };
 
-  const navItems = ALL_NAV.filter((item) => canAccessModule(item.url));
+  const allNavItems = [
+    { title: t.nav.dashboard, url: "/", icon: Home },
+    { title: t.nav.crm, url: "/crm", icon: Users },
+    { title: t.nav.projects, url: "/projects", icon: FolderKanban },
+    { title: t.nav.product, url: "/product", icon: Package },
+    { title: t.nav.roadmap, url: "/roadmap", icon: Rocket },
+    { title: t.nav.notes, url: "/notes", icon: FileText },
+    { title: t.nav.tasks, url: "/tasks", icon: CheckSquare },
+    { title: t.nav.whiteboards, url: "/mindmaps", icon: Network, badge: t.common.beta },
+    { title: t.nav.files, url: "/files", icon: FolderOpen },
+    { title: t.nav.cashflow, url: "/cashflow", icon: Wallet },
+    { title: t.nav.finance, url: "/finance", icon: DollarSign, badge: t.common.beta },
+  ];
+  const navItems = allNavItems.filter((item) => canAccessModule(item.url));
 
   const isActive = (url: string) =>
     url === "/" ? location === "/" : location === url || location.startsWith(url + "/");
@@ -330,13 +345,13 @@ export function MobileSidebarSheet({ open, onClose }: Props) {
             className="flex items-center gap-3 w-full px-3 py-3 rounded-xl text-left hover-elevate active-elevate-2"
             data-testid="mobile-nav-theme"
           >
-            {theme === "dark" ? (
+            {resolvedTheme === "dark" ? (
               <Sun className="w-5 h-5 shrink-0 text-muted-foreground" />
             ) : (
               <Moon className="w-5 h-5 shrink-0 text-muted-foreground" />
             )}
             <span className="text-sm text-foreground">
-              {theme === "dark" ? "Mode clair" : "Mode sombre"}
+              {resolvedTheme === "dark" ? "Mode clair" : "Mode sombre"}
             </span>
           </button>
 
