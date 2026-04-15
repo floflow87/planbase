@@ -1336,6 +1336,33 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+          {/* Font family dropdown */}
+          <DropdownMenu onOpenChange={(open) => { bubbleAnyPopoverOpenRef.current = open; }}>
+            <Tooltip><TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 px-1.5 gap-0.5 max-w-[100px]" data-testid="bubble-font-family">
+                  <span className="truncate text-xs leading-none" style={{ fontFamily: editor.getAttributes('textStyle').fontFamily || 'inherit' }}>
+                    {FONT_FAMILIES.find(f => f.value === editor.getAttributes('textStyle').fontFamily)?.label ?? 'Police'}
+                  </span>
+                  <ChevronDown className="w-2.5 h-2.5 shrink-0" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger><TooltipContent className="bg-white dark:bg-gray-900 text-foreground border" style={{ zIndex: 10001 }}>Famille de police</TooltipContent></Tooltip>
+            <DropdownMenuContent align="start" style={{ zIndex: 10000 }} className="bg-white dark:bg-gray-900 min-w-[180px]">
+              {FONT_FAMILIES.map(font => (
+                <DropdownMenuItem
+                  key={font.value}
+                  onClick={() => font.value
+                    ? editor.chain().focus().setFontFamily(font.value).run()
+                    : editor.chain().focus().unsetFontFamily().run()
+                  }
+                  className={editor.getAttributes('textStyle').fontFamily === font.value || (!editor.getAttributes('textStyle').fontFamily && font.value === '') ? 'bg-accent' : ''}
+                >
+                  <span style={{ fontFamily: font.value || 'inherit' }} className="text-sm">{font.label}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <div className="w-px h-5 bg-border mx-0.5 shrink-0" />
           {/* Basic formatting */}
           <Tooltip><TooltipTrigger asChild>
