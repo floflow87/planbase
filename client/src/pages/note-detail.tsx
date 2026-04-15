@@ -1385,7 +1385,7 @@ export default function NoteDetail() {
           /* DESKTOP: cover image banner + overlaid action buttons */
           <div className="relative w-full">
           <div
-            className={`relative w-full group overflow-hidden ${coverImageUrl ? 'min-h-[220px]' : ''}`}
+            className={`relative w-full group overflow-hidden ${coverImageUrl ? 'min-h-[280px]' : ''}`}
             onMouseEnter={() => setCoverImageHovered(true)}
             onMouseLeave={() => setCoverImageHovered(false)}
           >
