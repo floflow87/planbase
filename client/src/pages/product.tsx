@@ -321,7 +321,16 @@ export default function Product() {
         return (
           <td className="px-4 py-2" key={columnId}>
             <div className="flex flex-col">
-              <span className="text-xs font-medium">{backlog.name}</span>
+              <div className="flex items-center gap-1.5 group/modetip">
+                <span className="text-xs font-bold text-white">{backlog.name}</span>
+                <Badge
+                  variant="secondary"
+                  className="flex items-center gap-1 w-fit text-[10px] shrink-0 invisible group-hover/modetip:visible"
+                >
+                  {getModeIcon(backlog.mode)}
+                  {getModeLabel(backlog.mode)}
+                </Badge>
+              </div>
               {backlog.description && (
                 <span className="text-xs text-muted-foreground line-clamp-1">{backlog.description}</span>
               )}
@@ -330,12 +339,7 @@ export default function Product() {
         );
       case "mode":
         return (
-          <td className="px-4 py-2 hidden sm:table-cell" key={columnId}>
-            <Badge variant="secondary" className="flex items-center gap-1 w-fit text-xs">
-              {getModeIcon(backlog.mode)}
-              {getModeLabel(backlog.mode)}
-            </Badge>
-          </td>
+          <td className="px-4 py-2 hidden sm:table-cell" key={columnId} />
         );
       case "activeSprint":
         return (
@@ -586,7 +590,16 @@ export default function Product() {
                 data-testid={`card-backlog-${backlog.id}`}
               >
                 <CardHeader className="flex flex-row items-center gap-2 p-3 pb-1">
-                  <CardTitle className="text-[14px] font-light text-primary truncate flex-1 min-w-0">{backlog.name}</CardTitle>
+                  <div className="flex-1 min-w-0 flex items-center gap-1.5 group/modetip">
+                    <CardTitle className="text-[14px] font-bold text-white truncate min-w-0">{backlog.name}</CardTitle>
+                    <Badge
+                      variant="secondary"
+                      className="flex items-center gap-1 text-[10px] shrink-0 invisible group-hover/modetip:visible"
+                    >
+                      {getModeIcon(backlog.mode)}
+                      {getModeLabel(backlog.mode)}
+                    </Badge>
+                  </div>
                   {backlog.project && (
                     <Badge variant="outline" className="flex items-center gap-1 text-[10px] shrink-0" onClick={(e) => e.stopPropagation()}>
                       <Folder className="h-2.5 w-2.5" />
@@ -622,10 +635,6 @@ export default function Product() {
                 </CardHeader>
                 <CardContent className="p-3 pt-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <Badge variant="secondary" className="flex items-center gap-1 text-[10px]">
-                      {getModeIcon(backlog.mode)}
-                      {getModeLabel(backlog.mode)}
-                    </Badge>
                     {backlog.activeSprint && (
                       <Badge className="bg-violet-500 text-white flex items-center gap-1 text-[10px]" data-testid={`badge-active-sprint-${backlog.id}`}>
                         <Play className="h-3 w-3" />
