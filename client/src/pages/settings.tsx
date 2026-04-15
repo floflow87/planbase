@@ -1107,6 +1107,10 @@ export default function Settings() {
               <UserCircle className="w-3.5 h-3.5" />
               Informations
             </TabsTrigger>
+            <TabsTrigger value="preferences" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-preferences">
+              <Palette className="w-3.5 h-3.5" />
+              Préférences
+            </TabsTrigger>
             <TabsTrigger value="config" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-config">
               <SettingsIcon className="w-3.5 h-3.5" />
               Configuration
@@ -1130,10 +1134,6 @@ export default function Settings() {
             <TabsTrigger value="subscription" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-subscription">
               <CreditCard className="w-3.5 h-3.5" />
               Abonnement
-            </TabsTrigger>
-            <TabsTrigger value="preferences" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-preferences">
-              <Palette className="w-3.5 h-3.5" />
-              Préférences
             </TabsTrigger>
           </TabsList>
 
@@ -1806,11 +1806,11 @@ function PreferencesTabContent() {
   const { taskReminderEnabled, setTaskReminderEnabled } = usePreferences();
 
   return (
-    <div className="space-y-6" data-testid="section-preferences">
+    <div className="space-y-4" data-testid="section-preferences">
       {/* Header */}
       <div>
-        <h2 className="text-base font-semibold">Préférences</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">Personnalisez votre expérience Planbase</p>
+        <h2 className="text-sm font-semibold">Préférences</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">Personnalisez votre expérience Planbase</p>
       </div>
 
       {/* Theme */}
@@ -1831,22 +1831,22 @@ function PreferencesTabContent() {
           >
             <div className="flex items-center gap-2.5">
               <RadioGroupItem value="light" id="theme-light" data-testid="radio-theme-light" />
-              <Label htmlFor="theme-light" className="flex items-center gap-1.5 cursor-pointer font-normal text-sm">
-                <SunMedium className="w-4 h-4 text-amber-500" />
+              <Label htmlFor="theme-light" className="flex items-center gap-1.5 cursor-pointer font-normal text-xs">
+                <SunMedium className="w-3.5 h-3.5 text-amber-500" />
                 Clair
               </Label>
             </div>
             <div className="flex items-center gap-2.5">
               <RadioGroupItem value="dark" id="theme-dark" data-testid="radio-theme-dark" />
-              <Label htmlFor="theme-dark" className="flex items-center gap-1.5 cursor-pointer font-normal text-sm">
-                <Moon className="w-4 h-4 text-violet-500" />
+              <Label htmlFor="theme-dark" className="flex items-center gap-1.5 cursor-pointer font-normal text-xs">
+                <Moon className="w-3.5 h-3.5 text-violet-500" />
                 Sombre
               </Label>
             </div>
             <div className="flex items-center gap-2.5">
               <RadioGroupItem value="system" id="theme-system" data-testid="radio-theme-system" />
-              <Label htmlFor="theme-system" className="flex items-center gap-1.5 cursor-pointer font-normal text-sm">
-                <Monitor className="w-4 h-4 text-cyan-500" />
+              <Label htmlFor="theme-system" className="flex items-center gap-1.5 cursor-pointer font-normal text-xs">
+                <Monitor className="w-3.5 h-3.5 text-cyan-500" />
                 Système
               </Label>
             </div>
@@ -1910,7 +1910,7 @@ function PreferencesTabContent() {
               onCheckedChange={setTaskReminderEnabled}
               data-testid="switch-task-reminder"
             />
-            <Label htmlFor="task-reminder-toggle" className="text-sm cursor-pointer font-normal">
+            <Label htmlFor="task-reminder-toggle" className="text-xs cursor-pointer font-normal">
               {taskReminderEnabled ? "Activé" : "Désactivé"}
             </Label>
           </div>

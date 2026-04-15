@@ -12,7 +12,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { OnboardingProvider } from "@/contexts/OnboardingContext";
-import { LanguageProvider } from "@/contexts/LanguageContext";
+import { LanguageProvider, useLanguage } from "@/contexts/LanguageContext";
 import { PreferencesProvider } from "@/contexts/PreferencesContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Login from "@/pages/login";
@@ -226,7 +226,8 @@ function Router() {
 
 function UserMenu() {
   const { user, userProfile, signOut } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { resolvedTheme, toggleTheme } = useTheme();
+  const { t } = useLanguage();
   const [, setLocation] = useLocation();
 
   const handleLogout = async () => {
@@ -260,26 +261,26 @@ function UserMenu() {
       <DropdownMenuContent align="end" className="w-48 text-xs">
         <DropdownMenuItem onClick={handleProfile} className="cursor-pointer text-xs" data-testid="dropdown-profile">
           <User className="w-3.5 h-3.5 mr-2" />
-          Mon profil
+          {t.header.myProfile}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer text-xs" data-testid="dropdown-theme-toggle">
-          {theme === "dark" ? (
+          {resolvedTheme === "dark" ? (
             <>
               <Sun className="w-3.5 h-3.5 mr-2" />
-              Mode clair
+              {t.header.lightMode}
             </>
           ) : (
             <>
               <Moon className="w-3.5 h-3.5 mr-2" />
-              Mode sombre
+              {t.header.darkMode}
             </>
           )}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer text-xs" data-testid="dropdown-logout">
           <LogOut className="w-3.5 h-3.5 mr-2" />
-          Déconnexion
+          {t.header.logout}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

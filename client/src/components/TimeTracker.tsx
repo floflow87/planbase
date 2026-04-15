@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type Project = {
   id: string;
@@ -52,6 +53,7 @@ type TimeEntry = {
 export function TimeTracker() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -129,20 +131,19 @@ export function TimeTracker() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/time-entries/active"] });
       queryClient.invalidateQueries({ queryKey: ["/api/time-entries"] });
-      // Invalidate project-specific time entries if projectId exists
       if (data.projectId) {
         queryClient.invalidateQueries({ queryKey: [`/api/projects/${data.projectId}/time-entries`] });
       }
       toast({
-        title: "Chronomètre démarré",
-        description: "Le suivi du temps a commencé",
+        title: t.timeTracker.timerStarted,
+        description: t.timeTracker.timerStartedDesc,
         variant: "success",
       });
       setOpen(false);
     },
     onError: (error: Error) => {
       toast({
-        title: "Erreur",
+        title: t.timeTracker.error,
         description: error.message,
         variant: "destructive",
       });
@@ -175,8 +176,8 @@ export function TimeTracker() {
         setShowProjectSelector(true);
       } else {
         toast({
-          title: "Chronomètre arrêté",
-          description: "Le suivi du temps a été enregistré",
+          title: t.timeTracker.timerStopped,
+          description: t.timeTracker.timerStoppedDesc,
           variant: "success",
         });
         setElapsedTime(0);
@@ -185,7 +186,7 @@ export function TimeTracker() {
     },
     onError: (error: Error) => {
       toast({
-        title: "Erreur",
+        title: t.timeTracker.error,
         description: error.message,
         variant: "destructive",
       });
@@ -212,8 +213,8 @@ export function TimeTracker() {
         queryClient.invalidateQueries({ queryKey: [`/api/projects/${data.projectId}/time-entries`] });
       }
       toast({
-        title: "Chronomètre arrêté",
-        description: "Le suivi du temps a été enregistré",
+        title: t.timeTracker.timerStopped,
+        description: t.timeTracker.timerStoppedDesc,
         variant: "success",
       });
       setShowProjectSelector(false);
@@ -226,7 +227,7 @@ export function TimeTracker() {
     onError: (error: Error) => {
       console.error('❌ assignProjectMutation.onError', error);
       toast({
-        title: "Erreur",
+        title: t.timeTracker.error,
         description: error.message,
         variant: "destructive",
       });
@@ -241,14 +242,14 @@ export function TimeTracker() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/time-entries/active"] });
       toast({
-        title: "Chronomètre en pause",
-        description: "Le chronomètre a été mis en pause",
+        title: t.timeTracker.timerPaused,
+        description: t.timeTracker.timerPausedDesc,
         variant: "success",
       });
     },
     onError: (error: Error) => {
       toast({
-        title: "Erreur",
+        title: t.timeTracker.error,
         description: error.message,
         variant: "destructive",
       });
@@ -263,14 +264,14 @@ export function TimeTracker() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/time-entries/active"] });
       toast({
-        title: "Chronomètre relancé",
-        description: "Le chronomètre a été relancé",
+        title: t.timeTracker.timerStarted,
+        description: t.timeTracker.timerStartedDesc,
         variant: "success",
       });
     },
     onError: (error: Error) => {
       toast({
-        title: "Erreur",
+        title: t.timeTracker.error,
         description: error.message,
         variant: "destructive",
       });
@@ -372,24 +373,24 @@ export function TimeTracker() {
             <div className="space-y-4">
               {/* Project Selection After Stop */}
               <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-4">
-                  Le chronomètre est arrêté. Voulez-vous assigner cette session à un projet ?
+                <p className="text-xs text-muted-foreground mb-4">
+                  {t.timeTracker.assignProject}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">
-                  Sélectionner un projet
+                <label className="text-xs text-muted-foreground">
+                  {t.timeTracker.selectProject}
                 </label>
                 <Command className="border rounded-md" shouldFilter={false}>
                   <CommandInput 
-                    placeholder="Rechercher un projet..." 
+                    placeholder={t.timeTracker.searchProject}
                     value={projectSearchQuery}
                     onValueChange={setProjectSearchQuery}
                     data-testid="input-project-search-after-stop"
                   />
                   <CommandList className="max-h-48">
-                    <CommandEmpty>Aucun projet trouvé</CommandEmpty>
+                    <CommandEmpty>{t.timeTracker.noProjectFound}</CommandEmpty>
                     <CommandGroup>
                       <CommandItem
                         value="none"
@@ -403,7 +404,7 @@ export function TimeTracker() {
                         data-testid="option-no-project"
                       >
                         <Check className={cn("mr-2 h-4 w-4", selectedProjectId === "none" ? "opacity-100" : "opacity-0")} />
-                        Aucun projet
+                        {t.timeTracker.noProject}
                       </CommandItem>
                       {projects
                         .filter(p => p.name.toLowerCase().includes(projectSearchQuery.toLowerCase()))
@@ -429,7 +430,7 @@ export function TimeTracker() {
                 </Command>
                 {selectedProjectId && selectedProjectId !== "none" && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Projet sélectionné : {projects.find(p => p.id === selectedProjectId)?.name}
+                    {t.timeTracker.selectedProject} {projects.find(p => p.id === selectedProjectId)?.name}
                   </p>
                 )}
               </div>
@@ -437,9 +438,9 @@ export function TimeTracker() {
               {/* Scope Item Selection (CDC Lines) - Optional */}
               {selectedProjectId && selectedProjectId !== "none" && scopeItems.length > 0 && (
                 <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
                     <FileText className="w-3.5 h-3.5" />
-                    Rattacher à une ligne CDC (optionnel)
+                    {t.timeTracker.attachCdc}
                   </Label>
                   <Select
                     value={selectedScopeItemId}
@@ -449,10 +450,10 @@ export function TimeTracker() {
                     }}
                   >
                     <SelectTrigger data-testid="select-scope-item">
-                      <SelectValue placeholder="Aucune ligne sélectionnée" />
+                      <SelectValue placeholder={t.timeTracker.noLineSelected} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Aucune ligne</SelectItem>
+                      <SelectItem value="none">{t.timeTracker.noLine}</SelectItem>
                       {scopeItems.map((item) => (
                         <SelectItem key={item.id} value={item.id}>
                           <span className="flex items-center gap-2">
@@ -475,7 +476,7 @@ export function TimeTracker() {
                   </Select>
                   {selectedScopeItemId && selectedScopeItemId !== "none" && (
                     <p className="text-xs text-muted-foreground">
-                      Ce temps sera comptabilisé pour le suivi KPI de cette ligne
+                      {t.timeTracker.cdcTracking}
                     </p>
                   )}
                 </div>
@@ -487,7 +488,7 @@ export function TimeTracker() {
                 className="w-full gap-2"
                 data-testid="button-assign-project"
               >
-                {assignProjectMutation.isPending ? "Enregistrement..." : "Terminer"}
+                {assignProjectMutation.isPending ? t.timeTracker.saving : t.timeTracker.finish}
               </Button>
             </div>
           ) : isRunning ? (
@@ -503,7 +504,7 @@ export function TimeTracker() {
                       {formatTime(elapsedTime)}
                     </p>
                     <p className="text-xs text-muted-foreground uppercase tracking-wide mt-1">
-                      EN COURS
+                      {t.timeTracker.running}
                     </p>
                   </div>
                 </div>
@@ -512,8 +513,8 @@ export function TimeTracker() {
               {/* Active Project Info */}
               {activeProject && (
                 <div className="text-center">
-                  <p className="text-sm text-muted-foreground">Projet</p>
-                  <p className="font-medium text-foreground" data-testid="text-active-project">
+                  <p className="text-xs text-muted-foreground">{t.timeTracker.project}</p>
+                  <p className="text-sm font-medium text-foreground" data-testid="text-active-project">
                     {activeProject.name}
                   </p>
                 </div>
@@ -529,7 +530,7 @@ export function TimeTracker() {
                   data-testid="button-pause-timer"
                 >
                   <Pause className="w-4 h-4" />
-                  Pause
+                  {t.timeTracker.pause}
                 </Button>
                 <Button
                   onClick={handleStop}
@@ -538,7 +539,7 @@ export function TimeTracker() {
                   data-testid="button-stop-timer"
                 >
                   <Square className="w-4 h-4" />
-                  Arrêter
+                  {t.timeTracker.stop}
                 </Button>
               </div>
             </div>
@@ -555,7 +556,7 @@ export function TimeTracker() {
                       {formatTime(elapsedTime)}
                     </p>
                     <p className="text-xs text-muted-foreground uppercase tracking-wide mt-1">
-                      EN PAUSE
+                      {t.timeTracker.paused}
                     </p>
                   </div>
                 </div>
@@ -564,8 +565,8 @@ export function TimeTracker() {
               {/* Active Project Info */}
               {activeProject && (
                 <div className="text-center">
-                  <p className="text-sm text-muted-foreground">Projet</p>
-                  <p className="font-medium text-foreground" data-testid="text-active-project">
+                  <p className="text-xs text-muted-foreground">{t.timeTracker.project}</p>
+                  <p className="text-sm font-medium text-foreground" data-testid="text-active-project">
                     {activeProject.name}
                   </p>
                 </div>
@@ -581,7 +582,7 @@ export function TimeTracker() {
                   data-testid="button-resume-timer"
                 >
                   <Play className="w-4 h-4" />
-                  Relancer
+                  {t.timeTracker.resume}
                 </Button>
                 <Button
                   onClick={handleStop}
@@ -591,7 +592,7 @@ export function TimeTracker() {
                   data-testid="button-stop-timer"
                 >
                   <Square className="w-4 h-4" />
-                  Arrêter
+                  {t.timeTracker.stop}
                 </Button>
               </div>
             </div>
@@ -608,7 +609,7 @@ export function TimeTracker() {
                       00:00
                     </p>
                     <p className="text-xs text-muted-foreground uppercase tracking-wide mt-1">
-                      ARRÊTÉ
+                      {t.timeTracker.stopped}
                     </p>
                   </div>
                 </div>
@@ -616,18 +617,18 @@ export function TimeTracker() {
 
               {/* Project Selection with Autocomplete */}
               <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">
-                  Sélectionner un projet
+                <label className="text-xs text-muted-foreground">
+                  {t.timeTracker.selectProject}
                 </label>
                 <Command className="border rounded-md" shouldFilter={false}>
                   <CommandInput 
-                    placeholder="Rechercher un projet..." 
+                    placeholder={t.timeTracker.searchProject}
                     value={projectSearchQuery}
                     onValueChange={setProjectSearchQuery}
                     data-testid="input-project-search"
                   />
                   <CommandList className="max-h-48">
-                    <CommandEmpty>Aucun projet trouvé</CommandEmpty>
+                    <CommandEmpty>{t.timeTracker.noProjectFound}</CommandEmpty>
                     <CommandGroup>
                       <CommandItem
                         value="none"
@@ -638,7 +639,7 @@ export function TimeTracker() {
                         data-testid="option-no-project-start"
                       >
                         <Check className={cn("mr-2 h-4 w-4", selectedProjectId === "none" ? "opacity-100" : "opacity-0")} />
-                        Aucun projet
+                        {t.timeTracker.noProject}
                       </CommandItem>
                       {projects
                         .filter(p => p.name.toLowerCase().includes(projectSearchQuery.toLowerCase()))
@@ -661,7 +662,7 @@ export function TimeTracker() {
                 </Command>
                 {selectedProjectId && selectedProjectId !== "none" && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Projet sélectionné : {projects.find(p => p.id === selectedProjectId)?.name}
+                    {t.timeTracker.selectedProject} {projects.find(p => p.id === selectedProjectId)?.name}
                   </p>
                 )}
               </div>
@@ -674,7 +675,7 @@ export function TimeTracker() {
                 data-testid="button-start-timer"
               >
                 <Play className="w-4 h-4" />
-                Démarrer
+                {t.timeTracker.start}
               </Button>
             </div>
           )}
