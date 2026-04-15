@@ -277,6 +277,7 @@ export default function NoteDetail() {
   const coverImageInputRef = useRef<HTMLInputElement>(null);
   const [coverImagePositionY, setCoverImagePositionY] = useState(50);
   const [repositionMode, setRepositionMode] = useState(false);
+  const [coverImageBlobUrl, setCoverImageBlobUrl] = useState<string | null>(null);
   const [lierPopoverOpen, setLierPopoverOpen] = useState(false);
   const [metaRowHovered, setMetaRowHovered] = useState(false);
   // contentReady: true only after resolved content (pending or server) has been set in state.
@@ -455,6 +456,36 @@ export default function NoteDetail() {
     // Signal that the correct content is now in state — NoteEditor can mount
     setContentReady(true);
   }, [note, getPendingSnapshot, id]);
+
+  // Fetch cover image as blob URL (avoids auth header issues with <img> tags)
+  useEffect(() => {
+    if (!coverImageUrl || !id) {
+      setCoverImageBlobUrl(null);
+      return;
+    }
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch(`/api/notes/${id}/cover-image-file`, {
+          credentials: "include",
+          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+        });
+        if (!res.ok || cancelled) return;
+        const blob = await res.blob();
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setCoverImageBlobUrl(objectUrl);
+      } catch {
+        if (!cancelled) setCoverImageBlobUrl(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [coverImageUrl, id]);
 
   // Update note mutation (used for status/visibility changes with toast feedback)
   const updateMutation = useMutation({
@@ -1312,13 +1343,17 @@ export default function NoteDetail() {
             {/* Cover image background */}
             {coverImageUrl && (
               <>
-                <img
-                  src={`/api/notes/${id}/cover-image-file`}
-                  alt=""
-                  className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
-                  style={{ objectPosition: `center ${coverImagePositionY}%` }}
-                  draggable={false}
-                />
+                {coverImageBlobUrl ? (
+                  <img
+                    src={coverImageBlobUrl}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
+                    style={{ objectPosition: `center ${coverImagePositionY}%` }}
+                    draggable={false}
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-muted/30 animate-pulse" />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-transparent pointer-events-none" />
               </>
             )}
