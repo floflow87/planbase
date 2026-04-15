@@ -2716,7 +2716,7 @@ export default function BacklogDetail() {
             );
           };
           return (
-            <div className="w-[360px] xl:w-[420px] border-l bg-background flex flex-col flex-shrink-0 overflow-hidden">
+            <div className="w-[360px] xl:w-[420px] border-l bg-background flex flex-col flex-shrink-0 overflow-hidden panel-slide-in-right">
               <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0">
                 <h3 className="text-sm font-semibold flex items-center gap-2">
                   <BarChart3 className="w-4 h-4 text-violet-600" />

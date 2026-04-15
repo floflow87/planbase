@@ -675,6 +675,14 @@
   animation: sheet-slide-out-to-bottom 0.22s cubic-bezier(0.4, 0, 1, 1) both;
 }
 
+/* Mount-triggered slide (no data-state needed — fires on DOM insertion) */
+.panel-slide-in-right {
+  animation: sheet-slide-in-from-right 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.panel-slide-in-left {
+  animation: sheet-slide-in-from-left 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
 /* PWA Safe Area CSS Variables - Single Source of Truth */
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
