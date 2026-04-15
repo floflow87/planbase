@@ -4376,9 +4376,14 @@ app.get("/config/feature-flags", async (_req, res) => {
       const match = storedUrl.match(/\/object\/(?:public|sign)\/planbase-files\/(.+?)(\?|$)/);
       if (!match) return res.status(404).end();
       const storagePath = decodeURIComponent(match[1]);
-      const { data, error } = await supabaseAdmin.storage.from("planbase-files").createSignedUrl(storagePath, 3600);
-      if (error || !data?.signedUrl) return res.status(500).end();
-      res.redirect(302, data.signedUrl);
+      // Download directly via Supabase admin client and pipe back (avoids CORS redirect issues)
+      const { data: fileData, error } = await supabaseAdmin.storage.from("planbase-files").download(storagePath);
+      if (error || !fileData) return res.status(500).end();
+      const arrayBuffer = await fileData.arrayBuffer();
+      const contentType = fileData.type || "image/jpeg";
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      res.send(Buffer.from(arrayBuffer));
     } catch (error: any) {
       res.status(500).end();
     }
