@@ -49,6 +49,49 @@ interface CoverGalleryPanelProps {
   uploading?: boolean;
 }
 
+function LazyImage({ src, onClick }: { src: string; onClick: () => void }) {
+  const [loaded, setLoaded] = useState(false);
+  const [inView, setInView] = useState(false);
+  const ref = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setInView(true); obs.disconnect(); } },
+      { threshold: 0.1 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <button
+      ref={ref}
+      className="rounded-md h-14 w-full overflow-hidden relative transition-transform hover:scale-[1.03] active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-primary/50 bg-muted"
+      onClick={onClick}
+    >
+      {!loaded && (
+        <div className="absolute inset-0 bg-muted animate-pulse" />
+      )}
+      {inView && (
+        <img
+          src={src}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className={cn(
+            "w-full h-full object-cover transition-opacity duration-200",
+            loaded ? "opacity-100" : "opacity-0"
+          )}
+          onLoad={() => setLoaded(true)}
+          draggable={false}
+        />
+      )}
+    </button>
+  );
+}
+
 export function CoverGalleryPanel({
   onClose,
   onSelectColor,
@@ -99,7 +142,7 @@ export function CoverGalleryPanel({
     <div
       ref={panelRef}
       className="bg-popover border border-border rounded-lg shadow-xl overflow-hidden flex flex-col"
-      style={{ width: 480, maxWidth: "92vw" }}
+      style={{ width: 460, maxWidth: "92vw" }}
       onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Tab bar */}
@@ -109,7 +152,7 @@ export function CoverGalleryPanel({
             key={t}
             onClick={() => setTab(t)}
             className={cn(
-              "px-3 py-2 text-sm font-medium capitalize border-b-2 transition-colors",
+              "px-3 py-1.5 text-xs font-medium capitalize border-b-2 transition-colors",
               tab === t
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -123,33 +166,28 @@ export function CoverGalleryPanel({
           <Button
             size="sm"
             variant="ghost"
-            className="text-xs text-muted-foreground"
+            className="text-xs text-muted-foreground h-7"
             onClick={() => { onRemove(); onClose(); }}
           >
             Retirer
           </Button>
         )}
-        <Button
-          size="icon"
-          variant="ghost"
-          className="shrink-0"
-          onClick={onClose}
-        >
-          <X className="w-4 h-4" />
+        <Button size="icon" variant="ghost" className="shrink-0" onClick={onClose}>
+          <X className="w-3.5 h-3.5" />
         </Button>
       </div>
 
       {/* Galerie tab */}
       {tab === "galerie" && (
-        <div className="overflow-y-auto p-4 space-y-5" style={{ maxHeight: 380 }}>
+        <div className="overflow-y-auto p-3 space-y-4" style={{ maxHeight: 360 }}>
           {/* Colors */}
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Couleurs</p>
-            <div className="grid grid-cols-4 gap-2">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Couleurs</p>
+            <div className="grid grid-cols-6 gap-1.5">
               {COLORS.map((color) => (
                 <button
                   key={color}
-                  className="rounded-md h-14 w-full transition-transform hover:scale-[1.03] active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="rounded h-8 w-full transition-transform hover:scale-[1.05] active:scale-[0.95] focus:outline-none focus:ring-2 focus:ring-primary/50"
                   style={{ backgroundColor: color }}
                   onClick={() => { onSelectColor(`color:${color}`); onClose(); }}
                   title={color}
@@ -160,12 +198,12 @@ export function CoverGalleryPanel({
 
           {/* Gradients */}
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Dégradés</p>
-            <div className="grid grid-cols-3 gap-2">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Dégradés</p>
+            <div className="grid grid-cols-3 gap-1.5">
               {GRADIENTS.map((grad, i) => (
                 <button
                   key={i}
-                  className="rounded-md h-16 w-full transition-transform hover:scale-[1.03] active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="rounded h-10 w-full transition-transform hover:scale-[1.03] active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-primary/50"
                   style={{ background: grad }}
                   onClick={() => { onSelectGradient(`gradient:${grad}`); onClose(); }}
                 />
@@ -175,16 +213,14 @@ export function CoverGalleryPanel({
 
           {/* Tech images */}
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Tech</p>
-            <div className="grid grid-cols-3 gap-2">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Tech</p>
+            <div className="grid grid-cols-4 gap-1.5">
               {TECH_IMAGES.map((src) => (
-                <button
+                <LazyImage
                   key={src}
-                  className="rounded-md h-20 w-full overflow-hidden transition-transform hover:scale-[1.03] active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  src={src}
                   onClick={() => { onSelectImage(src); onClose(); }}
-                >
-                  <img src={src} alt="" className="w-full h-full object-cover" draggable={false} />
-                </button>
+                />
               ))}
             </div>
           </div>
@@ -193,7 +229,7 @@ export function CoverGalleryPanel({
 
       {/* Charger tab */}
       {tab === "charger" && (
-        <div className="p-6 flex flex-col items-center justify-center gap-4 min-h-[200px]">
+        <div className="p-5 flex flex-col items-center justify-center gap-3 min-h-[180px]">
           <input
             ref={fileInputRef}
             type="file"
@@ -202,19 +238,19 @@ export function CoverGalleryPanel({
             onChange={handleFileChange}
           />
           {uploading ? (
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           ) : (
             <>
-              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                <Upload className="w-5 h-5 text-muted-foreground" />
+              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                <Upload className="w-4 h-4 text-muted-foreground" />
               </div>
-              <p className="text-sm text-muted-foreground text-center">
+              <p className="text-xs text-muted-foreground text-center">
                 Sélectionnez une image depuis votre ordinateur
               </p>
-              <Button onClick={() => fileInputRef.current?.click()}>
+              <Button size="sm" onClick={() => fileInputRef.current?.click()}>
                 Choisir un fichier
               </Button>
-              <p className="text-xs text-muted-foreground">JPG, PNG, GIF, WEBP — max 10 Mo</p>
+              <p className="text-[10px] text-muted-foreground">JPG, PNG, GIF, WEBP — max 10 Mo</p>
             </>
           )}
         </div>
@@ -222,21 +258,21 @@ export function CoverGalleryPanel({
 
       {/* Lien tab */}
       {tab === "lien" && (
-        <div className="p-5 flex flex-col gap-4 min-h-[200px]">
-          <p className="text-sm text-muted-foreground">Collez un lien vers une image</p>
+        <div className="p-4 flex flex-col gap-3 min-h-[180px]">
+          <p className="text-xs text-muted-foreground">Collez un lien vers une image</p>
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input
                 value={linkValue}
                 onChange={(e) => setLinkValue(e.target.value)}
                 placeholder="https://exemple.com/image.jpg"
-                className="pl-9"
+                className="pl-8 text-sm"
                 onKeyDown={(e) => e.key === "Enter" && handleApplyLink()}
                 autoFocus
               />
             </div>
-            <Button onClick={handleApplyLink} disabled={!linkValue.trim()}>
+            <Button size="sm" onClick={handleApplyLink} disabled={!linkValue.trim()}>
               Appliquer
             </Button>
           </div>
