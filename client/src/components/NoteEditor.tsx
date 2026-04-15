@@ -13,6 +13,7 @@ import { TableHeader } from '@tiptap/extension-table-header';
 import Highlight from '@tiptap/extension-highlight';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
+import FontFamily from '@tiptap/extension-font-family';
 import Link from '@tiptap/extension-link';
 import TextAlign from '@tiptap/extension-text-align';
 import ResizableImageExtension from 'tiptap-extension-resize-image';
@@ -97,6 +98,17 @@ declare module '@tiptap/core' {
 }
 
 const FONT_SIZES = [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28];
+
+const FONT_FAMILIES = [
+  { label: 'Par défaut', value: '' },
+  { label: 'Montserrat', value: 'Montserrat, sans-serif' },
+  { label: 'Roboto', value: 'Roboto, sans-serif' },
+  { label: 'Playfair Display', value: "'Playfair Display', serif" },
+  { label: 'Lora', value: 'Lora, serif' },
+  { label: 'Georgia', value: 'Georgia, serif' },
+  { label: 'JetBrains Mono', value: "'JetBrains Mono', monospace" },
+  { label: 'Courier New', value: "'Courier New', monospace" },
+];
 
 const FontSize = Extension.create({
   name: 'fontSize',
@@ -351,6 +363,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       }),
       TextStyle,
       Color,
+      FontFamily,
       Underline,
       Link.configure({
         openOnClick: false,
@@ -1564,6 +1577,40 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {/* Font family dropdown - static toolbar */}
+            {!isMobile && (
+              <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="gap-1 text-xs max-w-[110px]" data-testid="dropdown-font-family">
+                        <span className="truncate text-xs leading-none" style={{ fontFamily: editor.getAttributes('textStyle').fontFamily || 'inherit' }}>
+                          {FONT_FAMILIES.find(f => f.value === editor.getAttributes('textStyle').fontFamily)?.label ?? 'Police'}
+                        </span>
+                        <ChevronDown className="w-3 h-3 shrink-0" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Famille de police</TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="start" className="bg-white dark:bg-gray-900 min-w-[180px]">
+                  {FONT_FAMILIES.map(font => (
+                    <DropdownMenuItem
+                      key={font.value}
+                      onClick={() => font.value
+                        ? editor.chain().focus().setFontFamily(font.value).run()
+                        : editor.chain().focus().unsetFontFamily().run()
+                      }
+                      className={editor.getAttributes('textStyle').fontFamily === font.value || (!editor.getAttributes('textStyle').fontFamily && font.value === '') ? 'bg-accent' : ''}
+                      data-testid={`font-family-${font.label.toLowerCase().replace(/ /g, '-')}`}
+                    >
+                      <span style={{ fontFamily: font.value || 'inherit' }} className="text-sm">{font.label}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             {/* Font size dropdown - static toolbar */}
             <DropdownMenu>
