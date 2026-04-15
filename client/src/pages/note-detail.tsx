@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation, Link } from "wouter";
-import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink, MessageSquare, GitPullRequest, CheckCircle2, XCircle, CornerDownRight, Pencil, Reply, UserPlus, Bot, Sparkles, Wand2, Lightbulb, Loader2, Crown, ChevronsLeft, ChevronsRight, ImagePlus, Trash } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink, MessageSquare, GitPullRequest, CheckCircle2, XCircle, CornerDownRight, Pencil, Reply, UserPlus, Bot, Sparkles, Wand2, Lightbulb, Loader2, Crown, ChevronsLeft, ChevronsRight, ImagePlus, Trash, Link2 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import {
 import NoteEditor, { type NoteEditorRef, type NoteSelectionInfo } from "@/components/NoteEditor";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, optimisticUpdate, optimisticUpdateSingle, rollbackOptimistic, queryClient as qc } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { Loader } from "@/components/Loader";
 import { useAuth } from "@/contexts/AuthContext";
@@ -274,6 +275,8 @@ export default function NoteDetail() {
   const [coverImageHovered, setCoverImageHovered] = useState(false);
   const [coverImageUploading, setCoverImageUploading] = useState(false);
   const coverImageInputRef = useRef<HTMLInputElement>(null);
+  const [lierPopoverOpen, setLierPopoverOpen] = useState(false);
+  const [metaRowHovered, setMetaRowHovered] = useState(false);
   // contentReady: true only after resolved content (pending or server) has been set in state.
   // NoteEditor is not rendered until this is true, ensuring useEditor() initializes with the
   // correct content directly rather than relying on a post-mount setContent() sync.
@@ -1020,12 +1023,14 @@ export default function NoteDetail() {
     if (!id || !file) return;
     setCoverImageUploading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const formData = new FormData();
       formData.append("file", file);
       const res = await fetch(`/api/notes/${id}/cover-image`, {
         method: "POST",
         body: formData,
         credentials: "include",
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
       });
       if (!res.ok) throw new Error("Upload failed");
       const data = await res.json();
@@ -1317,223 +1322,9 @@ export default function NoteDetail() {
 
               <div className="flex-1" />
 
-              {/* Selectors block — was previously below the title */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                    {/* Project selector */}
-                    <div className="flex items-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={`h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900 ${currentProject ? 'rounded-none border-r-0' : ''}`}
-                        onClick={() => {
-                          setEntitySelectorTab("project");
-                          setEntitySelectorOpen(true);
-                        }}
-                        data-testid="button-project-selector"
-                      >
-                        <FolderKanban className="w-3 h-3 text-violet-500" />
-                        <span className="truncate max-w-[100px]">
-                          {currentProject ? currentProject.name : "Projet"}
-                        </span>
-                      </Button>
-                      {currentProject && linkedProject && (
-                        <>
-                          <Link href={`/projects/${currentProject.id}`}>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-6 w-6 p-0 rounded-none border-r-0 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-200 dark:hover:bg-violet-950"
-                              data-testid="button-go-to-project"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                            </Button>
-                          </Link>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              unlinkProjectMutation.mutate();
-                            }}
-                            data-testid="button-unlink-project"
-                          >
-                            <X className="w-3 h-3" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                    {/* Client selector */}
-                    <div className="flex items-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={`h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900 ${currentClient ? 'rounded-r-none border-r-0' : ''}`}
-                        onClick={() => {
-                          setEntitySelectorTab("client");
-                          setEntitySelectorOpen(true);
-                        }}
-                        data-testid="button-client-selector"
-                      >
-                        <Users className="w-3 h-3 text-cyan-500" />
-                        <span className="truncate max-w-[100px]">
-                          {currentClient ? currentClient.name : "Client"}
-                        </span>
-                      </Button>
-                      {currentClient && linkedClient && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            unlinkClientMutation.mutate();
-                          }}
-                          data-testid="button-unlink-client"
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      )}
-                    </div>
-                    
-                    {/* Tag/Category selector */}
-                    <Popover open={categoryPopoverOpen} onOpenChange={setCategoryPopoverOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900"
-                          data-testid="button-category-selector"
-                        >
-                          <Tag className="w-3 h-3 text-violet-500" />
-                          <span className="truncate max-w-[100px]">
-                            {note?.categoryId 
-                              ? noteCategories.find(c => c.id === note.categoryId)?.name || "Tag"
-                              : "Tag"}
-                          </span>
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-56 p-2 bg-white dark:bg-gray-900" align="start">
-                        <div className="flex flex-col gap-2">
-                          <div className="text-xs font-medium text-muted-foreground px-1">Choisir un tag</div>
-                          <div className="flex flex-col gap-1 max-h-[200px] overflow-y-auto">
-                            {/* No tag option */}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className={`justify-start h-6 px-2 text-[11px] ${!note?.categoryId ? 'bg-violet-100 dark:bg-violet-900/30' : ''}`}
-                              onClick={() => {
-                                updateNoteCategoryMutation.mutate(null);
-                                setCategoryPopoverOpen(false);
-                              }}
-                              data-testid="button-category-none"
-                            >
-                              <span className="text-muted-foreground">Aucun</span>
-                              {!note?.categoryId && <Check className="w-3 h-3 ml-auto" />}
-                            </Button>
-                            {noteCategories.map((category) => (
-                              <Button
-                                key={category.id}
-                                variant="ghost"
-                                size="sm"
-                                className={`justify-start h-6 px-2 text-[11px] ${note?.categoryId === category.id ? 'bg-violet-100 dark:bg-violet-900/30' : ''}`}
-                                onClick={() => {
-                                  updateNoteCategoryMutation.mutate(category.id);
-                                  setCategoryPopoverOpen(false);
-                                }}
-                                data-testid={`button-category-${category.id}`}
-                              >
-                                {category.name}
-                                {note?.categoryId === category.id && <Check className="w-3 h-3 ml-auto" />}
-                              </Button>
-                            ))}
-                          </div>
-                          <div className="border-t pt-2 mt-1">
-                            <div className="flex gap-1">
-                              <Input
-                                value={newCategoryName}
-                                onChange={(e) => setNewCategoryName(e.target.value)}
-                                placeholder="Nouveau tag..."
-                                className="h-6 text-[11px] bg-white dark:bg-gray-800"
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && newCategoryName.trim()) {
-                                    createCategoryMutation.mutate(newCategoryName.trim());
-                                  }
-                                }}
-                                data-testid="input-new-category"
-                              />
-                              <Button
-                                size="sm"
-                                className="h-6 px-2"
-                                disabled={!newCategoryName.trim() || createCategoryMutation.isPending}
-                                onClick={() => {
-                                  if (newCategoryName.trim()) {
-                                    createCategoryMutation.mutate(newCategoryName.trim());
-                                  }
-                                }}
-                                data-testid="button-create-category"
-                              >
-                                <Plus className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-
-                    {/* Date picker */}
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900"
-                          data-testid="button-date-selector"
-                        >
-                          <CalendarIcon className="w-3 h-3 text-amber-500" />
-                          <span className="truncate">
-                            {note?.noteDate 
-                              ? new Date(note.noteDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-                              : "Date"}
-                          </span>
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={note?.noteDate ? new Date(note.noteDate) : undefined}
-                          onSelect={(date) => {
-                            if (date) {
-                              updateNoteDateMutation.mutate(format(date, 'yyyy-MM-dd'));
-                            }
-                          }}
-                          initialFocus
-                          locale={fr}
-                          classNames={{
-                            day_selected: "bg-violet-600 text-white hover:bg-violet-700 focus:bg-violet-700",
-                            day_today: "bg-accent text-accent-foreground",
-                          }}
-                        />
-                        {note?.noteDate && (
-                          <div className="p-2 border-t">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="w-full text-xs text-muted-foreground"
-                              onClick={() => updateNoteDateMutation.mutate(null)}
-                              data-testid="button-clear-date"
-                            >
-                              Effacer la date
-                            </Button>
-                          </div>
-                        )}
-                      </PopoverContent>
-                    </Popover>
-
-                    {syncState.error ? (
-                      <span className="text-xs text-red-500">Erreur de sync</span>
-                    ) : null}
-              </div>
+              {syncState.error ? (
+                <span className="text-xs text-red-500">Erreur de sync</span>
+              ) : null}
 
               {/* Share Dialog */}
               <Button
@@ -2251,26 +2042,204 @@ export default function NoteDetail() {
                   )}
                 </div>
               ) : (
-                /* Pas d'image — bouton flottant qui apparaît au hover */
-                <div className="h-4 relative">
-                  <div
-                    className="absolute left-12 top-1 transition-opacity duration-150"
-                    style={{ opacity: coverImageHovered ? 1 : 0, pointerEvents: coverImageHovered ? 'auto' : 'none' }}
+                /* Pas d'image — bouton visible au hover */
+                <div className="h-8 flex items-center px-6">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs text-muted-foreground gap-1.5"
+                    style={{ visibility: coverImageHovered ? 'visible' : 'hidden' }}
+                    onClick={() => coverImageInputRef.current?.click()}
+                    disabled={coverImageUploading}
+                    data-testid="button-add-cover"
                   >
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 text-xs text-muted-foreground gap-1.5 hover:text-foreground"
-                      onClick={() => coverImageInputRef.current?.click()}
-                      disabled={coverImageUploading}
-                      data-testid="button-add-cover"
-                    >
-                      <ImagePlus className="w-3.5 h-3.5" />
-                      Ajouter une couverture
-                    </Button>
-                  </div>
+                    <ImagePlus className="w-3.5 h-3.5" />
+                    Ajouter une couverture
+                  </Button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ClickUp-style metadata row — desktop only, hover-reveal */}
+          {!isMobile && (
+            <div
+              className="px-6 pb-1 flex items-center gap-1 min-h-[32px]"
+              onMouseEnter={() => setMetaRowHovered(true)}
+              onMouseLeave={() => setMetaRowHovered(false)}
+            >
+              {/* Combined "Lier" button — project + client */}
+              <Popover open={lierPopoverOpen} onOpenChange={setLierPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs gap-1.5 text-muted-foreground"
+                    style={{ visibility: (metaRowHovered || !!currentProject || !!currentClient || lierPopoverOpen) ? 'visible' : 'hidden' }}
+                    data-testid="button-lier"
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                    {currentProject && currentClient
+                      ? `${currentProject.name} · ${currentClient.name}`
+                      : currentProject
+                      ? currentProject.name
+                      : currentClient
+                      ? currentClient.name
+                      : "Lier"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-2 bg-white dark:bg-gray-900" align="start" style={{ zIndex: 10001 }}>
+                  <div className="flex flex-col gap-1">
+                    <div className="text-xs font-medium text-muted-foreground px-1 pb-1">Liaisons</div>
+                    {/* Projet row */}
+                    <div className="flex items-center justify-between px-1 py-1 rounded-md">
+                      <div className="flex items-center gap-1.5">
+                        <FolderKanban className="w-3 h-3 text-violet-500 shrink-0" />
+                        {currentProject
+                          ? <span className="text-xs font-medium">{currentProject.name}</span>
+                          : <span className="text-xs text-muted-foreground">Aucun projet</span>}
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        {currentProject ? (
+                          <>
+                            <Link href={`/projects/${currentProject.id}`}>
+                              <Button size="icon" variant="ghost" className="h-5 w-5" data-testid="button-go-to-project">
+                                <ExternalLink className="w-3 h-3" />
+                              </Button>
+                            </Link>
+                            <Button size="icon" variant="ghost" className="h-5 w-5 text-destructive"
+                              onClick={() => { unlinkProjectMutation.mutate(); setLierPopoverOpen(false); }}
+                              data-testid="button-unlink-project">
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[11px] text-violet-500"
+                            onClick={() => { setLierPopoverOpen(false); setEntitySelectorTab("project"); setEntitySelectorOpen(true); }}
+                            data-testid="button-link-project">
+                            Lier
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {/* Client row */}
+                    <div className="flex items-center justify-between px-1 py-1 rounded-md">
+                      <div className="flex items-center gap-1.5">
+                        <Users className="w-3 h-3 text-cyan-500 shrink-0" />
+                        {currentClient
+                          ? <span className="text-xs font-medium">{currentClient.name}</span>
+                          : <span className="text-xs text-muted-foreground">Aucun client</span>}
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        {currentClient ? (
+                          <Button size="icon" variant="ghost" className="h-5 w-5 text-destructive"
+                            onClick={() => { unlinkClientMutation.mutate(); setLierPopoverOpen(false); }}
+                            data-testid="button-unlink-client">
+                            <X className="w-3 h-3" />
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[11px] text-cyan-500"
+                            onClick={() => { setLierPopoverOpen(false); setEntitySelectorTab("client"); setEntitySelectorOpen(true); }}
+                            data-testid="button-link-client">
+                            Lier
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Tag/Category selector */}
+              <Popover open={categoryPopoverOpen} onOpenChange={setCategoryPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs gap-1.5 text-muted-foreground"
+                    style={{ visibility: (metaRowHovered || !!note?.categoryId || categoryPopoverOpen) ? 'visible' : 'hidden' }}
+                    data-testid="button-category-selector"
+                  >
+                    <Tag className="w-3.5 h-3.5" />
+                    {note?.categoryId
+                      ? noteCategories.find(c => c.id === note.categoryId)?.name || "Tag"
+                      : "Tag"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2 bg-white dark:bg-gray-900" align="start" style={{ zIndex: 10001 }}>
+                  <div className="flex flex-col gap-2">
+                    <div className="text-xs font-medium text-muted-foreground px-1">Choisir un tag</div>
+                    <div className="flex flex-col gap-1 max-h-[200px] overflow-y-auto">
+                      <Button variant="ghost" size="sm"
+                        className={`justify-start h-6 px-2 text-[11px] ${!note?.categoryId ? 'bg-violet-100 dark:bg-violet-900/30' : ''}`}
+                        onClick={() => { updateNoteCategoryMutation.mutate(null); setCategoryPopoverOpen(false); }}
+                        data-testid="button-category-none">
+                        <span className="text-muted-foreground">Aucun</span>
+                        {!note?.categoryId && <Check className="w-3 h-3 ml-auto" />}
+                      </Button>
+                      {noteCategories.map((category) => (
+                        <Button key={category.id} variant="ghost" size="sm"
+                          className={`justify-start h-6 px-2 text-[11px] ${note?.categoryId === category.id ? 'bg-violet-100 dark:bg-violet-900/30' : ''}`}
+                          onClick={() => { updateNoteCategoryMutation.mutate(category.id); setCategoryPopoverOpen(false); }}
+                          data-testid={`button-category-${category.id}`}>
+                          {category.name}
+                          {note?.categoryId === category.id && <Check className="w-3 h-3 ml-auto" />}
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="border-t pt-2 mt-1">
+                      <div className="flex gap-1">
+                        <Input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)}
+                          placeholder="Nouveau tag..." className="h-6 text-[11px] bg-white dark:bg-gray-800"
+                          onKeyDown={(e) => { if (e.key === 'Enter' && newCategoryName.trim()) createCategoryMutation.mutate(newCategoryName.trim()); }}
+                          data-testid="input-new-category" />
+                        <Button size="sm" className="h-6 px-2"
+                          disabled={!newCategoryName.trim() || createCategoryMutation.isPending}
+                          onClick={() => { if (newCategoryName.trim()) createCategoryMutation.mutate(newCategoryName.trim()); }}
+                          data-testid="button-create-category">
+                          <Plus className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Date picker */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs gap-1.5 text-muted-foreground"
+                    style={{ visibility: (metaRowHovered || !!note?.noteDate) ? 'visible' : 'hidden' }}
+                    data-testid="button-date-selector"
+                  >
+                    <CalendarIcon className="w-3.5 h-3.5" />
+                    {note?.noteDate
+                      ? new Date(note.noteDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+                      : "Date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900" align="start" style={{ zIndex: 10001 }}>
+                  <Calendar mode="single" selected={note?.noteDate ? new Date(note.noteDate) : undefined}
+                    onSelect={(date) => { if (date) updateNoteDateMutation.mutate(format(date, 'yyyy-MM-dd')); }}
+                    initialFocus locale={fr}
+                    classNames={{
+                      day_selected: "bg-violet-600 text-white hover:bg-violet-700 focus:bg-violet-700",
+                      day_today: "bg-accent text-accent-foreground",
+                    }}
+                  />
+                  {note?.noteDate && (
+                    <div className="p-2 border-t">
+                      <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground"
+                        onClick={() => updateNoteDateMutation.mutate(null)} data-testid="button-clear-date">
+                        Effacer la date
+                      </Button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
             </div>
           )}
 
