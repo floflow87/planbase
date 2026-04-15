@@ -494,7 +494,7 @@ function QuickCreateMenu() {
       return newNote;
     },
     onSuccess: (newNote: any) => {
-      toast({ title: "Note créée avec succès" });
+      toast({ title: "Note créée avec succès", variant: "success" });
       setIsNoteSheetOpen(false);
       noteForm.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/notes"] });

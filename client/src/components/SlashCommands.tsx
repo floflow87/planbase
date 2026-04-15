@@ -27,6 +27,8 @@ import {
   Columns2,
   Columns3,
   Columns4,
+  Highlighter,
+  Palette,
 } from 'lucide-react';
 import { insertColumnBlock } from '@/components/ColumnExtension';
 
@@ -36,6 +38,7 @@ export interface SlashCommand {
   description: string;
   icon: React.ElementType;
   category: string;
+  swatchColor?: string;
   command: (props: { editor: any; range: any }) => void;
 }
 
@@ -342,6 +345,140 @@ export const SLASH_COMMANDS: SlashCommand[] = [
       insertColumnBlock(editor, range, 4);
     },
   },
+  // Text colors
+  {
+    id: 'rouge',
+    label: 'Texte rouge',
+    description: 'Colorier le texte en rouge',
+    icon: Palette,
+    category: 'Couleurs',
+    swatchColor: '#EF4444',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).setColor('#EF4444').run();
+    },
+  },
+  {
+    id: 'orange',
+    label: 'Texte orange',
+    description: 'Colorier le texte en orange',
+    icon: Palette,
+    category: 'Couleurs',
+    swatchColor: '#F97316',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).setColor('#F97316').run();
+    },
+  },
+  {
+    id: 'vert',
+    label: 'Texte vert',
+    description: 'Colorier le texte en vert',
+    icon: Palette,
+    category: 'Couleurs',
+    swatchColor: '#10B981',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).setColor('#10B981').run();
+    },
+  },
+  {
+    id: 'bleu',
+    label: 'Texte bleu',
+    description: 'Colorier le texte en bleu',
+    icon: Palette,
+    category: 'Couleurs',
+    swatchColor: '#3B82F6',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).setColor('#3B82F6').run();
+    },
+  },
+  {
+    id: 'violet',
+    label: 'Texte violet',
+    description: 'Colorier le texte en violet',
+    icon: Palette,
+    category: 'Couleurs',
+    swatchColor: '#8B5CF6',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).setColor('#8B5CF6').run();
+    },
+  },
+  {
+    id: 'rose',
+    label: 'Texte rose',
+    description: 'Colorier le texte en rose',
+    icon: Palette,
+    category: 'Couleurs',
+    swatchColor: '#EC4899',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).setColor('#EC4899').run();
+    },
+  },
+  // Highlights
+  {
+    id: 's-jaune',
+    label: 'Surligner jaune',
+    description: 'Surligner en jaune',
+    icon: Highlighter,
+    category: 'Couleurs',
+    swatchColor: '#FDE047',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).toggleHighlight({ color: '#FDE047' }).run();
+    },
+  },
+  {
+    id: 's-vert',
+    label: 'Surligner vert',
+    description: 'Surligner en vert',
+    icon: Highlighter,
+    category: 'Couleurs',
+    swatchColor: '#86EFAC',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).toggleHighlight({ color: '#86EFAC' }).run();
+    },
+  },
+  {
+    id: 's-bleu',
+    label: 'Surligner bleu',
+    description: 'Surligner en bleu',
+    icon: Highlighter,
+    category: 'Couleurs',
+    swatchColor: '#93C5FD',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).toggleHighlight({ color: '#93C5FD' }).run();
+    },
+  },
+  {
+    id: 's-rose',
+    label: 'Surligner rose',
+    description: 'Surligner en rose',
+    icon: Highlighter,
+    category: 'Couleurs',
+    swatchColor: '#FBCFE8',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).toggleHighlight({ color: '#FBCFE8' }).run();
+    },
+  },
+  {
+    id: 's-orange',
+    label: 'Surligner orange',
+    description: 'Surligner en orange',
+    icon: Highlighter,
+    category: 'Couleurs',
+    swatchColor: '#FDBA74',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).toggleHighlight({ color: '#FDBA74' }).run();
+    },
+  },
+  {
+    id: 's-violet',
+    label: 'Surligner violet',
+    description: 'Surligner en violet',
+    icon: Highlighter,
+    category: 'Couleurs',
+    swatchColor: '#DDD6FE',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).toggleHighlight({ color: '#DDD6FE' }).run();
+    },
+  },
 ];
 
 interface CommandListProps {
@@ -446,10 +583,11 @@ export const CommandList = forwardRef<CommandListRef, CommandListProps>(
                     >
                       <div
                         className={`flex-shrink-0 flex items-center justify-center w-6 h-6 rounded ${
-                          isSelected ? 'bg-primary/20' : 'bg-muted'
+                          item.swatchColor ? '' : (isSelected ? 'bg-primary/20' : 'bg-muted')
                         }`}
+                        style={item.swatchColor ? { backgroundColor: item.swatchColor } : undefined}
                       >
-                        <Icon className="w-3.5 h-3.5" />
+                        {item.swatchColor ? null : <Icon className="w-3.5 h-3.5" />}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1 flex-wrap">
