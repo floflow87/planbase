@@ -1,8 +1,7 @@
-import { useRef, useState } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Link, Upload } from "lucide-react";
+import { Loader2, Link, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const COLORS = [
@@ -39,8 +38,7 @@ const TECH_IMAGES = [
 
 type Tab = "galerie" | "charger" | "lien";
 
-interface CoverGalleryModalProps {
-  open: boolean;
+interface CoverGalleryPanelProps {
   onClose: () => void;
   onSelectColor: (value: string) => void;
   onSelectGradient: (value: string) => void;
@@ -51,8 +49,7 @@ interface CoverGalleryModalProps {
   uploading?: boolean;
 }
 
-export function CoverGalleryModal({
-  open,
+export function CoverGalleryPanel({
   onClose,
   onSelectColor,
   onSelectGradient,
@@ -61,17 +58,33 @@ export function CoverGalleryModal({
   onRemove,
   hasCover,
   uploading = false,
-}: CoverGalleryModalProps) {
+}: CoverGalleryPanelProps) {
   const [tab, setTab] = useState<Tab>("galerie");
   const [linkValue, setLinkValue] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Close on click outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    const t = setTimeout(() => document.addEventListener("mousedown", handler), 50);
+    return () => { clearTimeout(t); document.removeEventListener("mousedown", handler); };
+  }, [onClose]);
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      onUploadFile(file);
-      onClose();
-    }
+    if (file) { onUploadFile(file); onClose(); }
     e.target.value = "";
   };
 
@@ -83,150 +96,155 @@ export function CoverGalleryModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent
-        className="p-0 gap-0 overflow-hidden"
-        style={{ width: 520, maxWidth: "96vw", maxHeight: "80vh" }}
-      >
-        <DialogTitle className="sr-only">Image de couverture</DialogTitle>
+    <div
+      ref={panelRef}
+      className="bg-popover border border-border rounded-lg shadow-xl overflow-hidden flex flex-col"
+      style={{ width: 480, maxWidth: "92vw" }}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      {/* Tab bar */}
+      <div className="flex items-center border-b px-2 pt-1 gap-1 shrink-0">
+        {(["galerie", "charger", "lien"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={cn(
+              "px-3 py-2 text-sm font-medium capitalize border-b-2 transition-colors",
+              tab === t
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t === "galerie" ? "Galerie" : t === "charger" ? "Charger" : "Lien"}
+          </button>
+        ))}
+        <div className="flex-1" />
+        {hasCover && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-xs text-muted-foreground"
+            onClick={() => { onRemove(); onClose(); }}
+          >
+            Retirer
+          </Button>
+        )}
+        <Button
+          size="icon"
+          variant="ghost"
+          className="shrink-0"
+          onClick={onClose}
+        >
+          <X className="w-4 h-4" />
+        </Button>
+      </div>
 
-        {/* Tab bar + Retirer */}
-        <div className="flex items-center border-b px-2 pt-1 gap-1">
-          {(["galerie", "charger", "lien"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={cn(
-                "px-3 py-2 text-sm font-medium capitalize border-b-2 transition-colors",
-                tab === t
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {t === "galerie" ? "Galerie" : t === "charger" ? "Charger" : "Lien"}
-            </button>
-          ))}
-          <div className="flex-1" />
-          {hasCover && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-xs text-muted-foreground mb-0.5"
-              onClick={() => { onRemove(); onClose(); }}
-            >
-              Retirer
-            </Button>
+      {/* Galerie tab */}
+      {tab === "galerie" && (
+        <div className="overflow-y-auto p-4 space-y-5" style={{ maxHeight: 380 }}>
+          {/* Colors */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Couleurs</p>
+            <div className="grid grid-cols-4 gap-2">
+              {COLORS.map((color) => (
+                <button
+                  key={color}
+                  className="rounded-md h-14 w-full transition-transform hover:scale-[1.03] active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  style={{ backgroundColor: color }}
+                  onClick={() => { onSelectColor(`color:${color}`); onClose(); }}
+                  title={color}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Gradients */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Dégradés</p>
+            <div className="grid grid-cols-3 gap-2">
+              {GRADIENTS.map((grad, i) => (
+                <button
+                  key={i}
+                  className="rounded-md h-16 w-full transition-transform hover:scale-[1.03] active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  style={{ background: grad }}
+                  onClick={() => { onSelectGradient(`gradient:${grad}`); onClose(); }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Tech images */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Tech</p>
+            <div className="grid grid-cols-3 gap-2">
+              {TECH_IMAGES.map((src) => (
+                <button
+                  key={src}
+                  className="rounded-md h-20 w-full overflow-hidden transition-transform hover:scale-[1.03] active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  onClick={() => { onSelectImage(src); onClose(); }}
+                >
+                  <img src={src} alt="" className="w-full h-full object-cover" draggable={false} />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Charger tab */}
+      {tab === "charger" && (
+        <div className="p-6 flex flex-col items-center justify-center gap-4 min-h-[200px]">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          {uploading ? (
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          ) : (
+            <>
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                <Upload className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground text-center">
+                Sélectionnez une image depuis votre ordinateur
+              </p>
+              <Button onClick={() => fileInputRef.current?.click()}>
+                Choisir un fichier
+              </Button>
+              <p className="text-xs text-muted-foreground">JPG, PNG, GIF, WEBP — max 10 Mo</p>
+            </>
           )}
         </div>
+      )}
 
-        {/* Galerie tab */}
-        {tab === "galerie" && (
-          <div className="overflow-y-auto p-4 space-y-5" style={{ maxHeight: "calc(80vh - 48px)" }}>
-            {/* Colors */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Couleurs</p>
-              <div className="grid grid-cols-4 gap-2">
-                {COLORS.map((color) => (
-                  <button
-                    key={color}
-                    className="rounded-md h-16 w-full transition-transform hover:scale-[1.03] active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    style={{ backgroundColor: color }}
-                    onClick={() => { onSelectColor(`color:${color}`); onClose(); }}
-                    title={color}
-                  />
-                ))}
-              </div>
+      {/* Lien tab */}
+      {tab === "lien" && (
+        <div className="p-5 flex flex-col gap-4 min-h-[200px]">
+          <p className="text-sm text-muted-foreground">Collez un lien vers une image</p>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={linkValue}
+                onChange={(e) => setLinkValue(e.target.value)}
+                placeholder="https://exemple.com/image.jpg"
+                className="pl-9"
+                onKeyDown={(e) => e.key === "Enter" && handleApplyLink()}
+                autoFocus
+              />
             </div>
-
-            {/* Gradients */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Dégradés</p>
-              <div className="grid grid-cols-3 gap-2">
-                {GRADIENTS.map((grad, i) => (
-                  <button
-                    key={i}
-                    className="rounded-md h-20 w-full transition-transform hover:scale-[1.03] active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    style={{ background: grad }}
-                    onClick={() => { onSelectGradient(`gradient:${grad}`); onClose(); }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Tech images */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Tech</p>
-              <div className="grid grid-cols-3 gap-2">
-                {TECH_IMAGES.map((src) => (
-                  <button
-                    key={src}
-                    className="rounded-md h-24 w-full overflow-hidden transition-transform hover:scale-[1.03] active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    onClick={() => { onSelectImage(src); onClose(); }}
-                  >
-                    <img
-                      src={src}
-                      alt=""
-                      className="w-full h-full object-cover"
-                      draggable={false}
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
+            <Button onClick={handleApplyLink} disabled={!linkValue.trim()}>
+              Appliquer
+            </Button>
           </div>
-        )}
-
-        {/* Charger tab */}
-        {tab === "charger" && (
-          <div className="p-6 flex flex-col items-center justify-center gap-4 min-h-[220px]">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            {uploading ? (
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
-                  <Upload className="w-6 h-6 text-muted-foreground" />
-                </div>
-                <p className="text-sm text-muted-foreground text-center">
-                  Sélectionnez une image depuis votre ordinateur
-                </p>
-                <Button onClick={() => fileInputRef.current?.click()}>
-                  Choisir un fichier
-                </Button>
-                <p className="text-xs text-muted-foreground">JPG, PNG, GIF, WEBP — max 10 Mo</p>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Lien tab */}
-        {tab === "lien" && (
-          <div className="p-6 flex flex-col gap-4 min-h-[220px]">
-            <p className="text-sm text-muted-foreground">Collez un lien vers une image</p>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  value={linkValue}
-                  onChange={(e) => setLinkValue(e.target.value)}
-                  placeholder="https://exemple.com/image.jpg"
-                  className="pl-9"
-                  onKeyDown={(e) => e.key === "Enter" && handleApplyLink()}
-                />
-              </div>
-              <Button onClick={handleApplyLink} disabled={!linkValue.trim()}>
-                Appliquer
-              </Button>
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+        </div>
+      )}
+    </div>
   );
 }
+
+// Keep backward compat alias
+export { CoverGalleryPanel as CoverGalleryModal };

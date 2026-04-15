@@ -468,12 +468,23 @@ export default function NoteDetail() {
       return;
     }
     // These types don't need a proxy fetch
+    // NOTE: Supabase storage URLs (https://...supabase.co/storage/...) DO need the proxy —
+    // the bucket is private. Only skip for gallery images, colors, gradients, and truly external URLs.
+    const isSupabaseStorage =
+      coverImageUrl.includes(".supabase.co/storage") ||
+      coverImageUrl.includes("supabase.co/storage");
     if (
       coverImageUrl.startsWith("color:") ||
       coverImageUrl.startsWith("gradient:") ||
-      coverImageUrl.startsWith("/covers/") ||
-      coverImageUrl.startsWith("http://") ||
-      coverImageUrl.startsWith("https://")
+      coverImageUrl.startsWith("/covers/")
+    ) {
+      setCoverImageBlobUrl(null);
+      return;
+    }
+    // External http(s) URLs that are NOT Supabase → use directly, no proxy
+    if (
+      (coverImageUrl.startsWith("http://") || coverImageUrl.startsWith("https://")) &&
+      !isSupabaseStorage
     ) {
       setCoverImageBlobUrl(null);
       return;
@@ -1372,6 +1383,7 @@ export default function NoteDetail() {
           </div>
         ) : (
           /* DESKTOP: cover image banner + overlaid action buttons */
+          <div className="relative w-full">
           <div
             className={`relative w-full group overflow-hidden ${coverImageUrl ? 'min-h-[220px]' : ''}`}
             onMouseEnter={() => setCoverImageHovered(true)}
@@ -1393,14 +1405,16 @@ export default function NoteDetail() {
                   <div className="absolute inset-0" style={{ background: grad }} />
                 );
               }
-              // Static gallery image (/covers/...) or external http URL
+              // Static gallery image (/covers/...) or truly external URL (not Supabase private storage)
+              const isSupabaseUrl =
+                coverImageUrl.includes(".supabase.co/storage") ||
+                coverImageUrl.includes("supabase.co/storage");
               const staticSrc =
-                coverImageUrl.startsWith("/covers/") ||
-                coverImageUrl.startsWith("http://") ||
-                coverImageUrl.startsWith("https://")
+                (coverImageUrl.startsWith("/covers/") ||
+                  ((coverImageUrl.startsWith("http://") || coverImageUrl.startsWith("https://")) && !isSupabaseUrl))
                   ? coverImageUrl
                   : null;
-              // Uploaded file (blob URL from proxy)
+              // Uploaded file (blob URL from proxy) — used for Supabase storage URLs
               const imgSrc = staticSrc ?? coverImageBlobUrl;
               return (
                 <>
@@ -1940,6 +1954,22 @@ export default function NoteDetail() {
               </div>
             )}
           </div>
+          {/* Gallery panel — anchored just below cover, right-aligned, outside overflow-hidden */}
+          {galleryOpen && (
+            <div className="absolute right-0 top-full z-[200] pt-1">
+              <CoverGalleryModal
+                onClose={() => setGalleryOpen(false)}
+                onSelectColor={handleApplyCoverValue}
+                onSelectGradient={handleApplyCoverValue}
+                onSelectImage={handleApplyCoverValue}
+                onUploadFile={(file) => { handleCoverImageUpload(file); }}
+                onRemove={handleRemoveCoverImage}
+                hasCover={!!coverImageUrl}
+                uploading={coverImageUploading}
+              />
+            </div>
+          )}
+          </div>
         )}
       </div>
       
@@ -2206,18 +2236,6 @@ export default function NoteDetail() {
             }}
           />
 
-          {/* Cover gallery modal */}
-          <CoverGalleryModal
-            open={galleryOpen}
-            onClose={() => setGalleryOpen(false)}
-            onSelectColor={handleApplyCoverValue}
-            onSelectGradient={handleApplyCoverValue}
-            onSelectImage={handleApplyCoverValue}
-            onUploadFile={(file) => { handleCoverImageUpload(file); }}
-            onRemove={handleRemoveCoverImage}
-            hasCover={!!coverImageUrl}
-            uploading={coverImageUploading}
-          />
 
           {/* ClickUp-style metadata row — desktop only, hover-reveal */}
           {!isMobile && (
