@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useCelebration } from "@/hooks/useCelebration";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -199,6 +199,16 @@ export default function BacklogDetail() {
   const [sortBy, setSortBy] = useState<string>("state");
   const [ticketSearch, setTicketSearch] = useState<string>("");
   const [showStatsPanel, setShowStatsPanel] = useState(false);
+  const [statsPanelClosing, setStatsPanelClosing] = useState(false);
+  const statsPanelCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeStatsPanel = useCallback(() => {
+    if (statsPanelCloseTimer.current) clearTimeout(statsPanelCloseTimer.current);
+    setStatsPanelClosing(true);
+    statsPanelCloseTimer.current = setTimeout(() => {
+      setShowStatsPanel(false);
+      setStatsPanelClosing(false);
+    }, 240);
+  }, []);
   const [statSprintId, setStatSprintId] = useState<string>("active");
   const [showEpicColumn, setShowEpicColumn] = useState<boolean>(() => {
     const saved = localStorage.getItem('backlog-show-epic-column');
@@ -2317,7 +2327,7 @@ export default function BacklogDetail() {
                 size="icon"
                 variant={showStatsPanel ? "secondary" : "outline"}
                 className="h-8 w-8"
-                onClick={() => setShowStatsPanel(v => !v)}
+                onClick={() => { if (showStatsPanel) { closeStatsPanel(); } else { setShowStatsPanel(true); } }}
                 data-testid="button-toggle-stats"
               >
                 <BarChart3 className="h-4 w-4" />
@@ -2656,7 +2666,7 @@ export default function BacklogDetail() {
         </div>
 
         {/* Stats Side Panel - pushes content from right */}
-        {showStatsPanel && (() => {
+        {(showStatsPanel || statsPanelClosing) && (() => {
           const activeSprints = (backlog.sprints || []).filter(s => s.status === "en_cours");
           const selectedSprintIds = statSprintId === "active"
             ? activeSprints.map(s => s.id)
@@ -2716,13 +2726,13 @@ export default function BacklogDetail() {
             );
           };
           return (
-            <div className="w-[360px] xl:w-[420px] border-l bg-background flex flex-col flex-shrink-0 overflow-hidden panel-slide-in-right">
+            <div className={`w-[360px] xl:w-[420px] border-l bg-background flex flex-col flex-shrink-0 overflow-hidden ${statsPanelClosing ? "panel-slide-out-right" : "panel-slide-in-right"}`}>
               <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0">
                 <h3 className="text-sm font-semibold flex items-center gap-2">
                   <BarChart3 className="w-4 h-4 text-violet-600" />
                   Stats sprint
                 </h3>
-                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setShowStatsPanel(false)}>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={closeStatsPanel}>
                   <X className="w-3.5 h-3.5" />
                 </Button>
               </div>
