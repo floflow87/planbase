@@ -68,7 +68,7 @@ interface CoverGalleryPanelProps {
   uploading?: boolean;
 }
 
-function LazyImage({ src, onClick }: { src: string; onClick: () => void }) {
+function LazyImage({ thumbSrc, fullSrc, onClick }: { thumbSrc: string; fullSrc: string; onClick: () => void }) {
   const [loaded, setLoaded] = useState(false);
   const [inView, setInView] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
@@ -89,13 +89,14 @@ function LazyImage({ src, onClick }: { src: string; onClick: () => void }) {
       ref={ref}
       className="rounded-md h-14 w-full overflow-hidden relative transition-transform hover:scale-[1.03] active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-primary/50 bg-muted"
       onClick={onClick}
+      title={fullSrc.split("/").pop()}
     >
       {!loaded && (
         <div className="absolute inset-0 bg-muted animate-pulse" />
       )}
       {inView && (
         <img
-          src={src}
+          src={thumbSrc}
           alt=""
           loading="lazy"
           decoding="async"
@@ -234,13 +235,17 @@ export function CoverGalleryPanel({
           <div>
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Tech</p>
             <div className="grid grid-cols-4 gap-1.5">
-              {TECH_IMAGES.map((src) => (
-                <LazyImage
-                  key={src}
-                  src={src}
-                  onClick={() => { onSelectImage(src); onClose(); }}
-                />
-              ))}
+              {TECH_IMAGES.map((src) => {
+                const thumb = src.replace("/covers/tech/", "/covers/tech/thumbs/");
+                return (
+                  <LazyImage
+                    key={src}
+                    thumbSrc={thumb}
+                    fullSrc={src}
+                    onClick={() => { onSelectImage(src); onClose(); }}
+                  />
+                );
+              })}
             </div>
           </div>
 
@@ -248,13 +253,17 @@ export function CoverGalleryPanel({
           <div>
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Nature</p>
             <div className="grid grid-cols-4 gap-1.5">
-              {NATURE_IMAGES.map((src) => (
-                <LazyImage
-                  key={src}
-                  src={src}
-                  onClick={() => { onSelectImage(src); onClose(); }}
-                />
-              ))}
+              {NATURE_IMAGES.map((src) => {
+                const thumb = src.replace("/covers/nature/", "/covers/nature/thumbs/");
+                return (
+                  <LazyImage
+                    key={src}
+                    thumbSrc={thumb}
+                    fullSrc={src}
+                    onClick={() => { onSelectImage(src); onClose(); }}
+                  />
+                );
+              })}
             </div>
           </div>
         </div>
