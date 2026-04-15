@@ -347,6 +347,28 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   },
   // Text colors
   {
+    id: 'noir',
+    label: 'Texte noir',
+    description: 'Colorier le texte en noir',
+    icon: Palette,
+    category: 'Couleurs',
+    swatchColor: '#000000',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).setColor('#000000').run();
+    },
+  },
+  {
+    id: 'blanc',
+    label: 'Texte blanc',
+    description: 'Colorier le texte en blanc',
+    icon: Palette,
+    category: 'Couleurs',
+    swatchColor: '#FFFFFF',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).setColor('#FFFFFF').run();
+    },
+  },
+  {
     id: 'rouge',
     label: 'Texte rouge',
     description: 'Colorier le texte en rouge',
@@ -583,7 +605,7 @@ export const CommandList = forwardRef<CommandListRef, CommandListProps>(
                     >
                       <div
                         className={`flex-shrink-0 flex items-center justify-center w-6 h-6 rounded ${
-                          item.swatchColor ? '' : (isSelected ? 'bg-primary/20' : 'bg-muted')
+                          item.swatchColor ? 'border border-border/60' : (isSelected ? 'bg-primary/20' : 'bg-muted')
                         }`}
                         style={item.swatchColor ? { backgroundColor: item.swatchColor } : undefined}
                       >
