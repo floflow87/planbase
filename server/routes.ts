@@ -4365,6 +4365,20 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  // Apply a non-file cover value (color:, gradient:, /covers/... gallery paths)
+  app.post("/api/notes/:id/cover-image-value", requireAuth, requireOrgMember, requirePermission("notes", "update"), async (req, res) => {
+    try {
+      const existing = await storage.getNote(req.params.id);
+      if (!existing || existing.accountId !== req.accountId) return res.status(404).json({ error: "Note not found" });
+      const { coverImageUrl } = req.body;
+      if (typeof coverImageUrl !== "string") return res.status(400).json({ error: "coverImageUrl required" });
+      const note = await storage.updateNote(req.params.id, { coverImageUrl });
+      res.json({ coverImageUrl: (note as any).coverImageUrl });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Proxy cover image through backend to handle private bucket
   app.get("/api/notes/:id/cover-image-file", requireAuth, requireOrgMember, async (req, res) => {
     try {

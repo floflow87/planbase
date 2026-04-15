@@ -48,6 +48,7 @@ interface TicketItem {
 }
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useNoteSync } from "@/hooks/use-note-sync";
+import { CoverGalleryModal } from "@/components/CoverGalleryModal";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -278,6 +279,8 @@ export default function NoteDetail() {
   const [coverImagePositionY, setCoverImagePositionY] = useState(50);
   const [repositionMode, setRepositionMode] = useState(false);
   const [coverImageBlobUrl, setCoverImageBlobUrl] = useState<string | null>(null);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const isDraggingRef = useRef(false);
   const [lierPopoverOpen, setLierPopoverOpen] = useState(false);
   const [metaRowHovered, setMetaRowHovered] = useState(false);
   // contentReady: true only after resolved content (pending or server) has been set in state.
@@ -458,8 +461,20 @@ export default function NoteDetail() {
   }, [note, getPendingSnapshot, id]);
 
   // Fetch cover image as blob URL (avoids auth header issues with <img> tags)
+  // Skip for color:, gradient:, /covers/ (served statically), or external http URLs
   useEffect(() => {
     if (!coverImageUrl || !id) {
+      setCoverImageBlobUrl(null);
+      return;
+    }
+    // These types don't need a proxy fetch
+    if (
+      coverImageUrl.startsWith("color:") ||
+      coverImageUrl.startsWith("gradient:") ||
+      coverImageUrl.startsWith("/covers/") ||
+      coverImageUrl.startsWith("http://") ||
+      coverImageUrl.startsWith("https://")
+    ) {
       setCoverImageBlobUrl(null);
       return;
     }
@@ -1090,6 +1105,28 @@ export default function NoteDetail() {
     }
   }, [id, queryClient, toast]);
 
+  // Apply a color or gradient cover (saves as special URL value, no file upload needed)
+  const handleApplyCoverValue = useCallback(async (value: string) => {
+    if (!id) return;
+    setCoverImageUrl(value);
+    setCoverImageBlobUrl(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      await fetch(`/api/notes/${id}/cover-image-value`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ coverImageUrl: value }),
+        credentials: "include",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/notes", id] });
+    } catch {
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'appliquer la couverture" });
+    }
+  }, [id, queryClient, toast]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -1341,28 +1378,57 @@ export default function NoteDetail() {
             onMouseLeave={() => setCoverImageHovered(false)}
           >
             {/* Cover image background */}
-            {coverImageUrl && (
-              <>
-                {coverImageBlobUrl ? (
-                  <img
-                    src={coverImageBlobUrl}
-                    alt=""
-                    className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
-                    style={{ objectPosition: `center ${coverImagePositionY}%` }}
-                    draggable={false}
-                  />
-                ) : (
-                  <div className="absolute inset-0 bg-muted/30 animate-pulse" />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-transparent pointer-events-none" />
-              </>
-            )}
+            {coverImageUrl && (() => {
+              // Solid color
+              if (coverImageUrl.startsWith("color:")) {
+                const hex = coverImageUrl.slice(6);
+                return (
+                  <div className="absolute inset-0" style={{ backgroundColor: hex }} />
+                );
+              }
+              // Gradient
+              if (coverImageUrl.startsWith("gradient:")) {
+                const grad = coverImageUrl.slice(9);
+                return (
+                  <div className="absolute inset-0" style={{ background: grad }} />
+                );
+              }
+              // Static gallery image (/covers/...) or external http URL
+              const staticSrc =
+                coverImageUrl.startsWith("/covers/") ||
+                coverImageUrl.startsWith("http://") ||
+                coverImageUrl.startsWith("https://")
+                  ? coverImageUrl
+                  : null;
+              // Uploaded file (blob URL from proxy)
+              const imgSrc = staticSrc ?? coverImageBlobUrl;
+              return (
+                <>
+                  {imgSrc ? (
+                    <img
+                      src={imgSrc}
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
+                      style={{ objectPosition: `center ${coverImagePositionY}%` }}
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-muted/30 animate-pulse" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-transparent pointer-events-none" />
+                </>
+              );
+            })()}
             {/* Reposition drag overlay */}
             {coverImageUrl && repositionMode && (
               <div
                 className="absolute inset-0 z-30 flex items-end justify-center pb-6 cursor-ns-resize select-none"
                 style={{ background: 'rgba(0,0,0,0.15)' }}
+                onMouseDown={() => { isDraggingRef.current = true; }}
+                onMouseUp={() => { isDraggingRef.current = false; }}
+                onMouseLeave={() => { isDraggingRef.current = false; }}
                 onMouseMove={(e) => {
+                  if (!isDraggingRef.current) return;
                   const rect = e.currentTarget.getBoundingClientRect();
                   const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
                   setCoverImagePositionY(Math.max(0, Math.min(100, y)));
@@ -1837,7 +1903,7 @@ export default function NoteDetail() {
                   size="sm"
                   variant="ghost"
                   className="h-7 text-xs bg-black/50 text-white border border-white/20 hover:bg-black/70 gap-1.5"
-                  onClick={() => coverImageInputRef.current?.click()}
+                  onClick={() => setGalleryOpen(true)}
                   disabled={coverImageUploading}
                   data-testid="button-change-cover"
                 >
@@ -1864,7 +1930,7 @@ export default function NoteDetail() {
                   variant="ghost"
                   className="h-7 text-xs text-muted-foreground gap-1.5"
                   style={{ visibility: coverImageHovered ? 'visible' : 'hidden' }}
-                  onClick={() => coverImageInputRef.current?.click()}
+                  onClick={() => setGalleryOpen(true)}
                   disabled={coverImageUploading}
                   data-testid="button-add-cover"
                 >
@@ -2127,7 +2193,7 @@ export default function NoteDetail() {
             </div>
           )}
 
-          {/* Cover image — hidden file input */}
+          {/* Cover image — hidden file input (kept for direct upload flow) */}
           <input
             ref={coverImageInputRef}
             type="file"
@@ -2138,6 +2204,19 @@ export default function NoteDetail() {
               if (file) handleCoverImageUpload(file);
               e.target.value = "";
             }}
+          />
+
+          {/* Cover gallery modal */}
+          <CoverGalleryModal
+            open={galleryOpen}
+            onClose={() => setGalleryOpen(false)}
+            onSelectColor={handleApplyCoverValue}
+            onSelectGradient={handleApplyCoverValue}
+            onSelectImage={handleApplyCoverValue}
+            onUploadFile={(file) => { handleCoverImageUpload(file); }}
+            onRemove={handleRemoveCoverImage}
+            hasCover={!!coverImageUrl}
+            uploading={coverImageUploading}
           />
 
           {/* ClickUp-style metadata row — desktop only, hover-reveal */}
