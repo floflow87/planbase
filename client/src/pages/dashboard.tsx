@@ -2286,7 +2286,12 @@ export default function Dashboard() {
                       }}
                     />
                     <YAxis tick={{ fill: "hsl(var(--muted-foreground))" }} />
-                    <Tooltip content={<CustomRevenueTooltip />} allowEscapeViewBox={{ x: true, y: true }} wrapperStyle={{ zIndex: 200, pointerEvents: 'none' }} />
+                    <Tooltip
+                      content={<CustomRevenueTooltip />}
+                      allowEscapeViewBox={{ x: true, y: true }}
+                      wrapperStyle={{ zIndex: 200, pointerEvents: 'none' }}
+                      cursor={{ fill: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}
+                    />
                     <Bar dataKey="revenue" stackId="a" radius={showHypotheses ? [0, 0, 0, 0] : [4, 4, 0, 0]}>
                       {revenueDataWithTVA.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
