@@ -1274,7 +1274,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
 
       {/* Notion-style title — only in borderless (desktop) mode */}
       {title !== undefined && borderless && (
-        <div className="px-12 pt-10 pb-6">
+        <div className="px-12 pt-4 pb-2">
           <input
             type="text"
             className="w-full text-4xl font-bold bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground leading-tight"

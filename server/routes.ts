@@ -4365,6 +4365,25 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  // Proxy cover image through backend to handle private bucket
+  app.get("/api/notes/:id/cover-image-file", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const note = await storage.getNote(req.params.id);
+      if (!note || note.accountId !== req.accountId) return res.status(404).end();
+      const storedUrl = (note as any).coverImageUrl as string | null;
+      if (!storedUrl) return res.status(404).end();
+      // Extract storage path from the stored URL
+      const match = storedUrl.match(/\/object\/(?:public|sign)\/planbase-files\/(.+?)(\?|$)/);
+      if (!match) return res.status(404).end();
+      const storagePath = decodeURIComponent(match[1]);
+      const { data, error } = await supabaseAdmin.storage.from("planbase-files").createSignedUrl(storagePath, 3600);
+      if (error || !data?.signedUrl) return res.status(500).end();
+      res.redirect(302, data.signedUrl);
+    } catch (error: any) {
+      res.status(500).end();
+    }
+  });
+
   app.post("/api/notes/:id/duplicate", requireAuth, requireOrgMember, requirePermission("notes", "create"), async (req, res) => {
     try {
       const existing = await storage.getNote(req.params.id);

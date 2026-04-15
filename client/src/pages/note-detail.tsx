@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation, Link } from "wouter";
-import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink, MessageSquare, GitPullRequest, CheckCircle2, XCircle, CornerDownRight, Pencil, Reply, UserPlus, Bot, Sparkles, Wand2, Lightbulb, Loader2, Crown, ChevronsLeft, ChevronsRight, ImagePlus, Trash, Link2 } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink, MessageSquare, GitPullRequest, CheckCircle2, XCircle, CornerDownRight, Pencil, Reply, UserPlus, Bot, Sparkles, Wand2, Lightbulb, Loader2, Crown, ChevronsLeft, ChevronsRight, ImagePlus, Trash, Link2, Move } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
@@ -275,6 +275,8 @@ export default function NoteDetail() {
   const [coverImageHovered, setCoverImageHovered] = useState(false);
   const [coverImageUploading, setCoverImageUploading] = useState(false);
   const coverImageInputRef = useRef<HTMLInputElement>(null);
+  const [coverImagePositionY, setCoverImagePositionY] = useState(50);
+  const [repositionMode, setRepositionMode] = useState(false);
   const [lierPopoverOpen, setLierPopoverOpen] = useState(false);
   const [metaRowHovered, setMetaRowHovered] = useState(false);
   // contentReady: true only after resolved content (pending or server) has been set in state.
@@ -447,9 +449,12 @@ export default function NoteDetail() {
     setAccessLevel(((note as any).accessLevel || (note as any).access_level || "comment") as "read" | "comment");
     setIsFavorite(note.isFavorite || false);
     setCoverImageUrl((note as any).coverImageUrl ?? null);
+    // Load cover position from localStorage
+    const savedPos = id ? localStorage.getItem(`coverPos_${id}`) : null;
+    setCoverImagePositionY(savedPos !== null ? Number(savedPos) : 50);
     // Signal that the correct content is now in state — NoteEditor can mount
     setContentReady(true);
-  }, [note, getPendingSnapshot]);
+  }, [note, getPendingSnapshot, id]);
 
   // Update note mutation (used for status/visibility changes with toast feedback)
   const updateMutation = useMutation({
@@ -1298,10 +1303,61 @@ export default function NoteDetail() {
             </div>
           </div>
         ) : (
-          /* DESKTOP HEADER: Notion-style */
-          <div className="px-6 pt-4 pb-3">
+          /* DESKTOP: cover image banner + overlaid action buttons */
+          <div
+            className={`relative w-full group overflow-hidden ${coverImageUrl ? 'min-h-[220px]' : ''}`}
+            onMouseEnter={() => setCoverImageHovered(true)}
+            onMouseLeave={() => setCoverImageHovered(false)}
+          >
+            {/* Cover image background */}
+            {coverImageUrl && (
+              <>
+                <img
+                  src={`/api/notes/${id}/cover-image-file`}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
+                  style={{ objectPosition: `center ${coverImagePositionY}%` }}
+                  draggable={false}
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-transparent pointer-events-none" />
+              </>
+            )}
+            {/* Reposition drag overlay */}
+            {coverImageUrl && repositionMode && (
+              <div
+                className="absolute inset-0 z-30 flex items-end justify-center pb-6 cursor-ns-resize select-none"
+                style={{ background: 'rgba(0,0,0,0.15)' }}
+                onMouseMove={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+                  setCoverImagePositionY(Math.max(0, Math.min(100, y)));
+                }}
+              >
+                <div className="flex items-center gap-3 bg-black/70 backdrop-blur-sm rounded-lg px-5 py-2.5 pointer-events-auto">
+                  <span className="text-white text-xs font-medium">Faites glisser pour repositionner</span>
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs bg-white text-black hover:bg-white/90"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRepositionMode(false);
+                      if (id) localStorage.setItem(`coverPos_${id}`, String(coverImagePositionY));
+                    }}
+                    data-testid="button-reposition-done"
+                  >
+                    Terminé
+                  </Button>
+                </div>
+              </div>
+            )}
+            {/* Upload spinner */}
+            {coverImageUploading && (
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-40">
+                <Loader2 className="w-6 h-6 text-white animate-spin" />
+              </div>
+            )}
             {/* Row 1: Back + sync status + spacer + selectors + action menu */}
-            <div className="flex items-center gap-1.5">
+            <div className={`relative z-10 flex items-center gap-1.5 px-4 py-3 ${coverImageUrl ? 'text-white' : ''}`}>
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -1313,7 +1369,7 @@ export default function NoteDetail() {
 
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="text-xs text-muted-foreground cursor-default select-none" data-testid="autosave-status">
+                  <span className={`text-xs cursor-default select-none ${coverImageUrl ? 'text-white/70' : 'text-muted-foreground'}`} data-testid="autosave-status">
                     {syncState.isSyncing ? "Sauvegarde..." : syncState.hasPending ? "En attente..." : syncState.lastSynced ? "Sauvegardé" : ""}
                   </span>
                 </TooltipTrigger>
@@ -1726,6 +1782,62 @@ export default function NoteDetail() {
               </DropdownMenu>
             </div>
 
+            {/* Cover image bottom controls — hover reveal when cover exists */}
+            {coverImageUrl && !repositionMode && (
+              <div
+                className="absolute bottom-3 right-3 flex gap-2 z-20 transition-opacity duration-150"
+                style={{ opacity: coverImageHovered ? 1 : 0 }}
+              >
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs bg-black/50 text-white border border-white/20 hover:bg-black/70 gap-1.5"
+                  onClick={() => setRepositionMode(true)}
+                  data-testid="button-reposition-cover"
+                >
+                  <Move className="w-3.5 h-3.5" />
+                  Repositionner
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs bg-black/50 text-white border border-white/20 hover:bg-black/70 gap-1.5"
+                  onClick={() => coverImageInputRef.current?.click()}
+                  disabled={coverImageUploading}
+                  data-testid="button-change-cover"
+                >
+                  <ImagePlus className="w-3.5 h-3.5" />
+                  Changer
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs bg-black/50 text-white border border-white/20 hover:bg-red-600 gap-1.5"
+                  onClick={handleRemoveCoverImage}
+                  data-testid="button-remove-cover"
+                >
+                  <Trash className="w-3.5 h-3.5" />
+                  Supprimer
+                </Button>
+              </div>
+            )}
+            {/* No cover: small hover-reveal "add cover" strip below action bar */}
+            {!coverImageUrl && (
+              <div className="h-8 px-4 flex items-center">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs text-muted-foreground gap-1.5"
+                  style={{ visibility: coverImageHovered ? 'visible' : 'hidden' }}
+                  onClick={() => coverImageInputRef.current?.click()}
+                  disabled={coverImageUploading}
+                  data-testid="button-add-cover"
+                >
+                  <ImagePlus className="w-3.5 h-3.5" />
+                  Ajouter une couverture
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1992,74 +2104,6 @@ export default function NoteDetail() {
               e.target.value = "";
             }}
           />
-
-          {/* Cover image section — desktop only */}
-          {!isMobile && (
-            <div
-              className="relative w-full group"
-              onMouseEnter={() => setCoverImageHovered(true)}
-              onMouseLeave={() => setCoverImageHovered(false)}
-            >
-              {coverImageUrl ? (
-                /* Image de couverture existante */
-                <div className="relative w-full h-52 overflow-hidden">
-                  <img
-                    src={coverImageUrl}
-                    alt="Couverture"
-                    className="w-full h-full object-cover"
-                  />
-                  {/* Overlay controls on hover */}
-                  <div
-                    className="absolute inset-0 bg-black/30 flex items-end justify-end p-3 gap-2 transition-opacity duration-150"
-                    style={{ opacity: coverImageHovered ? 1 : 0 }}
-                  >
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="h-7 text-xs gap-1.5 bg-white/90 text-gray-800 hover:bg-white"
-                      onClick={() => coverImageInputRef.current?.click()}
-                      disabled={coverImageUploading}
-                      data-testid="button-change-cover"
-                    >
-                      <ImagePlus className="w-3.5 h-3.5" />
-                      Changer
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="h-7 text-xs gap-1.5 bg-white/90 text-gray-800 hover:bg-red-50 hover:text-red-600"
-                      onClick={handleRemoveCoverImage}
-                      data-testid="button-remove-cover"
-                    >
-                      <Trash className="w-3.5 h-3.5" />
-                      Supprimer
-                    </Button>
-                  </div>
-                  {coverImageUploading && (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <Loader2 className="w-6 h-6 text-white animate-spin" />
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* Pas d'image — bouton visible au hover */
-                <div className="h-8 flex items-center px-6">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 text-xs text-muted-foreground gap-1.5"
-                    style={{ visibility: coverImageHovered ? 'visible' : 'hidden' }}
-                    onClick={() => coverImageInputRef.current?.click()}
-                    disabled={coverImageUploading}
-                    data-testid="button-add-cover"
-                  >
-                    <ImagePlus className="w-3.5 h-3.5" />
-                    Ajouter une couverture
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* ClickUp-style metadata row — desktop only, hover-reveal */}
           {!isMobile && (
