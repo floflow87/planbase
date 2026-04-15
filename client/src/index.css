@@ -609,6 +609,72 @@
   }
 }
 
+/* ─── Sheet / Drawer slide animations ─── */
+@keyframes sheet-slide-in-from-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes sheet-slide-out-to-right {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
+}
+@keyframes sheet-slide-in-from-left {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes sheet-slide-out-to-left {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100%); }
+}
+@keyframes sheet-slide-in-from-top {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes sheet-slide-out-to-top {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-100%); }
+}
+@keyframes sheet-slide-in-from-bottom {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes sheet-slide-out-to-bottom {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100%); }
+}
+
+/* Right side */
+.sheet-anim-right[data-state="open"] {
+  animation: sheet-slide-in-from-right 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.sheet-anim-right[data-state="closed"] {
+  animation: sheet-slide-out-to-right 0.22s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+/* Left side */
+.sheet-anim-left[data-state="open"] {
+  animation: sheet-slide-in-from-left 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.sheet-anim-left[data-state="closed"] {
+  animation: sheet-slide-out-to-left 0.22s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+/* Top */
+.sheet-anim-top[data-state="open"] {
+  animation: sheet-slide-in-from-top 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.sheet-anim-top[data-state="closed"] {
+  animation: sheet-slide-out-to-top 0.22s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+/* Bottom */
+.sheet-anim-bottom[data-state="open"] {
+  animation: sheet-slide-in-from-bottom 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.sheet-anim-bottom[data-state="closed"] {
+  animation: sheet-slide-out-to-bottom 0.22s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
 /* PWA Safe Area CSS Variables - Single Source of Truth */
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
