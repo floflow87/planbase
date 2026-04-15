@@ -35,6 +35,7 @@ export interface SlashCommand {
   label: string;
   description: string;
   icon: React.ElementType;
+  category: string;
   command: (props: { editor: any; range: any }) => void;
 }
 
@@ -44,6 +45,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Titre 1',
     description: 'Grand titre de section',
     icon: Heading1,
+    category: 'Texte',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).setNode('heading', { level: 1 }).run();
     },
@@ -53,6 +55,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Titre 2',
     description: 'Titre de sous-section',
     icon: Heading2,
+    category: 'Texte',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).setNode('heading', { level: 2 }).run();
     },
@@ -62,6 +65,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Titre 3',
     description: 'Petit titre',
     icon: Heading3,
+    category: 'Texte',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).setNode('heading', { level: 3 }).run();
     },
@@ -71,6 +75,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Titre 4',
     description: 'Sous-titre',
     icon: Heading4,
+    category: 'Texte',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).setNode('heading', { level: 4 }).run();
     },
@@ -80,6 +85,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Titre déroulant',
     description: 'Section repliable style Notion',
     icon: ChevronDown,
+    category: 'Texte',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).insertContent({
         type: 'details',
@@ -101,6 +107,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Gras',
     description: 'Texte en gras',
     icon: Bold,
+    category: 'Texte',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).toggleBold().run();
     },
@@ -110,6 +117,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Italique',
     description: 'Texte en italique',
     icon: Italic,
+    category: 'Texte',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).toggleItalic().run();
     },
@@ -119,8 +127,19 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Souligné',
     description: 'Texte souligné',
     icon: Underline,
+    category: 'Texte',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).toggleUnderline().run();
+    },
+  },
+  {
+    id: 't',
+    label: 'Texte',
+    description: 'Paragraphe de texte normal',
+    icon: Type,
+    category: 'Texte',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).setParagraph().run();
     },
   },
   {
@@ -128,6 +147,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Liste à puces',
     description: 'Créer une liste non ordonnée',
     icon: List,
+    category: 'Listes',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).toggleBulletList().run();
     },
@@ -137,17 +157,9 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Liste numérotée',
     description: 'Créer une liste ordonnée',
     icon: ListOrdered,
+    category: 'Listes',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).toggleOrderedList().run();
-    },
-  },
-  {
-    id: 't',
-    label: 'Texte',
-    description: 'Paragraphe de texte normal',
-    icon: Type,
-    command: ({ editor, range }) => {
-      editor.chain().focus().deleteRange(range).setParagraph().run();
     },
   },
   {
@@ -155,6 +167,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Liste de tâches',
     description: 'Créer une liste de tâches à cocher',
     icon: CheckSquare,
+    category: 'Listes',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).toggleTaskList().run();
     },
@@ -164,6 +177,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Citation',
     description: 'Ajouter une citation',
     icon: Quote,
+    category: 'Listes',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).toggleBlockquote().run();
     },
@@ -173,6 +187,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Lien',
     description: 'Insérer un lien (site, projet, client, tâche)',
     icon: Link,
+    category: 'Médias',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run();
       window.dispatchEvent(new CustomEvent('slash-command-url'));
@@ -183,6 +198,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Image',
     description: 'Télécharger une image',
     icon: Image,
+    category: 'Médias',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run();
       window.dispatchEvent(new CustomEvent('slash-command-image'));
@@ -193,6 +209,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Dictaphone',
     description: 'Démarrer la dictée vocale',
     icon: Mic,
+    category: 'Médias',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run();
       window.dispatchEvent(new CustomEvent('slash-command-voice'));
@@ -203,6 +220,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Lier un projet',
     description: 'Insérer un lien vers un projet',
     icon: FolderKanban,
+    category: 'Liens',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run();
       window.dispatchEvent(new CustomEvent('slash-command-project'));
@@ -213,6 +231,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Lier une tâche',
     description: 'Insérer un lien vers une tâche',
     icon: CheckCircle,
+    category: 'Liens',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run();
       window.dispatchEvent(new CustomEvent('slash-command-task'));
@@ -223,6 +242,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Lier un client',
     description: 'Insérer un lien vers un client',
     icon: Users,
+    category: 'Liens',
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run();
       window.dispatchEvent(new CustomEvent('slash-command-client'));
@@ -233,11 +253,10 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'Table des matières',
     description: 'Générer une table des matières automatique',
     icon: ListTree,
+    category: 'Mise en page',
     command: ({ editor, range }) => {
-      // Delete the slash command first
       editor.chain().focus().deleteRange(range).run();
       
-      // Extract all headings from the document with their positions
       const headings: { level: number; text: string; pos: number }[] = [];
       editor.state.doc.descendants((node, pos) => {
         if (node.type.name === 'heading' && node.attrs.level) {
@@ -250,7 +269,6 @@ export const SLASH_COMMANDS: SlashCommand[] = [
       });
       
       if (headings.length === 0) {
-        // Insert a placeholder if no headings found
         editor.chain().focus().insertContent({
           type: 'paragraph',
           content: [{ type: 'text', marks: [{ type: 'italic' }], text: 'Aucun titre trouvé dans le document' }]
@@ -258,37 +276,23 @@ export const SLASH_COMMANDS: SlashCommand[] = [
         return;
       }
       
-      // Find the minimum heading level to use as base
       const minLevel = Math.min(...headings.map(h => h.level));
-      
-      // Track counters for each level
-      const counters: number[] = [0, 0, 0, 0, 0]; // For h1-h4
-      
-      // Build TipTap content structure - no header, just items
+      const counters: number[] = [0, 0, 0, 0, 0];
       const tocContent: any[] = [];
-      
-      // Build ordered list with proper hierarchy and clickable links
       let headingIdx = 0;
+      
       headings.forEach((heading) => {
-        // Update counters
         counters[heading.level - 1]++;
-        // Reset lower level counters
         for (let i = heading.level; i < counters.length; i++) {
           counters[i] = 0;
         }
-        
-        // Build number prefix (e.g., "1.", "1.1.", "1.1.1.")
         const numberParts = [];
         for (let i = 0; i < heading.level; i++) {
-          if (counters[i] > 0) {
-            numberParts.push(counters[i]);
-          }
+          if (counters[i] > 0) numberParts.push(counters[i]);
         }
         const numberPrefix = numberParts.join('.') + '.';
-        
-        // Calculate indentation based on level
         const relativeLevel = heading.level - minLevel;
-        const indentSpaces = '    '.repeat(relativeLevel); // 4 spaces per level
+        const indentSpaces = '    '.repeat(relativeLevel);
         
         tocContent.push({
           type: 'paragraph',
@@ -296,14 +300,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
             { type: 'text', text: indentSpaces + numberPrefix + ' ' },
             { 
               type: 'text', 
-              marks: [{ 
-                type: 'link', 
-                attrs: { 
-                  href: `toc:${headingIdx}`,
-                  target: null,
-                  class: 'toc-link cursor-pointer'
-                } 
-              }], 
+              marks: [{ type: 'link', attrs: { href: `toc:${headingIdx}`, target: null, class: 'toc-link cursor-pointer' } }], 
               text: heading.text 
             }
           ]
@@ -311,12 +308,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
         headingIdx++;
       });
       
-      // Add separator
-      tocContent.push({
-        type: 'horizontalRule'
-      });
-      
-      // Insert the table of contents
+      tocContent.push({ type: 'horizontalRule' });
       editor.chain().focus().insertContent(tocContent).run();
     },
   },
@@ -325,6 +317,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: '2 colonnes',
     description: 'Diviser la page en 2 colonnes côte à côte',
     icon: Columns2,
+    category: 'Mise en page',
     command: ({ editor, range }) => {
       insertColumnBlock(editor, range, 2);
     },
@@ -334,6 +327,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: '3 colonnes',
     description: 'Diviser la page en 3 colonnes côte à côte',
     icon: Columns3,
+    category: 'Mise en page',
     command: ({ editor, range }) => {
       insertColumnBlock(editor, range, 3);
     },
@@ -343,6 +337,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: '4 colonnes',
     description: 'Diviser la page en 4 colonnes côte à côte',
     icon: Columns4,
+    category: 'Mise en page',
     command: ({ editor, range }) => {
       insertColumnBlock(editor, range, 4);
     },
@@ -379,85 +374,103 @@ export const CommandList = forwardRef<CommandListRef, CommandListProps>(
     useImperativeHandle(ref, () => ({
       onKeyDown: ({ event }: { event: KeyboardEvent }) => {
         if (event.key === 'ArrowUp') {
-          setSelectedIndex((prev) => (prev - 1 + items.length) % items.length);
+          setSelectedIndex((prev) => Math.max(0, prev - 2));
           return true;
         }
-
         if (event.key === 'ArrowDown') {
-          setSelectedIndex((prev) => (prev + 1) % items.length);
+          setSelectedIndex((prev) => Math.min(items.length - 1, prev + 2));
           return true;
         }
-
+        if (event.key === 'ArrowLeft') {
+          setSelectedIndex((prev) => Math.max(0, prev - 1));
+          return true;
+        }
+        if (event.key === 'ArrowRight') {
+          setSelectedIndex((prev) => Math.min(items.length - 1, prev + 1));
+          return true;
+        }
         if (event.key === 'Enter') {
           selectItem(selectedIndex);
           return true;
         }
-
         if (event.key === 'Escape') {
           return true;
         }
-
         return false;
       },
     }));
 
     if (items.length === 0) {
       return (
-        <div className="bg-card border border-border rounded-lg shadow-lg p-3 min-w-[280px]">
-          <p className="text-sm text-muted-foreground">Aucune commande trouvée</p>
+        <div className="bg-card border border-border rounded-lg shadow-lg p-3 min-w-[420px]">
+          <p className="text-xs text-muted-foreground">Aucune commande trouvée</p>
         </div>
       );
     }
 
+    const categories = Array.from(new Set(items.map(i => i.category)));
+
+    const indexedItems = items.map((item, idx) => ({ item, flatIdx: idx }));
+    const categoryGroups = categories.map((cat) => ({
+      cat,
+      catItems: indexedItems.filter(({ item }) => item.category === cat),
+    }));
+
     return (
-      <div className="bg-card border border-border rounded-lg shadow-lg overflow-hidden min-w-[280px] max-h-[320px] overflow-y-auto">
-        <div className="px-3 py-2 border-b border-border bg-muted/30">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+      <div className="bg-card border border-border rounded-lg shadow-lg overflow-hidden min-w-[440px] max-h-[380px] overflow-y-auto">
+        <div className="px-3 py-1.5 border-b border-border bg-muted/30">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
             Commandes
           </p>
         </div>
-        <div className="py-1">
-          {items.map((item, index) => {
-            const Icon = item.icon;
-            const isSelected = index === selectedIndex;
-            return (
-              <button
-                key={item.id}
-                onClick={() => selectItem(index)}
-                className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${
-                  isSelected
-                    ? 'bg-primary/10 text-primary'
-                    : 'hover:bg-muted/50 text-foreground'
-                }`}
-                data-testid={`slash-command-${item.id}`}
-              >
-                <div
-                  className={`flex items-center justify-center w-8 h-8 rounded-md ${
-                    isSelected ? 'bg-primary/20' : 'bg-muted'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{item.label}</span>
-                    <code className="text-xs px-1.5 py-0.5 bg-muted rounded text-muted-foreground">
-                      /{item.id}
-                    </code>
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {item.description}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
+        <div className="p-2 space-y-1">
+          {categoryGroups.map(({ cat, catItems }) => (
+            <div key={cat}>
+              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest px-1 py-0.5 mb-0.5">
+                {cat}
+              </p>
+              <div className="grid grid-cols-2 gap-0.5">
+                {catItems.map(({ item, flatIdx }) => {
+                  const Icon = item.icon;
+                  const isSelected = flatIdx === selectedIndex;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => selectItem(flatIdx)}
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
+                        isSelected
+                          ? 'bg-primary/10 text-primary'
+                          : 'hover:bg-muted/60 text-foreground'
+                      }`}
+                      data-testid={`slash-command-${item.id}`}
+                    >
+                      <div
+                        className={`flex-shrink-0 flex items-center justify-center w-6 h-6 rounded ${
+                          isSelected ? 'bg-primary/20' : 'bg-muted'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <span className="text-[11px] font-medium truncate">{item.label}</span>
+                          <code className="text-[9px] px-1 py-px bg-muted rounded text-muted-foreground shrink-0">
+                            /{item.id}
+                          </code>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="px-3 py-2 border-t border-border bg-muted/30">
-          <p className="text-xs text-muted-foreground">
-            <kbd className="px-1 py-0.5 bg-muted rounded text-xs">↑↓</kbd> Naviguer{' '}
-            <kbd className="px-1 py-0.5 bg-muted rounded text-xs ml-2">Entrée</kbd> Valider{' '}
-            <kbd className="px-1 py-0.5 bg-muted rounded text-xs ml-2">Échap</kbd> Annuler
+        <div className="px-3 py-1.5 border-t border-border bg-muted/30">
+          <p className="text-[9px] text-muted-foreground flex gap-2">
+            <span><kbd className="px-1 py-px bg-muted rounded">↑↓←→</kbd> Naviguer</span>
+            <span><kbd className="px-1 py-px bg-muted rounded">Entrée</kbd> Valider</span>
+            <span><kbd className="px-1 py-px bg-muted rounded">Échap</kbd> Annuler</span>
           </p>
         </div>
       </div>

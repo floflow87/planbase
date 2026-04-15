@@ -515,7 +515,7 @@ function QuickCreateMenu() {
     { label: "Client", icon: Users, color: "bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400", onClick: () => setIsClientSheetOpen(true), testId: "dropdown-new-client", disabled: false },
     { label: "Projet", icon: FolderKanban, color: "bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400", onClick: () => setIsProjectSheetOpen(true), testId: "dropdown-new-project", disabled: false },
     { label: "Tâche", icon: CheckSquare, color: "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400", onClick: () => setIsTaskSheetOpen(true), testId: "dropdown-new-task", disabled: false },
-    { label: "Note", icon: StickyNote, color: "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400", onClick: () => setIsNoteSheetOpen(true), testId: "dropdown-new-note", disabled: false },
+    { label: "Note", icon: StickyNote, color: "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400", onClick: () => createNoteMutation.mutate({ title: "", clientId: null, projectId: null, noteDate: null }), testId: "dropdown-new-note", disabled: false },
     { label: "Rendez-vous", icon: CalendarPlus, color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400", onClick: () => setIsAppointmentPanelOpen(true), testId: "dropdown-new-appointment", disabled: false },
     { label: "Email", icon: Mail, color: gmailConnected ? "bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-400" : "bg-muted text-muted-foreground", onClick: () => { setComposeInitial({ to: "", subject: "", body: "" }); setIsComposeOpen(true); }, testId: "dropdown-new-email", disabled: !gmailConnected },
   ];
