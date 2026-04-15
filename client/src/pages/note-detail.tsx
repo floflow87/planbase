@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation, Link } from "wouter";
-import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink, MessageSquare, GitPullRequest, CheckCircle2, XCircle, CornerDownRight, Pencil, Reply, UserPlus, Bot, Sparkles, Wand2, Lightbulb, Loader2, Crown, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink, MessageSquare, GitPullRequest, CheckCircle2, XCircle, CornerDownRight, Pencil, Reply, UserPlus, Bot, Sparkles, Wand2, Lightbulb, Loader2, Crown, ChevronsLeft, ChevronsRight, ImagePlus, Trash } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
@@ -270,6 +270,10 @@ export default function NoteDetail() {
   const [entitySelectorOpen, setEntitySelectorOpen] = useState(false);
   const [entitySelectorTab, setEntitySelectorTab] = useState<"project" | "client" | "ticket">("project");
   const [isFavorite, setIsFavorite] = useState(false);
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
+  const [coverImageHovered, setCoverImageHovered] = useState(false);
+  const [coverImageUploading, setCoverImageUploading] = useState(false);
+  const coverImageInputRef = useRef<HTMLInputElement>(null);
   // contentReady: true only after resolved content (pending or server) has been set in state.
   // NoteEditor is not rendered until this is true, ensuring useEditor() initializes with the
   // correct content directly rather than relying on a post-mount setContent() sync.
@@ -439,6 +443,7 @@ export default function NoteDetail() {
     setVisibility(note.visibility as any);
     setAccessLevel(((note as any).accessLevel || (note as any).access_level || "comment") as "read" | "comment");
     setIsFavorite(note.isFavorite || false);
+    setCoverImageUrl((note as any).coverImageUrl ?? null);
     // Signal that the correct content is now in state — NoteEditor can mount
     setContentReady(true);
   }, [note, getPendingSnapshot]);
@@ -1010,6 +1015,39 @@ export default function NoteDetail() {
       }
     });
   }, [isFavorite, updateMutation, toast]);
+
+  const handleCoverImageUpload = useCallback(async (file: File) => {
+    if (!id || !file) return;
+    setCoverImageUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`/api/notes/${id}/cover-image`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      setCoverImageUrl(data.coverImageUrl);
+      queryClient.invalidateQueries({ queryKey: ["/api/notes", id] });
+    } catch {
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'uploader l'image de couverture" });
+    } finally {
+      setCoverImageUploading(false);
+    }
+  }, [id, queryClient, toast]);
+
+  const handleRemoveCoverImage = useCallback(async () => {
+    if (!id) return;
+    setCoverImageUrl(null);
+    try {
+      await fetch(`/api/notes/${id}/cover-image`, { method: "DELETE", credentials: "include" });
+      queryClient.invalidateQueries({ queryKey: ["/api/notes", id] });
+    } catch {
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible de supprimer l'image" });
+    }
+  }, [id, queryClient, toast]);
 
   if (isLoading) {
     return (
@@ -2148,6 +2186,91 @@ export default function NoteDetail() {
                   )}
                 </CardContent>
               </Card>
+            </div>
+          )}
+
+          {/* Cover image — hidden file input */}
+          <input
+            ref={coverImageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleCoverImageUpload(file);
+              e.target.value = "";
+            }}
+          />
+
+          {/* Cover image section — desktop only */}
+          {!isMobile && (
+            <div
+              className="relative w-full group"
+              onMouseEnter={() => setCoverImageHovered(true)}
+              onMouseLeave={() => setCoverImageHovered(false)}
+            >
+              {coverImageUrl ? (
+                /* Image de couverture existante */
+                <div className="relative w-full h-52 overflow-hidden">
+                  <img
+                    src={coverImageUrl}
+                    alt="Couverture"
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Overlay controls on hover */}
+                  <div
+                    className="absolute inset-0 bg-black/30 flex items-end justify-end p-3 gap-2 transition-opacity duration-150"
+                    style={{ opacity: coverImageHovered ? 1 : 0 }}
+                  >
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-7 text-xs gap-1.5 bg-white/90 text-gray-800 hover:bg-white"
+                      onClick={() => coverImageInputRef.current?.click()}
+                      disabled={coverImageUploading}
+                      data-testid="button-change-cover"
+                    >
+                      <ImagePlus className="w-3.5 h-3.5" />
+                      Changer
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-7 text-xs gap-1.5 bg-white/90 text-gray-800 hover:bg-red-50 hover:text-red-600"
+                      onClick={handleRemoveCoverImage}
+                      data-testid="button-remove-cover"
+                    >
+                      <Trash className="w-3.5 h-3.5" />
+                      Supprimer
+                    </Button>
+                  </div>
+                  {coverImageUploading && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <Loader2 className="w-6 h-6 text-white animate-spin" />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Pas d'image — bouton flottant qui apparaît au hover */
+                <div className="h-4 relative">
+                  <div
+                    className="absolute left-12 top-1 transition-opacity duration-150"
+                    style={{ opacity: coverImageHovered ? 1 : 0, pointerEvents: coverImageHovered ? 'auto' : 'none' }}
+                  >
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs text-muted-foreground gap-1.5 hover:text-foreground"
+                      onClick={() => coverImageInputRef.current?.click()}
+                      disabled={coverImageUploading}
+                      data-testid="button-add-cover"
+                    >
+                      <ImagePlus className="w-3.5 h-3.5" />
+                      Ajouter une couverture
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

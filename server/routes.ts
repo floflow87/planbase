@@ -4332,6 +4332,39 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  const _coverImageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10485760 } }); // 10MB
+  app.post("/api/notes/:id/cover-image", requireAuth, requireOrgMember, requirePermission("notes", "update"), _coverImageUpload.single("file"), async (req, res) => {
+    try {
+      const existing = await storage.getNote(req.params.id);
+      if (!existing || existing.accountId !== req.accountId) return res.status(404).json({ error: "Note not found" });
+      const file = req.file;
+      if (!file) return res.status(400).json({ error: "No file uploaded" });
+      const ext = file.mimetype.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+      const storagePath = `accounts/${req.accountId}/note-covers/${req.params.id}.${ext}`;
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from("planbase-files")
+        .upload(storagePath, file.buffer, { contentType: file.mimetype, upsert: true });
+      if (uploadError) throw new Error("Erreur upload: " + uploadError.message);
+      const { data: urlData } = supabaseAdmin.storage.from("planbase-files").getPublicUrl(storagePath);
+      const coverImageUrl = urlData.publicUrl + `?t=${Date.now()}`;
+      const note = await storage.updateNote(req.params.id, { coverImageUrl });
+      res.json({ coverImageUrl: note.coverImageUrl });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/notes/:id/cover-image", requireAuth, requireOrgMember, requirePermission("notes", "update"), async (req, res) => {
+    try {
+      const existing = await storage.getNote(req.params.id);
+      if (!existing || existing.accountId !== req.accountId) return res.status(404).json({ error: "Note not found" });
+      const note = await storage.updateNote(req.params.id, { coverImageUrl: null });
+      res.json({ coverImageUrl: null });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.post("/api/notes/:id/duplicate", requireAuth, requireOrgMember, requirePermission("notes", "create"), async (req, res) => {
     try {
       const existing = await storage.getNote(req.params.id);

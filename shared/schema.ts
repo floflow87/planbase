@@ -738,6 +738,7 @@ export const notes = pgTable("notes", {
   isFavorite: boolean("is_favorite").notNull().default(false), // favorites appear at top
   categoryId: uuid("category_id").references(() => noteCategories.id, { onDelete: "set null" }), // note tag/category
   noteDate: date("note_date"), // optional custom date for the note
+  coverImageUrl: text("cover_image_url"), // cover banner image URL
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({

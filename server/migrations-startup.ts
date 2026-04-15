@@ -2938,6 +2938,15 @@ export async function runStartupMigrations() {
     }
     // ─────────────────────────────────────────────────────────────
 
+    // ── Notes cover image ──
+    try {
+      await db.execute(sql`ALTER TABLE notes ADD COLUMN IF NOT EXISTS cover_image_url text`);
+      console.log("✅ Notes cover_image_url column added");
+    } catch (e: any) {
+      console.warn("⚠️  Notes cover_image_url migration (non-blocking):", e.message);
+    }
+    // ─────────────────────────────────────────────────────────────
+
     // ── Auto-close stale pending invitations for already-active members ──
     try {
       const staleResult = await db.execute(sql`
