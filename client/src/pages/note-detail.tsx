@@ -2251,17 +2251,11 @@ export default function NoteDetail() {
                     variant="ghost"
                     size="sm"
                     className="h-7 px-2 text-xs gap-1.5 text-muted-foreground"
-                    style={{ visibility: (metaRowHovered || !!currentProject || !!currentClient || lierPopoverOpen) ? 'visible' : 'hidden' }}
+                    style={{ visibility: (metaRowHovered || !!currentProject || !!currentClient || !!currentTicket || lierPopoverOpen) ? 'visible' : 'hidden' }}
                     data-testid="button-lier"
                   >
                     <Link2 className="w-3.5 h-3.5" />
-                    {currentProject && currentClient
-                      ? `${currentProject.name} · ${currentClient.name}`
-                      : currentProject
-                      ? currentProject.name
-                      : currentClient
-                      ? currentClient.name
-                      : "Lier"}
+                    {[currentProject?.name, currentClient?.name, currentTicket?.title].filter(Boolean).join(' · ') || "Lier"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-64 p-2 bg-white dark:bg-gray-900" align="start" style={{ zIndex: 10001 }}>
@@ -2322,18 +2316,45 @@ export default function NoteDetail() {
                         )}
                       </div>
                     </div>
+                    {/* Ticket row */}
+                    <div className="flex items-center justify-between px-1 py-1 rounded-md">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                        <Ticket className="w-3 h-3 text-orange-500 shrink-0" />
+                        {currentTicket
+                          ? <span className="text-xs font-medium truncate">{currentTicket.title}</span>
+                          : <span className="text-xs text-muted-foreground">Aucun ticket</span>}
+                      </div>
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        {currentTicket ? (
+                          <Button size="icon" variant="ghost" className="h-5 w-5 text-destructive"
+                            onClick={() => { unlinkTicketMutation.mutate(); setLierPopoverOpen(false); }}
+                            data-testid="button-unlink-ticket-popover">
+                            <X className="w-3 h-3" />
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[11px] text-orange-500"
+                            onClick={() => { setLierPopoverOpen(false); setEntitySelectorTab("ticket"); setEntitySelectorOpen(true); }}
+                            data-testid="button-link-ticket-popover">
+                            Lier
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </PopoverContent>
               </Popover>
 
               {/* Tag/Category selector */}
+              <div
+                className="flex items-center gap-0"
+                style={{ visibility: (metaRowHovered || !!note?.categoryId || categoryPopoverOpen) ? 'visible' : 'hidden' }}
+              >
               <Popover open={categoryPopoverOpen} onOpenChange={setCategoryPopoverOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-7 px-2 text-xs gap-1.5 text-muted-foreground"
-                    style={{ visibility: (metaRowHovered || !!note?.categoryId || categoryPopoverOpen) ? 'visible' : 'hidden' }}
                     data-testid="button-category-selector"
                   >
                     <Tag className="w-3.5 h-3.5" />
@@ -2380,6 +2401,18 @@ export default function NoteDetail() {
                   </div>
                 </PopoverContent>
               </Popover>
+              {note?.categoryId && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-5 w-5 text-muted-foreground hover:text-destructive -ml-1 mt-0.5"
+                  onClick={() => updateNoteCategoryMutation.mutate(null)}
+                  data-testid="button-remove-tag"
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              )}
+              </div>
 
               {/* Date picker */}
               <Popover>
