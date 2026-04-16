@@ -2787,6 +2787,10 @@ export default function ProjectDetail() {
   const navigate = (path: string) => setLocation(path);
   const { toast } = useToast();
   const { t } = useLanguage();
+  const getBillingStatusI18nLabel = (key: string | null | undefined): string => {
+    if (!key) return (t.projects.billingStatus as Record<string, string>).brouillon;
+    return (t.projects.billingStatus as Record<string, string>)[key] || key;
+  };
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const { hasFeature } = useBilling();
@@ -3845,7 +3849,7 @@ export default function ProjectDetail() {
                         backgroundColor: billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.color || "#C4B5FD"
                       }}
                     >
-                      {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
+                      {getBillingStatusI18nLabel(project.billingStatus || "brouillon")}
                       {project.billingStatus === "retard" && getBillingDaysOverdue(project.billingDueDate)}
                       <ChevronDown className="h-3 w-3 ml-1" />
                     </Badge>
@@ -3879,8 +3883,8 @@ export default function ProjectDetail() {
                               queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
                               queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
                               toast({
-                                title: "Statut de facturation mis à jour",
-                                description: option.label,
+                                title: t.projects.billingStatusTitle,
+                                description: getBillingStatusI18nLabel(option.value),
                                 variant: "success",
                               });
                             } catch (error: any) {
@@ -3903,7 +3907,7 @@ export default function ProjectDetail() {
                             className="w-2.5 h-2.5 rounded-full shrink-0" 
                             style={{ backgroundColor: option.color }}
                           />
-                          <span>{option.label}</span>
+                          <span>{getBillingStatusI18nLabel(option.value)}</span>
                         </button>
                       ))}
                     </div>
@@ -5081,7 +5085,7 @@ export default function ProjectDetail() {
                               )}
                               <div className="flex items-center gap-2 mt-2">
                                 <Badge variant="outline" className="text-[10px]">
-                                  {note.status === "draft" ? "Brouillon" : note.status === "active" ? "Actif" : "Archivé"}
+                                  {note.status === "draft" ? t.common.draft : note.status === "active" ? t.common.active : t.common.archived}
                                 </Badge>
                                 {note.updatedAt && (
                                   <span className="text-[11px] text-muted-foreground">
@@ -5155,8 +5159,8 @@ export default function ProjectDetail() {
                                       className={document.status === "draft" ? "text-muted-foreground" : "bg-green-600 dark:bg-green-700 text-white"}
                                       data-testid={`status-${document.id}`}
                                     >
-                                      {document.status === "draft" ? "Brouillon" : 
-                                       document.status === "published" ? "Publié" : "Archivé"}
+                                      {document.status === "draft" ? t.common.draft : 
+                                       document.status === "published" ? t.common.published : t.common.archived}
                                     </Badge>
                                     {document.updatedAt && (
                                       <span className="text-[11px] text-muted-foreground">

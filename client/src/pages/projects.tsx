@@ -1637,7 +1637,7 @@ function DraggableProjectCard({
             className={`${getBillingStatusColorClass(project.billingStatus)} text-[10px]`}
             data-testid={`badge-kanban-billing-status-${project.id}`}
           >
-            {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
+            {getBillingStatusI18nLabel(project.billingStatus || "brouillon")}
             {project.billingStatus === "retard" && getBillingDaysOverdueForCard(project.billingDueDate)}
           </Badge>
         </div>
@@ -1794,7 +1794,7 @@ function ProjectKanbanView({
                     {activeKanbanProject.name}
                   </h4>
                   <p className="text-[10px] text-muted-foreground truncate">
-                    {activeKanbanClient?.name || "Client non défini"}
+                    {activeKanbanClient?.name || t.projects.detail.clientUndefined}
                   </p>
                 </div>
               </div>
@@ -1931,6 +1931,10 @@ export default function Projects() {
   const userId = user?.id || null;
   const { toast } = useToast();
   const { t } = useLanguage();
+  const getBillingStatusI18nLabel = (key: string | null | undefined): string => {
+    if (!key) return (t.projects.billingStatus as Record<string, string>).brouillon;
+    return (t.projects.billingStatus as Record<string, string>)[key] || key;
+  };
   const { canCreate, canUpdate, canDelete } = useReadOnlyMode("projects");
   const { allStages, visibleStages, getLabel: getStageLabel, getColor: getStageColor } = useProjectStagesUI();
 
@@ -3066,7 +3070,7 @@ export default function Projects() {
                       <Banknote className="h-4 w-4 sm:mr-2 text-muted-foreground" />
                       <span className="hidden sm:inline truncate">
                         {projectBillingFilters.length === 0 ? t.tasks.allStatuses : 
-                         projectBillingFilters.length === 1 ? billingStatusOptions.find(o => o.value === projectBillingFilters[0])?.label : 
+                         projectBillingFilters.length === 1 ? getBillingStatusI18nLabel(projectBillingFilters[0]) : 
                          `${projectBillingFilters.length} statuts`}
                       </span>
                     </Button>
@@ -3375,7 +3379,7 @@ export default function Projects() {
                                   </h3>
                                 </Link>
                                 <p className="text-xs text-muted-foreground truncate">
-                                  {client?.name || "Client non défini"}
+                                  {client?.name || t.projects.detail.clientUndefined}
                                 </p>
                               </div>
                             </div>
@@ -3461,7 +3465,7 @@ export default function Projects() {
                             )}
                             {project.billingStatus && (
                               <Badge variant="outline" className="text-[10px]">
-                                {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
+                                {getBillingStatusI18nLabel(project.billingStatus || "brouillon")}
                               </Badge>
                             )}
                             {incompleteTasks > 0 && (
@@ -3486,7 +3490,7 @@ export default function Projects() {
                               <CalendarIcon className="h-3 w-3" />
                               {project.startDate
                                 ? formatDate(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
-                                : "Pas de date"}
+                                : t.projects.noDate}
                             </div>
                             {project.totalBilled && (
                               <div className="font-medium text-foreground">
@@ -3597,7 +3601,7 @@ export default function Projects() {
                                   )}
                                 </div>
                                 <p className="text-[10px] text-muted-foreground truncate">
-                                  {client?.name || "Client non défini"}
+                                  {client?.name || t.projects.detail.clientUndefined}
                                 </p>
                               </div>
                             </div>
@@ -3680,7 +3684,7 @@ export default function Projects() {
                                 className={`${getBillingStatusColorClass(project.billingStatus)} text-[11px]`}
                                 data-testid={`badge-billing-status-${project.id}`}
                               >
-                                {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
+                                {getBillingStatusI18nLabel(project.billingStatus || "brouillon")}
                                 {project.billingStatus === "retard" && getBillingDaysOverdueForCard(project.billingDueDate)}
                               </Badge>
                               {project.category && (
@@ -3776,7 +3780,7 @@ export default function Projects() {
                                 <CalendarIcon className="h-3 w-3" />
                                 {project.startDate
                                   ? formatDate(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
-                                  : "Pas de date"}
+                                  : t.projects.noDate}
                               </div>
                               {project.totalBilled && (
                                 <div className="font-bold text-primary">
@@ -3823,8 +3827,8 @@ export default function Projects() {
                                   progress: "Progression tâches",
                                   category: "Catégorie",
                                   startDate: "Début",
-                                  budget: "Facturé",
-                                  billingStatus: "Règlement",
+                                  budget: t.projects.billed,
+                                  billingStatus: t.projects.payment,
                                   actions: "Actions",
                                 };
                                 
@@ -4221,7 +4225,7 @@ export default function Projects() {
                                           className={`${getBillingStatusColorClass(project.billingStatus)} cursor-pointer text-[10px]`}
                                           data-testid={`badge-table-billing-status-${project.id}`}
                                         >
-                                          {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
+                                          {getBillingStatusI18nLabel(project.billingStatus || "brouillon")}
                                           {project.billingStatus === "retard" && getBillingDaysOverdueForCard(project.billingDueDate)}
                                         </Badge>
                                       </button>
@@ -4243,7 +4247,7 @@ export default function Projects() {
                                             data-testid={`item-billing-status-${status.value}`}
                                           >
                                             <Badge className={`${getBillingStatusColorClass(status.value)} text-[10px]`}>
-                                              {status.label}
+                                              {getBillingStatusI18nLabel(status.value)}
                                             </Badge>
                                           </button>
                                         ))}
@@ -4511,8 +4515,8 @@ export default function Projects() {
               { id: "progress", label: "Progression tâches" },
               { id: "category", label: "Catégorie" },
               { id: "startDate", label: "Début" },
-              { id: "budget", label: "Facturé" },
-              { id: "billingStatus", label: "Règlement" },
+              { id: "budget", label: t.projects.billed },
+              { id: "billingStatus", label: t.projects.payment },
               { id: "actions", label: "Actions", disabled: true },
             ].map((column) => (
               <div key={column.id} className="flex items-center justify-between">
@@ -4571,18 +4575,18 @@ export default function Projects() {
 
             {/* Billing Status Filters */}
             <div>
-              <Label className="text-sm font-medium mb-2 block">Statut de facturation</Label>
+              <Label className="text-sm font-medium mb-2 block">{t.projects.billingStatusTitle}</Label>
               <div className="space-y-2">
                 {[
-                  { value: "brouillon", label: "Brouillon" },
-                  { value: "devis_envoye", label: "Devis envoyé" },
-                  { value: "devis_accepte", label: "Devis accepté" },
-                  { value: "bon_commande", label: "Bon de commande" },
-                  { value: "facture", label: "Facturé" },
-                  { value: "paye", label: "Payé" },
-                  { value: "partiel", label: "Paiement partiel" },
-                  { value: "annule", label: "Annulé" },
-                  { value: "retard", label: "En retard" }
+                  { value: "brouillon", label: t.projects.billingStatus.brouillon },
+                  { value: "devis_envoye", label: t.projects.billingStatus.devis_envoye },
+                  { value: "devis_accepte", label: t.projects.billingStatus.devis_accepte },
+                  { value: "bon_commande", label: t.projects.billingStatus.bon_commande },
+                  { value: "facture", label: t.projects.billingStatus.facture },
+                  { value: "paye", label: t.projects.billingStatus.paye },
+                  { value: "partiel", label: t.projects.billingStatus.partiel },
+                  { value: "annule", label: t.projects.billingStatus.annule },
+                  { value: "retard", label: t.projects.billingStatus.retard }
                 ].map((status) => (
                   <div 
                     key={status.value} 

@@ -889,28 +889,28 @@ export default function CRM() {
 
   const kpis = [
     {
-      title: "Total Clients",
+      title: t.crm.totalClients,
       value: totalContacts.toString(),
       icon: UsersIcon,
       iconBg: "bg-violet-100",
       iconColor: "text-violet-600",
     },
     {
-      title: "Prospects gagnés",
+      title: t.crm.wonProspects,
       value: wonClients.toString(),
       icon: Target,
       iconBg: "bg-yellow-100",
       iconColor: "text-yellow-600",
     },
     {
-      title: "Taux de Conversion",
+      title: t.crm.conversionRate,
       value: `${conversionRate}%`,
       icon: TrendingUp,
       iconBg: "bg-green-100",
       iconColor: "text-green-600",
     },
     {
-      title: "Opportunités",
+      title: t.crm.opportunities,
       value: `€${totalOpportunities.toLocaleString()}`,
       icon: Euro,
       iconBg: "bg-blue-100",
@@ -953,18 +953,16 @@ export default function CRM() {
   };
 
   const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "in_progress":
-        return "En négociation";
-      case "prospect":
-        return "Prospect";
-      case "signed":
-        return "Gagné";
-      case "inactive":
-        return "Inactif";
-      default:
-        return status;
-    }
+    const stages = t.crm.pipeline_stages as Record<string, string>;
+    const statusMap: Record<string, string> = {
+      in_progress: stages.negotiation || "En négociation",
+      prospect: stages.prospecting || "Prospect",
+      prospecting: stages.prospecting || "Prospect",
+      signed: stages.won || "Gagné",
+      won: stages.won || "Gagné",
+      inactive: t.common.inactive,
+    };
+    return statusMap[status] || stages[status] || status;
   };
 
   const { can: canDo } = usePermissions();
@@ -1173,8 +1171,8 @@ export default function CRM() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="company">Entreprise</SelectItem>
-                            <SelectItem value="person">Particulier</SelectItem>
+                            <SelectItem value="company">{t.common.company}</SelectItem>
+                            <SelectItem value="person">{t.common.person}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -1373,13 +1371,7 @@ export default function CRM() {
                               case "type":
                                 return (
                                   <Badge className={`text-[10px] ${getStatusBadgeColor(client.status)}`}>
-                                    {client.status === "prospecting" ? "Prospect" :
-                                     client.status === "qualified" ? "Qualifié" :
-                                     client.status === "negotiation" ? "Négociation" :
-                                     client.status === "quote_sent" ? "Devis envoyé" :
-                                     client.status === "quote_approved" ? "Devis validé" :
-                                     client.status === "won" ? "Gagné" :
-                                     client.status === "lost" ? "Perdu" : client.status}
+                                    {(t.crm.pipeline_stages as Record<string,string>)[client.status] || client.status}
                                   </Badge>
                                 );
                               case "projets":

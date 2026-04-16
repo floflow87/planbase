@@ -568,6 +568,23 @@ export default function Dashboard() {
   const isDark = theme === "dark";
   const { taskReminderEnabled } = usePreferences();
   const { t } = useLanguage();
+  const getActivityKindLabel = (kind: string): string => {
+    const kinds = t.dashboard.activityKinds as Record<string, string>;
+    return kinds[kind] || kind;
+  };
+  const getSubjectTypeLabel = (subjectType: string): string => {
+    const types = t.dashboard.subjectTypes as Record<string, string>;
+    return types[subjectType] || subjectType;
+  };
+  const getActivityDescriptionLabel = (description: string): string => {
+    const prefixes = t.dashboard.activityDescPrefixes as Record<string, string>;
+    for (const [key, value] of Object.entries(prefixes)) {
+      if (description.includes(key)) {
+        return description.replace(key, value);
+      }
+    }
+    return description;
+  };
   const { getLabel: getStageLabel, getColor: getStageColor } = useProjectStagesUI();
   const [isCreateClientDialogOpen, setIsCreateClientDialogOpen] = useState(false);
   const [isCreateProjectDialogOpen, setIsCreateProjectDialogOpen] = useState(false);
@@ -1664,10 +1681,10 @@ export default function Dashboard() {
     subValue?: string;
   }> = [
     {
-      title: "Chiffre d'affaires",
+      title: t.dashboard.kpi.revenue,
       titleSuffix: periodLabel.replace(/^CA\s*/i, ""),
       value: `${periodRevenue.toLocaleString()} €`,
-      change: potentialRevenue > 0 ? `${potentialRevenue.toLocaleString()} € potentiel` : "",
+      change: potentialRevenue > 0 ? `${potentialRevenue.toLocaleString()} € ${t.dashboard.kpi.potential}` : "",
       changeType: "neutral",
       icon: Euro,
       iconBg: "bg-green-100",
@@ -1676,9 +1693,9 @@ export default function Dashboard() {
       chartColor: "#6ee7b7",
     },
     {
-      title: "Paiements en attente",
+      title: t.dashboard.kpi.pendingPayments,
       value: `${pendingPayments.toLocaleString()} €`,
-      change: `${totalPaid.toLocaleString()} € reçus`,
+      change: `${totalPaid.toLocaleString()} € ${t.dashboard.kpi.received}`,
       changeType: "negative",
       icon: CreditCard,
       iconBg: "bg-red-100",
@@ -1687,28 +1704,28 @@ export default function Dashboard() {
       chartColor: "#fca5a5",
     },
     {
-      title: "Tâches en cours",
+      title: t.dashboard.kpi.activeTasks,
       value: activeTasksCount.toString(),
-      change: `${tasks.length} au total`,
+      change: `${tasks.length} ${t.dashboard.kpi.inTotal}`,
       changeType: "neutral",
       icon: CheckSquare,
       iconBg: "bg-orange-100",
       iconColor: "text-orange-600",
       chartHeights: [30, 50, 40, 65, 55, 45, 60],
       chartColor: "#fdba74",
-      link: { label: "Voir tout", href: "/tasks" },
+      link: { label: t.common.seeAll, href: "/tasks" },
     },
     {
-      title: "Projets en cours",
+      title: t.dashboard.kpi.activeProjects,
       value: activeProjectsCount.toString(),
-      change: totalProjectsCount > 0 ? `${totalProjectsCount} au total` : "0 au total",
+      change: totalProjectsCount > 0 ? `${totalProjectsCount} ${t.dashboard.kpi.inTotal}` : `0 ${t.dashboard.kpi.inTotal}`,
       changeType: "neutral",
       icon: FolderKanban,
       iconBg: "bg-violet-100",
       iconColor: "text-violet-600",
       chartHeights: [35, 45, 50, 60, 70, 75, 80],
       chartColor: "#93c5fd",
-      link: { label: "Voir tous", href: "/projects?tab=projects" },
+      link: { label: t.common.seeAll, href: "/projects?tab=projects" },
     },
   ];
 
@@ -2370,10 +2387,10 @@ export default function Dashboard() {
                   return true;
                 }).slice(0, 5).map((activity) => {
                   const payload = activity.payload as { description?: string };
-                  const translatedKind = translateActivityKind(activity.kind);
-                  const translatedSubject = translateSubjectType(activity.subjectType);
+                  const translatedKind = getActivityKindLabel(activity.kind);
+                  const translatedSubject = getSubjectTypeLabel(activity.subjectType);
                   const description = payload.description 
-                    ? translateActivityDescription(payload.description)
+                    ? getActivityDescriptionLabel(payload.description)
                     : `${translatedSubject} ${translatedKind}`;
                   const activityUrl = getActivityUrl(activity.subjectType, activity.subjectId);
                   
@@ -2416,7 +2433,7 @@ export default function Dashboard() {
           <Card className={getBlockColSpanById('recentProjects')} style={{ order: getBlockOrder('recentProjects') }}>
             <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
               <CardTitle className="text-base font-heading font-semibold">
-                Projets Récents
+                {t.dashboard.recentProjects}
               </CardTitle>
               <Button 
                 variant="ghost" 
@@ -2424,8 +2441,8 @@ export default function Dashboard() {
                 onClick={() => setLocation("/projects")}
                 data-testid="button-view-all-projects"
               >
-                <span className="hidden sm:inline">Voir tout</span>
-                <span className="sm:hidden">Tout</span>
+                <span className="hidden sm:inline">{t.common.seeAll}</span>
+                <span className="sm:hidden">{t.common.seeAllShort}</span>
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </CardHeader>
@@ -2444,7 +2461,7 @@ export default function Dashboard() {
                       <div className="w-1 h-12 rounded bg-primary shrink-0 hidden sm:block" />
                       <div className="flex-1 min-w-0 w-full sm:w-auto">
                         <h4 className="text-xs font-medium text-foreground truncate">{project.name}</h4>
-                        <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{project.description || "Aucune description"}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{project.description || t.common.noDescription}</p>
                       </div>
                       <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto flex-wrap">
                         <Badge className={`${getStageColor(project.stage || "prospection")} shrink-0 text-[10px]`}>

@@ -1155,9 +1155,11 @@ export default function ClientDetail() {
         queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountId, 'clients'] });
       });
       if (oldStatus && oldStatus !== newStatus) {
+        const pipelineStages = t.crm.pipeline_stages as Record<string, string>;
         const statusLabels: Record<string, string> = {
-          prospecting: "Prospect", qualified: "Qualifié", negotiation: "Négociation",
-          quote_sent: "Devis envoyé", quote_approved: "Devis validé", won: "Gagné", lost: "Perdu",
+          prospecting: pipelineStages.prospecting, qualified: pipelineStages.qualified,
+          negotiation: pipelineStages.negotiation, quote_sent: pipelineStages.quote_sent,
+          quote_approved: pipelineStages.quote_approved, won: pipelineStages.won, lost: pipelineStages.lost,
         };
         await apiRequest("/api/activities", "POST", {
           subjectType: "client",
@@ -1189,26 +1191,28 @@ export default function ClientDetail() {
     );
   }
 
+  const stages = t.crm.pipeline_stages as Record<string, string>;
   const statusConfig: Record<string, { label: string; color: string }> = {
-    prospecting: { label: "Prospect", color: "bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400" },
-    qualified: { label: "Qualifié", color: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400" },
-    negotiation: { label: "Négociation", color: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400" },
-    quote_sent: { label: "Devis envoyé", color: "bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400" },
-    quote_approved: { label: "Devis validé", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-400" },
-    won: { label: "Gagné", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400" },
-    lost: { label: "Perdu", color: "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400" },
+    prospecting: { label: stages.prospecting, color: "bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400" },
+    qualified: { label: stages.qualified, color: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400" },
+    negotiation: { label: stages.negotiation, color: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400" },
+    quote_sent: { label: stages.quote_sent, color: "bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400" },
+    quote_approved: { label: stages.quote_approved, color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-400" },
+    won: { label: stages.won, color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400" },
+    lost: { label: stages.lost, color: "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400" },
   };
   const currentStatus = statusConfig[client.status] || { label: client.status, color: "" };
 
+  const crmSources = t.crm.sources as Record<string, string>;
   const sourceLabels: Record<string, string> = {
-    organic: "Organique",
-    paid: "Publicité payante",
-    referral: "Recommandation",
-    outbound: "Prospection",
-    platform: "Plateforme",
-    partner: "Partenaire",
-    event: "Événement",
-    other: "Autre",
+    organic: crmSources.organic,
+    paid: crmSources.paid,
+    referral: crmSources.referral,
+    outbound: crmSources.outbound,
+    platform: crmSources.platform,
+    partner: crmSources.partner,
+    event: crmSources.event,
+    other: crmSources.other,
   };
 
   const sourceColors: Record<string, string> = {
@@ -1353,7 +1357,7 @@ export default function ClientDetail() {
                 </PopoverContent>
               </Popover>
               <Badge variant="outline" className="justify-center text-[11px]">
-                {client.type === "company" ? "Entreprise" : "Personne"}
+                {client.type === "company" ? t.common.company : t.common.person}
               </Badge>
             </div>
 
@@ -3288,8 +3292,8 @@ export default function ClientDetail() {
                   <Select value={clientInfoForm.type} onValueChange={(v: "company" | "person") => setClientInfoForm({ ...clientInfoForm, type: v })}>
                     <SelectTrigger data-testid="select-edit-type"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="company">Entreprise</SelectItem>
-                      <SelectItem value="person">Personne</SelectItem>
+                      <SelectItem value="company">{t.common.company}</SelectItem>
+                      <SelectItem value="person">{t.common.person}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -3377,28 +3381,28 @@ export default function ClientDetail() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="organic">
-                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />Organique</span>
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />{(t.crm.sources as Record<string,string>).organic}</span>
                     </SelectItem>
                     <SelectItem value="paid">
-                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />Publicité payante</span>
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />{(t.crm.sources as Record<string,string>).paid}</span>
                     </SelectItem>
                     <SelectItem value="referral">
-                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />Recommandation</span>
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />{(t.crm.sources as Record<string,string>).referral}</span>
                     </SelectItem>
                     <SelectItem value="outbound">
-                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-violet-500 shrink-0" />Prospection</span>
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-violet-500 shrink-0" />{(t.crm.sources as Record<string,string>).outbound}</span>
                     </SelectItem>
                     <SelectItem value="platform">
-                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-cyan-500 shrink-0" />Plateforme</span>
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-cyan-500 shrink-0" />{(t.crm.sources as Record<string,string>).platform}</span>
                     </SelectItem>
                     <SelectItem value="partner">
-                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />Partenaire</span>
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />{(t.crm.sources as Record<string,string>).partner}</span>
                     </SelectItem>
                     <SelectItem value="event">
-                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-pink-500 shrink-0" />Événement</span>
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-pink-500 shrink-0" />{(t.crm.sources as Record<string,string>).event}</span>
                     </SelectItem>
                     <SelectItem value="other">
-                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />Autre</span>
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />{(t.crm.sources as Record<string,string>).other}</span>
                     </SelectItem>
                   </SelectContent>
                 </Select>
