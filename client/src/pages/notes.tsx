@@ -1,4 +1,5 @@
 import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, FileText, Trash2, MoreVertical, CheckCircle2, Copy, Globe, GripVertical, ArrowUp, ArrowDown, ArrowUpDown, Star, Settings2, FolderKanban, ChevronDown, ChevronRight, ChevronsUpDown, Check } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader } from "@/components/Loader";
 import { Button } from "@/components/ui/button";
@@ -135,6 +136,7 @@ export default function Notes() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { can: canDo } = usePermissions();
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "active" | "archived">(() => {
     const saved = localStorage.getItem('notesStatusFilter');
@@ -541,38 +543,38 @@ export default function Notes() {
       }
       case "status": {
         const statusLabels: Record<string, string> = {
-          draft: "Brouillons",
-          active: "Publiées",
-          archived: "Archivées",
+          draft: t.notes.drafts,
+          active: t.notes.published,
+          archived: t.notes.archived_f,
         };
         return {
           key: note.status || "active",
-          name: statusLabels[note.status || "active"] || "Publiées",
+          name: statusLabels[note.status || "active"] || t.notes.published,
         };
       }
       case "visibility": {
         const visibilityLabels: Record<string, string> = {
-          private: "Privées",
-          shared: "Partagées",
-          public: "Publiques",
+          private: t.notes.private_f,
+          shared: t.notes.shared_f,
+          public: t.notes.public_f,
         };
         return {
           key: note.visibility || "private",
-          name: visibilityLabels[note.visibility || "private"] || "Privées",
+          name: visibilityLabels[note.visibility || "private"] || t.notes.private_f,
         };
       }
       case "favorite": {
         const isFav = note.isFavorite || false;
         return {
           key: isFav ? "favorite" : "not-favorite",
-          name: isFav ? "Favoris" : "Autres notes",
+          name: isFav ? t.notes.favorite_f : t.notes.otherNotes,
         };
       }
       case "tag": {
         const category = note.categoryId ? noteCategories.find(c => c.id === note.categoryId) : null;
         return {
           key: category?.id || "no-tag",
-          name: category?.name || "Sans tag",
+          name: category?.name || t.notes.noTag,
         };
       }
       case "none":
@@ -982,10 +984,10 @@ export default function Notes() {
               onChange={(e) => setStatusFilter(e.target.value as any)}
               data-testid="select-status-filter-mobile"
             >
-              <option value="all">Tous</option>
-              <option value="draft">Brouillons</option>
-              <option value="active">Publiées</option>
-              <option value="archived">Archivées</option>
+              <option value="all">{t.common.all}</option>
+              <option value="draft">{t.notes.drafts}</option>
+              <option value="active">{t.notes.published}</option>
+              <option value="archived">{t.notes.archived_f}</option>
             </select>
           </div>
           
@@ -1007,10 +1009,10 @@ export default function Notes() {
               onChange={(e) => setStatusFilter(e.target.value as any)}
               data-testid="select-status-filter"
             >
-              <option value="all">Tous les statuts</option>
-              <option value="draft">Brouillons</option>
-              <option value="active">Publiées</option>
-              <option value="archived">Archivées</option>
+              <option value="all">{t.notes.allStatuses}</option>
+              <option value="draft">{t.notes.drafts}</option>
+              <option value="active">{t.notes.published}</option>
+              <option value="archived">{t.notes.archived_f}</option>
             </select>
             <select
               className="border border-border rounded-md px-3 h-9 text-xs bg-card"
@@ -1018,12 +1020,12 @@ export default function Notes() {
               onChange={(e) => setGroupBy(e.target.value as any)}
               data-testid="select-group-by"
             >
-              <option value="none">Sans groupage</option>
-              <option value="project">Par projet</option>
-              <option value="status">Par statut</option>
-              <option value="visibility">Par visibilité</option>
-              <option value="favorite">Par favoris</option>
-              <option value="tag">Par tag</option>
+              <option value="none">{t.notes.groupByNone}</option>
+              <option value="project">{t.notes.groupByProject}</option>
+              <option value="status">{t.notes.groupByStatus}</option>
+              <option value="visibility">{t.notes.filterByVisibility}</option>
+              <option value="favorite">{t.notes.groupByFavorite}</option>
+              <option value="tag">{t.notes.groupByTag}</option>
             </select>
             <Button
               variant={showFilterPanel ? "default" : "outline"}
@@ -1093,7 +1095,7 @@ export default function Notes() {
                 data-testid="button-nouvelle-note"
               >
                 <Plus className="w-4 h-4" />
-                {createNoteMutation.isPending ? "Création..." : "Nouvelle note"}
+                {createNoteMutation.isPending ? t.notes.creating : t.notes.new}
               </Button>
             </Can>
           </div>
@@ -1104,7 +1106,7 @@ export default function Notes() {
           <SheetContent side="right" className="w-[320px] bg-white dark:bg-gray-900" data-testid="filter-panel">
             <SheetHeader>
               <SheetTitle className="flex items-center justify-between">
-                <span>Filtres avancés</span>
+                <span>{t.notes.advancedFilters}</span>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1217,7 +1219,7 @@ export default function Notes() {
                   <SelectContent className="bg-white dark:bg-gray-900">
                     <SelectItem value="all">Toutes</SelectItem>
                     <SelectItem value="public">Publiques</SelectItem>
-                    <SelectItem value="private">Privées</SelectItem>
+                    <SelectItem value="private">{t.notes.private_f}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1309,8 +1311,8 @@ export default function Notes() {
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
                   {notes.length === 0 
-                    ? "Aucune note disponible. Cliquez sur \"Nouvelle note\" pour commencer."
-                    : "Aucune note ne correspond à votre recherche."}
+                    ? t.notes.noNoteAvailable
+                    : t.notes.noNoteMatch}
                 </CardContent>
               </Card>
             ) : (
@@ -1556,8 +1558,8 @@ export default function Notes() {
               <div className="py-12 px-4">
                 <div className="text-center text-muted-foreground text-[14px]">
                   {notes.length === 0 
-                    ? "Aucune note disponible. Cliquez sur \"Nouvelle note\" pour commencer."
-                    : "Aucune note ne correspond à votre recherche."}
+                    ? t.notes.noNoteAvailable
+                    : t.notes.noNoteMatch}
                 </div>
               </div>
             ) : (

@@ -8,6 +8,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket, Search, Filter, FileUp, Target, Columns, ChevronLeft, ChevronDown, Lightbulb } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -94,6 +95,7 @@ function SortableHomeColHeader({ id, label, className }: { id: string; label: st
 export default function RoadmapPage() {
   const { toast } = useToast();
   const { accountId } = useAuth();
+  const { t } = useLanguage();
   const searchString = useSearch();
   const { readOnly, canCreate, canUpdate, canDelete } = useReadOnlyMode("roadmap");
   
@@ -1805,16 +1807,16 @@ export default function RoadmapPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="item-status">Statut</Label>
+              <Label htmlFor="item-status">{t.roadmap.form.status}</Label>
               <Select value={itemForm.status} onValueChange={(v) => setItemForm(prev => ({ ...prev, status: v }))}>
                 <SelectTrigger id="item-status" data-testid="select-item-status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="planned">Planifié</SelectItem>
-                  <SelectItem value="in_progress">En cours</SelectItem>
-                  <SelectItem value="done">Terminé</SelectItem>
-                  <SelectItem value="blocked">Bloqué</SelectItem>
+                  <SelectItem value="planned">{t.roadmap.form.status_values.planned}</SelectItem>
+                  <SelectItem value="in_progress">{t.roadmap.form.status_values.inProgress}</SelectItem>
+                  <SelectItem value="done">{t.roadmap.form.status_values.done}</SelectItem>
+                  <SelectItem value="blocked">{t.roadmap.form.status_values.blocked}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -2090,7 +2092,7 @@ export default function RoadmapPage() {
                       }}
                     >
                       <SelectTrigger className="h-8 text-sm" data-testid="select-add-blocked-by">
-                        <SelectValue placeholder="Ajouter une dépendance..." />
+                        <SelectValue placeholder={t.roadmap.form.dependency} />
                       </SelectTrigger>
                       <SelectContent>
                         {roadmapItems

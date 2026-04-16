@@ -326,6 +326,7 @@ const noteSchema = z.object({
 function QuickCreateMenu() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [, setLocation] = useLocation();
   
   const [isClientSheetOpen, setIsClientSheetOpen] = useState(false);
@@ -518,12 +519,12 @@ function QuickCreateMenu() {
   const gmailConnected = gmailStatus?.canSend === true;
 
   const quickActions = [
-    { label: "Client", icon: Users, color: "bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400", onClick: () => setIsClientSheetOpen(true), testId: "dropdown-new-client", disabled: false },
-    { label: "Projet", icon: FolderKanban, color: "bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400", onClick: () => setIsProjectSheetOpen(true), testId: "dropdown-new-project", disabled: false },
-    { label: "Tâche", icon: CheckSquare, color: "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400", onClick: () => setIsTaskSheetOpen(true), testId: "dropdown-new-task", disabled: false },
-    { label: "Note", icon: StickyNote, color: "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400", onClick: () => createNoteMutation.mutate({ title: "", clientId: null, projectId: null, noteDate: null }), testId: "dropdown-new-note", disabled: false },
-    { label: "Rendez-vous", icon: CalendarPlus, color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400", onClick: () => setIsAppointmentPanelOpen(true), testId: "dropdown-new-appointment", disabled: false },
-    { label: "Email", icon: Mail, color: gmailConnected ? "bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-400" : "bg-muted text-muted-foreground", onClick: () => { setComposeInitial({ to: "", subject: "", body: "" }); setIsComposeOpen(true); }, testId: "dropdown-new-email", disabled: !gmailConnected },
+    { label: t.common.client, icon: Users, color: "bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400", onClick: () => setIsClientSheetOpen(true), testId: "dropdown-new-client", disabled: false },
+    { label: t.nav.projects, icon: FolderKanban, color: "bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400", onClick: () => setIsProjectSheetOpen(true), testId: "dropdown-new-project", disabled: false },
+    { label: t.nav.tasks, icon: CheckSquare, color: "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400", onClick: () => setIsTaskSheetOpen(true), testId: "dropdown-new-task", disabled: false },
+    { label: t.nav.notes, icon: StickyNote, color: "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400", onClick: () => createNoteMutation.mutate({ title: "", clientId: null, projectId: null, noteDate: null }), testId: "dropdown-new-note", disabled: false },
+    { label: t.common.appointment, icon: CalendarPlus, color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400", onClick: () => setIsAppointmentPanelOpen(true), testId: "dropdown-new-appointment", disabled: false },
+    { label: t.nav.emails, icon: Mail, color: gmailConnected ? "bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-400" : "bg-muted text-muted-foreground", onClick: () => { setComposeInitial({ to: "", subject: "", body: "" }); setIsComposeOpen(true); }, testId: "dropdown-new-email", disabled: !gmailConnected },
   ];
 
   return (
@@ -533,11 +534,11 @@ function QuickCreateMenu() {
         <PopoverTrigger asChild>
           <Button size="sm" className="hidden sm:flex gap-1" data-testid="button-quick-create">
             <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Nouveau</span>
+            <span className="hidden sm:inline">{t.common.new}</span>
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-56 p-3" data-testid="dropdown-quick-create">
-          <p className="text-xs font-medium text-muted-foreground mb-2">Créer</p>
+          <p className="text-xs font-medium text-muted-foreground mb-2">{t.common.create}</p>
           <div className="grid grid-cols-3 gap-2">
             {quickActions.map((action) => (
               <button
@@ -545,7 +546,7 @@ function QuickCreateMenu() {
                 type="button"
                 onClick={action.disabled ? undefined : action.onClick}
                 disabled={action.disabled}
-                title={action.disabled && action.label === "Email" ? "Gmail non connecté" : undefined}
+                title={action.disabled && action.testId === "dropdown-new-email" ? "Gmail non connecté" : undefined}
                 className={cn(
                   "flex flex-col items-center gap-1.5 p-2 rounded-md",
                   action.disabled
@@ -576,7 +577,7 @@ function QuickCreateMenu() {
       <Sheet open={isMobileCreateOpen} onOpenChange={setIsMobileCreateOpen}>
         <SheetContent side="bottom" className="h-auto rounded-t-xl bg-card pb-8" data-testid="sheet-mobile-create">
           <SheetHeader className="pb-2">
-            <SheetTitle className="text-base">Créer</SheetTitle>
+            <SheetTitle className="text-base">{t.common.create}</SheetTitle>
           </SheetHeader>
           <div className="grid grid-cols-3 gap-3 pt-2">
             {quickActions.map((action) => (
@@ -585,7 +586,7 @@ function QuickCreateMenu() {
                 type="button"
                 onClick={action.disabled ? undefined : () => { setIsMobileCreateOpen(false); action.onClick(); }}
                 disabled={action.disabled}
-                title={action.disabled && action.label === "Email" ? "Gmail non connecté" : undefined}
+                title={action.disabled && action.testId === "dropdown-new-email" ? "Gmail non connecté" : undefined}
                 className={cn(
                   "flex flex-col items-center gap-2 p-3 rounded-xl",
                   action.disabled
@@ -1193,6 +1194,7 @@ function AppLayout() {
   const isAuthPage = location === "/login" || location === "/signup" || location.startsWith("/accept-invitation");
   const isStandalone = useIsStandalone();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
@@ -1287,28 +1289,28 @@ function AppLayout() {
   };
 
   const getPageTitle = (path: string) => {
-    if (path === "/" || path === "/home") return "Tableau de bord";
-    if (path === "/crm") return "CRM";
+    if (path === "/" || path === "/home") return t.nav.dashboard;
+    if (path === "/crm") return t.nav.crm;
     
     // Projects - show project name on detail pages
-    if (path === "/projects") return "Projets";
+    if (path === "/projects") return t.nav.projects;
     const projectMatch = path.match(/^\/projects\/([^/]+)/);
     if (projectMatch) {
       const projectId = projectMatch[1];
       const project = projects?.find(p => p.id === projectId);
-      if (project) return `Pro-${truncateName(project.name) || "Projet"}`;
-      return "Pro-Projet";
+      if (project) return `Pro-${truncateName(project.name) || t.nav.projects}`;
+      return `Pro-${t.nav.projects}`;
     }
     
     // Notes - show note title on detail pages
-    if (path === "/notes/new") return "Not-Nouvelle";
-    if (path === "/notes") return "Notes";
+    if (path === "/notes/new") return `Not-${t.nav.newNote}`;
+    if (path === "/notes") return t.nav.notes;
     const noteMatch = path.match(/^\/notes\/([^/]+)/);
     if (noteMatch) {
       const noteId = noteMatch[1];
       const note = notes?.find(n => n.id === noteId);
-      if (note) return `Not-${truncateName(note.title) || "Note"}`;
-      return "Not-Note";
+      if (note) return `Not-${truncateName(note.title) || t.nav.notes}`;
+      return `Not-${t.nav.notes}`;
     }
     
     // Backlogs - show backlog name on detail pages
@@ -1319,78 +1321,78 @@ function AppLayout() {
       if (backlog) return `Bac-${truncateName(backlog.name) || "Backlog"}`;
       return "Bac-Backlog";
     }
-    if (path === "/product/backlog/new") return "Bac-Nouveau";
-    if (path === "/product") return "Produits";
+    if (path === "/product/backlog/new") return `Bac-${t.nav.newBacklog}`;
+    if (path === "/product") return t.nav.products;
     
     // Clients - show client name on detail pages
     const clientMatch = path.match(/^\/crm\/([^/]+)/);
     if (clientMatch) {
       const clientId = clientMatch[1];
       const client = clients?.find(c => c.id === clientId);
-      if (client) return `Cli-${truncateName(client.name) || "Client"}`;
-      return "Cli-Client";
+      if (client) return `Cli-${truncateName(client.name) || t.nav.crm}`;
+      return `Cli-${t.nav.crm}`;
     }
     
     // Mindmaps - show mindmap name on detail pages
-    if (path === "/mindmaps") return "Mindmaps";
+    if (path === "/mindmaps") return t.nav.mindmaps;
     const mindmapMatch = path.match(/^\/mindmaps\/([^/]+)/);
     if (mindmapMatch) {
       const mindmapId = mindmapMatch[1];
       const mindmap = mindmaps?.find(m => m.id === mindmapId);
-      if (mindmap) return `Min-${truncateName(mindmap.name) || "Mindmap"}`;
-      return "Min-Mindmap";
+      if (mindmap) return `Min-${truncateName(mindmap.name) || t.nav.mindmaps}`;
+      return `Min-${t.nav.mindmaps}`;
     }
     
     // Documents - show document title on detail pages
-    if (path === "/documents") return "Documents";
-    if (path.startsWith("/documents/templates")) return "Doc-Modèles";
+    if (path === "/documents") return t.nav.documents;
+    if (path.startsWith("/documents/templates")) return `Doc-${t.nav.documentTemplates}`;
     const documentMatch = path.match(/^\/documents\/([^/]+)/);
     if (documentMatch && !path.includes("/templates")) {
       const documentId = documentMatch[1];
       const document = documents?.find(d => d.id === documentId);
-      if (document) return `Doc-${truncateName(document.title) || "Document"}`;
-      return "Doc-Document";
+      if (document) return `Doc-${truncateName(document.title) || t.nav.documents}`;
+      return `Doc-${t.nav.documents}`;
     }
     
-    if (path === "/tasks") return "Tâches";
-    if (path === "/files") return "Fichiers";
-    if (path === "/roadmap") return "Roadmap";
-    if (path === "/marketing") return "Marketing";
-    if (path === "/finance") return "Finance";
-    if (path === "/cashflow") return "Trésorerie";
-    if (path === "/commercial") return "Commercial";
-    if (path === "/legal") return "Légal";
-    if (path === "/calendar") return "Calendrier";
-    if (path === "/settings") return "Paramètres";
-    if (path === "/emails") return "Emails";
-    if (path === "/email-templates") return "Templates email";
+    if (path === "/tasks") return t.nav.tasks;
+    if (path === "/files") return t.nav.files;
+    if (path === "/roadmap") return t.nav.roadmap;
+    if (path === "/marketing") return t.nav.marketing;
+    if (path === "/finance") return t.nav.finance;
+    if (path === "/cashflow") return t.nav.cashflow;
+    if (path === "/commercial") return t.nav.commercial;
+    if (path === "/legal") return t.nav.legal;
+    if (path === "/calendar") return t.nav.calendar;
+    if (path === "/settings") return t.nav.settings;
+    if (path === "/emails") return t.nav.emails;
+    if (path === "/email-templates") return t.nav.emailTemplates;
     if (path === "/pricing") return "Plans";
     return "Page";
   };
 
   // Get full page title without truncation for tooltips
   const getFullPageTitle = (path: string): string => {
-    if (path === "/" || path === "/home") return "Tableau de bord";
-    if (path === "/crm") return "CRM";
+    if (path === "/" || path === "/home") return t.nav.dashboard;
+    if (path === "/crm") return t.nav.crm;
     
     const projectMatch = path.match(/^\/projects\/([^/]+)/);
     if (projectMatch) {
       const projectId = projectMatch[1];
       const project = projects?.find(p => p.id === projectId);
-      if (project) return project.name || "Projet";
-      return "Projet";
+      if (project) return project.name || t.nav.projects;
+      return t.nav.projects;
     }
-    if (path === "/projects") return "Projets";
+    if (path === "/projects") return t.nav.projects;
     
-    if (path === "/notes/new") return "Nouvelle note";
+    if (path === "/notes/new") return t.nav.newNote;
     const noteMatch = path.match(/^\/notes\/([^/]+)/);
     if (noteMatch) {
       const noteId = noteMatch[1];
       const note = notes?.find(n => n.id === noteId);
-      if (note) return note.title || "Note";
-      return "Note";
+      if (note) return note.title || t.nav.notes;
+      return t.nav.notes;
     }
-    if (path === "/notes") return "Notes";
+    if (path === "/notes") return t.nav.notes;
     
     const backlogMatch = path.match(/^\/product\/backlog\/([^/]+)/);
     if (backlogMatch && backlogMatch[1] !== "new") {
@@ -1399,48 +1401,48 @@ function AppLayout() {
       if (backlog) return backlog.name || "Backlog";
       return "Backlog";
     }
-    if (path === "/product/backlog/new") return "Nouveau backlog";
-    if (path === "/product") return "Produits";
+    if (path === "/product/backlog/new") return t.nav.newBacklog;
+    if (path === "/product") return t.nav.products;
     
     const clientMatch = path.match(/^\/crm\/([^/]+)/);
     if (clientMatch) {
       const clientId = clientMatch[1];
       const client = clients?.find(c => c.id === clientId);
-      if (client) return client.name || "Client";
-      return "Client";
+      if (client) return client.name || t.nav.crm;
+      return t.nav.crm;
     }
     
     const mindmapMatch = path.match(/^\/mindmaps\/([^/]+)/);
     if (mindmapMatch) {
       const mindmapId = mindmapMatch[1];
       const mindmap = mindmaps?.find(m => m.id === mindmapId);
-      if (mindmap) return mindmap.name || "Mindmap";
-      return "Mindmap";
+      if (mindmap) return mindmap.name || t.nav.mindmaps;
+      return t.nav.mindmaps;
     }
-    if (path === "/mindmaps") return "Mindmaps";
+    if (path === "/mindmaps") return t.nav.mindmaps;
     
-    if (path.startsWith("/documents/templates")) return "Modèles de documents";
+    if (path.startsWith("/documents/templates")) return t.nav.documentTemplates;
     const documentMatch = path.match(/^\/documents\/([^/]+)/);
     if (documentMatch && !path.includes("/templates")) {
       const documentId = documentMatch[1];
       const document = documents?.find(d => d.id === documentId);
-      if (document) return document.title || "Document";
-      return "Document";
+      if (document) return document.title || t.nav.documents;
+      return t.nav.documents;
     }
-    if (path === "/documents") return "Documents";
+    if (path === "/documents") return t.nav.documents;
     
-    if (path === "/tasks") return "Tâches";
-    if (path === "/files") return "Fichiers";
-    if (path === "/roadmap") return "Roadmap";
-    if (path === "/marketing") return "Marketing";
-    if (path === "/finance") return "Finance";
-    if (path === "/cashflow") return "Trésorerie";
-    if (path === "/commercial") return "Commercial";
-    if (path === "/legal") return "Légal";
-    if (path === "/calendar") return "Calendrier";
-    if (path === "/settings") return "Paramètres";
-    if (path === "/emails") return "Emails";
-    if (path === "/email-templates") return "Templates email";
+    if (path === "/tasks") return t.nav.tasks;
+    if (path === "/files") return t.nav.files;
+    if (path === "/roadmap") return t.nav.roadmap;
+    if (path === "/marketing") return t.nav.marketing;
+    if (path === "/finance") return t.nav.finance;
+    if (path === "/cashflow") return t.nav.cashflow;
+    if (path === "/commercial") return t.nav.commercial;
+    if (path === "/legal") return t.nav.legal;
+    if (path === "/calendar") return t.nav.calendar;
+    if (path === "/settings") return t.nav.settings;
+    if (path === "/emails") return t.nav.emails;
+    if (path === "/email-templates") return t.nav.emailTemplates;
     if (path === "/pricing") return "Plans";
     return "Page";
   };

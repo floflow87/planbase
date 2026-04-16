@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useParams, Link, useLocation, useSearch } from "wouter";
 import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell, Settings, FolderOpen, Upload, X, Download, Pencil, Image, Target, Lightbulb, FlaskConical, Bot, Loader2, Sparkles, Crown } from "lucide-react";
 import { FileExplorer } from "@/components/file-explorer";
@@ -2785,6 +2786,7 @@ export default function ProjectDetail() {
   const [, setLocation] = useLocation();
   const navigate = (path: string) => setLocation(path);
   const { toast } = useToast();
+  const { t } = useLanguage();
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const { hasFeature } = useBilling();
@@ -4570,35 +4572,35 @@ export default function ProjectDetail() {
           <TabsList className="w-max justify-start flex-nowrap h-[42px]">
             <TabsTrigger value="overview" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-overview">
               <LayoutGrid className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Vue d'ensemble</span>
+              <span className="hidden sm:inline">{t.projects.tabs.overview}</span>
             </TabsTrigger>
             <TabsTrigger value="activities" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-activities">
               <MessageSquare className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Activités</span>
+              <span className="hidden sm:inline">{t.projects.tabs.activities}</span>
             </TabsTrigger>
             <TabsTrigger value="billing" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-billing">
               <DollarSign className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Facturation</span>
+              <span className="hidden sm:inline">{t.projects.tabs.billing}</span>
             </TabsTrigger>
             <TabsTrigger value="time" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-time">
               <Timer className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Temps</span>
+              <span className="hidden sm:inline">{t.projects.tabs.time}</span>
             </TabsTrigger>
             <TabsTrigger value="resources" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-resources">
               <Users className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Ressources</span>
+              <span className="hidden sm:inline">{t.projects.tabs.resources}</span>
             </TabsTrigger>
             <TabsTrigger value="roadmap" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-roadmap">
               <Map className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Roadmap</span>
+              <span className="hidden sm:inline">{t.projects.tabs.roadmap}</span>
             </TabsTrigger>
             <TabsTrigger value="tasks" className="gap-1.5 text-xs h-[42px] px-3">
               <Users className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Tâches</span>
+              <span className="hidden sm:inline">{t.projects.tabs.tasks}</span>
             </TabsTrigger>
             <TabsTrigger value="notes" className="gap-1.5 text-xs h-[42px] px-3">
               <FileText className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Notes</span>
+              <span className="hidden sm:inline">{t.projects.tabs.notes}</span>
             </TabsTrigger>
             <TabsTrigger value="documents" className="hidden">
               Documents

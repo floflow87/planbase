@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Plus, Kanban, LayoutGrid, Folder, ArrowRight, Calendar, MoreVertical, Pencil, Trash2, List, Grid3X3, Play, User, ListTodo, Clock, CheckCircle, Search, GripVertical } from "lucide-react";
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import {
@@ -75,6 +76,7 @@ const DEFAULT_COLUMN_ORDER = ["name", "mode", "activeSprint", "tickets", "projec
 export default function Product() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const { readOnly, canCreate, canUpdate, canDelete } = useReadOnlyMode("product");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -520,7 +522,7 @@ export default function Product() {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Rechercher un backlog ou sprint..."
+              placeholder={t.product.searchBacklog}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 h-9 placeholder:text-[10px] bg-white dark:bg-background"
@@ -566,7 +568,7 @@ export default function Product() {
               )}
             </div>
             <h2 className="text-xl font-light mb-2">
-              {searchQuery.trim() ? "Aucun résultat" : "Aucun backlog"}
+              {searchQuery.trim() ? t.common.noResults : t.product.noBacklog}
             </h2>
             <p className="text-muted-foreground mb-4 max-w-md">
               {searchQuery.trim() 
@@ -846,7 +848,7 @@ export default function Product() {
               disabled={createBacklogMutation.isPending}
               data-testid="button-confirm-create"
             >
-              {createBacklogMutation.isPending ? "Création..." : "Créer le backlog"}
+              {createBacklogMutation.isPending ? t.product.creating : t.product.createBacklog}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -870,7 +872,7 @@ export default function Product() {
               disabled={deleteBacklogMutation.isPending}
               data-testid="button-confirm-delete"
             >
-              {deleteBacklogMutation.isPending ? "Suppression..." : "Supprimer"}
+              {deleteBacklogMutation.isPending ? t.product.deleting : t.common.delete}
             </Button>
           </DialogFooter>
         </DialogContent>

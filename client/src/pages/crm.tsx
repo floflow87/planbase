@@ -26,6 +26,7 @@ import { apiRequest, queryClient, optimisticAdd, optimisticUpdate, optimisticDel
 import { Loader } from "@/components/Loader";
 import { PermissionGuard, Can, ReadOnlyBadge } from "@/components/Can";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   DndContext,
   closestCenter,
@@ -275,6 +276,8 @@ function DroppableKanbanColumn({
   onToggleCollapse: () => void;
   onAddClient?: () => void;
 }) {
+  const { t } = useLanguage();
+  const getStatusLabel = (id: string) => (t.crm.pipeline_stages as Record<string, string>)[id] || status.label;
   const { isOver, setNodeRef } = useDroppable({
     id: `column-${status.id}`,
     data: { status: status.id },
@@ -311,7 +314,7 @@ function DroppableKanbanColumn({
               className={`text-xs font-semibold ${status.textColor} whitespace-nowrap`}
               style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
             >
-              {status.label}
+              {getStatusLabel(status.id)}
             </span>
             <Badge variant="secondary" className="text-[10px] h-4 px-1 min-w-0">
               {clients.length}
@@ -322,7 +325,7 @@ function DroppableKanbanColumn({
         /* Expanded: normal header */
         <div className={`flex items-center justify-between p-3 rounded-t-lg border-b ${status.headerBg} border-border/30`}>
           <div className="flex items-center gap-2">
-            <h3 className={`text-sm font-semibold ${status.textColor}`}>{status.label}</h3>
+            <h3 className={`text-sm font-semibold ${status.textColor}`}>{getStatusLabel(status.id)}</h3>
             <Badge variant="secondary" className="text-xs h-5 px-1.5">{clients.length}</Badge>
           </div>
           <div className="flex items-center gap-2">
@@ -386,6 +389,7 @@ function DroppableKanbanColumn({
 
 export default function CRM() {
   const { toast } = useToast();
+  const { t } = useLanguage();
   
   const [viewMode, setViewMode] = useState<"table" | "kanban">(() => {
     const saved = localStorage.getItem("crm_view_mode");
@@ -1033,14 +1037,14 @@ export default function CRM() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-card">
-                <SelectItem value="all" className="text-xs">Tous les statuts</SelectItem>
-                <SelectItem value="prospecting" className="text-xs">Prospect</SelectItem>
-                <SelectItem value="qualified" className="text-xs">Qualifié</SelectItem>
-                <SelectItem value="negotiation" className="text-xs">Négociation</SelectItem>
-                <SelectItem value="quote_sent" className="text-xs">Devis envoyé</SelectItem>
-                <SelectItem value="quote_approved" className="text-xs">Devis validé</SelectItem>
-                <SelectItem value="won" className="text-xs">Gagné</SelectItem>
-                <SelectItem value="lost" className="text-xs">Perdu</SelectItem>
+                <SelectItem value="all" className="text-xs">{t.crm.allStatuses}</SelectItem>
+                <SelectItem value="prospecting" className="text-xs">{t.crm.pipeline_stages.prospecting}</SelectItem>
+                <SelectItem value="qualified" className="text-xs">{t.crm.pipeline_stages.qualified}</SelectItem>
+                <SelectItem value="negotiation" className="text-xs">{t.crm.pipeline_stages.negotiation}</SelectItem>
+                <SelectItem value="quote_sent" className="text-xs">{t.crm.pipeline_stages.quote_sent}</SelectItem>
+                <SelectItem value="quote_approved" className="text-xs">{t.crm.pipeline_stages.quote_approved}</SelectItem>
+                <SelectItem value="won" className="text-xs">{t.crm.pipeline_stages.won}</SelectItem>
+                <SelectItem value="lost" className="text-xs">{t.crm.pipeline_stages.lost}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1067,12 +1071,12 @@ export default function CRM() {
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="sm" data-testid="button-kanban-columns" className="hidden md:flex">
                     <Columns3 className="w-4 h-4 mr-2" />
-                    <span>Colonnes</span>
+                    <span>{t.crm.columns}</span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-56 bg-card" align="end">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium mb-3">Colonnes visibles</p>
+                    <p className="text-sm font-medium mb-3">{t.crm.visibleColumns}</p>
                     {KANBAN_STATUSES.map(status => (
                       <div key={status.id} className="flex items-center gap-2">
                         <Checkbox 
@@ -1081,7 +1085,7 @@ export default function CRM() {
                           onCheckedChange={(checked) => setKanbanColumnVisibility(prev => ({...prev, [status.id]: !!checked}))}
                           data-testid={`checkbox-kanban-column-${status.id}`}
                         />
-                        <Label htmlFor={`kanban-col-${status.id}`} className="text-sm cursor-pointer">{status.label}</Label>
+                        <Label htmlFor={`kanban-col-${status.id}`} className="text-sm cursor-pointer">{(t.crm.pipeline_stages as Record<string, string>)[status.id] || status.label}</Label>
                       </div>
                     ))}
                   </div>
@@ -1090,12 +1094,12 @@ export default function CRM() {
             )}
             <Button variant="outline" size="sm" data-testid="button-export">
               <Download className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Exporter</span>
+              <span className="hidden sm:inline">{t.crm.export}</span>
             </Button>
             <Can module="crm" action="create">
               <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-new-client">
                 <Plus className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline text-[12px]">Nouveau Client</span>
+                <span className="hidden sm:inline text-[12px]">{t.crm.newClient}</span>
               </Button>
             </Can>
           </div>
@@ -1258,7 +1262,7 @@ export default function CRM() {
                             <div className="flex items-center justify-between gap-1 flex-wrap">
                               {status && (
                                 <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${status.textColor} bg-current/10`} style={{ background: `${status.hex}20`, color: status.hex }}>
-                                  {status.label}
+                                  {(t.crm.pipeline_stages as Record<string, string>)[status.id] || status.label}
                                 </span>
                               )}
                               {totalBudget > 0 && (
@@ -1501,7 +1505,7 @@ export default function CRM() {
                                   onCheckedChange={(checked) => setKanbanColumnVisibility(prev => ({...prev, [status.id]: !!checked}))}
                                   data-testid={`checkbox-kanban-column-mobile-${status.id}`}
                                 />
-                                <Label htmlFor={`kanban-col-mobile-${status.id}`} className="text-sm cursor-pointer">{status.label}</Label>
+                                <Label htmlFor={`kanban-col-mobile-${status.id}`} className="text-sm cursor-pointer">{(t.crm.pipeline_stages as Record<string, string>)[status.id] || status.label}</Label>
                               </div>
                             ))}
                           </div>
@@ -1633,7 +1637,7 @@ export default function CRM() {
         <Sheet open={isColumnSettingsOpen} onOpenChange={setIsColumnSettingsOpen}>
           <SheetContent className="w-80" data-testid="sheet-column-settings">
             <SheetHeader>
-              <SheetTitle>Personnaliser les colonnes</SheetTitle>
+              <SheetTitle>{t.crm.customizeColumns}</SheetTitle>
             </SheetHeader>
             <div className="py-4 space-y-4">
               {[

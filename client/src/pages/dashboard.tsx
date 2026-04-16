@@ -29,6 +29,7 @@ import { insertClientSchema, insertProjectSchema } from "@shared/schema";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePreferences } from "@/contexts/PreferencesContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { Switch } from "@/components/ui/switch";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
@@ -319,6 +320,7 @@ function SortableBlockItem({
   onToggle: (id: DashboardBlockId, visible: boolean) => void;
   onSizeChange: (id: DashboardBlockId, size: BlockSizeOption) => void;
 }) {
+  const { t } = useLanguage();
   const {
     attributes,
     listeners,
@@ -354,7 +356,7 @@ function SortableBlockItem({
           <GripVertical className="w-4 h-4 text-muted-foreground" />
         </button>
         <div className="flex flex-col">
-          <span className="text-sm font-medium">{block.label}</span>
+          <span className="text-sm font-medium">{t.dashboard.blocks[block.id as keyof typeof t.dashboard.blocks] || block.label}</span>
           {hasMultipleSizes ? (
             <Select 
               value={currentSize} 
@@ -366,13 +368,13 @@ function SortableBlockItem({
               <SelectContent>
                 {sizeOptions.allowedSizes.map(size => (
                   <SelectItem key={size} value={size} className="text-xs">
-                    {SIZE_LABELS[size]}
+                    {t.dashboard.blockSize[size as keyof typeof t.dashboard.blockSize] || size}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           ) : (
-            <span className="text-[10px] text-muted-foreground">{SIZE_LABELS[currentSize]}</span>
+            <span className="text-[10px] text-muted-foreground">{t.dashboard.blockSize[currentSize as keyof typeof t.dashboard.blockSize] || currentSize}</span>
           )}
         </div>
       </div>
@@ -565,6 +567,7 @@ export default function Dashboard() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const { taskReminderEnabled } = usePreferences();
+  const { t } = useLanguage();
   const { getLabel: getStageLabel, getColor: getStageColor } = useProjectStagesUI();
   const [isCreateClientDialogOpen, setIsCreateClientDialogOpen] = useState(false);
   const [isCreateProjectDialogOpen, setIsCreateProjectDialogOpen] = useState(false);
@@ -2226,16 +2229,16 @@ export default function Dashboard() {
             <CardHeader className="pb-0 space-y-0">
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="text-base font-heading font-semibold">
-                  Revenus Mensuels
+                  {t.dashboard.revenueChart}
                 </CardTitle>
                 <Select value={revenuePeriod} onValueChange={(value: "full_year" | "last_year" | "until_this_month" | "projection" | "6months" | "quarter") => setRevenuePeriod(value)}>
                   <SelectTrigger className="w-[160px] bg-card text-xs" data-testid="select-revenue-period">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="full_year" className="text-xs">Année 2026</SelectItem>
-                    <SelectItem value="last_year" className="text-xs">Année dernière (2025)</SelectItem>
-                    <SelectItem value="until_this_month" className="text-xs">Jusqu'à ce mois</SelectItem>
+                    <SelectItem value="full_year" className="text-xs">{t.dashboard.period.fullYear}</SelectItem>
+                    <SelectItem value="last_year" className="text-xs">{t.dashboard.period.lastYear}</SelectItem>
+                    <SelectItem value="until_this_month" className="text-xs">{t.dashboard.period.untilThisMonth}</SelectItem>
                     <SelectItem value="projection" className="text-xs">Projection</SelectItem>
                     <SelectItem value="6months" className="text-xs">6 derniers mois</SelectItem>
                     <SelectItem value="quarter" className="text-xs">Trimestre actuel</SelectItem>
@@ -2250,7 +2253,7 @@ export default function Dashboard() {
                     id="toggle-forecast"
                     className="h-4 w-8 [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-4"
                   />
-                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">Prévisionnels</span>
+                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">{t.dashboard.forecasts}</span>
                 </label>
                 <label className={`flex items-center gap-1.5 select-none ${showForecast ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`} data-testid="toggle-opportunites" title="Inclure les projets en prospection qualifiés comme opportunités de CA">
                   <Switch
@@ -2260,7 +2263,7 @@ export default function Dashboard() {
                     disabled={!showForecast}
                     className="h-4 w-8 [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-4"
                   />
-                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">Opportunités</span>
+                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">{t.dashboard.opportunities}</span>
                 </label>
               </div>
             </CardHeader>
@@ -2335,20 +2338,20 @@ export default function Dashboard() {
           <Card className={getBlockColSpanById('activityFeed')} style={{ order: getBlockOrder('activityFeed') }}>
             <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
               <CardTitle className="text-base font-heading font-semibold">
-                Activités Récentes
+                {t.dashboard.activityFeed}
               </CardTitle>
               <Select value={activityFilter} onValueChange={(value: any) => setActivityFilter(value)}>
                 <SelectTrigger className="w-[140px] h-8 text-xs bg-card" data-testid="select-activity-filter">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all" className="text-xs">Toutes</SelectItem>
+                  <SelectItem value="all" className="text-xs">{t.common.all}</SelectItem>
                   <SelectItem value="crm" className="text-xs">CRM</SelectItem>
-                  <SelectItem value="projets" className="text-xs">Projets</SelectItem>
+                  <SelectItem value="projets" className="text-xs">{t.nav.projects}</SelectItem>
                   <SelectItem value="product" className="text-xs">Product</SelectItem>
-                  <SelectItem value="taches" className="text-xs">Tâches</SelectItem>
+                  <SelectItem value="taches" className="text-xs">{t.nav.tasks}</SelectItem>
                   <SelectItem value="whiteboards" className="text-xs">WhiteBoards</SelectItem>
-                  <SelectItem value="notes" className="text-xs">Notes</SelectItem>
+                  <SelectItem value="notes" className="text-xs">{t.nav.notes}</SelectItem>
                   <SelectItem value="documents" className="text-xs">Documents</SelectItem>
                 </SelectContent>
               </Select>
@@ -2429,7 +2432,7 @@ export default function Dashboard() {
             <CardContent>
               <div className="space-y-3">
                 {recentProjects.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">Aucun projet récent</p>
+                  <p className="text-xs text-muted-foreground text-center py-4">{t.dashboard.noRecentProjects}</p>
                 ) : (
                   recentProjects.map((project) => (
                     <div
@@ -2465,7 +2468,7 @@ export default function Dashboard() {
             <CardHeader className="pb-2">
               <div className="flex flex-row items-center justify-between gap-2">
                 <CardTitle className="text-base font-heading font-semibold">
-                  Ma Journée
+                  {t.dashboard.myDay}
                 </CardTitle>
                 <div className="flex items-center gap-2 flex-wrap">
                   {filteredMyDayTasks.length > 0 && (
@@ -2573,7 +2576,7 @@ export default function Dashboard() {
                   </>
                 )}
                 {filteredMyDayTasks.length === 0 && upcomingCalendarItems.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">Aucun événement à venir aujourd'hui</p>
+                  <p className="text-xs text-muted-foreground text-center py-4">{t.dashboard.noEventsToday}</p>
                 ) : filteredMyDayTasks.length === 0 ? null : (
                   filteredMyDayTasks.map((task) => {
                     const client = clients.find(c => c.id === task.clientId);
@@ -2899,10 +2902,10 @@ export default function Dashboard() {
             <SheetHeader className="mb-4 px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-4 bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500">
               <SheetTitle className="flex items-center gap-2 text-white">
                 <AlertTriangle className="w-5 h-5 text-amber-300" />
-                Tâches à traiter aujourd'hui
+                {t.dashboard.taskReminder.title}
               </SheetTitle>
               <SheetDescription className="text-violet-100">
-                Vous avez des tâches urgentes ou en retard qui nécessitent votre attention.
+                {t.dashboard.taskReminder.description}
               </SheetDescription>
             </SheetHeader>
             <div className="px-4 flex-1 space-y-3 overflow-y-auto">
@@ -2924,8 +2927,8 @@ export default function Dashboard() {
               )}
             </div>
             <SheetFooter className="flex-col gap-2 mt-4">
-              <Button className="w-full" onClick={() => { setShowTaskReminder(false); setLocation("/tasks"); }}>Voir mes tâches</Button>
-              <Button variant="outline" className="w-full" onClick={() => setShowTaskReminder(false)}>Fermer</Button>
+              <Button className="w-full" onClick={() => { setShowTaskReminder(false); setLocation("/tasks"); }}>{t.dashboard.taskReminder.viewTasks}</Button>
+              <Button variant="outline" className="w-full" onClick={() => setShowTaskReminder(false)}>{t.common.close}</Button>
             </SheetFooter>
           </SheetContent>
         </Sheet>
@@ -2935,10 +2938,10 @@ export default function Dashboard() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
-              Tâches à traiter aujourd'hui
+              {t.dashboard.taskReminder.title}
             </DialogTitle>
             <DialogDescription>
-              Vous avez des tâches urgentes ou en retard qui nécessitent votre attention.
+              {t.dashboard.taskReminder.description}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 max-h-[300px] overflow-y-auto">
@@ -2960,8 +2963,8 @@ export default function Dashboard() {
             )}
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setShowTaskReminder(false)}>Fermer</Button>
-            <Button onClick={() => { setShowTaskReminder(false); setLocation("/tasks"); }}>Voir mes tâches</Button>
+            <Button variant="outline" onClick={() => setShowTaskReminder(false)}>{t.common.close}</Button>
+            <Button onClick={() => { setShowTaskReminder(false); setLocation("/tasks"); }}>{t.dashboard.taskReminder.viewTasks}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

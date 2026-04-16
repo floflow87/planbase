@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useParams, Link, useLocation } from "wouter";
 import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, CalendarDays, Save, Check, ChevronLeft, ChevronRight, Star, TrendingUp, ChevronsUpDown, DollarSign, StickyNote, Globe, Radar, BarChart4, CreditCard, Timer, Hourglass, Filter, Eye, CalendarPlus, NotebookPen, ListTodo, FolderOpen, Camera, RefreshCw } from "lucide-react";
 import { EmailActivityCard } from "@/components/EmailActivityCard";
@@ -129,6 +130,7 @@ export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const { getLabel: getStageLabel, getColor: getStageColor } = useProjectStagesUI();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
@@ -1460,31 +1462,31 @@ export default function ClientDetail() {
               <TabsList className="w-full justify-start mb-3 overflow-x-auto overflow-y-hidden flex-nowrap h-9 p-0.5">
                 <TabsTrigger value="vue_ensemble" data-testid="tab-vue-ensemble" className="gap-1.5 text-xs h-8 px-3">
                   <TrendingUp className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Vue d'ensemble</span>
+                  <span className="hidden sm:inline">{t.crm.client_tabs.overview}</span>
                 </TabsTrigger>
                 <TabsTrigger value="contacts" data-testid="tab-contacts" className="gap-1.5 text-xs h-8 px-3">
                   <UserPlus className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Contacts</span>
+                  <span className="hidden sm:inline">{t.crm.client_tabs.contacts}</span>
                 </TabsTrigger>
                 <TabsTrigger value="chiffre_affaires" data-testid="tab-chiffre-affaires" className="gap-1.5 text-xs h-8 px-3">
                   <BarChart4 className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Chiffre d'affaires</span>
+                  <span className="hidden sm:inline">{t.crm.client_tabs.revenue}</span>
                 </TabsTrigger>
                 <TabsTrigger value="commentaires" data-testid="tab-commentaires" className="gap-1.5 text-xs h-8 px-3">
                   <MessageSquare className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Commentaires</span>
+                  <span className="hidden sm:inline">{t.crm.client_tabs.comments}</span>
                 </TabsTrigger>
                 <TabsTrigger value="taches" data-testid="tab-taches" className="gap-1.5 text-xs h-8 px-3">
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Tâches</span>
+                  <span className="hidden sm:inline">{t.crm.client_tabs.tasks}</span>
                 </TabsTrigger>
                 <TabsTrigger value="projets" data-testid="tab-projets" className="gap-1.5 text-xs h-8 px-3">
                   <FolderKanban className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Projets</span>
+                  <span className="hidden sm:inline">{t.crm.client_tabs.projects}</span>
                 </TabsTrigger>
                 <TabsTrigger value="fichiers" data-testid="tab-fichiers" className="gap-1.5 text-xs h-8 px-3">
                   <FolderOpen className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Fichiers</span>
+                  <span className="hidden sm:inline">{t.crm.client_tabs.files}</span>
                 </TabsTrigger>
                 {customTabs.map((tab) => (
                   <TabsTrigger

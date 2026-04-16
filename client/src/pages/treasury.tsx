@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, Fragment } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -534,7 +535,7 @@ function TxPanel({
       {/* Panel header */}
       <div className="flex items-center justify-between px-4 py-3 border-b bg-card">
         <span className="text-base font-semibold text-foreground">
-          {isEdit ? "Modifier le flux" : "Nouveau flux"}
+          {isEdit ? t.treasury.editFlow : t.treasury.newFlow}
         </span>
         <Button size="icon" variant="ghost" onClick={onClose} data-testid="button-panel-close">
           <X className="h-4 w-4" />
@@ -606,9 +607,9 @@ function TxPanel({
 
         {/* Catégorie */}
         <div>
-          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Catégorie</Label>
+          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">{t.treasury.category}</Label>
           <Select value={form.categoryId} onValueChange={(v) => setForm((f) => ({ ...f, categoryId: v }))}>
-            <SelectTrigger className="h-8 text-xs mt-0.5" data-testid="select-tx-category"><SelectValue placeholder="— Catégorie —" /></SelectTrigger>
+            <SelectTrigger className="h-8 text-xs mt-0.5" data-testid="select-tx-category"><SelectValue placeholder={t.treasury.categoryPlaceholder} /></SelectTrigger>
             <SelectContent className="text-xs">
               {filteredCats.map((c) => (
                 <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>
@@ -1391,7 +1392,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
               ) : (
                 <DropdownMenuItem className="text-xs gap-1.5" onClick={(e) => { e.preventDefault(); setShowCreatePlanScenario(true); }} data-testid="btn-create-plan-scenario">
                   <Plus className="h-3 w-3" />
-                  Nouveau scénario
+                  {t.treasury.newScenario}
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -1418,7 +1419,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
 
         {/* Initial balance */}
         <div className="flex items-center gap-2 ml-auto">
-          <span className="text-[11px] text-muted-foreground shrink-0">Solde initial :</span>
+          <span className="text-[11px] text-muted-foreground shrink-0">{t.treasury.initialBalance} :</span>
           {editingInitBalance ? (
             <Input
               type="number"
@@ -1910,6 +1911,7 @@ import { PremiumGate } from "@/components/billing/PremiumGate";
 
 function TreasuryPageInner() {
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const [mainTab, setMainTab] = useState<"flux" | "plan">("flux");
   const [periodTab, setPeriodTab] = useState<"3m" | "6m" | "12m" | "all">("6m");
@@ -2191,7 +2193,7 @@ function TreasuryPageInner() {
                 <Filter className="h-3 w-3 text-muted-foreground shrink-0" />
                 <span className="flex-1 text-left truncate">
                   {filterProjects.length === 0
-                    ? "Tous les projets"
+                    ? t.treasury.allProjects
                     : filterProjects.length === 1
                       ? (projects.find((p) => p.id === filterProjects[0])?.name ?? "1 projet")
                       : `${filterProjects.length} projets`}
@@ -2220,7 +2222,7 @@ function TreasuryPageInner() {
                           data-testid="btn-project-all"
                         >
                           {filterProjects.length === 0 ? <Check className="h-3 w-3 shrink-0" /> : <span className="w-3 shrink-0" />}
-                          <span>Tous les projets</span>
+                          <span>{t.treasury.allProjects}</span>
                         </button>
                       )}
                       {projects
@@ -2295,7 +2297,7 @@ function TreasuryPageInner() {
                     <Card className="cursor-default">
                       <CardContent className="pt-3 pb-3">
                         <div className="flex items-start justify-between gap-1 mb-1">
-                          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide leading-tight">Solde actuel</span>
+                          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide leading-tight">{t.treasury.currentBalance}</span>
                           <div className="flex items-center gap-1">
                             <Info className="h-3 w-3 text-muted-foreground/60 shrink-0" />
                             <Wallet className="h-3 w-3 text-muted-foreground shrink-0" />
@@ -2446,7 +2448,7 @@ function TreasuryPageInner() {
                         </div>
                       ) : (
                         <DropdownMenuItem className="text-xs" onClick={() => setShowScenarioCreate(true)}>
-                          <Plus className="h-3 w-3 mr-1" /> Nouveau scénario
+                          <Plus className="h-3 w-3 mr-1" /> {t.treasury.newScenario}
                         </DropdownMenuItem>
                       )}
                     </DropdownMenuContent>
@@ -2601,9 +2603,9 @@ function TreasuryPageInner() {
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous types</SelectItem>
-                <SelectItem value="income">Entrées</SelectItem>
-                <SelectItem value="expense">Sorties</SelectItem>
+                <SelectItem value="all">{t.treasury.allTypes}</SelectItem>
+                <SelectItem value="income">{t.treasury.income}</SelectItem>
+                <SelectItem value="expense">{t.treasury.expense}</SelectItem>
               </SelectContent>
             </Select>
 
@@ -2612,7 +2614,7 @@ function TreasuryPageInner() {
                 <SelectValue placeholder="Statut" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous statuts</SelectItem>
+                <SelectItem value="all">{t.treasury.allTxStatuses}</SelectItem>
                 {Object.entries(STATUS_LABELS).map(([k, v]) => (
                   <SelectItem key={k} value={k}>{v}</SelectItem>
                 ))}
@@ -2633,10 +2635,10 @@ function TreasuryPageInner() {
 
             <Select value={filterCategory} onValueChange={setFilterCategory}>
               <SelectTrigger className="h-7 w-36 text-[10px]" data-testid="select-filter-category">
-                <SelectValue placeholder="Catégorie" />
+                <SelectValue placeholder={t.treasury.category} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Toutes catégories</SelectItem>
+                <SelectItem value="all">{t.treasury.allCategories}</SelectItem>
                 {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -2745,7 +2747,7 @@ function TreasuryPageInner() {
                     <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Type</th>
                     <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[9px]">Libellé</th>
                     <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Projet</th>
-                    <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Catégorie</th>
+                    <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">{t.treasury.category}</th>
                     <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Tags</th>
                     <th className="text-left py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Statut</th>
                     <th className="text-right py-1.5 px-3 font-medium text-muted-foreground text-[10px]">Montant</th>

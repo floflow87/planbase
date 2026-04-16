@@ -5,6 +5,7 @@ import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as Calenda
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -822,6 +823,7 @@ export default function Tasks() {
   const userId = user?.id || null;
   const { toast } = useToast();
   const { celebrate } = useCelebration();
+  const { t } = useLanguage();
   const [celebratingTaskId, setCelebratingTaskId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1948,8 +1950,8 @@ export default function Tasks() {
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="status">Groupé par Statut</SelectItem>
-                  <SelectItem value="deliverable">Groupé par Livrable</SelectItem>
+                  <SelectItem value="status">{t.tasks.groupByStatus}</SelectItem>
+                  <SelectItem value="deliverable">{t.tasks.groupByDeliverable}</SelectItem>
                   <SelectItem value="none">Aucun groupement</SelectItem>
                 </SelectContent>
               </Select>
@@ -2056,7 +2058,7 @@ export default function Tasks() {
               onClick={() => setHideCompletedTasks(!hideCompletedTasks)}
               data-testid="button-hide-completed"
               className={hideCompletedTasks ? "text-primary" : "text-muted-foreground"}
-              title={hideCompletedTasks ? "Afficher les tâches terminées" : "Masquer les tâches terminées"}
+              title={hideCompletedTasks ? t.tasks.showCompleted : t.tasks.hideCompleted}
             >
               {hideCompletedTasks ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
@@ -2119,7 +2121,7 @@ export default function Tasks() {
                       <Play className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Commencer la file des tâches</TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">{t.tasks.startQueue}</TooltipContent>
                 </Tooltip>
               ) : null;
             })()}
@@ -2170,8 +2172,8 @@ export default function Tasks() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="status">Groupé par Statut</SelectItem>
-                      <SelectItem value="deliverable">Groupé par Livrable</SelectItem>
+                      <SelectItem value="status">{t.tasks.groupByStatus}</SelectItem>
+                      <SelectItem value="deliverable">{t.tasks.groupByDeliverable}</SelectItem>
                       <SelectItem value="none">Aucun groupement</SelectItem>
                     </SelectContent>
                   </Select>
@@ -2211,7 +2213,7 @@ export default function Tasks() {
                   onCheckedChange={(checked) => setHideCompletedTasks(checked === true)}
                   data-testid="checkbox-hide-completed-mobile"
                 />
-                <label htmlFor="mobile-hide-completed" className="text-sm cursor-pointer">Masquer les tâches terminées</label>
+                <label htmlFor="mobile-hide-completed" className="text-sm cursor-pointer">{t.tasks.hideCompleted}</label>
               </div>
             </div>
           </SheetContent>
@@ -2595,7 +2597,7 @@ export default function Tasks() {
                   <CardContent className="p-6">
                     <div className="text-center py-12">
                       <Columns3 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-muted-foreground mb-4">La vue Kanban nécessite la sélection d'un projet spécifique</p>
+                      <p className="text-muted-foreground mb-4">{t.tasks.selectProjectForKanban}</p>
                       <p className="text-sm text-muted-foreground">Veuillez sélectionner un projet dans le menu déroulant ci-dessus</p>
                     </div>
                   </CardContent>
@@ -2687,11 +2689,11 @@ export default function Tasks() {
         <Sheet open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>
           <SheetContent className="sm:max-w-lg w-full overflow-y-auto flex flex-col bg-white dark:bg-card" data-testid="sheet-create-task">
             <SheetHeader>
-              <SheetTitle>Nouvelle tâche</SheetTitle>
+              <SheetTitle>{t.tasks.newTask}</SheetTitle>
             </SheetHeader>
             <div className="space-y-2 flex-1 py-2">
               <div>
-                <Label htmlFor="task-title" className="text-xs">Titre *</Label>
+                <Label htmlFor="task-title" className="text-xs">{t.tasks.form.title} *</Label>
                 <Input
                   id="task-title"
                   value={newTaskTitle}
@@ -2701,7 +2703,7 @@ export default function Tasks() {
                 />
               </div>
               <div>
-                <Label htmlFor="task-description" className="text-xs">Description</Label>
+                <Label htmlFor="task-description" className="text-xs">{t.tasks.form.description}</Label>
                 <Textarea
                   id="task-description"
                   value={newTaskDescription}
@@ -2713,7 +2715,7 @@ export default function Tasks() {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <Label htmlFor="task-priority" className="text-xs">Priorité</Label>
+                  <Label htmlFor="task-priority" className="text-xs">{t.tasks.form.priority}</Label>
                   <Select
                     value={newTaskPriority}
                     onValueChange={(value: "low" | "medium" | "high") => setNewTaskPriority(value)}
@@ -2729,7 +2731,7 @@ export default function Tasks() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="task-column" className="text-xs">Statut *</Label>
+                  <Label htmlFor="task-column" className="text-xs">{t.common.status} *</Label>
                   <Select
                     value={createTaskColumnId || ""}
                     onValueChange={(val) => setCreateTaskColumnId(val)}
@@ -2761,7 +2763,7 @@ export default function Tasks() {
                 </div>
               </div>
               <div>
-                <Label className="text-xs">Date d'échéance</Label>
+                <Label className="text-xs">{t.tasks.dueDate}</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -2789,7 +2791,7 @@ export default function Tasks() {
                 </Popover>
               </div>
               <div>
-                <Label className="text-xs">Effort / Complexité</Label>
+                <Label className="text-xs">{t.tasks.effort}</Label>
                 <div className="flex items-center gap-0.5">
                   {[1, 2, 3, 4, 5].map(rating => (
                     <button
@@ -2817,7 +2819,7 @@ export default function Tasks() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="task-assigned" className="text-xs">Assigné à</Label>
+                <Label htmlFor="task-assigned" className="text-xs">{t.tasks.form.assignee}</Label>
                 <Select
                   value={newTaskAssignedTo || "unassigned"}
                   onValueChange={(value) => setNewTaskAssignedTo(value === "unassigned" ? undefined : value)}
@@ -2825,7 +2827,7 @@ export default function Tasks() {
                   <SelectTrigger id="task-assigned" className="h-8" data-testid="select-new-task-assigned">
                     {(() => {
                       const sel = users.find(u => u.id === newTaskAssignedTo);
-                      if (!sel) return <span className="text-xs text-muted-foreground">Non assigné</span>;
+                      if (!sel) return <span className="text-xs text-muted-foreground">{t.common.unassigned}</span>;
                       const initials = sel.firstName ? sel.firstName[0] + (sel.lastName?.[0] || "") : sel.email[0];
                       const name = sel.firstName ? `${sel.firstName} ${sel.lastName || ""}`.trim() : sel.email;
                       return (
@@ -2840,7 +2842,7 @@ export default function Tasks() {
                     })()}
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unassigned" className="text-xs">Non assigné</SelectItem>
+                    <SelectItem value="unassigned" className="text-xs">{t.common.unassigned}</SelectItem>
                     {users.map((u) => {
                       const initials = u.firstName ? u.firstName[0] + (u.lastName?.[0] || "") : u.email[0];
                       const name = u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.email;
@@ -2860,7 +2862,7 @@ export default function Tasks() {
                 </Select>
               </div>
               <div>
-                <Label className="text-xs">Projet</Label>
+                <Label className="text-xs">{t.common.project}</Label>
                 <Popover open={projectComboboxOpen} onOpenChange={setProjectComboboxOpen}>
                   <PopoverTrigger asChild>
                     <Button
@@ -2871,10 +2873,10 @@ export default function Tasks() {
                       data-testid="button-select-project"
                     >
                       {newTaskProjectId === "none"
-                        ? "Aucun projet"
+                        ? t.common.noProject
                         : newTaskProjectId
                         ? projects.find((p) => p.id === newTaskProjectId)?.name
-                        : "Sélectionner un projet..."}
+                        : t.common.selectProject + "..."}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>

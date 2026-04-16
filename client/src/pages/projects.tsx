@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star, Columns3, FileText, Banknote, Settings2, Copy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1929,6 +1930,7 @@ export default function Projects() {
   const { accountId, user } = useAuth();
   const userId = user?.id || null;
   const { toast } = useToast();
+  const { t } = useLanguage();
   const { canCreate, canUpdate, canDelete } = useReadOnlyMode("projects");
   const { allStages, visibleStages, getLabel: getStageLabel, getColor: getStageColor } = useProjectStagesUI();
 
@@ -3063,7 +3065,7 @@ export default function Projects() {
                     <Button variant="outline" size="default" className="w-9 sm:w-[160px] justify-center sm:justify-start" data-testid="select-billing-filter">
                       <Banknote className="h-4 w-4 sm:mr-2 text-muted-foreground" />
                       <span className="hidden sm:inline truncate">
-                        {projectBillingFilters.length === 0 ? "Tous statuts" : 
+                        {projectBillingFilters.length === 0 ? t.tasks.allStatuses : 
                          projectBillingFilters.length === 1 ? billingStatusOptions.find(o => o.value === projectBillingFilters[0])?.label : 
                          `${projectBillingFilters.length} statuts`}
                       </span>
@@ -4359,7 +4361,7 @@ export default function Projects() {
                                     <div className="flex items-center gap-2">
                                       <Plus className="h-4 w-4 text-muted-foreground" />
                                       <Input
-                                        placeholder="Nouveau projet..."
+                                        placeholder={`${t.projects.new}...`}
                                         value={quickAddProjectName}
                                         onChange={(e) => setQuickAddProjectName(e.target.value)}
                                         onKeyDown={(e) => {
@@ -5095,18 +5097,18 @@ export default function Projects() {
                     data-testid="button-select-project"
                   >
                     {newTaskProjectId === "none"
-                      ? "Aucun projet"
+                      ? t.common.noProject
                       : newTaskProjectId
                       ? projects.find((p) => p.id === newTaskProjectId)?.name
-                      : "Sélectionner un projet..."}
+                      : `${t.common.selectProject}...`}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0">
                   <Command>
-                    <CommandInput placeholder="Rechercher un projet..." />
+                    <CommandInput placeholder={t.common.searchProject} />
                     <CommandList>
-                      <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                      <CommandEmpty>{t.common.noProjectFound}</CommandEmpty>
                       <CommandGroup>
                         <CommandItem
                           value="Aucun projet"

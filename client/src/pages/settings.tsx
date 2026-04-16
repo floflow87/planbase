@@ -849,6 +849,7 @@ function ProfileTypeCard({ currentProfileType, embedded = false }: { currentProf
 export default function Settings() {
   const { user, updateUserProfile } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
@@ -1105,35 +1106,35 @@ export default function Settings() {
           <TabsList className="w-full justify-start mb-3 overflow-x-auto overflow-y-hidden flex-nowrap h-10 p-0.5" data-testid="tabs-settings">
             <TabsTrigger value="informations" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-informations">
               <UserCircle className="w-3.5 h-3.5" />
-              Informations
+              {t.settings.tabs.informations}
             </TabsTrigger>
             <TabsTrigger value="preferences" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-preferences">
               <Palette className="w-3.5 h-3.5" />
-              Préférences
+              {t.settings.tabs.preferences}
             </TabsTrigger>
             <TabsTrigger value="config" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-config">
               <SettingsIcon className="w-3.5 h-3.5" />
-              Configuration
+              {t.settings.tabs.config}
             </TabsTrigger>
             <TabsTrigger value="permissions" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-permissions">
               <Users className="w-3.5 h-3.5" />
-              Utilisateurs
+              {t.settings.tabs.permissions}
             </TabsTrigger>
             <TabsTrigger value="integrations" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-integrations">
               <Puzzle className="w-3.5 h-3.5" />
-              Intégrations
+              {t.settings.tabs.integrations}
             </TabsTrigger>
             <TabsTrigger value="templates" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-templates">
               <LayoutTemplate className="w-3.5 h-3.5" />
-              Templates
+              {t.settings.tabs.templates}
             </TabsTrigger>
             <TabsTrigger value="security" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-security">
               <Shield className="w-3.5 h-3.5" />
-              Sécurité
+              {t.settings.tabs.security}
             </TabsTrigger>
             <TabsTrigger value="subscription" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-subscription">
               <CreditCard className="w-3.5 h-3.5" />
-              Abonnement
+              {t.settings.tabs.subscription}
             </TabsTrigger>
           </TabsList>
 
