@@ -20,6 +20,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -1512,21 +1519,21 @@ export default function NoteDetail() {
                 )}
               </Button>
 
-              <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
-                <DialogContent className="max-w-md bg-white dark:bg-gray-900">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
+              <Sheet open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+                <SheetContent side="right" className="w-[400px] sm:w-[420px] bg-white dark:bg-gray-900 flex flex-col gap-0 p-0" style={{ zIndex: 9999 }}>
+                  <SheetHeader className="px-6 py-5 border-b">
+                    <SheetTitle className="flex items-center gap-2 text-base">
                       <Share2 className="w-4 h-4" />
                       Partager la note
-                    </DialogTitle>
-                    <DialogDescription>
+                    </SheetTitle>
+                    <SheetDescription className="text-xs">
                       Invitez des membres à consulter ou modifier ce document.
-                    </DialogDescription>
-                  </DialogHeader>
+                    </SheetDescription>
+                  </SheetHeader>
 
-                  <div className="space-y-4">
+                  <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
                     {/* Add member section */}
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Inviter un membre</p>
                       {/* Member search */}
                       {shareSelectedUser ? (
@@ -1550,7 +1557,7 @@ export default function NoteDetail() {
                               Rechercher un membre...
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-72 p-0 bg-white dark:bg-gray-900" align="start">
+                          <PopoverContent className="w-72 p-0 bg-white dark:bg-gray-900" align="start" style={{ zIndex: 10000 }}>
                             <Command>
                               <CommandInput
                                 placeholder="Nom ou email..."
@@ -1625,15 +1632,15 @@ export default function NoteDetail() {
                     {noteShares.length > 0 && (
                       <div className="space-y-2">
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Accès actuels</p>
-                        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                        <div className="space-y-1">
                           {noteShares.map((share: any) => {
                             const name = share.first_name ? `${share.first_name} ${share.last_name || ''}`.trim() : share.email;
                             const initials = (share.first_name?.[0] || share.email?.[0] || '?').toUpperCase();
                             return (
-                              <div key={share.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/30">
-                                <Avatar className="w-7 h-7">
+                              <div key={share.id} className="flex items-center gap-2 rounded-md px-2 py-2 hover-elevate">
+                                <Avatar className="w-8 h-8">
                                   {share.avatar_url && <AvatarImage src={share.avatar_url} />}
-                                  <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+                                  <AvatarFallback className="text-[11px]">{initials}</AvatarFallback>
                                 </Avatar>
                                 <div className="flex-1 min-w-0">
                                   <div className="text-xs font-medium truncate">{name}</div>
@@ -1669,7 +1676,7 @@ export default function NoteDetail() {
                     )}
 
                     {/* Copy link */}
-                    <div className="border-t pt-3">
+                    <div className="border-t pt-4">
                       <Button
                         variant="outline"
                         size="sm"
@@ -1686,8 +1693,8 @@ export default function NoteDetail() {
                       </Button>
                     </div>
                   </div>
-                </DialogContent>
-              </Dialog>
+                </SheetContent>
+              </Sheet>
 
               {/* Collab Panel Toggle */}
               <Tooltip>
