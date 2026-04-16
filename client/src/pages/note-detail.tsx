@@ -1608,9 +1608,9 @@ export default function NoteDetail() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-white dark:bg-gray-900">
-                            <SelectItem value="read">Lecture seule</SelectItem>
-                            <SelectItem value="comment">Commentaire</SelectItem>
-                            <SelectItem value="edit">Modification</SelectItem>
+                            <SelectItem value="read" className="text-xs">Lecture seule</SelectItem>
+                            <SelectItem value="comment" className="text-xs">Commentaire</SelectItem>
+                            <SelectItem value="edit" className="text-xs">Modification</SelectItem>
                           </SelectContent>
                         </Select>
                         <Button
@@ -1654,9 +1654,9 @@ export default function NoteDetail() {
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent className="bg-white dark:bg-gray-900">
-                                    <SelectItem value="read">Lecture</SelectItem>
-                                    <SelectItem value="comment">Commentaire</SelectItem>
-                                    <SelectItem value="edit">Modification</SelectItem>
+                                    <SelectItem value="read" className="text-xs">Lecture</SelectItem>
+                                    <SelectItem value="comment" className="text-xs">Commentaire</SelectItem>
+                                    <SelectItem value="edit" className="text-xs">Modification</SelectItem>
                                   </SelectContent>
                                 </Select>
                                 <Button
