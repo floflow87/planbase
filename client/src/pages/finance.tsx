@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
@@ -1046,6 +1047,7 @@ function EmptyState() {
 import { PremiumGate } from "@/components/billing/PremiumGate";
 
 function FinanceInner() {
+  const { t } = useLanguage();
   const { readOnly, canCreate, canUpdate, canDelete } = useReadOnlyMode("profitability");
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'profitable' | 'at_risk' | 'deficit'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -1739,7 +1741,7 @@ function FinanceInner() {
             <div className="relative flex-1 min-w-0 sm:min-w-[200px] sm:max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                placeholder="Rechercher..."
+                placeholder={t.common.ph.search}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -1749,7 +1751,7 @@ function FinanceInner() {
             <div className="flex items-center gap-2 flex-wrap">
               <Select value={selectedFilter} onValueChange={(v) => setSelectedFilter(v as any)}>
                 <SelectTrigger className="w-full sm:w-40" data-testid="select-filter">
-                  <SelectValue placeholder="Statut" />
+                  <SelectValue placeholder={t.common.ph.status} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tous</SelectItem>
@@ -1808,7 +1810,7 @@ function FinanceInner() {
                 <div className="relative flex-1 min-w-0 sm:min-w-[200px] sm:max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
-                    placeholder="Rechercher..."
+                    placeholder={t.common.ph.search}
                     value={recoSearchQuery}
                     onChange={(e) => setRecoSearchQuery(e.target.value)}
                     className="pl-9"

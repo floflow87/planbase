@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +29,7 @@ export default function Login() {
   const searchString = useSearch();
   const { signIn } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -141,7 +143,7 @@ export default function Login() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="votre-email@exemple.com"
+                  placeholder={t.common.ph.email}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -161,7 +163,7 @@ export default function Login() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Votre mot de passe"
+                  placeholder={t.common.ph.password}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required

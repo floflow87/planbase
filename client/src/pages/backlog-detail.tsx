@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { createPortal } from "react-dom";
 import { useCelebration } from "@/hooks/useCelebration";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -136,6 +137,7 @@ function SortableFieldToggle({ id, label, isHidden, onToggle }: {
 }
 
 export default function BacklogDetail() {
+  const { t } = useLanguage();
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -1978,7 +1980,7 @@ export default function BacklogDetail() {
                 <Input 
                   value={newBacklogName} 
                   onChange={(e) => setNewBacklogName(e.target.value)} 
-                  placeholder="Nom du backlog"
+                  placeholder={t.common.ph.backlogName}
                   data-testid="input-backlog-name"
                 />
               </div>
@@ -1989,7 +1991,7 @@ export default function BacklogDetail() {
                 <Textarea 
                   value={newBacklogDescription} 
                   onChange={(e) => setNewBacklogDescription(e.target.value)} 
-                  placeholder="Description (optionnel)"
+                  placeholder={t.common.ph.optionalDescription}
                   rows={3}
                   data-testid="input-backlog-description"
                 />
@@ -2003,7 +2005,7 @@ export default function BacklogDetail() {
                   onValueChange={(v) => setNewBacklogProjectId(v === "none" ? null : v)}
                 >
                   <SelectTrigger data-testid="select-backlog-project">
-                    <SelectValue placeholder="Sélectionner un projet" />
+                    <SelectValue placeholder={t.common.ph.selectProject} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Aucun projet</SelectItem>
@@ -2119,7 +2121,7 @@ export default function BacklogDetail() {
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Rechercher..."
+              placeholder={t.common.ph.search}
               value={ticketSearch}
               onChange={(e) => setTicketSearch(e.target.value)}
               className="pl-8 h-8 w-full text-xs placeholder:text-xs bg-white dark:bg-card"
@@ -2182,7 +2184,7 @@ export default function BacklogDetail() {
                   <Label className="text-xs text-muted-foreground">Priorité</Label>
                   <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                     <SelectTrigger className="w-full h-9 text-sm" data-testid="select-priority-filter-mobile">
-                      <SelectValue placeholder="Toutes" />
+                      <SelectValue placeholder={t.common.ph.allF} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Toutes</SelectItem>
@@ -2216,7 +2218,7 @@ export default function BacklogDetail() {
                       </PopoverTrigger>
                       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                         <Command>
-                          <CommandInput placeholder="Rechercher..." className="h-8 text-sm" />
+                          <CommandInput placeholder={t.common.ph.search} className="h-8 text-sm" />
                           <CommandList>
                             <CommandEmpty>Aucune Epic trouvée</CommandEmpty>
                             <CommandGroup>
@@ -2249,7 +2251,7 @@ export default function BacklogDetail() {
                     <Label className="text-xs text-muted-foreground">Version</Label>
                     <Select value={versionFilter} onValueChange={setVersionFilter}>
                       <SelectTrigger className="w-full h-9 text-sm" data-testid="select-version-filter-mobile">
-                        <SelectValue placeholder="Toutes les versions" />
+                        <SelectValue placeholder={t.common.ph.allVersions} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Toutes les versions</SelectItem>
@@ -2293,7 +2295,7 @@ export default function BacklogDetail() {
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Rechercher..."
+                placeholder={t.common.ph.search}
                 value={ticketSearch}
                 onChange={(e) => setTicketSearch(e.target.value)}
                 className="pl-8 h-8 w-[150px] text-xs placeholder:text-xs bg-white dark:bg-card"
@@ -2358,7 +2360,7 @@ export default function BacklogDetail() {
               <Label className="text-[10px] text-muted-foreground">Priorité</Label>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                 <SelectTrigger className="w-[130px] h-8 text-xs" data-testid="select-priority-filter">
-                  <SelectValue placeholder="Toutes" />
+                  <SelectValue placeholder={t.common.ph.allF} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Toutes</SelectItem>
@@ -2435,7 +2437,7 @@ export default function BacklogDetail() {
                 <Label className="text-[10px] text-muted-foreground">Version</Label>
                 <Select value={versionFilter} onValueChange={setVersionFilter}>
                   <SelectTrigger className="w-[150px] h-8 text-xs" data-testid="select-version-filter">
-                    <SelectValue placeholder="Toutes les versions" />
+                    <SelectValue placeholder={t.common.ph.allVersions} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Toutes les versions</SelectItem>
@@ -2826,7 +2828,7 @@ export default function BacklogDetail() {
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Rechercher une Epic..."
+                  placeholder={t.common.ph.searchEpic}
                   value={epicSearchQuery}
                   onChange={(e) => setEpicSearchQuery(e.target.value)}
                   className="pl-9"
@@ -3217,7 +3219,7 @@ export default function BacklogDetail() {
               <Input 
                 value={editBacklogName} 
                 onChange={(e) => setEditBacklogName(e.target.value)} 
-                placeholder="Nom du backlog"
+                placeholder={t.common.ph.backlogName}
                 className="text-xs"
                 data-testid="input-edit-backlog-name"
               />
@@ -3227,7 +3229,7 @@ export default function BacklogDetail() {
               <Textarea 
                 value={editBacklogDescription} 
                 onChange={(e) => setEditBacklogDescription(e.target.value)} 
-                placeholder="Description (optionnel)"
+                placeholder={t.common.ph.optionalDescription}
                 rows={3}
                 className="text-xs"
                 data-testid="input-edit-backlog-description"
@@ -3240,7 +3242,7 @@ export default function BacklogDetail() {
                 onValueChange={(v) => setEditBacklogProjectId(v === "none" ? null : v)}
               >
                 <SelectTrigger className="text-xs" data-testid="select-edit-backlog-project">
-                  <SelectValue placeholder="Sélectionner un projet" />
+                  <SelectValue placeholder={t.common.ph.selectProject} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none" className="text-xs">Aucun projet</SelectItem>
@@ -3404,7 +3406,7 @@ export default function BacklogDetail() {
               onValueChange={setSelectedRoadmapForGeneration}
             >
               <SelectTrigger data-testid="select-roadmap-for-generation">
-                <SelectValue placeholder="Sélectionner une roadmap" />
+                <SelectValue placeholder={t.common.ph.selectRoadmap} />
               </SelectTrigger>
               <SelectContent>
                 {projectRoadmapsForEpic.map((roadmap) => (
@@ -3484,7 +3486,7 @@ export default function BacklogDetail() {
               <Label>Rediriger les tickets non terminés vers :</Label>
               <Select value={redirectTarget} onValueChange={setRedirectTarget}>
                 <SelectTrigger data-testid="select-redirect-target">
-                  <SelectValue placeholder="Choisir la destination" />
+                  <SelectValue placeholder={t.common.ph.selectDest} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="backlog">Backlog</SelectItem>
@@ -3559,7 +3561,7 @@ export default function BacklogDetail() {
                   <Label>Déplacer les tickets vers :</Label>
                   <Select value={deleteRedirectTarget} onValueChange={setDeleteRedirectTarget}>
                     <SelectTrigger data-testid="select-delete-redirect-target">
-                      <SelectValue placeholder="Choisir la destination" />
+                      <SelectValue placeholder={t.common.ph.selectDest} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="backlog">Backlog</SelectItem>
@@ -3838,7 +3840,7 @@ function EpicDialog({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Titre *</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre de l'epic" className="" data-testid="input-epic-title" />
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t.common.ph.epicTitle} className="" data-testid="input-epic-title" />
           </div>
           <div className="space-y-2">
             <Label>Description</Label>
@@ -3874,7 +3876,7 @@ function EpicDialog({
               <Label>Lier à la roadmap</Label>
               <Select value={roadmapItemId || "none"} onValueChange={(v) => setRoadmapItemId(v === "none" ? null : v)}>
                 <SelectTrigger className="" data-testid="select-epic-roadmap-item">
-                  <SelectValue placeholder="Sélectionner une rubrique" />
+                  <SelectValue placeholder={t.common.ph.selectRubrique} />
                 </SelectTrigger>
                 <SelectContent className="bg-popover dark:bg-card">
                   <SelectItem value="none">Aucune</SelectItem>
@@ -3982,7 +3984,7 @@ function UserStoryDialog({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Titre *</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="En tant que..." className="" data-testid="input-userstory-title" />
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t.common.ph.userStoryTitle} className="" data-testid="input-userstory-title" />
           </div>
           <div className="space-y-2">
             <Label>Description</Label>
@@ -3992,7 +3994,7 @@ function UserStoryDialog({
             <div className="space-y-2">
               <Label>Epic</Label>
               <Select value={epicId || "none"} onValueChange={(v) => setEpicId(v === "none" ? null : v)}>
-                <SelectTrigger className="" data-testid="select-userstory-epic"><SelectValue placeholder="Aucun" /></SelectTrigger>
+                <SelectTrigger className="" data-testid="select-userstory-epic"><SelectValue placeholder={t.common.ph.none} /></SelectTrigger>
                 <SelectContent className="bg-popover dark:bg-card">
                   <SelectItem value="none">Aucun</SelectItem>
                   {epics.map(epic => (
@@ -4083,7 +4085,7 @@ function TaskDialog({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Titre *</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre de la tâche" data-testid="input-task-title" />
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t.common.ph.taskTitle} data-testid="input-task-title" />
           </div>
           <div className="space-y-2">
             <Label>Description</Label>
@@ -4220,7 +4222,7 @@ function SprintSheet({
             <Input 
               value={name} 
               onChange={(e) => setName(e.target.value)} 
-              placeholder="Sprint 1" 
+              placeholder={t.common.ph.sprintName}
               className=""
               data-testid="input-sprint-name" 
             />
@@ -4231,7 +4233,7 @@ function SprintSheet({
               value={goal} 
               onChange={(e) => setGoal(e.target.value)} 
               rows={3} 
-              placeholder="Objectif du sprint..." 
+              placeholder={t.common.ph.sprintGoal}
               className=""
               data-testid="input-sprint-goal" 
             />
@@ -4301,7 +4303,7 @@ function SprintSheet({
                 onValueChange={(v) => setRoadmapItemId(v === "none" ? null : v)}
               >
                 <SelectTrigger className="" data-testid="select-sprint-roadmap-item">
-                  <SelectValue placeholder="Aucun élément lié" />
+                  <SelectValue placeholder={t.common.ph.noLinkedItem} />
                 </SelectTrigger>
                 <SelectContent className="max-h-60">
                   <SelectItem value="none">Aucun élément lié</SelectItem>
@@ -4382,7 +4384,7 @@ function ColumnDialog({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Nom *</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="À faire" data-testid="input-column-name" />
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.common.ph.toDo} data-testid="input-column-name" />
           </div>
           <div className="space-y-2">
             <Label>Couleur</Label>
@@ -4448,7 +4450,7 @@ function KanbanTaskDialogComponent({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Titre *</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre de la tâche" data-testid="input-kanban-task-title" />
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t.common.ph.taskTitle} data-testid="input-kanban-task-title" />
           </div>
           <div className="space-y-2">
             <Label>Description</Label>
@@ -5138,7 +5140,7 @@ function CompletedTicketsView({
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Rechercher un ticket..."
+            placeholder={t.common.ph.searchTicket}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 h-8"
@@ -5150,7 +5152,7 @@ function CompletedTicketsView({
         
         <Select value={filterSprint} onValueChange={setFilterSprint}>
           <SelectTrigger className="w-[140px] h-8 text-xs" data-testid="select-completed-filter-sprint">
-            <SelectValue placeholder="Sprint" />
+            <SelectValue placeholder={t.common.ph.sprint} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les sprints</SelectItem>
@@ -5163,7 +5165,7 @@ function CompletedTicketsView({
         
         <Select value={filterEpic} onValueChange={setFilterEpic}>
           <SelectTrigger className="w-[140px] h-8 text-xs" data-testid="select-completed-filter-epic">
-            <SelectValue placeholder="Epic" />
+            <SelectValue placeholder={t.common.ph.epic} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Toutes les epics</SelectItem>
@@ -5177,7 +5179,7 @@ function CompletedTicketsView({
         {uniqueVersions.length > 0 && (
           <Select value={filterVersion} onValueChange={setFilterVersion}>
             <SelectTrigger className="w-[120px] h-8 text-xs" data-testid="select-completed-filter-version">
-              <SelectValue placeholder="Version" />
+              <SelectValue placeholder={t.common.ph.version} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Toutes</SelectItem>
@@ -5292,7 +5294,7 @@ function CompletedTicketsView({
                 </PopoverTrigger>
                 <PopoverContent className="w-[300px] p-0" align="start">
                   <Command>
-                    <CommandInput placeholder="Rechercher un sprint..." />
+                    <CommandInput placeholder={t.common.ph.searchSprint} />
                     <CommandList style={{ maxHeight: '240px', overflowY: 'auto' }} onWheel={(e) => e.stopPropagation()}>
                       <CommandEmpty>Aucun sprint trouvé.</CommandEmpty>
                       <CommandGroup>
@@ -5628,7 +5630,7 @@ function CompletedTicketsView({
               <Input
                 value={editPatchNoteTitle}
                 onChange={(e) => setEditPatchNoteTitle(e.target.value)}
-                placeholder="Titre du patch note"
+                placeholder={t.common.ph.patchNoteTitle}
                 className="bg-white dark:bg-gray-800"
                 data-testid="input-edit-patch-note-title"
               />
@@ -5638,7 +5640,7 @@ function CompletedTicketsView({
               <Input
                 value={editPatchNoteVersion}
                 onChange={(e) => setEditPatchNoteVersion(e.target.value)}
-                placeholder="ex: 1.0.0"
+                placeholder={t.common.ph.patchNoteVersion}
                 className="bg-white dark:bg-gray-800"
                 data-testid="input-edit-patch-note-version"
               />
@@ -5648,7 +5650,7 @@ function CompletedTicketsView({
               <Textarea
                 value={editPatchNoteContent}
                 onChange={(e) => setEditPatchNoteContent(e.target.value)}
-                placeholder="Contenu du patch note..."
+                placeholder={t.common.ph.patchNoteContent}
                 rows={10}
                 className="bg-white dark:bg-gray-800"
                 data-testid="textarea-edit-patch-note-content"
@@ -6083,7 +6085,7 @@ function BacklogStats({
             onValueChange={(val) => setSelectedSprintId(val === "all" ? null : val)}
           >
             <SelectTrigger className="w-[200px]" data-testid="select-stats-sprint">
-              <SelectValue placeholder="Tous les sprints" />
+              <SelectValue placeholder={t.common.ph.allSprints} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tous les sprints</SelectItem>
@@ -7265,7 +7267,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
           <div className="relative w-[150px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Rechercher..."
+              placeholder={t.common.ph.search}
               value={recipeSearchQuery}
               onChange={(e) => setRecipeSearchQuery(e.target.value)}
               className="pl-9 h-8 text-sm"
@@ -7283,7 +7285,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
               {/* Bulk status */}
               <Select onValueChange={(val) => applyBulkAction("status", val as RecipeStatus)}>
                 <SelectTrigger className="w-[120px] h-7 text-xs" data-testid="select-bulk-status">
-                  <SelectValue placeholder="Statut" />
+                  <SelectValue placeholder={t.common.ph.status} />
                 </SelectTrigger>
                 <SelectContent>
                   {recipeStatusOptions.map(opt => (
@@ -7295,7 +7297,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
               {/* Bulk conclusion */}
               <Select onValueChange={(val) => applyBulkAction("conclusion", val as RecipeConclusion)}>
                 <SelectTrigger className="w-[130px] h-7 text-xs" data-testid="select-bulk-conclusion">
-                  <SelectValue placeholder="Conclusion" />
+                  <SelectValue placeholder={t.common.ph.conclusion} />
                 </SelectTrigger>
                 <SelectContent>
                   {recipeConclusionOptions.map(opt => (
@@ -7487,7 +7489,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                         <td className="p-3" onClick={(e) => e.stopPropagation()}>
                           <RecipeInlineInput
                             value={ticket.recipe?.observedResults || ""}
-                            placeholder="Résultats..."
+                            placeholder={t.common.ph.results}
                             testId={`input-results-${ticket.id}`}
                             onSave={(val) => {
                               upsertRecipeMutation.mutate({
@@ -7554,7 +7556,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                         <td className="p-3" onClick={(e) => e.stopPropagation()}>
                           <RecipeInlineInput
                             value={ticket.recipe?.suggestions || ""}
-                            placeholder="Suggestions..."
+                            placeholder={t.common.ph.suggestions}
                             testId={`input-suggestions-${ticket.id}`}
                             onSave={(val) => {
                               upsertRecipeMutation.mutate({
@@ -7569,7 +7571,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                         <td className="p-3" onClick={(e) => e.stopPropagation()}>
                           <RecipeInlineInput
                             value={ticket.recipe?.remarks || ""}
-                            placeholder="Remarques..."
+                            placeholder={t.common.ph.remarks}
                             testId={`input-remarks-${ticket.id}`}
                             onSave={(val) => {
                               upsertRecipeMutation.mutate({
@@ -7682,7 +7684,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
               <Textarea
                 value={recipeFormData.observedResults}
                 onChange={(e) => setRecipeFormData(prev => ({ ...prev, observedResults: e.target.value }))}
-                placeholder="Décrivez les résultats observés lors du test..."
+                placeholder={t.common.ph.testResults}
                 rows={4}
                 className=""
                 data-testid="textarea-observed-results"
@@ -7705,7 +7707,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                 }}
               >
                 <SelectTrigger className="" data-testid="select-recipe-conclusion">
-                  <SelectValue placeholder="Sélectionner..." />
+                  <SelectValue placeholder={t.common.ph.select} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Aucune conclusion</SelectItem>
@@ -7730,7 +7732,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
               <Textarea
                 value={recipeFormData.suggestions}
                 onChange={(e) => setRecipeFormData(prev => ({ ...prev, suggestions: e.target.value }))}
-                placeholder="Suggérez des améliorations ou corrections..."
+                placeholder={t.common.ph.improvements}
                 rows={4}
                 className=""
                 data-testid="textarea-suggestions"
@@ -7743,7 +7745,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
               <Textarea
                 value={recipeFormData.remarks}
                 onChange={(e) => setRecipeFormData(prev => ({ ...prev, remarks: e.target.value }))}
-                placeholder="Notes libres, remarques additionnelles..."
+                placeholder={t.common.ph.freeNotes}
                 rows={3}
                 className=""
                 data-testid="textarea-remarks"
@@ -7926,7 +7928,7 @@ function RetrospectiveView({ backlogId, sprints }: { backlogId: string; sprints:
                   <PopoverContent className="w-full p-0 bg-white" align="start">
                     <div className="p-2 border-b">
                       <Input
-                        placeholder="Rechercher un sprint..."
+                        placeholder={t.common.ph.searchSprint}
                         value={sprintSearchValue}
                         onChange={(e) => setSprintSearchValue(e.target.value)}
                         className=""
@@ -8317,7 +8319,7 @@ function RetroColumn({
       {!isFinished && (
         <div className="space-y-2">
           <Textarea
-            placeholder="Ajouter une carte..."
+            placeholder={t.common.ph.addCard}
             value={newCardContent}
             onChange={(e) => onNewCardChange(e.target.value)}
             rows={2}

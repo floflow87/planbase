@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Search, Filter, X, AlertTriangle, CheckCircle2, Flag } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -108,6 +109,7 @@ interface RoadmapTabProps {
 type ViewMode = "gantt" | "output" | "nnl";
 
 export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [selectedRoadmapId, setSelectedRoadmapId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("gantt");
@@ -543,7 +545,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
             {roadmaps.length > 1 ? (
               <Select value={activeRoadmapId || ""} onValueChange={setSelectedRoadmapId}>
                 <SelectTrigger className="w-[200px]" data-testid="select-roadmap">
-                  <SelectValue placeholder="Sélectionner une roadmap" />
+                  <SelectValue placeholder={t.common.ph.selectRoadmap} />
                 </SelectTrigger>
                 <SelectContent>
                   {roadmaps.map((roadmap) => (
@@ -615,7 +617,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
               <div className="relative flex-1 min-w-[200px] max-w-[300px]">
                 <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Rechercher..."
+                  placeholder={t.common.ph.search}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 h-8"
@@ -625,7 +627,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
               
               <Select value={filterPhase} onValueChange={setFilterPhase}>
                 <SelectTrigger className="w-[160px] h-8" data-testid="select-filter-phase">
-                  <SelectValue placeholder="Phase" />
+                  <SelectValue placeholder={t.common.ph.phase} />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(PHASE_LABELS).map(([value, label]) => (
@@ -636,7 +638,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
               
               <Select value={filterStatus} onValueChange={setFilterStatus}>
                 <SelectTrigger className="w-[150px] h-8" data-testid="select-filter-status">
-                  <SelectValue placeholder="Statut" />
+                  <SelectValue placeholder={t.common.ph.status} />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(STATUS_LABELS).map(([value, label]) => (
@@ -647,7 +649,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
               
               <Select value={filterType} onValueChange={setFilterType}>
                 <SelectTrigger className="w-[150px] h-8" data-testid="select-filter-type">
-                  <SelectValue placeholder="Type" />
+                  <SelectValue placeholder={t.common.ph.type} />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(TYPE_LABELS).map(([value, label]) => (
@@ -1087,7 +1089,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
                 id="item-description"
                 value={itemForm.description}
                 onChange={(e) => setItemForm(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Décrivez cet élément..."
+                placeholder={t.common.ph.describeItem}
                 rows={3}
                 data-testid="input-item-description"
               />

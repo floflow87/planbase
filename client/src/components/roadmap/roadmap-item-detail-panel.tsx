@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -70,6 +71,7 @@ interface RoadmapItemDetailPanelProps {
 }
 
 export function RoadmapItemDetailPanel({ item, open, onOpenChange, onEdit, epics, backlogId, roadmapId }: RoadmapItemDetailPanelProps) {
+  const { t } = useLanguage();
   const [noteSelectorOpen, setNoteSelectorOpen] = useState(false);
   const [noteSearch, setNoteSearch] = useState("");
   const [okrSelectorOpen, setOkrSelectorOpen] = useState(false);
@@ -458,7 +460,7 @@ export function RoadmapItemDetailPanel({ item, open, onOpenChange, onEdit, epics
                     <div className="relative mb-2">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                       <Input
-                        placeholder="Rechercher une note..."
+                        placeholder={t.common.ph.searchNote}
                         value={noteSearch}
                         onChange={e => setNoteSearch(e.target.value)}
                         className="pl-8 h-8 text-xs"

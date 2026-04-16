@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
@@ -30,6 +31,7 @@ const MINDMAP_KIND_LABELS: Record<MindmapKind, { label: string; color: string; i
 };
 
 export default function Mindmaps() {
+  const { t } = useLanguage();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -187,7 +189,7 @@ export default function Mindmaps() {
                   data-testid="input-mindmap-name"
                   value={newMindmap.name}
                   onChange={(e) => setNewMindmap({ ...newMindmap, name: e.target.value })}
-                  placeholder="Ma mindmap"
+                  placeholder={t.common.ph.mindmapTitle}
                 />
               </div>
               <div className="space-y-2">
@@ -197,7 +199,7 @@ export default function Mindmaps() {
                   data-testid="input-mindmap-description"
                   value={newMindmap.description}
                   onChange={(e) => setNewMindmap({ ...newMindmap, description: e.target.value })}
-                  placeholder="Description de la mindmap..."
+                  placeholder={t.common.ph.mindmapDesc}
                 />
               </div>
               <div className="space-y-2">
@@ -207,7 +209,7 @@ export default function Mindmaps() {
                   onValueChange={(value) => setNewMindmap({ ...newMindmap, clientId: value === "__none__" ? "" : value })}
                 >
                   <SelectTrigger data-testid="select-mindmap-client">
-                    <SelectValue placeholder="Sélectionner un client" />
+                    <SelectValue placeholder={t.common.ph.selectClient} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Aucun</SelectItem>
@@ -224,7 +226,7 @@ export default function Mindmaps() {
                   onValueChange={(value) => setNewMindmap({ ...newMindmap, projectId: value === "__none__" ? "" : value })}
                 >
                   <SelectTrigger data-testid="select-mindmap-project">
-                    <SelectValue placeholder="Sélectionner un projet" />
+                    <SelectValue placeholder={t.common.ph.selectProject} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Aucun</SelectItem>

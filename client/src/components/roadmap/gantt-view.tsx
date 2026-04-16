@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useCallback, useEffect } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { addDays, differenceInDays, format, startOfMonth, endOfMonth, eachDayOfInterval, eachWeekOfInterval, startOfWeek, addMonths, isSameMonth, isToday, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -119,6 +120,7 @@ interface HierarchicalItem extends RoadmapItem {
 }
 
 export function GanttView({ items, dependencies = [], roadmapId, onItemClick, onAddItem, onCreateAtDate, onUpdateItemDates, onCreateDependency, onBulkDelete, onBulkUpdate, onReorderItems, hideTodayLine = false }: GanttViewProps) {
+  const { t } = useLanguage();
   const [zoom, setZoom] = useState<ZoomLevel>("week");
   const [viewStartDate, setViewStartDate] = useState(() => startOfMonth(new Date()));
   const [releaseTagFilter, setReleaseTagFilter] = useState<string>("all");
@@ -970,7 +972,7 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
           <Select value={releaseTagFilter} onValueChange={setReleaseTagFilter}>
             <SelectTrigger className="w-[130px] h-8" data-testid="select-release-filter">
               <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-              <SelectValue placeholder="Version" />
+              <SelectValue placeholder={t.common.ph.version} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Toutes versions</SelectItem>
@@ -1038,7 +1040,7 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
           <div className="flex items-center gap-2 flex-wrap">
             <Select onValueChange={(v) => handleBulkAction('type', v)}>
               <SelectTrigger className="w-[120px] h-8 text-xs" data-testid="select-bulk-type">
-                <SelectValue placeholder="Type" />
+                <SelectValue placeholder={t.common.ph.type} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="deliverable">Livrable</SelectItem>
@@ -1050,7 +1052,7 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
 
             <Select onValueChange={(v) => handleBulkAction('priority', v)}>
               <SelectTrigger className="w-[110px] h-8 text-xs" data-testid="select-bulk-priority">
-                <SelectValue placeholder="Priorité" />
+                <SelectValue placeholder={t.common.ph.priority} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="low">Basse</SelectItem>
@@ -1062,7 +1064,7 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
 
             <Select onValueChange={(v) => handleBulkAction('status', v)}>
               <SelectTrigger className="w-[110px] h-8 text-xs" data-testid="select-bulk-status">
-                <SelectValue placeholder="Statut" />
+                <SelectValue placeholder={t.common.ph.status} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="planned">Planifié</SelectItem>
@@ -1074,7 +1076,7 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
 
             <Select onValueChange={(v) => handleBulkAction('releaseTag', v === 'none' ? '' : v)}>
               <SelectTrigger className="w-[100px] h-8 text-xs" data-testid="select-bulk-version">
-                <SelectValue placeholder="Version" />
+                <SelectValue placeholder={t.common.ph.version} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Aucune</SelectItem>
@@ -1089,7 +1091,7 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
 
             <Select onValueChange={(v) => handleBulkAction('phase', v === 'none' ? '' : v)}>
               <SelectTrigger className="w-[90px] h-8 text-xs" data-testid="select-bulk-phase">
-                <SelectValue placeholder="Phase" />
+                <SelectValue placeholder={t.common.ph.phase} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Aucune</SelectItem>

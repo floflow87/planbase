@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
@@ -134,6 +135,7 @@ export function CdcWizard({
   onClose,
   onComplete,
 }: CdcWizardProps) {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -502,7 +504,7 @@ export function CdcWizard({
               
               <div className="flex gap-2">
                 <Input
-                  placeholder="Intitulé de la rubrique"
+                  placeholder={t.common.ph.sectionTitle}
                   value={newItemForm.label}
                   onChange={(e) => setNewItemForm({ ...newItemForm, label: e.target.value })}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
@@ -586,7 +588,7 @@ export function CdcWizard({
                         step="0.5"
                         min="0"
                         className="w-20 text-sm"
-                        placeholder="jours"
+                        placeholder={t.common.ph.days}
                         defaultValue={item.estimatedDays?.toString() || ''}
                         onBlur={(e) => {
                           const value = e.target.value;
@@ -674,7 +676,7 @@ export function CdcWizard({
                       }}
                     >
                       <SelectTrigger className="w-48 text-sm" data-testid={`select-phase-${item.id}`}>
-                        <SelectValue placeholder="Sélectionner une phase" />
+                        <SelectValue placeholder={t.common.ph.selectPhase} />
                       </SelectTrigger>
                       <SelectContent>
                         {PHASES.map((phase) => (

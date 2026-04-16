@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useState, useRef, useEffect } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -131,6 +132,7 @@ function DraggableCard({ id, children }: { id: string; children: React.ReactNode
 
 // Combobox pour la sélection d'epic avec autocomplete
 function EpicCombobox({ value, epics, onChange }: { value: string; epics: Epic[]; onChange: (val: string) => void }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -168,7 +170,7 @@ function EpicCombobox({ value, epics, onChange }: { value: string; epics: Epic[]
               <Input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Rechercher une epic..."
+                placeholder={t.common.ph.searchEpic}
                 className="pl-8 h-7 text-[11px]"
                 autoFocus
                 data-testid="input-epic-search"
@@ -214,6 +216,7 @@ export function NowNextLaterView({
   userStories: externalUserStories,
   groupBy = "none",
 }: NowNextLaterViewProps) {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overLaneId, setOverLaneId] = useState<string | null>(null);
@@ -895,7 +898,7 @@ export function NowNextLaterView({
                   <Input
                     value={form.title}
                     onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Nom de l'élément"
+                    placeholder={t.common.ph.elementName}
                     className="text-base font-semibold border-none shadow-none px-0 focus-visible:ring-0 h-auto"
                     autoFocus
                     data-testid="input-nnl-create-title"
@@ -957,7 +960,7 @@ export function NowNextLaterView({
                 <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                   <Eye className="h-3 w-3" />Vision
                 </Label>
-                <Textarea value={form.vision || ""} onChange={(e) => setForm(prev => ({ ...prev, vision: e.target.value }))} placeholder="Quelle est la vision ?" className="resize-none text-[11px] placeholder:text-[11px]" rows={2} data-testid="input-nnl-vision" />
+                <Textarea value={form.vision || ""} onChange={(e) => setForm(prev => ({ ...prev, vision: e.target.value }))} placeholder={t.common.ph.vision} className="resize-none text-[11px] placeholder:text-[11px]" rows={2} data-testid="input-nnl-vision" />
               </div>
 
               {/* Objectif */}
@@ -965,7 +968,7 @@ export function NowNextLaterView({
                 <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                   <Target className="h-3 w-3" />Objectif
                 </Label>
-                <Textarea value={form.objectif || ""} onChange={(e) => setForm(prev => ({ ...prev, objectif: e.target.value }))} placeholder="Quel objectif à atteindre ?" className="resize-none text-[11px] placeholder:text-[11px]" rows={2} data-testid="input-nnl-objectif" />
+                <Textarea value={form.objectif || ""} onChange={(e) => setForm(prev => ({ ...prev, objectif: e.target.value }))} placeholder={t.common.ph.objective} className="resize-none text-[11px] placeholder:text-[11px]" rows={2} data-testid="input-nnl-objectif" />
               </div>
 
               {/* Impact */}
@@ -973,7 +976,7 @@ export function NowNextLaterView({
                 <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                   <TrendingUp className="h-3 w-3" />Impact
                 </Label>
-                <Textarea value={form.impact || ""} onChange={(e) => setForm(prev => ({ ...prev, impact: e.target.value }))} placeholder="Impact attendu ?" className="resize-none text-[11px] placeholder:text-[11px]" rows={2} data-testid="input-nnl-impact" />
+                <Textarea value={form.impact || ""} onChange={(e) => setForm(prev => ({ ...prev, impact: e.target.value }))} placeholder={t.common.ph.expectedImpact} className="resize-none text-[11px] placeholder:text-[11px]" rows={2} data-testid="input-nnl-impact" />
               </div>
 
               {/* Métriques */}
@@ -981,7 +984,7 @@ export function NowNextLaterView({
                 <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                   <BarChart3 className="h-3 w-3" />Métriques
                 </Label>
-                <Textarea value={form.metrics || ""} onChange={(e) => setForm(prev => ({ ...prev, metrics: e.target.value }))} placeholder="Comment mesurer le succès ?" className="resize-none text-[11px] placeholder:text-[11px]" rows={2} data-testid="input-nnl-metrics" />
+                <Textarea value={form.metrics || ""} onChange={(e) => setForm(prev => ({ ...prev, metrics: e.target.value }))} placeholder={t.common.ph.measureSuccess} className="resize-none text-[11px] placeholder:text-[11px]" rows={2} data-testid="input-nnl-metrics" />
               </div>
 
               <Separator />
@@ -994,7 +997,7 @@ export function NowNextLaterView({
                   </Label>
                   <Select value={form.phase || ""} onValueChange={(v) => setForm(prev => ({ ...prev, phase: v }))}>
                     <SelectTrigger className="text-[11px]" data-testid="select-nnl-phase">
-                      <SelectValue placeholder="Sélectionner..." />
+                      <SelectValue placeholder={t.common.ph.select} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="T1">T1</SelectItem>
@@ -1008,7 +1011,7 @@ export function NowNextLaterView({
                   <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                     <Tag className="h-3 w-3" />Version
                   </Label>
-                  <Input value={form.releaseTag || ""} onChange={(e) => setForm(prev => ({ ...prev, releaseTag: e.target.value }))} placeholder="MVP, V1..." className="text-[11px] placeholder:text-[11px]" data-testid="input-nnl-version" />
+                  <Input value={form.releaseTag || ""} onChange={(e) => setForm(prev => ({ ...prev, releaseTag: e.target.value }))} placeholder={t.common.ph.releaseTag} className="text-[11px] placeholder:text-[11px]" data-testid="input-nnl-version" />
                 </div>
               </div>
 
@@ -1068,7 +1071,7 @@ export function NowNextLaterView({
                         <div className="p-2 border-b">
                           <div className="relative">
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                            <Input value={noteSearch} onChange={e => setNoteSearch(e.target.value)} placeholder="Rechercher une note..." className="pl-8 h-7 text-[11px]" data-testid="input-note-search-nnl" />
+                            <Input value={noteSearch} onChange={e => setNoteSearch(e.target.value)} placeholder={t.common.ph.searchNote} className="pl-8 h-7 text-[11px]" data-testid="input-note-search-nnl" />
                           </div>
                         </div>
                         {availableNotes.length === 0 ? (

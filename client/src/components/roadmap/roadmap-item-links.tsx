@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,7 @@ const LINK_TYPE_ICONS: { [key: string]: typeof Target } = {
 };
 
 export function RoadmapItemLinks({ roadmapItemId, projectId }: RoadmapItemLinksProps) {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [showAddLink, setShowAddLink] = useState(false);
   const [selectedType, setSelectedType] = useState<string>("");
@@ -235,7 +237,7 @@ export function RoadmapItemLinks({ roadmapItemId, projectId }: RoadmapItemLinksP
             <Label className="text-xs">Type de lien</Label>
             <Select value={selectedType} onValueChange={(v) => { setSelectedType(v); setSelectedItemId(""); setSearchQuery(""); }}>
               <SelectTrigger className="h-8" data-testid="select-link-type">
-                <SelectValue placeholder="Sélectionner un type" />
+                <SelectValue placeholder={t.common.ph.selectType} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="epic">Epic</SelectItem>
@@ -253,7 +255,7 @@ export function RoadmapItemLinks({ roadmapItemId, projectId }: RoadmapItemLinksP
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
-                  placeholder="Rechercher..."
+                  placeholder={t.common.ph.search}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="h-8 pl-7 text-xs"

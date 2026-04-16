@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -337,6 +338,7 @@ function SignatureRichEditor({ value, onChange, placeholder, testId }: {
 }
 
 export default function Emails() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [filter, setFilter] = useState<FilterType>("received");
   const [search, setSearch] = useState("");
@@ -995,7 +997,7 @@ export default function Emails() {
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
               <Input
                 className="pl-8 pr-2 text-xs h-8 bg-white dark:bg-background placeholder:text-[10px]"
-                placeholder="Chercher..."
+                placeholder={t.common.ph.search}
                 value={searchInput}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 data-testid="input-email-search"
@@ -1644,7 +1646,7 @@ export default function Emails() {
                         autoFocus
                         value={linkClientSearch}
                         onChange={e => setLinkClientSearch(e.target.value)}
-                        placeholder="Rechercher un client..."
+                        placeholder={t.common.ph.searchClient}
                         className="h-6 text-[11px] px-2 mb-1"
                         data-testid="input-search-client"
                       />
@@ -1709,7 +1711,7 @@ export default function Emails() {
                           autoFocus
                           value={tagInput}
                           onChange={e => setTagInput(e.target.value)}
-                          placeholder="Nouvelle étiquette..."
+                          placeholder={t.common.ph.newLabel}
                           className="h-5 text-[10px] px-1.5 w-28 min-w-0"
                           onKeyDown={(e) => { if (e.key === "Escape") { setTagInputOpen(false); setTagInput(""); }}}
                           data-testid="input-new-tag"
@@ -1895,7 +1897,7 @@ export default function Emails() {
                 <SignatureRichEditor
                   value={sigDraft.newMessage}
                   onChange={(v) => setSigDraft(d => ({ ...d, newMessage: v }))}
-                  placeholder="Votre signature..."
+                  placeholder={t.common.ph.signature}
                   testId="editor-signature-new"
                 />
               )}
@@ -1918,7 +1920,7 @@ export default function Emails() {
                 <SignatureRichEditor
                   value={sigDraft.reply}
                   onChange={(v) => setSigDraft(d => ({ ...d, reply: v }))}
-                  placeholder="Votre signature pour les réponses..."
+                  placeholder={t.common.ph.replySignature}
                   testId="editor-signature-reply"
                 />
               )}
@@ -1988,7 +1990,7 @@ export default function Emails() {
               <Input
                 value={addContactName}
                 onChange={(e) => setAddContactName(e.target.value)}
-                placeholder="Jean Dupont"
+                placeholder={t.common.ph.firstName}
                 className="text-xs h-8"
                 data-testid="input-add-contact-name"
               />
@@ -1998,7 +2000,7 @@ export default function Emails() {
               <Input
                 value={addContactEmail}
                 onChange={(e) => setAddContactEmail(e.target.value)}
-                placeholder="jean@exemple.com"
+                placeholder={t.common.ph.email}
                 className="text-xs h-8"
                 data-testid="input-add-contact-email"
               />
@@ -2008,7 +2010,7 @@ export default function Emails() {
               <Input
                 value={addContactCompany}
                 onChange={(e) => setAddContactCompany(e.target.value)}
-                placeholder="Nom de l'entreprise (optionnel)"
+                placeholder={t.common.ph.companyOpt}
                 className="text-xs h-8"
                 data-testid="input-add-contact-company"
               />
@@ -2159,7 +2161,7 @@ export default function Emails() {
               <Input
                 value={createTaskTitle}
                 onChange={(e) => setCreateTaskTitle(e.target.value)}
-                placeholder="Titre de la tâche..."
+                placeholder={t.common.ph.taskTitle}
                 className="text-xs h-8"
                 autoFocus
                 data-testid="input-create-task-title"
@@ -2215,7 +2217,7 @@ export default function Emails() {
               <Input
                 value={createNoteTitle}
                 onChange={(e) => setCreateNoteTitle(e.target.value)}
-                placeholder="Titre de la note..."
+                placeholder={t.common.ph.noteTitle}
                 className="text-xs h-8"
                 autoFocus
                 data-testid="input-create-note-title"
@@ -2264,7 +2266,7 @@ export default function Emails() {
             <Input
               value={postSendTitle}
               onChange={e => setPostSendTitle(e.target.value)}
-              placeholder="Titre de la tâche"
+              placeholder={t.common.ph.taskTitle}
               className="mb-3 text-sm"
               data-testid="input-post-send-task-title"
             />

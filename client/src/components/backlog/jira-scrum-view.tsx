@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, type ReactNode } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { 
   ChevronDown, ChevronRight, ChevronUp, Plus, MoreVertical, 
   Flag, User, Calendar, GripVertical, Play, Pause,
@@ -1670,6 +1671,7 @@ export function SprintSection({
   backlogPrefix,
   ticketIndexMap
 }: SprintSectionProps) {
+  const { t } = useLanguage();
   const [isCreating, setIsCreating] = useState(false);
   const [newTicketTitle, setNewTicketTitle] = useState("");
   const [newTicketType, setNewTicketType] = useState<TicketType>("user_story");
@@ -1792,7 +1794,7 @@ export function SprintSection({
               <Input
                 value={newTicketTitle}
                 onChange={(e) => setNewTicketTitle(e.target.value)}
-                placeholder="Titre du ticket..."
+                placeholder={t.common.ph.ticketTitle}
                 className="flex-1 h-8 text-sm"
                 autoFocus
                 onKeyDown={(e) => {
@@ -2139,7 +2141,7 @@ export function SprintSection({
                 <Input 
                   value={newTicketTitle}
                   onChange={(e) => setNewTicketTitle(e.target.value)}
-                  placeholder="Titre du ticket..."
+                  placeholder={t.common.ph.ticketTitle}
                   className="flex-1 h-7 text-sm"
                   autoFocus
                   onKeyDown={(e) => {
@@ -2221,6 +2223,7 @@ export function BacklogPool({
   backlogPrefix,
   ticketIndexMap
 }: BacklogPoolProps) {
+  const { t } = useLanguage();
   const [isCreating, setIsCreating] = useState(false);
   const [newTicketTitle, setNewTicketTitle] = useState("");
   const [newTicketType, setNewTicketType] = useState<TicketType>("user_story");
@@ -2416,7 +2419,7 @@ export function BacklogPool({
                 <Input 
                   value={newTicketTitle}
                   onChange={(e) => setNewTicketTitle(e.target.value)}
-                  placeholder="Titre du ticket..."
+                  placeholder={t.common.ph.ticketTitle}
                   className="flex-1 h-7 text-sm"
                   autoFocus
                   onKeyDown={(e) => {

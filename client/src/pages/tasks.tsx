@@ -1872,7 +1872,7 @@ export default function Tasks() {
                 </PopoverTrigger>
                 <PopoverContent className="w-[300px] p-0">
                   <Command>
-                    <CommandInput placeholder="Rechercher un projet..." />
+                    <CommandInput placeholder={t.common.ph.searchProject} />
                     <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
                     <CommandGroup className="max-h-[300px] overflow-y-auto">
                       <CommandItem
@@ -1910,7 +1910,7 @@ export default function Tasks() {
               <Input
                 value={taskSearchQuery}
                 onChange={(e) => setTaskSearchQuery(e.target.value)}
-                placeholder="Rechercher une tâche..."
+                placeholder={t.common.ph.searchTask}
                 className="pl-8 pr-8 text-[12px] placeholder:text-[10px] bg-white dark:bg-background"
                 data-testid="input-task-search"
               />
@@ -1984,7 +1984,7 @@ export default function Tasks() {
                 </PopoverTrigger>
                 <PopoverContent className="w-[220px] p-0">
                   <Command>
-                    <CommandInput placeholder="Rechercher un statut..." />
+                    <CommandInput placeholder={t.common.ph.searchStatus} />
                     <CommandEmpty>Aucun statut trouvé.</CommandEmpty>
                     <CommandGroup className="max-h-[300px] overflow-y-auto">
                       <CommandItem
@@ -2737,7 +2737,7 @@ export default function Tasks() {
                     onValueChange={(val) => setCreateTaskColumnId(val)}
                   >
                     <SelectTrigger id="task-column" className="h-8 text-xs" data-testid="select-new-task-column">
-                      <SelectValue placeholder="Sélectionner..." />
+                      <SelectValue placeholder={t.common.ph.select} />
                     </SelectTrigger>
                     <SelectContent>
                       {(() => {
@@ -2882,7 +2882,7 @@ export default function Tasks() {
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0">
                     <Command>
-                      <CommandInput placeholder="Rechercher un projet..." />
+                      <CommandInput placeholder={t.common.ph.searchProject} />
                       <CommandList>
                         <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
                         <CommandGroup>
@@ -2985,7 +2985,7 @@ export default function Tasks() {
                 <Label htmlFor="livrable-label">Nom du livrable *</Label>
                 <Input
                   id="livrable-label"
-                  placeholder="ex. Maquettes UI, Développement back-end…"
+                  placeholder={t.tasks.deliverablePlaceholder}
                   value={newLivrableLabel}
                   onChange={e => setNewLivrableLabel(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && document.getElementById("livrable-days")?.focus()}
@@ -3000,7 +3000,7 @@ export default function Tasks() {
                   type="number"
                   min="0.5"
                   step="0.5"
-                  placeholder="ex. 3"
+                  placeholder="e.g. 3"
                   value={newLivableDays}
                   onChange={e => setNewLivableDays(e.target.value)}
                   onKeyDown={e => {

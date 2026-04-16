@@ -961,7 +961,7 @@ export default function Notes() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Rechercher..."
+                placeholder={t.common.ph.search}
                 className="pl-9 w-full placeholder:text-[10px] bg-white dark:bg-background"
                 data-testid="input-rechercher-mobile"
                 value={searchQuery}
@@ -996,7 +996,7 @@ export default function Notes() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Rechercher dans les notes..."
+                placeholder={t.common.ph.searchNote}
                 className="pl-9 w-64 placeholder:text-[10px] bg-white dark:bg-background"
                 data-testid="input-rechercher"
                 value={searchQuery}
@@ -1134,7 +1134,7 @@ export default function Notes() {
                   onValueChange={(value) => setFilterByTag(value === "all" ? null : value)}
                 >
                   <SelectTrigger className="w-full bg-white dark:bg-gray-900" data-testid="select-filter-tag">
-                    <SelectValue placeholder="Tous les tags" />
+                    <SelectValue placeholder={t.common.ph.allTags} />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-gray-900">
                     <SelectItem value="all">Tous les tags</SelectItem>
@@ -1174,7 +1174,7 @@ export default function Notes() {
                   </PopoverTrigger>
                   <PopoverContent className="w-[280px] p-0 bg-white dark:bg-gray-900" align="start">
                     <Command className="bg-white dark:bg-gray-900">
-                      <CommandInput placeholder="Rechercher un projet..." />
+                      <CommandInput placeholder={t.common.ph.searchProject} />
                       <CommandList>
                         <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
                         <CommandGroup>
@@ -1214,7 +1214,7 @@ export default function Notes() {
                   onValueChange={(value) => setFilterByVisibility(value as "all" | "public" | "private")}
                 >
                   <SelectTrigger className="w-full bg-white dark:bg-gray-900" data-testid="select-filter-visibility">
-                    <SelectValue placeholder="Toutes" />
+                    <SelectValue placeholder={t.common.ph.allF} />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-gray-900">
                     <SelectItem value="all">Toutes</SelectItem>
@@ -1461,7 +1461,7 @@ export default function Notes() {
                     <div className="flex items-center gap-2">
                       <Plus className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       <Input
-                        placeholder="Créer une nouvelle note..."
+                        placeholder={t.common.ph.newNote}
                         value={quickAddNoteTitle}
                         onChange={(e) => setQuickAddNoteTitle(e.target.value)}
                         onKeyDown={(e) => {
@@ -1662,7 +1662,7 @@ export default function Notes() {
                               <Input
                                 value={newTagName}
                                 onChange={e => setNewTagName(e.target.value)}
-                                placeholder="Nouveau tag..."
+                                placeholder={t.common.ph.newTag}
                                 className="h-6 text-[11px] px-2"
                                 onKeyDown={e => {
                                   if (e.key === "Enter" && newTagName.trim()) {
@@ -1858,7 +1858,7 @@ export default function Notes() {
                         <PopoverContent className="w-[260px] p-0 bg-white dark:bg-gray-900" align="start">
                           <Command className="bg-white dark:bg-gray-900">
                             <CommandInput
-                              placeholder="Rechercher un projet..."
+                              placeholder={t.common.ph.searchProject}
                               value={projectSearchQuery}
                               onValueChange={setProjectSearchQuery}
                             />
@@ -2024,7 +2024,7 @@ export default function Notes() {
                 <div className="flex-1 flex items-center gap-2">
                   <Plus className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <Input
-                    placeholder="Créer une nouvelle note..."
+                    placeholder={t.common.ph.newNote}
                     value={quickAddNoteTitle}
                     onChange={(e) => setQuickAddNoteTitle(e.target.value)}
                     onKeyDown={(e) => {

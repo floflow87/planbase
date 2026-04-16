@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +26,7 @@ async function waitForSession(maxAttempts = 10, delayMs = 300): Promise<boolean>
 export default function Signup() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
@@ -192,7 +194,7 @@ export default function Signup() {
                   id="accountName"
                   name="accountName"
                   type="text"
-                  placeholder="Mon entreprise"
+                  placeholder={t.common.ph.company}
                   value={formData.accountName}
                   onChange={handleChange}
                   required
@@ -213,7 +215,7 @@ export default function Signup() {
                   id="firstName"
                   name="firstName"
                   type="text"
-                  placeholder="Jean"
+                  placeholder={t.common.ph.firstName}
                   value={formData.firstName}
                   onChange={handleChange}
                   disabled={loading}
@@ -229,7 +231,7 @@ export default function Signup() {
                   id="lastName"
                   name="lastName"
                   type="text"
-                  placeholder="Dupont"
+                  placeholder={t.common.ph.lastName}
                   value={formData.lastName}
                   onChange={handleChange}
                   disabled={loading}
@@ -250,7 +252,7 @@ export default function Signup() {
                   id="email"
                   name="email"
                   type="email"
-                  placeholder="votre-email@exemple.com"
+                  placeholder={t.common.ph.email}
                   value={formData.email}
                   onChange={handleChange}
                   required
@@ -272,7 +274,7 @@ export default function Signup() {
                   id="password"
                   name="password"
                   type="password"
-                  placeholder="Minimum 6 caractères"
+                  placeholder={t.common.ph.minPassword}
                   value={formData.password}
                   onChange={handleChange}
                   required
@@ -294,7 +296,7 @@ export default function Signup() {
                   id="confirmPassword"
                   name="confirmPassword"
                   type="password"
-                  placeholder="Confirmez votre mot de passe"
+                  placeholder={t.common.ph.confirmPassword}
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required

@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { DndContext, DragEndEvent, DragOverEvent, DragOverlay, DragStartEvent, closestCenter, PointerSensor, useSensor, useSensors, useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -230,6 +231,7 @@ function DroppableColumn({ column, items, onItemClick }: DroppableColumnProps) {
 }
 
 export function OutputView({ items, roadmapId, onItemClick, onAddItem, onItemMove }: OutputViewProps) {
+  const { t } = useLanguage();
   const [activeItem, setActiveItem] = useState<RoadmapItem | null>(null);
   const [releaseTagFilter, setReleaseTagFilter] = useState<string>("all");
   const [customOrder, setCustomOrder] = useState<Record<string, string[]>>(() => {
@@ -396,7 +398,7 @@ export function OutputView({ items, roadmapId, onItemClick, onAddItem, onItemMov
           <Select value={releaseTagFilter} onValueChange={setReleaseTagFilter}>
             <SelectTrigger className="w-[130px] h-8" data-testid="select-release-filter-output">
               <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-              <SelectValue placeholder="Version" />
+              <SelectValue placeholder={t.common.ph.version} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Toutes versions</SelectItem>

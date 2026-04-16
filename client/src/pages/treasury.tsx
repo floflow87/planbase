@@ -442,6 +442,7 @@ function TxPanel({
   projects: { id: string; name: string }[];
   activeScenarioId: string | null;
 }) {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [form, setForm] = useState<TxFormData>(mkEmptyForm);
 
@@ -602,7 +603,7 @@ function TxPanel({
         {/* Libellé */}
         <div>
           <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Libellé</Label>
-          <Input placeholder="Description courte" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} className="h-8 text-xs mt-0.5" data-testid="input-tx-label" />
+          <Input placeholder={t.common.ph.shortDescription} value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} className="h-8 text-xs mt-0.5" data-testid="input-tx-label" />
         </div>
 
         {/* Catégorie */}
@@ -622,7 +623,7 @@ function TxPanel({
         <div>
           <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Projet (optionnel)</Label>
           <Select value={form.projectId} onValueChange={(v) => setForm((f) => ({ ...f, projectId: v === "_none" ? "" : v }))}>
-            <SelectTrigger className="h-8 text-xs mt-0.5" data-testid="select-tx-project"><SelectValue placeholder="— Projet —" /></SelectTrigger>
+            <SelectTrigger className="h-8 text-xs mt-0.5" data-testid="select-tx-project"><SelectValue placeholder={t.common.ph.selectProject} /></SelectTrigger>
             <SelectContent className="text-xs">
               <SelectItem value="_none" className="text-xs">Aucun</SelectItem>
               {projects.map((p) => (
@@ -680,13 +681,13 @@ function TxPanel({
         {/* Tags */}
         <div>
           <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Tags (virgule)</Label>
-          <Input placeholder="récurrent, Q1…" value={form.tags} onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))} className="h-8 text-xs mt-0.5" data-testid="input-tx-tags" />
+          <Input placeholder={t.common.ph.tagsExample} value={form.tags} onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))} className="h-8 text-xs mt-0.5" data-testid="input-tx-tags" />
         </div>
 
         {/* Note */}
         <div>
           <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Note</Label>
-          <Textarea placeholder="Détails…" rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} className="text-xs mt-0.5" data-testid="input-tx-desc" />
+          <Textarea placeholder={t.common.ph.description} rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} className="text-xs mt-0.5" data-testid="input-tx-desc" />
         </div>
       </div>
 
@@ -746,6 +747,7 @@ function PlanCell({
 // ── Plan de trésorerie View ────────────────────────────────────────────────────
 
 function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; name: string }>; flows: TreasuryFlow[] }) {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [expandedRubriques, setExpandedRubriques] = useState<Set<string>>(
     new Set(RUBRIQUES.map((r) => r.key))
@@ -1376,7 +1378,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                   <Input
                     value={newPlanScenarioName}
                     onChange={(e) => setNewPlanScenarioName(e.target.value)}
-                    placeholder="Nom du scénario…"
+                    placeholder={t.common.ph.scenarioName}
                     className="h-6 text-[11px] flex-1"
                     autoFocus
                     onKeyDown={(e) => {
@@ -1713,7 +1715,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                                 <Input
                                   value={newLineLabel}
                                   onChange={(e) => setNewLineLabel(e.target.value)}
-                                  placeholder="Libellé de la ligne..."
+                                  placeholder={t.common.ph.lineLabel}
                                   className="h-6 text-[10px] placeholder:text-[9px] w-36"
                                   autoFocus
                                   onKeyDown={(e) => {
@@ -2209,7 +2211,7 @@ function TreasuryPageInner() {
                         autoFocus
                         value={projectSearch}
                         onChange={(e) => setProjectSearch(e.target.value)}
-                        placeholder="Rechercher un projet…"
+                        placeholder={t.common.ph.searchProject}
                         className="w-full text-[11px] px-2 py-1 rounded border bg-muted/30 outline-none focus:border-primary/50"
                         data-testid="input-project-search"
                       />
@@ -2435,7 +2437,7 @@ function TreasuryPageInner() {
                             autoFocus
                             value={newScenarioName}
                             onChange={(e) => setNewScenarioName(e.target.value)}
-                            placeholder="Nom du scénario"
+                            placeholder={t.common.ph.scenarioName}
                             className="h-6 text-[10px]"
                             onKeyDown={(e) => {
                               if (e.key === "Enter" && newScenarioName.trim()) createScenarioMutation.mutate(newScenarioName.trim());
@@ -2591,7 +2593,7 @@ function TreasuryPageInner() {
             <Filter className="h-3 w-3 text-muted-foreground shrink-0" />
 
             <Input
-              placeholder="Rechercher…"
+              placeholder={t.common.ph.search}
               value={filterSearch}
               onChange={(e) => setFilterSearch(e.target.value)}
               className="h-7 w-36 text-[10px] placeholder:text-[10px]"
@@ -2600,7 +2602,7 @@ function TreasuryPageInner() {
 
             <Select value={filterType} onValueChange={(v) => setFilterType(v as typeof filterType)}>
               <SelectTrigger className="h-7 w-28 text-[10px]" data-testid="select-filter-type">
-                <SelectValue placeholder="Type" />
+                <SelectValue placeholder={t.common.ph.type} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t.treasury.allTypes}</SelectItem>
@@ -2611,7 +2613,7 @@ function TreasuryPageInner() {
 
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="h-7 w-32 text-[10px]" data-testid="select-filter-status">
-                <SelectValue placeholder="Statut" />
+                <SelectValue placeholder={t.common.ph.status} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t.treasury.allTxStatuses}</SelectItem>
@@ -2623,7 +2625,7 @@ function TreasuryPageInner() {
 
             <Select value={filterSource} onValueChange={setFilterSource}>
               <SelectTrigger className="h-7 w-32 text-[10px]" data-testid="select-filter-source">
-                <SelectValue placeholder="Source" />
+                <SelectValue placeholder={t.common.ph.source} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Toutes sources</SelectItem>
@@ -2857,7 +2859,7 @@ function TreasuryPageInner() {
                                   autoFocus
                                   value={tagInput}
                                   onChange={(e) => setTagInput(e.target.value)}
-                                  placeholder="Chercher ou créer…"
+                                  placeholder={t.common.ph.searchOrCreate}
                                   className="h-7 text-[9px] mb-2"
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter") {

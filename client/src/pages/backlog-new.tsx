@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { ChevronLeft, FolderKanban, Info } from "lucide-react";
@@ -18,6 +19,7 @@ import type { Project, BacklogMode, Roadmap } from "@shared/schema";
 import { backlogModeOptions } from "@shared/schema";
 
 export default function BacklogNew() {
+  const { t } = useLanguage();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   
@@ -140,7 +142,7 @@ export default function BacklogNew() {
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Ex: Sprint Planning Q1"
+                placeholder={t.common.ph.sprintExample}
                 className="text-sm"
                 data-testid="input-backlog-name"
               />
@@ -152,7 +154,7 @@ export default function BacklogNew() {
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Description optionnelle du backlog..."
+                placeholder={t.common.ph.optionalDescription}
                 className="text-sm resize-none"
                 rows={3}
                 data-testid="input-backlog-description"
@@ -166,7 +168,7 @@ export default function BacklogNew() {
                 onValueChange={(value: BacklogMode) => setFormData({ ...formData, mode: value })}
               >
                 <SelectTrigger className="text-sm" data-testid="select-backlog-mode">
-                  <SelectValue placeholder="Sélectionner un mode" />
+                  <SelectValue placeholder={t.common.ph.selectMode} />
                 </SelectTrigger>
                 <SelectContent>
                   {backlogModeOptions.map((option) => (
@@ -190,7 +192,7 @@ export default function BacklogNew() {
                 })}
               >
                 <SelectTrigger className="text-sm" data-testid="select-project">
-                  <SelectValue placeholder="Aucun projet" />
+                  <SelectValue placeholder={t.common.ph.noProject} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Aucun projet</SelectItem>
@@ -260,7 +262,7 @@ export default function BacklogNew() {
                       onValueChange={(value) => setFormData({ ...formData, selectedRoadmapId: value })}
                     >
                       <SelectTrigger className="text-sm" data-testid="select-roadmap">
-                        <SelectValue placeholder="Choisir une roadmap" />
+                        <SelectValue placeholder={t.common.ph.selectRoadmap} />
                       </SelectTrigger>
                       <SelectContent>
                         {roadmaps.map((roadmap) => (

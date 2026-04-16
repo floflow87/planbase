@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -159,6 +160,7 @@ export function TicketDetailPanel({
   ticketViewSettings,
   allTags = [],
 }: TicketDetailPanelProps) {
+  const { t } = useLanguage();
   const { toast } = useToast();
 
   // Lock body scroll when panel is open to prevent background from scrolling
@@ -890,7 +892,7 @@ export function TicketDetailPanel({
               value={editedDescription}
               onChange={(e) => setEditedDescription(e.target.value)}
               onBlur={handleSaveDescription}
-              placeholder="Ajoutez une description..."
+              placeholder={t.common.ph.addDescription}
               className="min-h-[80px] resize-y text-[10px] placeholder:text-[10px]"
               style={{ maxHeight: '400px' }}
               data-testid="textarea-description"
@@ -984,7 +986,7 @@ export function TicketDetailPanel({
               disabled={readOnly}
             >
               <SelectTrigger className={cn("w-[140px] h-7 text-xs", readOnly && "opacity-60")} data-testid="select-assignee">
-                <SelectValue placeholder="Non assigné">
+                <SelectValue placeholder={t.common.ph.unassigned}>
                   {assignee ? (
                     <div className="flex items-center gap-2">
                       <Avatar className="h-5 w-5">
@@ -1023,7 +1025,7 @@ export function TicketDetailPanel({
                 disabled={readOnly}
               >
                 <SelectTrigger className={cn("w-[140px] h-7 text-xs", readOnly && "opacity-60")} data-testid="select-reporter">
-                  <SelectValue placeholder="Non défini">
+                  <SelectValue placeholder={t.common.ph.notDefined}>
                     {reporter ? (
                       <div className="flex items-center gap-2">
                         <Avatar className="h-5 w-5">
@@ -1118,7 +1120,7 @@ export function TicketDetailPanel({
               disabled={readOnly}
             >
               <SelectTrigger className={cn("w-[140px] h-7 text-xs", readOnly && "opacity-60")} data-testid="select-version">
-                <SelectValue placeholder="Version">
+                <SelectValue placeholder={t.common.ph.version}>
                   {ticket.version || "Aucune"}
                 </SelectValue>
               </SelectTrigger>
@@ -1176,7 +1178,7 @@ export function TicketDetailPanel({
                     <PopoverContent className="w-48 p-0 z-[10001]" align="end">
                       <Command>
                         <CommandInput
-                          placeholder="Ajouter un tag..."
+                          placeholder={t.common.ph.newTag}
                           value={tagInput}
                           onValueChange={setTagInput}
                           className="text-xs"
@@ -1552,7 +1554,7 @@ export function TicketDetailPanel({
                     <Input
                       value={newCriterionText}
                       onChange={(e) => setNewCriterionText(e.target.value)}
-                      placeholder="Ajouter..."
+                      placeholder={t.common.ph.addItem}
                       className="h-7 text-[10px] placeholder:text-[9px] flex-1"
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && newCriterionText.trim()) {
@@ -1599,7 +1601,7 @@ export function TicketDetailPanel({
                       <Textarea
                         value={ticket.happyPath || ""}
                         onChange={(e) => onUpdate(ticket.id, ticket.type, { happyPath: e.target.value || null })}
-                        placeholder="Décrivez le parcours nominal..."
+                        placeholder={t.common.ph.nominalPath}
                         className="min-h-[60px] resize-y text-[10px] placeholder:text-[10px]"
                         data-testid="textarea-happy-path"
                       />
@@ -1625,7 +1627,7 @@ export function TicketDetailPanel({
                       <Textarea
                         value={ticket.edgeCase || ""}
                         onChange={(e) => onUpdate(ticket.id, ticket.type, { edgeCase: e.target.value || null })}
-                        placeholder="Décrivez les cas limites..."
+                        placeholder={t.common.ph.edgeCases}
                         className="min-h-[60px] resize-y text-[10px] placeholder:text-[10px]"
                         data-testid="textarea-edge-case"
                       />
@@ -1651,7 +1653,7 @@ export function TicketDetailPanel({
                           <Input
                             value={(ticket[metric.labelField] as string) || ""}
                             onChange={(e) => onUpdate(ticket.id, ticket.type, { [metric.labelField]: e.target.value || null })}
-                            placeholder="Libellé..."
+                            placeholder={t.common.ph.label}
                             className="h-7 text-[10px] placeholder:text-[10px] flex-1"
                             disabled={readOnly}
                             data-testid={`input-${metric.key}-label`}
@@ -1660,7 +1662,7 @@ export function TicketDetailPanel({
                             type="number"
                             value={(ticket[metric.valueField] as number) ?? ""}
                             onChange={(e) => onUpdate(ticket.id, ticket.type, { [metric.valueField]: e.target.value !== "" ? parseFloat(e.target.value) : null })}
-                            placeholder="Valeur"
+                            placeholder={t.common.ph.value}
                             className="h-7 text-[10px] placeholder:text-[10px] w-24"
                             disabled={readOnly}
                             data-testid={`input-${metric.key}-value`}
@@ -1742,7 +1744,7 @@ export function TicketDetailPanel({
                         <Input
                           value={newNonRegText}
                           onChange={(e) => setNewNonRegText(e.target.value)}
-                          placeholder="Ajouter un scénario..."
+                          placeholder={t.common.ph.addScenario}
                           className="h-7 text-[10px] placeholder:text-[10px] flex-1"
                           onKeyDown={(e) => { if (e.key === "Enter" && newNonRegText.trim()) createNonRegMutation.mutate(newNonRegText.trim()); }}
                           data-testid="input-new-non-reg"
@@ -2007,7 +2009,7 @@ export function TicketDetailPanel({
             <Textarea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Ajouter un commentaire..."
+              placeholder={t.common.ph.addComment}
               className="min-h-[60px] text-[10px] placeholder:text-[10px] flex-1"
               data-testid="textarea-new-comment"
             />
@@ -2047,7 +2049,7 @@ export function TicketDetailPanel({
                     id="task-title"
                     value={createTaskTitle}
                     onChange={(e) => setCreateTaskTitle(e.target.value)}
-                    placeholder="Entrez le titre de la tâche"
+                    placeholder={t.common.ph.enterTaskTitle}
                     data-testid="input-create-task-title"
                   />
                 </div>
@@ -2071,7 +2073,7 @@ export function TicketDetailPanel({
                     </PopoverTrigger>
                     <PopoverContent className="w-[300px] p-0">
                       <Command>
-                        <CommandInput placeholder="Rechercher un projet..." />
+                        <CommandInput placeholder={t.common.ph.searchProject} />
                         <CommandList>
                           <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
                           <CommandGroup>
