@@ -137,5 +137,17 @@ export async function postSlackMessage(accessToken: string, channelId: string, t
     body: JSON.stringify({ channel: channelId, text }),
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(`Slack chat.postMessage error: ${data.error}`);
+  if (!data.ok) {
+    const errorMap: Record<string, string> = {
+      not_in_channel: "Le bot Slack n'est pas dans ce channel. Invitez-le avec /invite @Planbase dans Slack.",
+      channel_not_found: "Channel introuvable. Vérifiez que le channel existe encore.",
+      invalid_auth: "Token Slack invalide ou expiré. Reconnectez Slack dans les paramètres.",
+      token_revoked: "Token Slack révoqué. Reconnectez Slack dans les paramètres.",
+      missing_scope: "Permissions Slack insuffisantes. Reconnectez Slack pour mettre à jour les autorisations.",
+      channel_is_archived: "Le channel Slack est archivé.",
+      is_bot: "Impossible d'envoyer à un bot.",
+      no_text: "Le message est vide.",
+    };
+    throw new Error(errorMap[data.error] ?? `Erreur Slack : ${data.error}`);
+  }
 }

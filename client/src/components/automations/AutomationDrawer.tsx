@@ -299,26 +299,19 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
   });
 
   const testMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await apiRequest(`/api/automations/${id}/test`, "POST");
-      return await res.json();
-    },
-    onSuccess: (_data, _id) => {
+    mutationFn: (id: string) => apiRequest(`/api/automations/${id}/test`, "POST"),
+    onSuccess: () => {
       setTestingId(null);
-      toast({ title: "Message Slack envoyé avec succès", description: "Le message de test a bien été posté dans le channel.", variant: "success" });
+      toast({ title: "Message Slack envoyé", description: "Le message de test a bien été posté dans le channel.", variant: "success" });
     },
     onError: (e: any) => {
       setTestingId(null);
-      // Parse JSON error message if possible
-      let msg = e.message || "Erreur inconnue";
+      let msg: string = e?.message || "Erreur inconnue";
       try {
-        const match = msg.match(/^\d+: (.+)$/s);
-        if (match) {
-          const parsed = JSON.parse(match[1]);
-          msg = parsed.error || msg;
-        }
-      } catch {}
-      toast({ title: "Erreur Slack", description: msg, variant: "destructive" });
+        const m = msg.match(/^\d+:\s*(\{.+\})$/);
+        if (m) { const p = JSON.parse(m[1]); msg = p.error || msg; }
+      } catch (_) {}
+      toast({ title: "Erreur test Slack", description: msg, variant: "destructive" });
     },
     retry: 0,
   });
@@ -467,7 +460,7 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-sm font-medium truncate">{auto.name}</span>
-                            <Badge variant={auto.isActive ? "default" : "secondary"} className="text-[10px]">
+                            <Badge variant={auto.isActive ? "default" : "secondary"} className="text-[9px] px-1 py-0 leading-4 h-4">
                               {auto.isActive ? "Actif" : "Inactif"}
                             </Badge>
                           </div>
