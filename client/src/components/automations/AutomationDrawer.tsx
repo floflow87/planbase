@@ -110,7 +110,9 @@ const CONDITION_OPERATORS = [
   { value: "not_equals", label: "≠" },
   { value: "contains", label: "∈" },
   { value: "not_contains", label: "∉" },
+  { value: "changed", label: "↺" },
 ];
+const VALUE_LESS_OPERATORS = new Set(["changed"]);
 
 const VARIABLE_LABELS: Record<string, string> = {
   deal_name: "opportunité",
@@ -620,8 +622,10 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                           ))}
                         </SelectContent>
                       </Select>
-                      <Select value={cond.operator} onValueChange={v => updateCondition(i, { operator: v })}>
-                        <SelectTrigger className="text-sm h-7 w-10 flex-shrink-0 px-1 font-mono" data-testid={`select-condition-operator-${i}`}>
+                      <Select value={cond.operator} onValueChange={v => {
+                        updateCondition(i, { operator: v, value: VALUE_LESS_OPERATORS.has(v) ? "" : cond.value });
+                      }}>
+                        <SelectTrigger className="text-sm h-7 w-12 flex-shrink-0 px-1 font-mono" data-testid={`select-condition-operator-${i}`}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent style={{ zIndex: 10000 }}>
@@ -630,7 +634,11 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                       </Select>
                     </div>
                     <div className="flex items-center gap-1 flex-1 min-w-0">
-                      {valueOptions ? (
+                      {VALUE_LESS_OPERATORS.has(cond.operator) ? (
+                        <div className="flex-1 h-7 rounded-md border bg-muted/40 flex items-center px-2">
+                          <span className="text-[11px] text-muted-foreground italic">mis à jour</span>
+                        </div>
+                      ) : valueOptions ? (
                         <Select value={cond.value} onValueChange={v => updateCondition(i, { value: v })}>
                           <SelectTrigger className="text-[11px] h-7 flex-1" data-testid={`select-condition-value-${i}`}>
                             <SelectValue placeholder="Choisir..." />

@@ -39,6 +39,16 @@ function evaluateConditions(conditions: any[], payload: AutomationPayload): bool
       case "not_equals": return payloadValue !== condValue;
       case "contains": return payloadValue.includes(condValue);
       case "not_contains": return !payloadValue.includes(condValue);
+      case "changed": {
+        // Check old_{field} vs new_{field} if both exist in payload
+        const oldKey = `old_${field}`;
+        const newKey = `new_${field}`;
+        if (payload[oldKey] !== undefined && payload[newKey] !== undefined) {
+          return String(payload[oldKey]).toLowerCase() !== String(payload[newKey]).toLowerCase();
+        }
+        // Otherwise, the presence of the field in the payload implies it changed
+        return payload[field] !== undefined;
+      }
       default: return true;
     }
   });

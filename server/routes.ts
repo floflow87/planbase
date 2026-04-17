@@ -1194,6 +1194,16 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  const CRM_STATUS_LABELS: Record<string, string> = {
+    prospecting: "Prospect",
+    qualified: "Qualifié",
+    negotiation: "Négociation",
+    quote_sent: "Devis envoyé",
+    quote_approved: "Devis validé",
+    won: "Gagné",
+    lost: "Perdu",
+  };
+
   app.patch("/api/clients/:id", requireAuth, requireOrgMember, requirePermission("crm", "update", "crm.clients"), async (req, res) => {
     try {
       const existing = await storage.getClient(req.accountId!, req.params.id);
@@ -1208,11 +1218,13 @@ app.get("/config/feature-flags", async (_req, res) => {
         const { emitEvent } = await import("./automationEngine");
         const basePayload = { client_name: client.name, deal_name: client.name, client_id: client.id };
         if (req.body.status !== undefined && req.body.status !== existing?.status) {
+          const oldLabel = CRM_STATUS_LABELS[existing?.status ?? ""] ?? (existing?.status ?? "");
+          const newLabel = CRM_STATUS_LABELS[client.status ?? ""] ?? (client.status ?? "");
           await emitEvent("crm.stage_changed", {
             ...basePayload,
-            old_stage: existing?.status ?? "",
-            new_stage: client.status ?? "",
-            stage: client.status ?? "",
+            old_stage: oldLabel,
+            new_stage: newLabel,
+            stage: newLabel,
           }, req.accountId!);
           if (client.status === "won") {
             await emitEvent("crm.deal_won", basePayload, req.accountId!);
