@@ -10,9 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
 import {
-  Zap, Plus, Trash2, Edit2, ChevronLeft, Send, CheckCircle2,
-  AlertCircle, Loader2, Info, FlaskConical
+  Zap, Plus, Trash2, Edit2, ChevronLeft, CheckCircle2,
+  AlertCircle, Loader2, Info, FlaskConical, Hash, Lock
 } from "lucide-react";
 import { SiSlack } from "react-icons/si";
 
@@ -57,11 +58,18 @@ interface Condition {
   value: string;
 }
 
+interface SlackChannel {
+  id: string;
+  name: string;
+  isPrivate: boolean;
+}
+
 interface AutomationFormData {
   name: string;
   eventType: string;
   conditions: Condition[];
-  slackWebhookUrl: string;
+  slackChannelId: string;
+  slackChannelName: string;
   messageTemplate: string;
 }
 
@@ -69,7 +77,8 @@ const DEFAULT_FORM: AutomationFormData = {
   name: "",
   eventType: "",
   conditions: [],
-  slackWebhookUrl: "",
+  slackChannelId: "",
+  slackChannelName: "",
   messageTemplate: "",
 };
 
@@ -82,7 +91,7 @@ function interpolatePreview(template: string): string {
     status: "done",
     client_name: "Acme Corp",
     deal_name: "Contrat Acme",
-    amount: "12 000 €",
+    amount: "12 000",
     old_stage: "Qualifié",
     new_stage: "Devis envoyé",
     roadmap_name: "Q2 2025",
@@ -90,6 +99,13 @@ function interpolatePreview(template: string): string {
     milestone: "MVP",
   };
   return template.replace(/\{\{(\w+)\}\}/g, (_, k) => samples[k] ?? `{{${k}}}`);
+}
+
+interface SlackStatus {
+  connected: boolean;
+  teamId?: string;
+  teamName?: string;
+  connectedAt?: string;
 }
 
 export function AutomationDrawer({ open, onOpenChange, scopeType = "global", scopeId, scopeLabel }: AutomationDrawerProps) {
@@ -113,6 +129,16 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
       return res.json();
     },
     enabled: open,
+  });
+
+  const { data: slackStatus } = useQuery<SlackStatus>({
+    queryKey: ["/api/slack/status"],
+    enabled: open,
+  });
+
+  const { data: slackChannels = [], isLoading: isLoadingChannels } = useQuery<SlackChannel[]>({
+    queryKey: ["/api/slack/channels"],
+    enabled: open && view === "form" && slackStatus?.connected === true,
   });
 
   const createMutation = useMutation({
@@ -141,7 +167,7 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
   const testMutation = useMutation({
     mutationFn: (id: string) => apiRequest("POST", `/api/automations/${id}/test`),
     onSuccess: () => { setTestingId(null); toast({ title: "Message Slack envoyé avec succès", variant: "success" }); },
-    onError: (e: any) => { setTestingId(null); toast({ title: "Erreur webhook", description: e.message, variant: "destructive" }); },
+    onError: (e: any) => { setTestingId(null); toast({ title: "Erreur Slack", description: e.message, variant: "destructive" }); },
   });
 
   function resetForm() {
@@ -161,7 +187,8 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
       name: auto.name,
       eventType: auto.eventType,
       conditions: Array.isArray(auto.conditions) ? auto.conditions : [],
-      slackWebhookUrl: auto.slackWebhookUrl || "",
+      slackChannelId: auto.slackChannelId || auto.slack_channel_id || "",
+      slackChannelName: auto.slackChannelName || auto.slack_channel_name || "",
       messageTemplate: auto.messageTemplate || "",
     });
     setEditingId(auto.id);
@@ -169,7 +196,7 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
   }
 
   function handleSubmit() {
-    if (!form.name || !form.eventType || !form.slackWebhookUrl || !form.messageTemplate) {
+    if (!form.name || !form.eventType || !form.slackChannelId || !form.messageTemplate) {
       toast({ title: "Champs requis manquants", description: "Remplis tous les champs obligatoires.", variant: "destructive" });
       return;
     }
@@ -180,7 +207,8 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
       eventType: form.eventType,
       conditions: form.conditions,
       actionType: "slack_message",
-      slackWebhookUrl: form.slackWebhookUrl,
+      slackChannelId: form.slackChannelId,
+      slackChannelName: form.slackChannelName,
       messageTemplate: form.messageTemplate,
     };
     if (editingId) {
@@ -205,6 +233,7 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
   const selectedEvent = EVENT_OPTIONS.find(e => e.value === form.eventType);
   const preview = form.messageTemplate ? interpolatePreview(form.messageTemplate) : "";
   const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isSlackConnected = slackStatus?.connected === true;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -236,7 +265,22 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
         {/* LIST VIEW */}
         {view === "list" && (
           <div className="flex-1 overflow-y-auto">
-            <div className="px-6 py-4">
+            {/* Slack status banner */}
+            <div className={`mx-6 mt-4 mb-2 rounded-md px-3 py-2 flex items-center gap-2 text-xs border ${isSlackConnected ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400" : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400"}`}>
+              <SiSlack className="w-3.5 h-3.5 flex-shrink-0" />
+              {isSlackConnected ? (
+                <span>Slack connecté — <strong>{slackStatus?.teamName}</strong></span>
+              ) : (
+                <span>
+                  Slack non connecté.{" "}
+                  <Link href="/settings?tab=integrations" className="underline font-medium" onClick={() => onOpenChange(false)}>
+                    Connecter Slack
+                  </Link>
+                </span>
+              )}
+            </div>
+
+            <div className="px-6 py-3">
               <Button size="sm" onClick={openCreate} className="w-full gap-2" data-testid="button-create-automation">
                 <Plus className="w-3.5 h-3.5" />
                 Créer une automation
@@ -257,6 +301,7 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
               <div className="px-6 space-y-2 pb-6">
                 {automationList.map((auto: any) => {
                   const eventLabel = EVENT_OPTIONS.find(e => e.value === auto.eventType)?.label ?? auto.eventType;
+                  const channelName = auto.slackChannelName || auto.slack_channel_name;
                   return (
                     <div key={auto.id} className="border rounded-md p-3 space-y-2 bg-card hover-elevate" data-testid={`card-automation-${auto.id}`}>
                       <div className="flex items-start gap-2">
@@ -267,9 +312,18 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                               {auto.isActive ? "Actif" : "Inactif"}
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-1 mt-0.5">
+                          <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                             <span className="text-[11px] text-muted-foreground">Déclencheur :</span>
                             <span className="text-[11px] font-medium text-muted-foreground">{eventLabel}</span>
+                            {channelName && (
+                              <>
+                                <span className="text-[11px] text-muted-foreground">·</span>
+                                <span className="text-[11px] text-muted-foreground flex items-center gap-0.5">
+                                  <Hash className="w-2.5 h-2.5" />
+                                  {channelName}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
                         <Switch
@@ -299,6 +353,7 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                           size="icon"
                           className="w-7 h-7 text-muted-foreground hover:text-destructive ml-auto"
                           onClick={() => deleteMutation.mutate(auto.id)}
+                          disabled={deleteMutation.isPending}
                           data-testid={`button-delete-automation-${auto.id}`}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -314,12 +369,25 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
 
         {/* FORM VIEW */}
         {view === "form" && (
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+            {/* Slack not connected warning */}
+            {!isSlackConnected && (
+              <div className="flex items-start gap-2 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                <span>
+                  Slack n'est pas connecté.{" "}
+                  <Link href="/settings?tab=integrations" className="underline font-medium" onClick={() => { onOpenChange(false); }}>
+                    Connecter Slack depuis les paramètres.
+                  </Link>
+                </span>
+              </div>
+            )}
+
             {/* Name */}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Nom <span className="text-destructive">*</span></Label>
               <Input
-                placeholder="Ex : Alerte ticket priorisé"
+                placeholder="Ex : Alerte deal gagné"
                 value={form.name}
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 className="text-sm"
@@ -327,16 +395,16 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
               />
             </div>
 
-            {/* Trigger */}
+            {/* Event */}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Déclencheur <span className="text-destructive">*</span></Label>
               <Select value={form.eventType} onValueChange={v => setForm(f => ({ ...f, eventType: v }))}>
-                <SelectTrigger className="text-sm" data-testid="select-automation-event">
+                <SelectTrigger className="text-sm" data-testid="select-event-type">
                   <SelectValue placeholder="Choisir un événement..." />
                 </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-gray-900" style={{ zIndex: 10000 }}>
+                <SelectContent style={{ zIndex: 10000 }}>
                   {EVENT_OPTIONS.map(e => (
-                    <SelectItem key={e.value} value={e.value} className="text-xs">{e.label}</SelectItem>
+                    <SelectItem key={e.value} value={e.value} className="text-sm">{e.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -345,35 +413,28 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
             {/* Conditions */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-medium">Conditions (optionnel)</Label>
-                <Button variant="ghost" size="sm" className="text-xs h-7 gap-1" onClick={addCondition} data-testid="button-add-condition">
+                <Label className="text-xs font-medium">Conditions <span className="text-xs text-muted-foreground font-normal">(optionnel)</span></Label>
+                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={addCondition} data-testid="button-add-condition">
                   <Plus className="w-3 h-3" />
                   Ajouter
                 </Button>
               </div>
-              {form.conditions.length === 0 && (
-                <p className="text-xs text-muted-foreground">Sans condition, l'automation se déclenche à chaque fois.</p>
-              )}
               {form.conditions.map((cond, i) => (
-                <div key={i} className="flex items-center gap-1.5" data-testid={`condition-row-${i}`}>
+                <div key={i} className="flex items-center gap-1.5">
                   <Select value={cond.field} onValueChange={v => updateCondition(i, { field: v })}>
-                    <SelectTrigger className="text-xs h-8 flex-1">
+                    <SelectTrigger className="text-xs h-8 flex-1" data-testid={`select-condition-field-${i}`}>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-gray-900" style={{ zIndex: 10000 }}>
-                      {CONDITION_FIELDS.map(f => (
-                        <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>
-                      ))}
+                    <SelectContent style={{ zIndex: 10000 }}>
+                      {CONDITION_FIELDS.map(f => <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <Select value={cond.operator} onValueChange={v => updateCondition(i, { operator: v })}>
-                    <SelectTrigger className="text-xs h-8 w-28">
+                    <SelectTrigger className="text-xs h-8 w-28" data-testid={`select-condition-operator-${i}`}>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-gray-900" style={{ zIndex: 10000 }}>
-                      {CONDITION_OPERATORS.map(op => (
-                        <SelectItem key={op.value} value={op.value} className="text-xs">{op.label}</SelectItem>
-                      ))}
+                    <SelectContent style={{ zIndex: 10000 }}>
+                      {CONDITION_OPERATORS.map(o => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <Input
@@ -395,26 +456,54 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
               <div className="flex items-center gap-2">
                 <SiSlack className="w-4 h-4 text-[#4A154B]" />
                 <Label className="text-xs font-medium">Action Slack</Label>
+                {slackStatus?.teamName && (
+                  <Badge variant="secondary" className="text-[10px] ml-auto">{slackStatus.teamName}</Badge>
+                )}
               </div>
 
+              {/* Channel selector */}
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Webhook URL <span className="text-destructive">*</span></Label>
-                <Input
-                  placeholder="https://hooks.slack.com/services/..."
-                  value={form.slackWebhookUrl}
-                  onChange={e => setForm(f => ({ ...f, slackWebhookUrl: e.target.value }))}
-                  className="text-sm font-mono text-xs"
-                  data-testid="input-slack-webhook"
-                />
-                <p className="text-[10px] text-muted-foreground">
-                  Crée un Incoming Webhook dans les paramètres de ton espace Slack.
-                </p>
+                <Label className="text-xs text-muted-foreground">Channel <span className="text-destructive">*</span></Label>
+                {!isSlackConnected ? (
+                  <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    Slack doit être connecté pour choisir un channel.
+                  </div>
+                ) : isLoadingChannels ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Chargement des channels...
+                  </div>
+                ) : (
+                  <Select
+                    value={form.slackChannelId}
+                    onValueChange={v => {
+                      const ch = slackChannels.find(c => c.id === v);
+                      setForm(f => ({ ...f, slackChannelId: v, slackChannelName: ch?.name ?? "" }));
+                    }}
+                  >
+                    <SelectTrigger className="text-sm" data-testid="select-slack-channel">
+                      <SelectValue placeholder="Choisir un channel Slack..." />
+                    </SelectTrigger>
+                    <SelectContent style={{ zIndex: 10000 }}>
+                      {slackChannels.map(ch => (
+                        <SelectItem key={ch.id} value={ch.id} className="text-sm">
+                          <span className="flex items-center gap-1.5">
+                            {ch.isPrivate ? <Lock className="w-3 h-3 text-muted-foreground" /> : <Hash className="w-3 h-3 text-muted-foreground" />}
+                            {ch.name}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
+              {/* Message template */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Message template <span className="text-destructive">*</span></Label>
                 <Textarea
-                  placeholder={"🎯 Ticket priorisé : {{title}}\nProjet : {{project_name}}\nPar : {{user_name}}"}
+                  placeholder={"Ticket priorisé : {{title}}\nProjet : {{project_name}}\nPar : {{user_name}}"}
                   value={form.messageTemplate}
                   onChange={e => setForm(f => ({ ...f, messageTemplate: e.target.value }))}
                   className="text-sm min-h-[100px] font-mono text-xs"
@@ -481,14 +570,14 @@ export function AutomationButton({ scopeType = "global", scopeId, scopeLabel, cl
       <Button
         variant="outline"
         size="sm"
-        className={`gap-1.5 text-xs ${className ?? ""}`}
         onClick={() => setOpen(true)}
-        data-testid="button-automations"
+        className={`gap-2 ${className ?? ""}`}
+        data-testid="button-open-automations"
       >
         <Zap className="w-3.5 h-3.5 text-yellow-500" />
-        Automatiser
+        Automatisations
         {count.length > 0 && (
-          <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[10px]">{count.length}</Badge>
+          <Badge variant="secondary" className="text-[10px] ml-0.5">{count.length}</Badge>
         )}
       </Button>
       <AutomationDrawer

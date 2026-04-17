@@ -2969,6 +2969,16 @@ export async function runStartupMigrations() {
     }
     // ─────────────────────────────────────────────────────────────
 
+    // ── Automations V2 Slack columns ──
+    try {
+      await db.execute(sql`ALTER TABLE automations ADD COLUMN IF NOT EXISTS slack_channel_id text`);
+      await db.execute(sql`ALTER TABLE automations ADD COLUMN IF NOT EXISTS slack_channel_name text`);
+      console.log("✅ Automations Slack V2 columns added");
+    } catch (e: any) {
+      console.warn("⚠️  Automations Slack V2 columns (non-blocking):", e.message);
+    }
+    // ─────────────────────────────────────────────────────────────
+
     // ── Automations table ──
     try {
       await db.execute(sql`

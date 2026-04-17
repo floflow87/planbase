@@ -44,16 +44,37 @@ function evaluateConditions(conditions: any[], payload: AutomationPayload): bool
   });
 }
 
-async function sendSlackMessage(webhookUrl: string, text: string): Promise<void> {
-  const response = await fetch(webhookUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
-  });
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Slack webhook error ${response.status}: ${body}`);
+async function sendMessage(auto: any, text: string, accountId: string): Promise<void> {
+  const autoAny = auto as any;
+
+  // V2: Use Slack Web API if channel is configured
+  if (autoAny.slackChannelId || autoAny.slack_channel_id) {
+    const channelId = autoAny.slackChannelId || autoAny.slack_channel_id;
+    const { getSlackSettings, postSlackMessage } = await import("./lib/slack");
+    const settings = await getSlackSettings(accountId);
+    if (!settings?.slack_access_token) {
+      throw new Error("Slack not connected for this organization");
+    }
+    await postSlackMessage(settings.slack_access_token, channelId, text);
+    return;
   }
+
+  // V1 fallback: incoming webhook
+  const webhookUrl = autoAny.slackWebhookUrl || autoAny.slack_webhook_url;
+  if (webhookUrl) {
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Slack webhook error ${response.status}: ${body}`);
+    }
+    return;
+  }
+
+  throw new Error("No Slack channel or webhook configured");
 }
 
 export async function emitEvent(
@@ -90,9 +111,9 @@ export async function emitEvent(
           const conditions = Array.isArray(auto.conditions) ? auto.conditions : [];
           if (!evaluateConditions(conditions, payload)) return;
 
-          if (auto.actionType === "slack_message" && auto.slackWebhookUrl) {
+          if (auto.actionType === "slack_message") {
             const message = interpolateTemplate(auto.messageTemplate, payload);
-            await sendSlackMessage(auto.slackWebhookUrl, message);
+            await sendMessage(auto, message, accountId);
             console.log(`✅ Automation "${auto.name}" triggered for event ${event}`);
           }
         } catch (err: any) {

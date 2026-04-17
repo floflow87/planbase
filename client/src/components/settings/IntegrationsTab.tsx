@@ -1,5 +1,6 @@
+import { useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,13 @@ interface GmailStatus {
   email?: string;
   lastSyncAt?: string;
   messageCount?: number;
+}
+
+interface SlackStatus {
+  connected: boolean;
+  teamId?: string;
+  teamName?: string;
+  connectedAt?: string;
 }
 
 interface Integration {
@@ -111,10 +119,10 @@ const integrations: Integration[] = [
   {
     id: "slack",
     name: "Slack",
-    description: "Recevez des notifications et collaborez via Slack",
+    description: "Envoyez des notifications dans vos channels Slack via les automatisations",
     icon: <img src={slackIcon} alt="Slack" className="h-7 w-7 object-contain" />,
     iconBg: "bg-white dark:bg-gray-800",
-    available: false,
+    available: true,
     detailPath: "/settings/integrations/slack",
   },
   {
@@ -166,6 +174,7 @@ const integrations: Integration[] = [
 
 export function IntegrationsTab() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const { data: googleStatus, isLoading: isLoadingGoogle } = useQuery<GoogleStatus>({
     queryKey: ["/api/google/status"],
@@ -175,25 +184,64 @@ export function IntegrationsTab() {
     queryKey: ["/api/gmail/status"],
   });
 
-  const disconnectMutation = useMutation({
+  const { data: slackStatus, isLoading: isLoadingSlack } = useQuery<SlackStatus>({
+    queryKey: ["/api/slack/status"],
+  });
+
+  // Handle redirect callbacks from Slack OAuth
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("slackSuccess") === "1") {
+      queryClient.invalidateQueries({ queryKey: ["/api/slack/status"] });
+      toast({ title: "Slack connecté avec succès !", variant: "success" });
+      navigate("/settings?tab=integrations", { replace: true });
+    } else if (params.get("slackError")) {
+      toast({ title: "Erreur Slack", description: decodeURIComponent(params.get("slackError") || ""), variant: "destructive" });
+      navigate("/settings?tab=integrations", { replace: true });
+    }
+  }, []);
+
+  const disconnectGoogleMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("/api/google/disconnect", "DELETE");
+      const response = await apiRequest("DELETE", "/api/google/disconnect");
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/google/status"] });
-      toast({
-        title: "Déconnexion réussie",
-        description: "Votre compte Google Calendar a été déconnecté.",
-        variant: "success",
-      });
+      toast({ title: "Déconnexion réussie", description: "Votre compte Google Calendar a été déconnecté.", variant: "success" });
     },
     onError: () => {
-      toast({
-        title: "Erreur",
-        description: "Impossible de déconnecter le compte Google.",
-        variant: "destructive",
-      });
+      toast({ title: "Erreur", description: "Impossible de déconnecter le compte Google.", variant: "destructive" });
+    },
+  });
+
+  const connectSlackMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("GET", "/api/slack/oauth/start");
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      return data.url as string;
+    },
+    onSuccess: (url: string) => {
+      window.location.href = url;
+    },
+    onError: (e: any) => {
+      toast({ title: "Erreur Slack OAuth", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const disconnectSlackMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", "/api/slack/disconnect");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/slack/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/slack/channels"] });
+      toast({ title: "Slack déconnecté", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur", description: "Impossible de déconnecter Slack.", variant: "destructive" });
     },
   });
 
@@ -203,12 +251,21 @@ export function IntegrationsTab() {
         {integrations.map((integration) => {
           const isGoogleCalendar = integration.id === "google-calendar";
           const isGmail = integration.id === "gmail";
-          const isConnected = (isGoogleCalendar && googleStatus?.connected) || (isGmail && gmailStatus?.connected);
-          const isLoading = (isGoogleCalendar && isLoadingGoogle) || (isGmail && isLoadingGmail);
+          const isSlack = integration.id === "slack";
+
+          const isConnected =
+            (isGoogleCalendar && googleStatus?.connected) ||
+            (isGmail && gmailStatus?.connected) ||
+            (isSlack && slackStatus?.connected);
+
+          const isLoading =
+            (isGoogleCalendar && isLoadingGoogle) ||
+            (isGmail && isLoadingGmail) ||
+            (isSlack && isLoadingSlack);
 
           return (
-            <Card 
-              key={integration.id} 
+            <Card
+              key={integration.id}
               className="relative overflow-hidden"
               data-testid={`card-integration-${integration.id}`}
             >
@@ -220,7 +277,7 @@ export function IntegrationsTab() {
                       <Loader2 className="h-3 w-3 animate-spin" />
                     </Badge>
                   ) : isConnected ? (
-                    <Badge className="gap-1 text-xs bg-green-500 hover:bg-green-600">
+                    <Badge className="gap-1 text-xs bg-green-500 hover:bg-green-600 no-default-hover-elevate no-default-active-elevate">
                       <CheckCircle className="h-3 w-3" />
                       Connecté
                     </Badge>
@@ -243,51 +300,93 @@ export function IntegrationsTab() {
                 </p>
 
                 {/* Connected info */}
-                {isConnected && (googleStatus?.email || gmailStatus?.email) && (
+                {isConnected && (
                   <p className="text-xs text-muted-foreground mb-3">
-                    {isGmail ? "Gmail est connecté." : "Votre compte Google est connecté."}{" "}
-                    <Link href={integration.detailPath} className="text-primary hover:underline">
-                      Voir les détails
-                    </Link>
+                    {isSlack
+                      ? `Connecté à ${slackStatus?.teamName ?? "votre workspace"}.`
+                      : isGmail
+                      ? "Gmail est connecté."
+                      : "Votre compte Google est connecté."}{" "}
+                    {!isSlack && (
+                      <Link href={integration.detailPath} className="text-primary hover:underline">
+                        Voir les détails
+                      </Link>
+                    )}
                   </p>
                 )}
 
                 {/* Action Buttons */}
                 <div className="flex items-center gap-2 flex-wrap">
                   {integration.available ? (
-                    <>
-                      <Button 
-                        asChild 
-                        variant="outline" 
-                        size="sm"
-                        data-testid={`button-configure-${integration.id}`}
-                      >
-                        <Link href={integration.detailPath}>
-                          <Settings className="h-3.5 w-3.5 mr-1.5" />
-                          Configurer
-                        </Link>
-                      </Button>
-                      {isConnected && (
+                    isSlack ? (
+                      <>
+                        {!slackStatus?.connected ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => connectSlackMutation.mutate()}
+                            disabled={connectSlackMutation.isPending}
+                            data-testid="button-connect-slack"
+                          >
+                            {connectSlackMutation.isPending ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                            ) : (
+                              <Settings className="h-3.5 w-3.5 mr-1.5" />
+                            )}
+                            Connecter
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => disconnectSlackMutation.mutate()}
+                            disabled={disconnectSlackMutation.isPending}
+                            className="text-destructive"
+                            data-testid="button-disconnect-slack"
+                          >
+                            {disconnectSlackMutation.isPending ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Unlink className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                        )}
+                      </>
+                    ) : (
+                      <>
                         <Button
-                          variant="ghost"
+                          asChild
+                          variant="outline"
                           size="sm"
-                          onClick={() => disconnectMutation.mutate()}
-                          disabled={disconnectMutation.isPending}
-                          className="text-destructive hover:text-destructive"
-                          data-testid={`button-disconnect-${integration.id}`}
+                          data-testid={`button-configure-${integration.id}`}
                         >
-                          {disconnectMutation.isPending ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Unlink className="h-3.5 w-3.5" />
-                          )}
+                          <Link href={integration.detailPath}>
+                            <Settings className="h-3.5 w-3.5 mr-1.5" />
+                            Configurer
+                          </Link>
                         </Button>
-                      )}
-                    </>
+                        {isConnected && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => disconnectGoogleMutation.mutate()}
+                            disabled={disconnectGoogleMutation.isPending}
+                            className="text-destructive"
+                            data-testid={`button-disconnect-${integration.id}`}
+                          >
+                            {disconnectGoogleMutation.isPending ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Unlink className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                        )}
+                      </>
+                    )
                   ) : (
-                    <Button 
-                      variant="secondary" 
-                      size="sm" 
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       disabled
                       className="opacity-50"
                       data-testid={`button-coming-soon-${integration.id}`}

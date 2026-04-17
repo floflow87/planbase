@@ -15362,6 +15362,91 @@ app.get("/config/feature-flags", async (_req, res) => {
   });
 
   // ============================================
+  // SLACK V2 OAUTH
+  // ============================================
+
+  app.get("/api/slack/status", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { getSlackSettings } = await import("./lib/slack");
+      const settings = await getSlackSettings(req.accountId!);
+      if (!settings?.slack_access_token) {
+        return res.json({ connected: false });
+      }
+      res.json({
+        connected: true,
+        teamId: settings.slack_team_id,
+        teamName: settings.slack_team_name,
+        connectedAt: settings.slack_connected_at,
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/slack/oauth/start", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      if (!process.env.SLACK_CLIENT_ID) {
+        return res.status(400).json({ error: "SLACK_CLIENT_ID not configured" });
+      }
+      const { getSlackAuthUrl } = await import("./lib/slack");
+      const state = Buffer.from(JSON.stringify({ accountId: req.accountId, userId: req.userId })).toString("base64");
+      const authUrl = getSlackAuthUrl(state);
+      res.json({ url: authUrl });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/slack/oauth/callback", async (req, res) => {
+    try {
+      const { code, state, error } = req.query as { code?: string; state?: string; error?: string };
+      if (error) return res.redirect(`/settings?tab=integrations&slackError=${encodeURIComponent(error)}`);
+      if (!code || !state) return res.status(400).send("Missing code or state");
+
+      const { accountId } = JSON.parse(Buffer.from(state, "base64").toString());
+      const { exchangeCodeForToken, saveSlackSettings } = await import("./lib/slack");
+      const token = await exchangeCodeForToken(code);
+
+      await saveSlackSettings(accountId, {
+        slack_access_token: token.access_token,
+        slack_team_id: token.team.id,
+        slack_team_name: token.team.name,
+        slack_bot_user_id: token.bot_user_id,
+        slack_connected_at: new Date().toISOString(),
+      });
+
+      res.redirect("/settings?tab=integrations&slackSuccess=1");
+    } catch (e: any) {
+      console.error("Slack OAuth callback error:", e);
+      res.redirect(`/settings?tab=integrations&slackError=${encodeURIComponent(e.message)}`);
+    }
+  });
+
+  app.delete("/api/slack/disconnect", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { clearSlackSettings } = await import("./lib/slack");
+      await clearSlackSettings(req.accountId!);
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/slack/channels", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { getSlackSettings, listSlackChannels } = await import("./lib/slack");
+      const settings = await getSlackSettings(req.accountId!);
+      if (!settings?.slack_access_token) {
+        return res.status(400).json({ error: "Slack not connected" });
+      }
+      const channels = await listSlackChannels(settings.slack_access_token);
+      res.json(channels);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ============================================
   // AUTOMATIONS
   // ============================================
 
@@ -15439,21 +15524,55 @@ app.get("/config/feature-flags", async (_req, res) => {
         and(eq(automations.id, id), eq(automations.accountId, req.accountId!))
       );
       if (!auto) return res.status(404).json({ error: "Automation not found" });
-      if (!auto.slackWebhookUrl) return res.status(400).json({ error: "No webhook URL configured" });
-      const testPayload = { title: "Test ticket", project_name: "Projet démo", user_name: "Alice", status: "prioritized" };
-      function interpolate(tpl: string, payload: any) {
+
+      const hasV2 = !!(auto.slackChannelId);
+      const hasV1 = !!(auto.slackWebhookUrl);
+      if (!hasV2 && !hasV1) return res.status(400).json({ error: "Aucun channel Slack configuré pour cette automation." });
+
+      const testPayload: Record<string, string> = {
+        title: "Test ticket",
+        project_name: "Projet démo",
+        user_name: "Alice",
+        priority: "high",
+        status: "prioritized",
+        client_name: "Acme Corp",
+        deal_name: "Contrat Acme",
+        amount: "12 000",
+        old_stage: "Qualifié",
+        new_stage: "Devis envoyé",
+        roadmap_name: "Q2 2025",
+        item_title: "Refonte auth",
+        milestone: "MVP",
+      };
+
+      function interpolate(tpl: string, payload: Record<string, string>) {
         return tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => payload[k] ?? `{{${k}}}`);
       }
-      const message = interpolate(auto.messageTemplate || `🤖 Test — automation "${auto.name}" fonctionne correctement !`, testPayload);
-      const response = await fetch(auto.slackWebhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: message }),
-      });
-      if (!response.ok) {
-        const body = await response.text();
-        return res.status(400).json({ error: `Slack error: ${response.status} — ${body}` });
+
+      const message = interpolate(
+        auto.messageTemplate || `[TEST] Automation "${auto.name}" fonctionne correctement !`,
+        testPayload
+      );
+
+      if (hasV2) {
+        const { getSlackSettings, postSlackMessage } = await import("./lib/slack");
+        const settings = await getSlackSettings(req.accountId!);
+        if (!settings?.slack_access_token) {
+          return res.status(400).json({ error: "Slack n'est pas connecté. Connectez Slack dans les paramètres d'intégrations." });
+        }
+        await postSlackMessage(settings.slack_access_token, auto.slackChannelId!, message);
+      } else {
+        const response = await fetch(auto.slackWebhookUrl!, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: message }),
+        });
+        if (!response.ok) {
+          const body = await response.text();
+          return res.status(400).json({ error: `Slack webhook error: ${response.status} — ${body}` });
+        }
       }
+
       res.json({ success: true, message });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

@@ -2512,6 +2512,8 @@ export const automations = pgTable("automations", {
   conditions: jsonb("conditions").notNull().default([]),
   actionType: text("action_type").notNull().default("slack_message"),
   slackWebhookUrl: text("slack_webhook_url"),
+  slackChannelId: text("slack_channel_id"),
+  slackChannelName: text("slack_channel_name"),
   messageTemplate: text("message_template").notNull().default(""),
   createdBy: uuid("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
