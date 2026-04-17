@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -154,6 +154,24 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<AutomationFormData>(DEFAULT_FORM);
   const [testingId, setTestingId] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  function insertVariable(variable: string) {
+    const el = textareaRef.current;
+    if (!el) {
+      setForm(f => ({ ...f, messageTemplate: f.messageTemplate + `{{${variable}}}` }));
+      return;
+    }
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const snippet = `{{${variable}}}`;
+    const newVal = el.value.slice(0, start) + snippet + el.value.slice(end);
+    setForm(f => ({ ...f, messageTemplate: newVal }));
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start + snippet.length, start + snippet.length);
+    });
+  }
 
   const qKey = ["/api/automations", scopeType, scopeId ?? "global"];
 
@@ -184,30 +202,30 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/automations", data),
+    mutationFn: (data: any) => apiRequest("/api/automations", "POST", data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: qKey }); toast({ title: "Automation créée", variant: "success" }); resetForm(); },
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest("PATCH", `/api/automations/${id}`, data),
+    mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest(`/api/automations/${id}`, "PATCH", data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: qKey }); toast({ title: "Automation mise à jour", variant: "success" }); resetForm(); },
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("DELETE", `/api/automations/${id}`),
+    mutationFn: (id: string) => apiRequest(`/api/automations/${id}`, "DELETE"),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: qKey }); toast({ title: "Automation supprimée" }); },
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => apiRequest("PATCH", `/api/automations/${id}`, { isActive }),
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => apiRequest(`/api/automations/${id}`, "PATCH", { isActive }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: qKey }),
   });
 
   const testMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("POST", `/api/automations/${id}/test`),
+    mutationFn: (id: string) => apiRequest(`/api/automations/${id}/test`, "POST"),
     onSuccess: () => { setTestingId(null); toast({ title: "Message Slack envoyé avec succès", variant: "success" }); },
     onError: (e: any) => { setTestingId(null); toast({ title: "Erreur Slack", description: e.message, variant: "destructive" }); },
   });
@@ -567,20 +585,39 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
 
               {/* Message template */}
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Message template <span className="text-destructive">*</span></Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">Message template <span className="text-destructive">*</span></Label>
+                  {selectedEvent && (
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <Info className="w-3 h-3 flex-shrink-0" />
+                      Cliquez pour insérer
+                    </span>
+                  )}
+                </div>
+                {selectedEvent && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedEvent.variables.map(v => (
+                      <button
+                        key={v}
+                        type="button"
+                        onMouseDown={e => { e.preventDefault(); insertVariable(v); }}
+                        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-mono bg-primary/10 text-primary border border-primary/20 hover-elevate cursor-pointer select-none"
+                        data-testid={`button-var-${v}`}
+                      >
+                        <Hash className="w-2.5 h-2.5" />
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <Textarea
+                  ref={textareaRef}
                   placeholder={"Ticket priorisé : {{title}}\nProjet : {{project_name}}\nPar : {{user_name}}"}
                   value={form.messageTemplate}
                   onChange={e => setForm(f => ({ ...f, messageTemplate: e.target.value }))}
                   className="text-sm min-h-[100px] font-mono text-xs"
                   data-testid="textarea-message-template"
                 />
-                {selectedEvent && (
-                  <div className="flex items-start gap-1.5 text-[10px] text-muted-foreground">
-                    <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                    <span>Variables disponibles : {selectedEvent.variables.map(v => `{{${v}}}`).join(", ")}</span>
-                  </div>
-                )}
               </div>
 
               {/* Preview */}
