@@ -22,7 +22,7 @@ import {
   Loader2, User, Mail, Briefcase, UserCircle, Phone, Building2, Lock, Eye, EyeOff, 
   Settings as SettingsIcon, Puzzle, Shield, Clock, AlertTriangle, Save, RotateCcw, 
   DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check, Users, Trash2, CreditCard, Camera, LayoutTemplate,
-  SunMedium, Moon, Monitor, Languages, Bell, Zap
+  SunMedium, Moon, Monitor, Languages, Bell, Zap, Plus
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useLanguage, type Language } from "@/contexts/LanguageContext";
@@ -33,7 +33,7 @@ import { IntegrationsTab } from "@/components/settings/IntegrationsTab";
 import { EmailTemplatesTab } from "@/pages/email-templates";
 import { AuditTab } from "@/components/settings/AuditTab";
 import { SubscriptionTab } from "@/components/settings/SubscriptionTab";
-import { AutomationDrawer } from "@/components/automations/AutomationDrawer";
+import { AutomationDrawer, SCOPE_LABELS, EVENT_OPTIONS } from "@/components/automations/AutomationDrawer";
 import { USER_PROFILES, type UserProfileType } from "@shared/userProfiles";
 import { LoadingState } from "@/design-system/patterns/LoadingState";
 import { useOnboarding } from "@/contexts/OnboardingContext";
@@ -1811,47 +1811,152 @@ export default function Settings() {
 }
 
 function AutomationsSettingsTab() {
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const { toast } = useToast();
+  const [drawerScope, setDrawerScope] = useState<{ open: boolean; scopeType: string }>({ open: false, scopeType: "global" });
+  const qKey = ["/api/automations", "all"];
+
+  const { data: allAutomations = [], isLoading } = useQuery<any[]>({
+    queryKey: qKey,
+    queryFn: async () => {
+      const res = await fetch("/api/automations", {
+        headers: { "x-user-id": localStorage.getItem("userId") || "", "x-account-id": localStorage.getItem("accountId") || "" },
+        credentials: "include",
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      apiRequest(`/api/automations/${id}`, "PATCH", { isActive }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qKey }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/automations/${id}`, "DELETE"),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: qKey }); toast({ title: "Automation supprimée" }); },
+    onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+  });
+
+  const grouped = allAutomations.reduce<Record<string, any[]>>((acc, auto) => {
+    const key = auto.scopeType ?? "global";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(auto);
+    return acc;
+  }, {});
+
+  const scopeOrder = ["global", "project", "backlog", "roadmap", "crm"];
+
   return (
-    <div className="space-y-4" data-testid="section-automations">
-      <div className="flex items-start justify-between gap-4">
+    <div className="space-y-5" data-testid="section-automations">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h3 className="text-sm font-semibold flex items-center gap-2">
             <Zap className="w-4 h-4 text-yellow-500" />
-            Automatisations globales
+            Toutes les automatisations
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Ces automatisations s'appliquent à toute l'organisation, tous projets et backlogs confondus.
+            Vue globale de toutes les règles Slack configurées dans l'organisation.
           </p>
         </div>
-        <Button size="sm" className="gap-1.5 shrink-0" onClick={() => setDrawerOpen(true)} data-testid="button-open-global-automations">
-          <Zap className="w-3.5 h-3.5" />
-          Gérer
+        <Button size="sm" className="gap-1.5 shrink-0" onClick={() => setDrawerScope({ open: true, scopeType: "global" })} data-testid="button-open-global-automations">
+          <Plus className="w-3.5 h-3.5" />
+          Nouvelle
         </Button>
       </div>
 
-      <div className="rounded-md border bg-muted/20 p-4 space-y-3">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Exemples de cas d'usage</p>
-        <ul className="space-y-2 text-xs text-muted-foreground">
-          {[
-            { icon: "🎯", text: "Notifier Slack quand un ticket est priorisé dans n'importe quel backlog" },
-            { icon: "🏆", text: "Alerter quand un deal CRM passe en statut « Gagné »" },
-            { icon: "🚀", text: "Informer l'équipe quand un projet est créé" },
-            { icon: "✅", text: "Notifier à la complétion de n'importe quelle tâche" },
-          ].map((item, i) => (
-            <li key={i} className="flex items-start gap-2">
-              <span>{item.icon}</span>
-              <span>{item.text}</span>
-            </li>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : allAutomations.length === 0 ? (
+        <div className="rounded-md border bg-muted/10 px-4 py-8 text-center space-y-2">
+          <Zap className="w-7 h-7 text-muted-foreground/30 mx-auto" />
+          <p className="text-sm text-muted-foreground">Aucune automation configurée</p>
+          <p className="text-xs text-muted-foreground/70">Crée une règle pour recevoir des alertes Slack automatiquement.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {scopeOrder.filter(s => grouped[s]?.length).map(scope => (
+            <div key={scope} className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  {SCOPE_LABELS[scope] ?? scope}
+                </Badge>
+                <span className="text-[11px] text-muted-foreground">{grouped[scope].length} règle{grouped[scope].length > 1 ? "s" : ""}</span>
+              </div>
+              {grouped[scope].map((auto: any) => {
+                const eventLabel = EVENT_OPTIONS.find(e => e.value === auto.eventType)?.label ?? auto.eventType;
+                const channelName = auto.slackChannelName || auto.slack_channel_name;
+                return (
+                  <div key={auto.id} className="border rounded-md p-3 bg-card space-y-2" data-testid={`card-automation-settings-${auto.id}`}>
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-medium truncate">{auto.name}</span>
+                          <Badge variant={auto.isActive ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                            {auto.isActive ? "Actif" : "Inactif"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                          <span className="text-[11px] text-muted-foreground">{eventLabel}</span>
+                          {channelName && (
+                            <>
+                              <span className="text-[11px] text-muted-foreground">·</span>
+                              <span className="text-[11px] text-muted-foreground flex items-center gap-0.5">
+                                <Hash className="w-2.5 h-2.5" />
+                                {channelName}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <Switch
+                        checked={auto.isActive}
+                        onCheckedChange={(v) => toggleMutation.mutate({ id: auto.id, isActive: v })}
+                        data-testid={`switch-automation-settings-${auto.id}`}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7 gap-1"
+                        onClick={() => setDrawerScope({ open: true, scopeType: auto.scopeType ?? "global" })}
+                        data-testid={`button-edit-scope-${auto.id}`}
+                      >
+                        <Zap className="w-3 h-3" />
+                        Gérer ce scope
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="w-7 h-7 text-muted-foreground hover:text-destructive ml-auto"
+                        onClick={() => deleteMutation.mutate(auto.id)}
+                        disabled={deleteMutation.isPending}
+                        data-testid={`button-delete-automation-settings-${auto.id}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           ))}
-        </ul>
-      </div>
+        </div>
+      )}
 
       <AutomationDrawer
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        scopeType="global"
-        scopeLabel="Organisation"
+        open={drawerScope.open}
+        onOpenChange={(v) => {
+          setDrawerScope(s => ({ ...s, open: v }));
+          if (!v) queryClient.invalidateQueries({ queryKey: qKey });
+        }}
+        scopeType={drawerScope.scopeType as any}
+        scopeLabel={SCOPE_LABELS[drawerScope.scopeType] ?? drawerScope.scopeType}
       />
     </div>
   );

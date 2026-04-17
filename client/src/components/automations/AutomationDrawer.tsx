@@ -28,7 +28,7 @@ interface AutomationDrawerProps {
   scopeLabel?: string;
 }
 
-const EVENT_OPTIONS: { value: string; label: string; variables: string[] }[] = [
+export const EVENT_OPTIONS: { value: string; label: string; variables: string[] }[] = [
   { value: "backlog.created", label: "Backlog créé", variables: ["title", "project_name", "user_name"] },
   { value: "backlog.updated", label: "Backlog mis à jour", variables: ["title", "project_name", "user_name"] },
   { value: "backlog.prioritized", label: "Ticket priorisé", variables: ["title", "project_name", "user_name", "priority"] },
@@ -88,9 +88,43 @@ const CONDITION_VALUE_OPTIONS: Record<string, { value: string; label: string }[]
 const CONDITION_OPERATORS = [
   { value: "equals", label: "=" },
   { value: "not_equals", label: "≠" },
-  { value: "contains", label: "contient" },
-  { value: "not_contains", label: "ne contient pas" },
+  { value: "contains", label: "∈" },
+  { value: "not_contains", label: "∉" },
 ];
+
+const VARIABLE_LABELS: Record<string, string> = {
+  deal_name: "opportunité",
+  client_name: "nom du client",
+  old_stage: "ancienne étape",
+  new_stage: "nouvelle étape",
+  user_name: "déclenché par",
+  project_name: "projet",
+  title: "titre",
+  priority: "priorité",
+  status: "statut",
+  amount: "montant",
+  roadmap_name: "roadmap",
+  item_title: "élément",
+  milestone: "jalon",
+};
+
+const CONDITION_FIELD_LABELS: Record<string, string> = {
+  user_name: "Utilisateur",
+  stage: "Étape",
+  client_name: "Client",
+  priority: "Priorité",
+  status: "Statut",
+  project_name: "Projet",
+};
+
+export const SCOPE_LABELS: Record<string, string> = {
+  global: "Global",
+  project: "Projet",
+  backlog: "Backlog",
+  roadmap: "Roadmap",
+  crm: "CRM",
+};
+
 
 interface Condition {
   field: string;
@@ -124,19 +158,19 @@ const DEFAULT_FORM: AutomationFormData = {
 
 function interpolatePreview(template: string): string {
   const samples: Record<string, string> = {
-    title: "Fix bug de connexion",
-    project_name: "Projet Alpha",
-    user_name: "Alice Dupont",
-    priority: "high",
-    status: "done",
-    client_name: "Acme Corp",
-    deal_name: "Contrat Acme",
-    amount: "12 000",
+    title: "Refonte onboarding client",
+    project_name: "LVBCA – Design Hermès",
+    user_name: "Florent Martin",
+    priority: "Haute",
+    status: "En cours",
+    client_name: "LVBCA",
+    deal_name: "Contrat LVBCA Q2 2026",
+    amount: "8 500 €",
     old_stage: "Qualifié",
     new_stage: "Devis envoyé",
-    roadmap_name: "Q2 2025",
-    item_title: "Refonte auth",
-    milestone: "MVP",
+    roadmap_name: "Q2 2026",
+    item_title: "Refonte authentification",
+    milestone: "MVP v1",
   };
   return template.replace(/\{\{(\w+)\}\}/g, (_, k) => samples[k] ?? `{{${k}}}`);
 }
@@ -465,12 +499,12 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Déclencheur <span className="text-destructive">*</span></Label>
               <Select value={form.eventType} onValueChange={v => setForm(f => ({ ...f, eventType: v }))}>
-                <SelectTrigger className="text-sm" data-testid="select-event-type">
+                <SelectTrigger className="text-xs h-8" data-testid="select-event-type">
                   <SelectValue placeholder="Choisir un événement..." />
                 </SelectTrigger>
                 <SelectContent style={{ zIndex: 10000 }}>
                   {filteredEventOptions.map(e => (
-                    <SelectItem key={e.value} value={e.value} className="text-sm">{e.label}</SelectItem>
+                    <SelectItem key={e.value} value={e.value} className="text-[11px]">{e.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -489,32 +523,36 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                 const valueOptions = CONDITION_VALUE_OPTIONS[cond.field];
                 return (
                   <div key={i} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 p-2 rounded-md border bg-muted/20">
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-1 flex-1 min-w-0">
                       <Select value={cond.field} onValueChange={v => updateCondition(i, { field: v, value: "" })}>
-                        <SelectTrigger className="text-xs h-8 flex-1" data-testid={`select-condition-field-${i}`}>
+                        <SelectTrigger className="text-[11px] h-7 flex-1" data-testid={`select-condition-field-${i}`}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent style={{ zIndex: 10000 }}>
-                          {conditionFields.map(f => <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>)}
+                          {conditionFields.map(f => (
+                            <SelectItem key={f} value={f} className="text-[11px]">
+                              {CONDITION_FIELD_LABELS[f] ?? f}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <Select value={cond.operator} onValueChange={v => updateCondition(i, { operator: v })}>
-                        <SelectTrigger className="text-xs h-8 w-20 flex-shrink-0" data-testid={`select-condition-operator-${i}`}>
+                        <SelectTrigger className="text-sm h-7 w-10 flex-shrink-0 px-1 font-mono" data-testid={`select-condition-operator-${i}`}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent style={{ zIndex: 10000 }}>
-                          {CONDITION_OPERATORS.map(o => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
+                          {CONDITION_OPERATORS.map(o => <SelectItem key={o.value} value={o.value} className="text-sm font-mono">{o.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-1 flex-1 min-w-0">
                       {valueOptions ? (
                         <Select value={cond.value} onValueChange={v => updateCondition(i, { value: v })}>
-                          <SelectTrigger className="text-xs h-8 flex-1" data-testid={`select-condition-value-${i}`}>
+                          <SelectTrigger className="text-[11px] h-7 flex-1" data-testid={`select-condition-value-${i}`}>
                             <SelectValue placeholder="Choisir..." />
                           </SelectTrigger>
                           <SelectContent style={{ zIndex: 10000 }}>
-                            {valueOptions.map(o => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
+                            {valueOptions.map(o => <SelectItem key={o.value} value={o.value} className="text-[11px]">{o.label}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       ) : (
@@ -522,12 +560,12 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                           placeholder="valeur"
                           value={cond.value}
                           onChange={e => updateCondition(i, { value: e.target.value })}
-                          className="text-xs h-8 flex-1"
+                          className="text-[11px] h-7 flex-1"
                           data-testid={`input-condition-value-${i}`}
                         />
                       )}
-                      <Button variant="ghost" size="icon" className="w-8 h-8 flex-shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeCondition(i)}>
-                        <Trash2 className="w-3.5 h-3.5" />
+                      <Button variant="ghost" size="icon" className="w-7 h-7 flex-shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeCondition(i)}>
+                        <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
                   </div>
@@ -566,12 +604,12 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                       setForm(f => ({ ...f, slackChannelId: v, slackChannelName: ch?.name ?? "" }));
                     }}
                   >
-                    <SelectTrigger className="text-sm" data-testid="select-slack-channel">
+                    <SelectTrigger className="text-xs h-8" data-testid="select-slack-channel">
                       <SelectValue placeholder="Choisir un channel Slack..." />
                     </SelectTrigger>
                     <SelectContent style={{ zIndex: 10000 }}>
                       {slackChannels.map(ch => (
-                        <SelectItem key={ch.id} value={ch.id} className="text-sm">
+                        <SelectItem key={ch.id} value={ch.id} className="text-[11px]">
                           <span className="flex items-center gap-1.5">
                             {ch.isPrivate ? <Lock className="w-3 h-3 text-muted-foreground" /> : <Hash className="w-3 h-3 text-muted-foreground" />}
                             {ch.name}
@@ -603,9 +641,10 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                         onMouseDown={e => { e.preventDefault(); insertVariable(v); }}
                         className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-mono bg-primary/10 text-primary border border-primary/20 hover-elevate cursor-pointer select-none"
                         data-testid={`button-var-${v}`}
+                        title={`{{${v}}}`}
                       >
-                        <Hash className="w-2.5 h-2.5" />
-                        {v}
+                        <Hash className="w-2.5 h-2.5 flex-shrink-0" />
+                        {VARIABLE_LABELS[v] ?? v}
                       </button>
                     ))}
                   </div>
