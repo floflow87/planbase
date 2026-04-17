@@ -274,9 +274,28 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
   });
 
   const testMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/automations/${id}/test`, "POST"),
-    onSuccess: () => { setTestingId(null); toast({ title: "Message Slack envoyé avec succès", variant: "success" }); },
-    onError: (e: any) => { setTestingId(null); toast({ title: "Erreur Slack", description: e.message, variant: "destructive" }); },
+    mutationFn: async (id: string) => {
+      const res = await apiRequest(`/api/automations/${id}/test`, "POST");
+      return await res.json();
+    },
+    onSuccess: (_data, _id) => {
+      setTestingId(null);
+      toast({ title: "Message Slack envoyé avec succès", description: "Le message de test a bien été posté dans le channel.", variant: "success" });
+    },
+    onError: (e: any) => {
+      setTestingId(null);
+      // Parse JSON error message if possible
+      let msg = e.message || "Erreur inconnue";
+      try {
+        const match = msg.match(/^\d+: (.+)$/s);
+        if (match) {
+          const parsed = JSON.parse(match[1]);
+          msg = parsed.error || msg;
+        }
+      } catch {}
+      toast({ title: "Erreur Slack", description: msg, variant: "destructive" });
+    },
+    retry: 0,
   });
 
   function resetForm() {
@@ -444,6 +463,7 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                         <Switch
                           checked={auto.isActive}
                           onCheckedChange={(v) => toggleMutation.mutate({ id: auto.id, isActive: v })}
+                          className="scale-[0.7] origin-right -ml-2 shrink-0"
                           data-testid={`switch-automation-${auto.id}`}
                         />
                       </div>
