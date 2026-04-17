@@ -1088,7 +1088,7 @@ export default function Notes() {
             >
               <Settings2 className="w-4 h-4" />
             </Button>
-            <AutomationButton scopeType="global" scopeLabel="Notes" />
+            <AutomationButton scopeType="notes" scopeLabel="Notes" />
             <Can module="notes" action="create">
               <Button
                 className="gap-2 text-[12px]"

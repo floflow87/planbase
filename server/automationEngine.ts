@@ -15,6 +15,7 @@ export type AppEvent =
   | "crm.deal_won"
   | "crm.stage_changed"
   | "note.created"
+  | "note.updated"
   | "task.created"
   | "task.completed";
 

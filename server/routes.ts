@@ -4394,6 +4394,11 @@ app.get("/config/feature-flags", async (_req, res) => {
         createdBy: req.userId || null,
       });
 
+      try {
+        const { emitEvent } = await import("./automationEngine");
+        await emitEvent("note.created", { title: note.title ?? "", user_name: req.userId ?? "", tag: (note as any).categoryId ?? "", lien: `${getAppUrl(req)}/notes` }, req.accountId!);
+      } catch (_) {}
+
       res.json(note);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -4438,6 +4443,10 @@ app.get("/config/feature-flags", async (_req, res) => {
           payload: { description: `Note updated: ${note.title}` },
           createdBy: req.userId || null,
         });
+        try {
+          const { emitEvent } = await import("./automationEngine");
+          await emitEvent("note.updated", { title: note?.title ?? "", user_name: req.userId ?? "", tag: (note as any)?.categoryId ?? "", lien: `${getAppUrl(req)}/notes` }, req.accountId!);
+        } catch (_) {}
       }
       
       res.json(note);

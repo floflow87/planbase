@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { SiSlack } from "react-icons/si";
 
-export type AutomationScopeType = "global" | "project" | "backlog" | "roadmap" | "crm";
+export type AutomationScopeType = "global" | "project" | "backlog" | "roadmap" | "crm" | "notes";
 
 interface AutomationDrawerProps {
   open: boolean;
@@ -58,7 +58,8 @@ export const EVENT_OPTIONS: { value: string; label: string; variables: string[] 
   { value: "crm.stage_changed", label: "Étape CRM modifiée", variables: ["deal_name", "client_name", "old_stage", "new_stage"] },
   { value: "crm.client_created", label: "Client créé", variables: ["client_name", "user_name"] },
   // Notes
-  { value: "note.created", label: "Note créée", variables: ["title", "user_name"] },
+  { value: "note.created", label: "Note créée", variables: ["title", "user_name", "tag"] },
+  { value: "note.updated", label: "Note modifiée", variables: ["title", "user_name", "tag"] },
 ];
 
 const SCOPE_EVENT_FILTER: Record<AutomationScopeType, string[] | null> = {
@@ -71,6 +72,7 @@ const SCOPE_EVENT_FILTER: Record<AutomationScopeType, string[] | null> = {
   backlog: ["backlog.ticket_created", "backlog.ticket_updated", "backlog.prioritized", "backlog.ticket_completed", "backlog.sprint_started", "backlog.sprint_completed"],
   roadmap: ["roadmap.updated", "roadmap.item_created", "roadmap.item_completed"],
   crm: ["crm.deal_created", "crm.deal_won", "crm.stage_changed", "crm.client_created"],
+  notes: ["note.created", "note.updated"],
 };
 
 const SCOPE_CONDITION_FIELDS: Record<AutomationScopeType, string[]> = {
@@ -79,6 +81,11 @@ const SCOPE_CONDITION_FIELDS: Record<AutomationScopeType, string[]> = {
   backlog: ["priority", "status", "backlog_name", "product_name", "user_name"],
   roadmap: ["roadmap_name", "user_name"],
   crm: ["stage", "client_name", "user_name"],
+  notes: ["tag"],
+};
+
+const SCOPE_CONDITION_OPERATORS: Record<string, string[]> = {
+  notes: ["equals", "not_equals", "changed"],
 };
 
 const CONDITION_VALUE_OPTIONS: Record<string, { value: string; label: string }[]> = {
@@ -128,7 +135,8 @@ const CRM_STAGE_LIST = [
 
 const VARIABLE_LABELS: Record<string, string> = {
   date: "date",
-  lien: "lien vers le module",
+  lien: "lien",
+  tag: "tag",
   deal_name: "opportunité",
   client_name: "nom du client",
   old_stage: "ancienne étape",
@@ -165,6 +173,7 @@ const CONDITION_FIELD_LABELS: Record<string, string> = {
   backlog_name: "Backlog",
   product_name: "Produit",
   roadmap_name: "Roadmap",
+  tag: "Tag",
 };
 
 export const SCOPE_LABELS: Record<string, string> = {
@@ -210,6 +219,7 @@ function interpolatePreview(template: string): string {
   const samples: Record<string, string> = {
     date: new Date().toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
     lien: "https://app.planbase.io/crm/6f68f383-…",
+    tag: "design",
     title: "Refonte onboarding client",
     project_name: "LVBCA – Design Hermès",
     user_name: "Florent Martin",
@@ -592,7 +602,7 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                 placeholder="Ex : Alerte deal gagné"
                 value={form.name}
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                className="text-xs h-8"
+                className="text-xs h-8 placeholder:text-[10px]"
                 data-testid="input-automation-name"
               />
             </div>
@@ -645,7 +655,10 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent style={{ zIndex: 10000 }}>
-                          {CONDITION_OPERATORS.map(o => <SelectItem key={o.value} value={o.value} className="text-sm font-mono">{o.label}</SelectItem>)}
+                          {(SCOPE_CONDITION_OPERATORS[scopeType]
+                            ? CONDITION_OPERATORS.filter(o => SCOPE_CONDITION_OPERATORS[scopeType].includes(o.value))
+                            : CONDITION_OPERATORS
+                          ).map(o => <SelectItem key={o.value} value={o.value} className="text-sm font-mono">{o.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -755,19 +768,6 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                       </button>
                     ))}
                 </div>
-                {selectedEvent?.value.startsWith("crm.") && (
-                  <div className="flex items-start gap-1.5 rounded bg-muted/40 border border-border px-2 py-1.5">
-                    <Info className="w-3 h-3 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <div className="flex flex-wrap gap-1 items-center">
-                      <span className="text-[10px] text-muted-foreground mr-0.5">Étapes :</span>
-                      {CRM_STAGE_LIST.map(s => (
-                        <span key={s.value} className="text-[10px] font-mono bg-background border border-border rounded px-1.5 py-0.5 text-foreground">
-                          {s.value}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
                 <div className="flex items-center gap-1">
                   {EMOJI_SHORTCUTS.map(({ emoji, label }) => (
                     <button
