@@ -1301,9 +1301,7 @@ export default function RoadmapPage() {
                 </button>
               </div>
               <div className="flex items-center gap-1">
-                {selectedProjectId && (
-                  <AutomationButton scopeType="roadmap" scopeId={selectedProjectId} scopeLabel="Roadmap" />
-                )}
+                <AutomationButton scopeType="roadmap" scopeId={selectedRoadmapId ?? undefined} scopeLabel="Roadmap" />
                 {selectedProjectId && (
                   <Button
                     variant="ghost"

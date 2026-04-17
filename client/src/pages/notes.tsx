@@ -24,6 +24,7 @@ import type { Note, AppUser, Project, NoteLink, NoteCategory } from "@shared/sch
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tag } from "lucide-react";
 import { PermissionGuard, Can, ReadOnlyBadge } from "@/components/Can";
+import { AutomationButton } from "@/components/automations/AutomationDrawer";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatDistanceToNow, format, isAfter, isBefore, isEqual, startOfDay, endOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -1087,6 +1088,7 @@ export default function Notes() {
             >
               <Settings2 className="w-4 h-4" />
             </Button>
+            <AutomationButton scopeType="global" scopeLabel="Notes" />
             <Can module="notes" action="create">
               <Button
                 className="gap-2 text-[12px]"

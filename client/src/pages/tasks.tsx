@@ -106,6 +106,7 @@ import { ColorPicker } from "@/components/ColorPicker";
 import { ListView } from "@/components/ListView";
 import { LoadingState, EmptyState } from "@/design-system/patterns";
 import { TaskQueueView } from "@/components/TaskQueueView";
+import { AutomationButton } from "@/components/automations/AutomationDrawer";
 import {
   getTaskPriorityLabel,
   getTaskPriorityColorClass,
@@ -2125,6 +2126,11 @@ export default function Tasks() {
                 </Tooltip>
               ) : null;
             })()}
+            <AutomationButton
+              scopeType="project"
+              scopeId={singleProjectId ?? undefined}
+              scopeLabel={singleProjectId ? "Tâches" : "Tâches (global)"}
+            />
             {canCreate && !selectedProjectIds.includes("all") && selectedProjectIds.length === 1 && (
               <>
                 <Button
