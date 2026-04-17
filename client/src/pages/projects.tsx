@@ -1984,6 +1984,12 @@ export default function Projects() {
     return localStorage.getItem('projectTypeFilter') || "all";
   });
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
   const [projectViewMode, setProjectViewMode] = useState<"grid" | "list" | "kanban">(() => {
     const saved = localStorage.getItem('projectViewMode');
     return (saved === "grid" || saved === "list" || saved === "kanban") ? saved : "list";
@@ -3066,8 +3072,8 @@ export default function Projects() {
                 {/* Billing status filter dropdown with multi-select */}
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="default" className="w-9 sm:w-[160px] justify-center sm:justify-start" data-testid="select-billing-filter">
-                      <Banknote className="h-4 w-4 sm:mr-2 text-muted-foreground" />
+                    <Button variant="outline" size="default" className="w-9 sm:w-[160px] justify-center sm:justify-start text-xs bg-white dark:bg-card" data-testid="select-billing-filter">
+                      <Banknote className="h-3.5 w-3.5 sm:mr-2 text-muted-foreground" />
                       <span className="hidden sm:inline truncate">
                         {projectBillingFilters.length === 0 ? t.tasks.allStatuses : 
                          projectBillingFilters.length === 1 ? getBillingStatusI18nLabel(projectBillingFilters[0]) : 
@@ -3121,16 +3127,16 @@ export default function Projects() {
                 {/* Filters button with badge */}
                 <Button 
                   variant="outline" 
-                  className="relative"
+                  className="relative text-xs bg-white dark:bg-card"
                   onClick={() => setIsFilterPanelOpen(true)}
                   data-testid="button-open-filters"
                 >
-                  <Filter className="h-4 w-4 sm:mr-2" />
+                  <Filter className="h-3.5 w-3.5 sm:mr-2" />
                   <span className="hidden sm:inline">Filtres</span>
                   {(projectStageFilters.length > 0 || projectBillingFilters.length > 0 || projectTypeFilter !== "all") && (
                     <Badge 
                       variant="default" 
-                      className="ml-1 sm:ml-2 h-5 w-5 p-0 flex items-center justify-center text-[10px]"
+                      className="ml-1 sm:ml-2 h-4 w-4 p-0 flex items-center justify-center text-[9px]"
                     >
                       {projectStageFilters.length + projectBillingFilters.length + (projectTypeFilter !== "all" ? 1 : 0)}
                     </Badge>
@@ -4542,7 +4548,11 @@ export default function Projects() {
 
       {/* Filter Panel Sheet */}
       <Sheet open={isFilterPanelOpen} onOpenChange={setIsFilterPanelOpen}>
-        <SheetContent className="h-auto max-h-[80vh] overflow-y-auto rounded-t-xl" data-testid="sheet-filter-panel" side="bottom">
+        <SheetContent
+          className={isMobile ? "h-auto max-h-[80vh] overflow-y-auto rounded-t-xl" : "w-80 overflow-y-auto"}
+          data-testid="sheet-filter-panel"
+          side={isMobile ? "bottom" : "right"}
+        >
           <SheetHeader className="mb-4">
             <SheetTitle>Filtres</SheetTitle>
           </SheetHeader>
