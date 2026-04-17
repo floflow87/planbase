@@ -7,25 +7,41 @@ export type AppEvent =
   | "backlog.updated"
   | "backlog.prioritized"
   | "backlog.completed"
+  | "backlog.ticket_created"
+  | "backlog.ticket_updated"
+  | "backlog.sprint_started"
+  | "backlog.sprint_completed"
   | "project.created"
   | "project.updated"
   | "project.milestone_reached"
   | "roadmap.updated"
+  | "roadmap.item_created"
+  | "roadmap.item_completed"
   | "crm.deal_created"
   | "crm.deal_won"
   | "crm.stage_changed"
+  | "crm.client_created"
   | "note.created"
   | "note.updated"
   | "task.created"
-  | "task.completed";
+  | "task.completed"
+  | "task.status_changed"
+  | "task.priority_changed"
+  | "task.effort_changed"
+  | "task.due_date_changed"
+  | "task.assigned";
 
 export interface AutomationPayload {
   [key: string]: any;
 }
 
-function interpolateTemplate(template: string, payload: AutomationPayload): string {
+function interpolateTemplate(template: string, payload: AutomationPayload, autoName?: string): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
-    return payload[key] !== undefined ? String(payload[key]) : `{{${key}}}`;
+    if (payload[key] !== undefined && payload[key] !== null) {
+      return String(payload[key]);
+    }
+    console.warn(`⚠️  [AutomationEngine] "${autoName ?? "?"}" — variable {{${key}}} not found in payload. Available keys: [${Object.keys(payload).join(", ")}]`);
+    return `{{${key}}}`;
   });
 }
 
@@ -133,7 +149,7 @@ export async function emitEvent(
               }),
               ...payload,
             };
-            const message = interpolateTemplate(auto.messageTemplate, enrichedPayload);
+            const message = interpolateTemplate(auto.messageTemplate || (auto as any).message_template || "", enrichedPayload, auto.name);
             await sendMessage(auto, message, accountId);
             console.log(`✅ Automation "${auto.name}" triggered for event ${event}`);
           }

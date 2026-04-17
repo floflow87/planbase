@@ -214,6 +214,23 @@ function getAppUrl(_req?: any): string {
   return `${proto}://${host}`;
 }
 
+async function resolveUserName(userId?: string | null): Promise<string> {
+  if (!userId) return "";
+  try {
+    const user = await storage.getUser(userId);
+    if (!user) return "";
+    return [user.firstName, user.lastName].filter(Boolean).join(" ") || (user as any).email || "";
+  } catch (_) { return ""; }
+}
+
+async function resolveNoteCategoryName(categoryId?: string | null): Promise<string> {
+  if (!categoryId) return "";
+  try {
+    const [cat] = await db.select().from(noteCategories).where(eq(noteCategories.id, categoryId));
+    return cat?.name ?? "";
+  } catch (_) { return ""; }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
 
   
@@ -3554,7 +3571,8 @@ app.get("/config/feature-flags", async (_req, res) => {
         const { emitEvent } = await import("./automationEngine");
         const scopePayload = task.projectId ? { scope_id: task.projectId, scopeType: "project" } : {};
         const taskLink = task.projectId ? `${getAppUrl(req)}/projects/${task.projectId}` : `${getAppUrl(req)}/tasks`;
-        await emitEvent("task.created", { title: task.title, task_title: task.title, ...scopePayload, lien: taskLink }, req.accountId!);
+        const taskCreatorName = await resolveUserName(req.userId);
+        await emitEvent("task.created", { title: task.title, task_title: task.title, user_name: taskCreatorName, ...scopePayload, lien: taskLink }, req.accountId!);
       } catch (aeErr: any) {
         console.warn("[AutomationEngine] task.created error:", aeErr.message);
       }
@@ -3700,7 +3718,8 @@ app.get("/config/feature-flags", async (_req, res) => {
         const scopePayload = task.projectId ? { scope_id: task.projectId, scopeType: "project" } : {};
         const taskTitle = task.title ?? existing.title;
         const taskLink = task.projectId ? `${getAppUrl(req)}/projects/${task.projectId}` : `${getAppUrl(req)}/tasks`;
-        const basePayload = { title: taskTitle, task_title: taskTitle, ...scopePayload, lien: taskLink };
+        const taskUserName = await resolveUserName(req.userId);
+        const basePayload = { title: taskTitle, task_title: taskTitle, user_name: taskUserName, ...scopePayload, lien: taskLink };
 
         if (req.body.status !== undefined && req.body.status !== existing.status) {
           const newStatus = task.status ?? req.body.status;
@@ -4397,7 +4416,11 @@ app.get("/config/feature-flags", async (_req, res) => {
 
       try {
         const { emitEvent } = await import("./automationEngine");
-        await emitEvent("note.created", { title: note.title ?? "", user_name: req.userId ?? "", tag: (note as any).categoryId ?? "", lien: `${getAppUrl(req)}/notes` }, req.accountId!);
+        const [noteUserName, noteTagName] = await Promise.all([
+          resolveUserName(req.userId),
+          resolveNoteCategoryName((note as any).categoryId),
+        ]);
+        await emitEvent("note.created", { title: note.title ?? "", user_name: noteUserName, tag: noteTagName, lien: `${getAppUrl(req)}/notes` }, req.accountId!);
       } catch (_) {}
 
       res.json(note);
@@ -4446,7 +4469,11 @@ app.get("/config/feature-flags", async (_req, res) => {
         });
         try {
           const { emitEvent } = await import("./automationEngine");
-          await emitEvent("note.updated", { title: note?.title ?? "", user_name: req.userId ?? "", tag: (note as any)?.categoryId ?? "", lien: `${getAppUrl(req)}/notes` }, req.accountId!);
+          const [updUserName, updTagName] = await Promise.all([
+            resolveUserName(req.userId),
+            resolveNoteCategoryName((note as any)?.categoryId),
+          ]);
+          await emitEvent("note.updated", { title: note?.title ?? "", user_name: updUserName, tag: updTagName, lien: `${getAppUrl(req)}/notes` }, req.accountId!);
         } catch (_) {}
       }
       
