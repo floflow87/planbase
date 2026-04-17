@@ -47,6 +47,7 @@ import { supabase } from "@/lib/supabase";
 
 import { getBillingStatusColorClass } from "@shared/config";
 import { useProjectStagesUI } from "@/hooks/useProjectStagesUI";
+import { AutomationButton } from "@/components/automations/AutomationDrawer";
 
 interface ProjectWithRelations extends Project {
   client?: Client;
@@ -3963,6 +3964,11 @@ export default function ProjectDetail() {
             >
               <Edit className="h-4 w-4" />
             </Button>
+            <AutomationButton
+              scopeType="project"
+              scopeId={id}
+              scopeLabel={project.name}
+            />
             <Button 
               variant="destructive" 
               size="icon"
