@@ -22,7 +22,7 @@ import {
   Loader2, User, Mail, Briefcase, UserCircle, Phone, Building2, Lock, Eye, EyeOff, 
   Settings as SettingsIcon, Puzzle, Shield, Clock, AlertTriangle, Save, RotateCcw, 
   DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check, Users, Trash2, CreditCard, Camera, LayoutTemplate,
-  SunMedium, Moon, Monitor, Languages, Bell
+  SunMedium, Moon, Monitor, Languages, Bell, Zap
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useLanguage, type Language } from "@/contexts/LanguageContext";
@@ -33,6 +33,7 @@ import { IntegrationsTab } from "@/components/settings/IntegrationsTab";
 import { EmailTemplatesTab } from "@/pages/email-templates";
 import { AuditTab } from "@/components/settings/AuditTab";
 import { SubscriptionTab } from "@/components/settings/SubscriptionTab";
+import { AutomationDrawer } from "@/components/automations/AutomationDrawer";
 import { USER_PROFILES, type UserProfileType } from "@shared/userProfiles";
 import { LoadingState } from "@/design-system/patterns/LoadingState";
 import { useOnboarding } from "@/contexts/OnboardingContext";
@@ -1136,6 +1137,10 @@ export default function Settings() {
               <CreditCard className="w-3.5 h-3.5" />
               {t.settings.tabs.subscription}
             </TabsTrigger>
+            <TabsTrigger value="automations" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-automations">
+              <Zap className="w-3.5 h-3.5 text-yellow-500" />
+              Automatisations
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="informations" className="space-y-4">
@@ -1790,6 +1795,10 @@ export default function Settings() {
             <SubscriptionTab />
           </TabsContent>
 
+          <TabsContent value="automations" className="space-y-6">
+            <AutomationsSettingsTab />
+          </TabsContent>
+
           <TabsContent value="preferences" className="space-y-6">
             <PreferencesTabContent />
           </TabsContent>
@@ -1797,6 +1806,53 @@ export default function Settings() {
 
         <ConfigDebugPanel />
       </div>
+    </div>
+  );
+}
+
+function AutomationsSettingsTab() {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  return (
+    <div className="space-y-4" data-testid="section-automations">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <Zap className="w-4 h-4 text-yellow-500" />
+            Automatisations globales
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Ces automatisations s'appliquent à toute l'organisation, tous projets et backlogs confondus.
+          </p>
+        </div>
+        <Button size="sm" className="gap-1.5 shrink-0" onClick={() => setDrawerOpen(true)} data-testid="button-open-global-automations">
+          <Zap className="w-3.5 h-3.5" />
+          Gérer
+        </Button>
+      </div>
+
+      <div className="rounded-md border bg-muted/20 p-4 space-y-3">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Exemples de cas d'usage</p>
+        <ul className="space-y-2 text-xs text-muted-foreground">
+          {[
+            { icon: "🎯", text: "Notifier Slack quand un ticket est priorisé dans n'importe quel backlog" },
+            { icon: "🏆", text: "Alerter quand un deal CRM passe en statut « Gagné »" },
+            { icon: "🚀", text: "Informer l'équipe quand un projet est créé" },
+            { icon: "✅", text: "Notifier à la complétion de n'importe quelle tâche" },
+          ].map((item, i) => (
+            <li key={i} className="flex items-start gap-2">
+              <span>{item.icon}</span>
+              <span>{item.text}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <AutomationDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        scopeType="global"
+        scopeLabel="Organisation"
+      />
     </div>
   );
 }

@@ -27,6 +27,7 @@ import { Loader } from "@/components/Loader";
 import { PermissionGuard, Can, ReadOnlyBadge } from "@/components/Can";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { AutomationButton } from "@/components/automations/AutomationDrawer";
 import {
   DndContext,
   closestCenter,
@@ -1094,6 +1095,7 @@ export default function CRM() {
               <Download className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">{t.crm.export}</span>
             </Button>
+            <AutomationButton scopeType="crm" scopeLabel="CRM" />
             <Can module="crm" action="create">
               <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-new-client">
                 <Plus className="w-4 h-4 sm:mr-2" />

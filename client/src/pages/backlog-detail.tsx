@@ -91,6 +91,7 @@ import { TicketDetailPanel, type TicketRecipeInfo, type TicketViewSettings } fro
 import { Switch } from "@/components/ui/switch";
 import { Settings2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { AutomationButton } from "@/components/automations/AutomationDrawer";
 
 type BacklogData = Backlog & {
   epics: Epic[];
@@ -2318,6 +2319,7 @@ export default function BacklogDetail() {
                 Colonne
               </Button>
             )}
+            <AutomationButton scopeType="backlog" scopeId={backlog.id} scopeLabel={backlog.name} />
           </div>
           
           {/* Right: Filters and Sort */}

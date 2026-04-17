@@ -2497,6 +2497,31 @@ export const insertTreasurySettingsSchema = createInsertSchema(treasurySettings)
 export type InsertTreasurySettings = z.infer<typeof insertTreasurySettingsSchema>;
 export type TreasurySettings = typeof treasurySettings.$inferSelect;
 
+// ============================================
+// AUTOMATIONS (Slack notifications)
+// ============================================
+
+export const automations = pgTable("automations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  scopeType: text("scope_type").notNull().default("global"), // global | project | backlog | roadmap | crm
+  scopeId: uuid("scope_id"), // null if global
+  isActive: boolean("is_active").notNull().default(true),
+  eventType: text("event_type").notNull(),
+  conditions: jsonb("conditions").notNull().default([]),
+  actionType: text("action_type").notNull().default("slack_message"),
+  slackWebhookUrl: text("slack_webhook_url"),
+  messageTemplate: text("message_template").notNull().default(""),
+  createdBy: uuid("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertAutomationSchema = createInsertSchema(automations).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertAutomation = z.infer<typeof insertAutomationSchema>;
+export type Automation = typeof automations.$inferSelect;
+
 // Email Templates
 export const emailTemplates = pgTable("email_templates", {
   id: uuid("id").primaryKey().defaultRandom(),

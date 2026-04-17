@@ -1,0 +1,318 @@
+🚀 Prompt Replit — Système d’automatisations Slack (type Notion)
+
+Je souhaite implémenter un système d’automatisations Slack dans mon application (PlanBase), inspiré de Notion.
+
+Objectif :
+
+- permettre de créer des automatisations Slack :
+  - au niveau global (settings)
+  - au niveau local (projet, backlog, CRM, roadmap, etc.)
+- déclencher des notifications Slack en fonction d’événements métier
+- garder une architecture scalable, centralisée et maintenable
+
+---
+
+🧠 1. Vision produit
+
+Je veux un système où :
+
+- chaque entité (projet, backlog, roadmap, pipeline CRM…) peut avoir ses propres automatisations
+- il existe aussi des automatisations globales
+- les automatisations sont basées sur :
+  - un trigger
+  - des conditions
+  - une action (Slack)
+
+---
+
+🧱 2. Architecture globale
+
+A. Event-driven system (obligatoire)
+
+Créer un système d’événements central :
+
+type AppEvent =
+  | "backlog.created"
+  | "backlog.updated"
+  | "backlog.prioritized"
+  | "backlog.completed"
+  | "project.created"
+  | "project.updated"
+  | "roadmap.updated"
+  | "crm.deal_created"
+  | "crm.deal_won"
+  | "crm.stage_changed";
+
+Chaque action métier importante doit déclencher un event via :
+
+emitEvent(event: AppEvent, payload: any)
+
+---
+
+B. Automation Engine
+
+Créer un service central :
+
+handleEvent(event: AppEvent, payload: any)
+
+Ce service :
+- récupère les automatisations actives
+- filtre selon conditions
+- exécute les actions (Slack)
+
+---
+
+🗄️ 3. Modèle de données
+
+Créer une table :
+
+automations
+
+Champs :
+
+- id
+- organization_id
+- scope_type :
+  - global
+  - project
+  - backlog
+  - roadmap
+  - crm
+- scope_id (nullable si global)
+- name
+- is_active (boolean)
+
+Trigger :
+- event_type (ex: backlog.prioritized)
+
+Conditions (JSON) :
+
+{
+  "priority_status": "prioritized",
+  "project_id": "xxx"
+}
+
+Action :
+- action_type = "slack_message"
+
+Slack config :
+- slack_webhook_url (ou référencer settings)
+- channel (optionnel)
+- message_template (string dynamique)
+
+Metadata :
+- created_at
+- updated_at
+- created_by
+
+---
+
+⚙️ 4. Niveaux d’automatisation
+
+A. Global (settings)
+
+Accessible via :
+Settings → Automations
+
+- scope_type = global
+- s’applique à toute l’organisation
+
+---
+
+B. Local (contextuel)
+
+Accessible depuis :
+- page projet
+- page backlog
+- page roadmap
+- page CRM
+
+Bouton :
+“⚡ Automatiser”
+
+Comportement :
+- scope_type = project / backlog / etc.
+- scope_id = id de l’entité
+
+---
+
+🎯 5. UX à implémenter
+
+A. Bouton dans chaque page
+
+Ex :
+dans un projet → “⚡ Automatiser”
+
+---
+
+B. Drawer / modal
+
+Créer une automation avec :
+
+1. Nom
+
+2. Trigger (dropdown)
+- ticket créé
+- ticket priorisé
+- ticket terminé
+- projet mis à jour
+- deal gagné
+- etc.
+
+3. Conditions (optionnel)
+UI simple :
+- champ
+- opérateur
+- valeur
+
+Ex :
+- priorité = priorisé
+- stage = won
+
+4. Action
+
+Slack uniquement en V1 :
+- webhook URL
+- message template
+
+---
+
+💬 6. Message Slack (templating)
+
+Permettre variables dynamiques :
+
+Ex :
+
+🎯 Ticket priorisé : {{title}}
+Projet : {{project_name}}
+Par : {{user_name}}
+
+Variables disponibles depuis payload
+
+---
+
+🔁 7. Exécution
+
+Lors d’un event :
+
+1. récupérer toutes les automations :
+   - globales
+   - + celles du scope (ex: projet_id)
+
+2. filtrer :
+   - event_type match
+   - conditions match
+
+3. envoyer message Slack
+
+---
+
+🔐 8. Slack integration
+
+V1 :
+- utiliser webhook Slack entrant
+
+POST :
+{
+  "text": "message"
+}
+
+V2 (plus tard) :
+- Slack App
+- multi-channel
+- mentions utilisateurs
+
+---
+
+🧠 9. Règles importantes
+
+- ne pas dupliquer les automations
+- centraliser la logique dans Automation Engine
+- ne jamais appeler Slack directement depuis les modules métier
+- tout passe par emitEvent
+
+---
+
+⚠️ 10. Gestion du bruit
+
+Ajouter :
+- debounce (optionnel)
+- limitation de certains events
+- regroupement possible (V2)
+
+---
+
+🧩 11. Cas d’usage à couvrir
+
+Backlog :
+- ticket priorisé
+- ticket terminé
+
+Projet :
+- projet créé
+- milestone atteinte
+
+CRM :
+- deal gagné
+- changement de stage
+
+---
+
+📦 12. Structure front
+
+Créer composants :
+
+- AutomationList
+- AutomationDrawer
+- AutomationForm
+- ConditionBuilder
+- SlackMessagePreview
+
+---
+
+📡 13. API endpoints
+
+- GET /automations
+- POST /automations
+- PATCH /automations/:id
+- DELETE /automations/:id
+
+---
+
+✅ 14. Résultat attendu
+
+Je veux :
+
+- créer une automation globale
+- créer une automation spécifique à un projet ou backlog
+- déclencher un message Slack automatiquement
+- personnaliser triggers et messages
+- UX simple type Notion
+
+---
+
+🎯 15. Priorité d’implémentation
+
+1. Event system
+2. Automation table
+3. Slack webhook integration
+4. UI création automation
+5. Liaison scope (project/backlog)
+6. conditions simples
+
+---
+
+✨ Objectif final
+
+Créer un système où :
+
+- chaque page peut devenir intelligente
+- les équipes sont notifiées automatiquement
+- les actions produit génèrent des flux Slack utiles
+- le système est extensible
+
+---
+
+🧠 Vision produit finale
+
+“Chaque objet du produit peut déclencher des actions intelligentes, sans code, simplement via des règles.”

@@ -117,6 +117,8 @@ import {
   insertTreasurySettingsSchema,
   type TreasuryCategory,
   clients,
+  automations,
+  insertAutomationSchema,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth, requireOrgMember, requireOrgAdmin, requirePermission } from "./middleware/auth";
@@ -126,7 +128,7 @@ import { configService } from "./services/configService";
 import { supabaseAdmin } from "./lib/supabase";
 import { google } from "googleapis";
 import { db } from "./db";
-import { eq, and, asc, desc, not, sql, inArray } from "drizzle-orm";
+import { eq, and, asc, desc, not, sql, inArray, or, isNull } from "drizzle-orm";
 
 // Default view configurations for all modules
 function getDefaultViewConfig(module: string): any {
@@ -15356,6 +15358,105 @@ app.get("/config/feature-flags", async (_req, res) => {
       res.json(duplicate);
     } catch (e: any) {
       res.status(400).json({ error: e.message });
+    }
+  });
+
+  // ============================================
+  // AUTOMATIONS
+  // ============================================
+
+  app.get("/api/automations", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { scopeType, scopeId } = req.query as { scopeType?: string; scopeId?: string };
+      const results = await db
+        .select()
+        .from(automations)
+        .where(
+          and(
+            eq(automations.accountId, req.accountId!),
+            scopeType ? eq(automations.scopeType, scopeType) : undefined,
+            scopeType === "global" ? isNull(automations.scopeId) :
+              scopeId ? eq(automations.scopeId, scopeId) : undefined
+          )
+        )
+        .orderBy(desc(automations.createdAt));
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/automations", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const parsed = insertAutomationSchema.safeParse({
+        ...req.body,
+        accountId: req.accountId,
+        createdBy: req.userId,
+      });
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      const [created] = await db.insert(automations).values(parsed.data).returning();
+      res.json(created);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/automations/:id", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [existing] = await db.select().from(automations).where(
+        and(eq(automations.id, id), eq(automations.accountId, req.accountId!))
+      );
+      if (!existing) return res.status(404).json({ error: "Automation not found" });
+      const [updated] = await db.update(automations)
+        .set({ ...req.body, updatedAt: new Date() })
+        .where(eq(automations.id, id))
+        .returning();
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/automations/:id", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [existing] = await db.select().from(automations).where(
+        and(eq(automations.id, id), eq(automations.accountId, req.accountId!))
+      );
+      if (!existing) return res.status(404).json({ error: "Automation not found" });
+      await db.delete(automations).where(eq(automations.id, id));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/automations/:id/test", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [auto] = await db.select().from(automations).where(
+        and(eq(automations.id, id), eq(automations.accountId, req.accountId!))
+      );
+      if (!auto) return res.status(404).json({ error: "Automation not found" });
+      if (!auto.slackWebhookUrl) return res.status(400).json({ error: "No webhook URL configured" });
+      const testPayload = { title: "Test ticket", project_name: "Projet démo", user_name: "Alice", status: "prioritized" };
+      function interpolate(tpl: string, payload: any) {
+        return tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => payload[k] ?? `{{${k}}}`);
+      }
+      const message = interpolate(auto.messageTemplate || `🤖 Test — automation "${auto.name}" fonctionne correctement !`, testPayload);
+      const response = await fetch(auto.slackWebhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: message }),
+      });
+      if (!response.ok) {
+        const body = await response.text();
+        return res.status(400).json({ error: `Slack error: ${response.status} — ${body}` });
+      }
+      res.json({ success: true, message });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 

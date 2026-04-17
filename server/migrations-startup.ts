@@ -2969,6 +2969,32 @@ export async function runStartupMigrations() {
     }
     // ─────────────────────────────────────────────────────────────
 
+    // ── Automations table ──
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS automations (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+          name text NOT NULL,
+          scope_type text NOT NULL DEFAULT 'global',
+          scope_id uuid,
+          is_active boolean NOT NULL DEFAULT true,
+          event_type text NOT NULL,
+          conditions jsonb NOT NULL DEFAULT '[]',
+          action_type text NOT NULL DEFAULT 'slack_message',
+          slack_webhook_url text,
+          message_template text NOT NULL DEFAULT '',
+          created_by uuid,
+          created_at timestamptz DEFAULT now(),
+          updated_at timestamptz DEFAULT now()
+        )
+      `);
+      console.log("✅ Automations table created");
+    } catch (e: any) {
+      console.warn("⚠️  Automations table migration (non-blocking):", e.message);
+    }
+    // ─────────────────────────────────────────────────────────────
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
