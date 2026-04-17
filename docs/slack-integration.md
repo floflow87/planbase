@@ -1,5 +1,14 @@
 # Intégration Slack — Documentation PlanBase
 
+## Disponibilité
+
+> **Module réservé au plan Agence uniquement.**  
+> L'intégration Slack et le moteur d'automatisation ne sont pas disponibles pour les plans Freelance ou Starter.  
+> Le bouton "Automatisations" (éclair) reste visible mais affiche un message d'accès restreint pour les utilisateurs hors plan Agence.  
+> L'onglet "Intégrations" des Paramètres affiche également le statut de connexion Slack, accessible en lecture seule sur les autres plans.
+
+---
+
 ## Vue d'ensemble
 
 L'intégration Slack de PlanBase permet à chaque organisation de connecter son propre espace de travail Slack. Une fois connectée, vous pouvez configurer des automatisations pour envoyer des notifications Slack automatiquement en fonction d'événements (création d'une tâche, changement de statut d'un deal, mise à jour d'une roadmap, etc.).
@@ -73,6 +82,47 @@ L'URL de callback complète construite par le backend :
 | `GET` | `/api/slack/status` | Retourne `{ connected, teamName, channelId }` pour l'org courante |
 | `GET` | `/api/slack/channels` | Liste les channels du workspace connecté |
 | `DELETE` | `/api/slack/disconnect` | Supprime le token Slack de l'org courante |
+
+---
+
+## Emplacement dans l'interface (Paramètres)
+
+L'intégration Slack se gère dans **Paramètres → Intégrations**.  
+L'onglet est accessible uniquement aux administrateurs de l'organisation.
+
+| Élément UI | Description |
+|---|---|
+| **Bouton "Connecter Slack"** | Lance le flux OAuth 2.0 pour associer un workspace Slack |
+| **Statut connecté** | Affiche le nom du workspace, le channel par défaut, et un bouton "Déconnecter" |
+| **Onglet Automatisations** | Vue globale de toutes les règles actives (toutes scopes confondues) |
+| **Bouton "Gérer ce scope"** | Ouvre le drawer d'automatisation pré-rempli pour modifier une règle existante |
+
+> L'onglet **Automatisations** est positionné après **Templates** dans la barre de navigation des paramètres.  
+> L'onglet **Intégrations** est positionné après **Automatisations**, avant **Sécurité**.
+
+---
+
+## Moteur d'automatisation
+
+Le moteur (`server/automationEngine.ts`) intercepte les événements métier émis depuis les routes et exécute les règles configurées.
+
+### Scopes supportés
+
+| Scope | Événements |
+|---|---|
+| `global` | Tous événements |
+| `project` | `project.created`, `project.updated`, `project.milestone_reached`, tâches |
+| `backlog` | `backlog.ticket_created`, `backlog.sprint_started`, `backlog.sprint_completed`, etc. |
+| `crm` | `crm.deal_created`, `crm.deal_won`, `crm.stage_changed`, `crm.client_created` |
+| `roadmap` | `roadmap.updated`, `roadmap.item_created`, `roadmap.item_completed` |
+| `notes` | `note.created`, `note.updated` |
+
+### Variables système injectées automatiquement
+
+| Variable | Source |
+|---|---|
+| `{{date}}` | Date ISO courante (injectée par le moteur pour tous les événements) |
+| `{{user_name}}` | Résolu depuis l'`account_id` de la session |
 
 ---
 

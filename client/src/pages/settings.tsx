@@ -1121,13 +1121,17 @@ export default function Settings() {
               <Users className="w-3.5 h-3.5" />
               {t.settings.tabs.permissions}
             </TabsTrigger>
-            <TabsTrigger value="integrations" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-integrations">
-              <Puzzle className="w-3.5 h-3.5" />
-              {t.settings.tabs.integrations}
-            </TabsTrigger>
             <TabsTrigger value="templates" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-templates">
               <LayoutTemplate className="w-3.5 h-3.5" />
               {t.settings.tabs.templates}
+            </TabsTrigger>
+            <TabsTrigger value="automations" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-automations">
+              <Zap className="w-3.5 h-3.5 text-white" />
+              Automatisations
+            </TabsTrigger>
+            <TabsTrigger value="integrations" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-integrations">
+              <Puzzle className="w-3.5 h-3.5" />
+              {t.settings.tabs.integrations}
             </TabsTrigger>
             <TabsTrigger value="security" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-security">
               <Shield className="w-3.5 h-3.5" />
@@ -1136,10 +1140,6 @@ export default function Settings() {
             <TabsTrigger value="subscription" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-subscription">
               <CreditCard className="w-3.5 h-3.5" />
               {t.settings.tabs.subscription}
-            </TabsTrigger>
-            <TabsTrigger value="automations" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-automations">
-              <Zap className="w-3.5 h-3.5 text-yellow-500" />
-              Automatisations
             </TabsTrigger>
           </TabsList>
 
@@ -1812,7 +1812,7 @@ export default function Settings() {
 
 function AutomationsSettingsTab() {
   const { toast } = useToast();
-  const [drawerScope, setDrawerScope] = useState<{ open: boolean; scopeType: string }>({ open: false, scopeType: "global" });
+  const [drawerScope, setDrawerScope] = useState<{ open: boolean; scopeType: string; scopeId?: string; editAutomation?: any }>({ open: false, scopeType: "global" });
   const qKey = ["/api/automations", "all"];
 
   const { data: allAutomations = [], isLoading } = useQuery<any[]>({
@@ -1892,7 +1892,7 @@ function AutomationsSettingsTab() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-xs font-medium truncate">{auto.name}</span>
-                          <Badge variant={auto.isActive ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                          <Badge variant={auto.isActive ? "default" : "secondary"} className="text-[9px] px-1 py-0 h-3.5">
                             {auto.isActive ? "Actif" : "Inactif"}
                           </Badge>
                         </div>
@@ -1913,6 +1913,7 @@ function AutomationsSettingsTab() {
                         checked={auto.isActive}
                         onCheckedChange={(v) => toggleMutation.mutate({ id: auto.id, isActive: v })}
                         data-testid={`switch-automation-settings-${auto.id}`}
+                        className="scale-[0.7] origin-right"
                       />
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -1920,7 +1921,7 @@ function AutomationsSettingsTab() {
                         variant="outline"
                         size="sm"
                         className="text-xs h-7 gap-1"
-                        onClick={() => setDrawerScope({ open: true, scopeType: auto.scopeType ?? "global" })}
+                        onClick={() => setDrawerScope({ open: true, scopeType: auto.scopeType ?? "global", scopeId: auto.scopeId ?? undefined, editAutomation: auto })}
                         data-testid={`button-edit-scope-${auto.id}`}
                       >
                         <Zap className="w-3 h-3" />
@@ -1952,7 +1953,9 @@ function AutomationsSettingsTab() {
           if (!v) queryClient.invalidateQueries({ queryKey: qKey });
         }}
         scopeType={drawerScope.scopeType as any}
+        scopeId={drawerScope.scopeId}
         scopeLabel={SCOPE_LABELS[drawerScope.scopeType] ?? drawerScope.scopeType}
+        initialEditAutomation={drawerScope.editAutomation}
       />
     </div>
   );

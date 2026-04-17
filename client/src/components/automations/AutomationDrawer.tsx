@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -26,6 +26,7 @@ interface AutomationDrawerProps {
   scopeType?: AutomationScopeType;
   scopeId?: string;
   scopeLabel?: string;
+  initialEditAutomation?: any;
 }
 
 export const EVENT_OPTIONS: { value: string; label: string; variables: string[] }[] = [
@@ -254,13 +255,32 @@ interface SlackStatus {
   connectedAt?: string;
 }
 
-export function AutomationDrawer({ open, onOpenChange, scopeType = "global", scopeId, scopeLabel }: AutomationDrawerProps) {
+export function AutomationDrawer({ open, onOpenChange, scopeType = "global", scopeId, scopeLabel, initialEditAutomation }: AutomationDrawerProps) {
   const { toast } = useToast();
   const [view, setView] = useState<"list" | "form">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<AutomationFormData>(DEFAULT_FORM);
   const [testingId, setTestingId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (open && initialEditAutomation) {
+      setForm({
+        name: initialEditAutomation.name ?? "",
+        eventType: initialEditAutomation.eventType ?? "",
+        conditions: Array.isArray(initialEditAutomation.conditions) ? initialEditAutomation.conditions : [],
+        slackChannelId: initialEditAutomation.slackChannelId || initialEditAutomation.slack_channel_id || "",
+        slackChannelName: initialEditAutomation.slackChannelName || initialEditAutomation.slack_channel_name || "",
+        messageTemplate: initialEditAutomation.messageTemplate || "",
+      });
+      setEditingId(initialEditAutomation.id);
+      setView("form");
+    } else if (!open) {
+      setView("list");
+      setEditingId(null);
+      setForm(DEFAULT_FORM);
+    }
+  }, [open, initialEditAutomation]);
 
   function insertVariable(variable: string) {
     const el = textareaRef.current;
