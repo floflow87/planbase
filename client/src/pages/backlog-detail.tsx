@@ -3799,6 +3799,7 @@ function EpicDialog({
   onUpdate: (data: Partial<Epic>) => void;
   isPending: boolean;
 }) {
+  const { t } = useLanguage();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
@@ -3929,6 +3930,7 @@ function UserStoryDialog({
   onUpdate: (data: Partial<UserStory>) => void;
   isPending: boolean;
 }) {
+  const { t } = useLanguage();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [epicId, setEpicId] = useState<string | null>(null);
@@ -4068,6 +4070,7 @@ function TaskDialog({
   onCreate: (data: { userStoryId: string; title: string; description?: string }) => void;
   isPending: boolean;
 }) {
+  const { t } = useLanguage();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
@@ -4131,6 +4134,7 @@ function SprintSheet({
   onUpdate: (data: Partial<Sprint>) => void;
   isPending: boolean;
 }) {
+  const { t } = useLanguage();
   const [name, setName] = useState("");
   const [goal, setGoal] = useState("");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
@@ -4358,6 +4362,7 @@ function ColumnDialog({
   onCreate: (data: { name: string; color: string }) => void;
   isPending: boolean;
 }) {
+  const { t } = useLanguage();
   const [name, setName] = useState("");
   const [color, setColor] = useState("#E5E7EB");
 
@@ -4431,6 +4436,7 @@ function KanbanTaskDialogComponent({
   onCreate: (data: { title: string; description?: string; priority?: string; columnId: string }) => void;
   isPending: boolean;
 }) {
+  const { t } = useLanguage();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
@@ -4677,6 +4683,7 @@ function CompletedTicketsView({
   };
   const [sortColumn, setSortColumn] = useState<string>("title");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterSprint, setFilterSprint] = useState<string>("all");
   const [filterEpic, setFilterEpic] = useState<string>("all");
@@ -5768,6 +5775,7 @@ function BacklogStats({
   onNavigateToBacklog?: () => void;
   onCloseSprint?: (sprintId: string) => void;
 }) {
+  const { t } = useLanguage();
   const [burnMode, setBurnMode] = useState<'points' | 'tickets'>('points');
   const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
   
@@ -6730,6 +6738,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
     }
     return [];
   });
+  const { t } = useLanguage();
   const [expandedRecipeSprints, setExpandedRecipeSprints] = useState<Set<string>>(new Set());
   const [recipeSearchQuery, setRecipeSearchQuery] = useState("");
   const [selectedRecipeTickets, setSelectedRecipeTickets] = useState<Set<string>>(new Set());
