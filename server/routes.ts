@@ -1770,6 +1770,29 @@ app.get("/config/feature-flags", async (_req, res) => {
       });
 
       res.json(project);
+
+      // Fire automation event (non-blocking)
+      try {
+        const { emitEvent } = await import("./automationEngine");
+        const [projectUserName, clientName] = await Promise.all([
+          resolveUserName(req.userId),
+          project.clientId
+            ? (async () => {
+                try {
+                  const c = await storage.getClient(project.clientId!);
+                  return c?.company || c?.name || "";
+                } catch (_) { return ""; }
+              })()
+            : Promise.resolve(""),
+        ]);
+        await emitEvent("project.created", {
+          project_name: project.name,
+          user_name: projectUserName,
+          client_name: clientName,
+          status: project.stage ?? "",
+          lien: `${getAppUrl(req)}/projects/${project.id}`,
+        }, req.accountId!);
+      } catch (_) {}
     } catch (error: any) {
       console.error("[ERROR] Failed to create project:", error);
       console.error("[ERROR] Error message:", error.message);
@@ -1944,6 +1967,18 @@ app.get("/config/feature-flags", async (_req, res) => {
       });
 
       res.json(project);
+
+      // Fire automation event (non-blocking)
+      try {
+        const { emitEvent } = await import("./automationEngine");
+        const projUserName = await resolveUserName(req.userId);
+        await emitEvent("project.updated", {
+          project_name: project!.name,
+          user_name: projUserName,
+          status: project!.stage ?? "",
+          lien: `${getAppUrl(req)}/projects/${project!.id}`,
+        }, req.accountId!);
+      } catch (_) {}
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -4469,11 +4504,12 @@ app.get("/config/feature-flags", async (_req, res) => {
         });
         try {
           const { emitEvent } = await import("./automationEngine");
+          const catId = (existing as any)?.categoryId ?? (note as any)?.categoryId ?? null;
           const [updUserName, updTagName] = await Promise.all([
             resolveUserName(req.userId),
-            resolveNoteCategoryName((note as any)?.categoryId),
+            resolveNoteCategoryName(catId),
           ]);
-          await emitEvent("note.updated", { title: note?.title ?? "", user_name: updUserName, tag: updTagName, lien: `${getAppUrl(req)}/notes` }, req.accountId!);
+          await emitEvent("note.updated", { title: note?.title ?? "", user_name: updUserName, tag: updTagName || "", lien: `${getAppUrl(req)}/notes` }, req.accountId!);
         } catch (_) {}
       }
       
@@ -10268,6 +10304,22 @@ app.get("/config/feature-flags", async (_req, res) => {
       });
       
       res.status(201).json(userStory);
+
+      // Fire automation event (non-blocking)
+      try {
+        const { emitEvent } = await import("./automationEngine");
+        const [storyUserName] = await Promise.all([resolveUserName(userId)]);
+        await emitEvent("backlog.ticket_created", {
+          title: userStory.title,
+          backlog_name: backlogId,
+          product_name: "",
+          user_name: storyUserName,
+          priority: userStory.priority ?? "",
+          scope_id: backlogId,
+          scopeType: "backlog",
+          lien: `${getAppUrl(req)}/product`,
+        }, accountId);
+      } catch (_) {}
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -10729,6 +10781,21 @@ app.get("/config/feature-flags", async (_req, res) => {
         return res.status(404).json({ error: "Sprint not found" });
       }
       res.json(updated);
+
+      // Fire automation event (non-blocking)
+      try {
+        const { emitEvent } = await import("./automationEngine");
+        const sprintUserName = await resolveUserName(req.userId);
+        await emitEvent("backlog.sprint_started", {
+          sprint_name: updated.name,
+          backlog_name: updated.backlogId,
+          product_name: "",
+          user_name: sprintUserName,
+          scope_id: updated.backlogId,
+          scopeType: "backlog",
+          lien: `${getAppUrl(req)}/product`,
+        }, accountId);
+      } catch (_) {}
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -10817,6 +10884,21 @@ app.get("/config/feature-flags", async (_req, res) => {
         movedTickets: totalUnfinished,
         redirectedTo: redirectTo === 'backlog' ? 'backlog' : targetSprintId
       });
+
+      // Fire automation event (non-blocking)
+      try {
+        const { emitEvent } = await import("./automationEngine");
+        const sprintUserName = await resolveUserName(req.userId);
+        await emitEvent("backlog.sprint_completed", {
+          sprint_name: sprint.name,
+          backlog_name: sprint.backlogId,
+          product_name: "",
+          user_name: sprintUserName,
+          scope_id: sprint.backlogId,
+          scopeType: "backlog",
+          lien: `${getAppUrl(req)}/product`,
+        }, accountId);
+      } catch (_) {}
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

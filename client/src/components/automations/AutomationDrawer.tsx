@@ -65,6 +65,7 @@ export const EVENT_OPTIONS: { value: string; label: string; variables: string[] 
 const SCOPE_EVENT_FILTER: Record<AutomationScopeType, string[] | null> = {
   global: null,
   project: [
+    "project.created", "project.updated", "project.milestone_reached",
     "task.created", "task.completed", "task.status_changed",
     "task.priority_changed", "task.effort_changed", "task.due_date_changed", "task.assigned",
   ],

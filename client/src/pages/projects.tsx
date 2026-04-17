@@ -109,6 +109,7 @@ import {
   getStatusFromColumnName,
 } from "@shared/config";
 import { useProjectStagesUI } from "@/hooks/useProjectStagesUI";
+import { AutomationButton } from "@/components/automations/AutomationDrawer";
 import { TaskCardMenu } from "@/components/TaskCardMenu";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
@@ -3212,6 +3213,10 @@ export default function Projects() {
                     </PopoverContent>
                   </Popover>
                 )}
+                <AutomationButton
+                  scopeType="project"
+                  scopeLabel="Projets"
+                />
                 <Button 
                   data-testid="button-create-project"
                   onClick={() => {
