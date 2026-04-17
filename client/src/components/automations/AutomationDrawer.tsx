@@ -251,6 +251,31 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
     });
   }
 
+  function insertEmoji(emoji: string) {
+    const el = textareaRef.current;
+    if (!el) {
+      setForm(f => ({ ...f, messageTemplate: f.messageTemplate + emoji }));
+      return;
+    }
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const newVal = el.value.slice(0, start) + emoji + el.value.slice(end);
+    setForm(f => ({ ...f, messageTemplate: newVal }));
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start + emoji.length, start + emoji.length);
+    });
+  }
+
+  const EMOJI_SHORTCUTS = [
+    { emoji: "🔥", label: "Flamme" },
+    { emoji: "🚀", label: "Fusée" },
+    { emoji: "👍", label: "Pouce" },
+    { emoji: "🎉", label: "Tada" },
+    { emoji: "⚡", label: "Éclair" },
+    { emoji: "🚨", label: "Gyrophare" },
+  ];
+
   const qKey = ["/api/automations", scopeType, scopeId ?? "global"];
 
   const { data: automationList = [], isLoading } = useQuery<any[]>({
@@ -410,6 +435,12 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
               {scopeType === "global"
                 ? "Ces automatisations s'appliquent à toute l'organisation."
                 : `Automatisations spécifiques à ce ${scopeType}.`}
+            </p>
+          )}
+          {view === "form" && (
+            <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1.5">
+              <SiSlack className="w-3 h-3 flex-shrink-0" />
+              Pour activer le bot depuis Slack, renseignez <code className="bg-muted px-1 py-0.5 rounded text-[10px] font-mono">/invite @Planbase</code> dans le channel cible.
             </p>
           )}
         </SheetHeader>
@@ -702,6 +733,20 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                     ))}
                   </div>
                 )}
+                <div className="flex items-center gap-1">
+                  {EMOJI_SHORTCUTS.map(({ emoji, label }) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onMouseDown={e => { e.preventDefault(); insertEmoji(emoji); }}
+                      className="flex items-center justify-center w-7 h-7 rounded text-base hover-elevate cursor-pointer select-none border border-border bg-muted/30"
+                      data-testid={`button-emoji-${label.toLowerCase()}`}
+                      title={label}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
                 <Textarea
                   ref={textareaRef}
                   placeholder={"Ticket priorisé : {{title}}\nProjet : {{project_name}}\nPar : {{user_name}}"}
