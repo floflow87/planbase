@@ -114,7 +114,10 @@ const CONDITION_OPERATORS = [
 ];
 const VALUE_LESS_OPERATORS = new Set(["changed"]);
 
+const GLOBAL_VARIABLES = ["date"];
+
 const VARIABLE_LABELS: Record<string, string> = {
+  date: "date de mise à jour",
   deal_name: "opportunité",
   client_name: "nom du client",
   old_stage: "ancienne étape",
@@ -724,9 +727,8 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                     </span>
                   )}
                 </div>
-                {selectedEvent && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedEvent.variables.map(v => (
+                <div className="flex flex-wrap gap-1.5">
+                    {[...GLOBAL_VARIABLES, ...(selectedEvent ? selectedEvent.variables.filter(v => !GLOBAL_VARIABLES.includes(v)) : [])].map(v => (
                       <button
                         key={v}
                         type="button"
@@ -739,8 +741,7 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                         {VARIABLE_LABELS[v] ?? v}
                       </button>
                     ))}
-                  </div>
-                )}
+                </div>
                 <div className="flex items-center gap-1">
                   {EMOJI_SHORTCUTS.map(({ emoji, label }) => (
                     <button

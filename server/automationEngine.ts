@@ -125,7 +125,14 @@ export async function emitEvent(
           if (!evaluateConditions(conditions, payload)) return;
 
           if (auto.actionType === "slack_message") {
-            const message = interpolateTemplate(auto.messageTemplate, payload);
+            const enrichedPayload = {
+              date: new Date().toLocaleString("fr-FR", {
+                day: "2-digit", month: "2-digit", year: "numeric",
+                hour: "2-digit", minute: "2-digit",
+              }),
+              ...payload,
+            };
+            const message = interpolateTemplate(auto.messageTemplate, enrichedPayload);
             await sendMessage(auto, message, accountId);
             console.log(`✅ Automation "${auto.name}" triggered for event ${event}`);
           }
