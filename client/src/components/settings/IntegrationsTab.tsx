@@ -273,16 +273,16 @@ export function IntegrationsTab() {
                 {/* Status Badge */}
                 <div className="absolute top-3 right-3">
                   {isLoading ? (
-                    <Badge variant="secondary" className="gap-1 text-xs">
-                      <Loader2 className="h-3 w-3 animate-spin" />
+                    <Badge variant="secondary" className="gap-0.5 text-[10px] px-1.5 py-0">
+                      <Loader2 className="h-2.5 w-2.5 animate-spin" />
                     </Badge>
                   ) : isConnected ? (
-                    <Badge className="gap-1 text-xs bg-green-500 hover:bg-green-600 no-default-hover-elevate no-default-active-elevate">
-                      <CheckCircle className="h-3 w-3" />
+                    <Badge className="gap-0.5 text-[10px] px-1.5 py-0 bg-green-500 no-default-hover-elevate no-default-active-elevate">
+                      <CheckCircle className="h-2.5 w-2.5" />
                       Connecté
                     </Badge>
                   ) : !integration.available ? (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                       Bientôt disponible
                     </Badge>
                   ) : null}
