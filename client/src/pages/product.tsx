@@ -324,7 +324,7 @@ export default function Product() {
           <td className="px-4 py-2" key={columnId}>
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5 group/modetip">
-                <span className="text-xs font-bold text-white">{backlog.name}</span>
+                <span className="text-xs font-bold text-gray-900 dark:text-white">{backlog.name}</span>
                 <Badge
                   variant="secondary"
                   className="flex items-center gap-1 w-fit text-[10px] shrink-0 invisible group-hover/modetip:visible"

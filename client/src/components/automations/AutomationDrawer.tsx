@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import {
@@ -44,7 +45,46 @@ const EVENT_OPTIONS: { value: string; label: string; variables: string[] }[] = [
   { value: "task.completed", label: "Tâche terminée", variables: ["title", "project_name", "user_name"] },
 ];
 
-const CONDITION_FIELDS = ["priority", "status", "stage", "client_name", "project_name", "user_name"];
+const SCOPE_EVENT_FILTER: Record<AutomationScopeType, string[] | null> = {
+  global: null,
+  project: ["project.created", "project.updated", "project.milestone_reached", "task.created", "task.completed"],
+  backlog: ["backlog.created", "backlog.updated", "backlog.prioritized", "backlog.completed", "task.created", "task.completed"],
+  roadmap: ["roadmap.updated"],
+  crm: ["crm.deal_created", "crm.deal_won", "crm.stage_changed"],
+};
+
+const SCOPE_CONDITION_FIELDS: Record<AutomationScopeType, string[]> = {
+  global: ["priority", "status", "stage", "client_name", "project_name", "user_name"],
+  project: ["priority", "status", "project_name", "user_name"],
+  backlog: ["priority", "status", "project_name", "user_name"],
+  roadmap: ["project_name", "user_name"],
+  crm: ["stage", "client_name", "user_name"],
+};
+
+const CONDITION_VALUE_OPTIONS: Record<string, { value: string; label: string }[]> = {
+  priority: [
+    { value: "low", label: "Basse" },
+    { value: "medium", label: "Moyenne" },
+    { value: "high", label: "Haute" },
+    { value: "critical", label: "Critique" },
+  ],
+  status: [
+    { value: "todo", label: "À faire" },
+    { value: "in_progress", label: "En cours" },
+    { value: "done", label: "Terminé" },
+    { value: "cancelled", label: "Annulé" },
+  ],
+  stage: [
+    { value: "prospecting", label: "Prospect" },
+    { value: "qualified", label: "Qualifié" },
+    { value: "negotiation", label: "Négociation" },
+    { value: "quote_sent", label: "Devis envoyé" },
+    { value: "quote_approved", label: "Devis validé" },
+    { value: "won", label: "Gagné" },
+    { value: "lost", label: "Perdu" },
+  ],
+};
+
 const CONDITION_OPERATORS = [
   { value: "equals", label: "=" },
   { value: "not_equals", label: "≠" },
@@ -237,6 +277,12 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const isSlackConnected = slackStatus?.connected === true;
 
+  const filteredEventOptions = SCOPE_EVENT_FILTER[scopeType] === null
+    ? EVENT_OPTIONS
+    : EVENT_OPTIONS.filter(e => SCOPE_EVENT_FILTER[scopeType]!.includes(e.value));
+
+  const conditionFields = SCOPE_CONDITION_FIELDS[scopeType];
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[480px] sm:w-[520px] bg-white dark:bg-gray-900 flex flex-col gap-0 p-0" style={{ zIndex: 9999 }}>
@@ -405,7 +451,7 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                   <SelectValue placeholder="Choisir un événement..." />
                 </SelectTrigger>
                 <SelectContent style={{ zIndex: 10000 }}>
-                  {EVENT_OPTIONS.map(e => (
+                  {filteredEventOptions.map(e => (
                     <SelectItem key={e.value} value={e.value} className="text-sm">{e.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -421,36 +467,50 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                   Ajouter
                 </Button>
               </div>
-              {form.conditions.map((cond, i) => (
-                <div key={i} className="flex items-center gap-1.5">
-                  <Select value={cond.field} onValueChange={v => updateCondition(i, { field: v })}>
-                    <SelectTrigger className="text-xs h-8 flex-1" data-testid={`select-condition-field-${i}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent style={{ zIndex: 10000 }}>
-                      {CONDITION_FIELDS.map(f => <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Select value={cond.operator} onValueChange={v => updateCondition(i, { operator: v })}>
-                    <SelectTrigger className="text-xs h-8 w-28" data-testid={`select-condition-operator-${i}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent style={{ zIndex: 10000 }}>
-                      {CONDITION_OPERATORS.map(o => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    placeholder="valeur"
-                    value={cond.value}
-                    onChange={e => updateCondition(i, { value: e.target.value })}
-                    className="text-xs h-8 flex-1"
-                    data-testid={`input-condition-value-${i}`}
-                  />
-                  <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-destructive" onClick={() => removeCondition(i)}>
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              ))}
+              {form.conditions.map((cond, i) => {
+                const valueOptions = CONDITION_VALUE_OPTIONS[cond.field];
+                return (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <Select value={cond.field} onValueChange={v => updateCondition(i, { field: v, value: "" })}>
+                      <SelectTrigger className="text-xs h-8 flex-1" data-testid={`select-condition-field-${i}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent style={{ zIndex: 10000 }}>
+                        {conditionFields.map(f => <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Select value={cond.operator} onValueChange={v => updateCondition(i, { operator: v })}>
+                      <SelectTrigger className="text-xs h-8 w-24" data-testid={`select-condition-operator-${i}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent style={{ zIndex: 10000 }}>
+                        {CONDITION_OPERATORS.map(o => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    {valueOptions ? (
+                      <Select value={cond.value} onValueChange={v => updateCondition(i, { value: v })}>
+                        <SelectTrigger className="text-xs h-8 flex-1" data-testid={`select-condition-value-${i}`}>
+                          <SelectValue placeholder="Choisir..." />
+                        </SelectTrigger>
+                        <SelectContent style={{ zIndex: 10000 }}>
+                          {valueOptions.map(o => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        placeholder="valeur"
+                        value={cond.value}
+                        onChange={e => updateCondition(i, { value: e.target.value })}
+                        className="text-xs h-8 flex-1"
+                        data-testid={`input-condition-value-${i}`}
+                      />
+                    )}
+                    <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-destructive" onClick={() => removeCondition(i)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Slack Action */}
@@ -571,19 +631,25 @@ export function AutomationButton({ scopeType = "global", scopeId, scopeLabel, cl
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setOpen(true)}
-        className={`gap-2 ${className ?? ""}`}
-        data-testid="button-open-automations"
-      >
-        <Zap className="w-3.5 h-3.5 text-yellow-500" />
-        Automatisations
-        {count.length > 0 && (
-          <Badge variant="secondary" className="text-[10px] ml-0.5">{count.length}</Badge>
-        )}
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setOpen(true)}
+            className={`relative ${className ?? ""}`}
+            data-testid="button-open-automations"
+          >
+            <Zap className="w-4 h-4 text-yellow-500" />
+            {count.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-primary text-[9px] text-primary-foreground flex items-center justify-center leading-none font-medium">
+                {count.length}
+              </span>
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">Automatisations</TooltipContent>
+      </Tooltip>
       <AutomationDrawer
         open={open}
         onOpenChange={setOpen}

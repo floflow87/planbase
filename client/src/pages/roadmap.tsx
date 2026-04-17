@@ -8,6 +8,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket, Search, Filter, FileUp, Target, Columns, ChevronLeft, ChevronDown, Lightbulb } from "lucide-react";
+import { AutomationButton } from "@/components/automations/AutomationDrawer";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { Button } from "@/components/ui/button";
@@ -1299,18 +1300,23 @@ export default function RoadmapPage() {
                   OKR
                 </button>
               </div>
-              {selectedProjectId && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowRecommendations(v => !v)}
-                  className="h-7 px-2 text-[11px] gap-1.5 text-muted-foreground"
-                  data-testid="button-show-recommendations"
-                >
-                  <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
-                  Recos
-                </Button>
-              )}
+              <div className="flex items-center gap-1">
+                {selectedProjectId && (
+                  <AutomationButton scopeType="roadmap" scopeId={selectedProjectId} scopeLabel="Roadmap" />
+                )}
+                {selectedProjectId && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowRecommendations(v => !v)}
+                    className="h-7 px-2 text-[11px] gap-1.5 text-muted-foreground"
+                    data-testid="button-show-recommendations"
+                  >
+                    <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
+                    Recos
+                  </Button>
+                )}
+              </div>
             </div>
 
             {activeDetailTab === "roadmap" && (
