@@ -4224,29 +4224,29 @@ function SprintSheet({
         </SheetHeader>
         <div className="space-y-4 py-6">
           <div className="space-y-2">
-            <Label>Nom *</Label>
+            <Label className="text-xs">Nom *</Label>
             <Input 
               value={name} 
               onChange={(e) => setName(e.target.value)} 
               placeholder={t.common.ph.sprintName}
-              className=""
+              className="placeholder:text-xs"
               data-testid="input-sprint-name" 
             />
           </div>
           <div className="space-y-2">
-            <Label>Objectif</Label>
+            <Label className="text-xs">Objectif</Label>
             <Textarea 
               value={goal} 
               onChange={(e) => setGoal(e.target.value)} 
               rows={3} 
               placeholder={t.common.ph.sprintGoal}
-              className=""
+              className="placeholder:text-xs"
               data-testid="input-sprint-goal" 
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Date de début</Label>
+              <Label className="text-xs">Date de début</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -4258,7 +4258,7 @@ function SprintSheet({
                     {startDate ? (
                       format(startDate, "d MMM yyyy", { locale: fr })
                     ) : (
-                      <span className="text-muted-foreground">Choisir</span>
+                      <span className="text-muted-foreground text-xs">Choisir</span>
                     )}
                   </Button>
                 </PopoverTrigger>
@@ -4273,7 +4273,7 @@ function SprintSheet({
               </Popover>
             </div>
             <div className="space-y-2">
-              <Label>Date de fin</Label>
+              <Label className="text-xs">Date de fin</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -4285,7 +4285,7 @@ function SprintSheet({
                     {endDate ? (
                       format(endDate, "d MMM yyyy", { locale: fr })
                     ) : (
-                      <span className="text-muted-foreground">Choisir</span>
+                      <span className="text-muted-foreground text-xs">Choisir</span>
                     )}
                   </Button>
                 </PopoverTrigger>
@@ -4303,12 +4303,12 @@ function SprintSheet({
           {/* Roadmap item link */}
           {projectId && roadmapItemsData.length > 0 && (
             <div className="space-y-2">
-              <Label>Lier à un élément de roadmap</Label>
+              <Label className="text-xs">Lier à un élément de roadmap</Label>
               <Select 
                 value={roadmapItemId || "none"} 
                 onValueChange={(v) => setRoadmapItemId(v === "none" ? null : v)}
               >
-                <SelectTrigger className="" data-testid="select-sprint-roadmap-item">
+                <SelectTrigger className="text-xs" data-testid="select-sprint-roadmap-item">
                   <SelectValue placeholder={t.common.ph.noLinkedItem} />
                 </SelectTrigger>
                 <SelectContent className="max-h-60">
