@@ -593,7 +593,7 @@ export default function Product() {
               >
                 <CardHeader className="flex flex-row items-center gap-2 p-3 pb-1">
                   <div className="flex-1 min-w-0 flex items-center gap-1.5 group/modetip">
-                    <CardTitle className="text-[14px] font-bold text-white truncate min-w-0">{backlog.name}</CardTitle>
+                    <CardTitle className="text-[14px] font-bold text-foreground truncate min-w-0">{backlog.name}</CardTitle>
                     <Badge
                       variant="secondary"
                       className="flex items-center gap-1 text-[10px] shrink-0 invisible group-hover/modetip:visible"
