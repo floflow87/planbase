@@ -10,9 +10,13 @@ export interface SlackSettings {
   slack_connected_at?: string;
 }
 
-export function getSlackRedirectUri(): string {
+export function getSlackRedirectUri(requestHost?: string): string {
   if (process.env.SLACK_REDIRECT_DOMAIN) {
     return `${process.env.SLACK_REDIRECT_DOMAIN.replace(/\/$/, "")}/api/slack/oauth/callback`;
+  }
+  if (requestHost) {
+    const protocol = requestHost.includes("localhost") ? "http" : "https";
+    return `${protocol}://${requestHost}/api/slack/oauth/callback`;
   }
   if (process.env.REPLIT_DEV_DOMAIN) {
     return `https://${process.env.REPLIT_DEV_DOMAIN}/api/slack/oauth/callback`;
@@ -20,17 +24,17 @@ export function getSlackRedirectUri(): string {
   return `http://localhost:5000/api/slack/oauth/callback`;
 }
 
-export function getSlackAuthUrl(state: string): string {
+export function getSlackAuthUrl(state: string, requestHost?: string): string {
   const clientId = process.env.SLACK_CLIENT_ID;
   if (!clientId) throw new Error("SLACK_CLIENT_ID not configured");
 
-  const redirectUri = encodeURIComponent(getSlackRedirectUri());
+  const redirectUri = getSlackRedirectUri(requestHost);
   const scopes = encodeURIComponent("channels:read,groups:read,chat:write,users:read");
 
-  return `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${redirectUri}&state=${state}`;
+  return `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
 }
 
-export async function exchangeCodeForToken(code: string): Promise<{
+export async function exchangeCodeForToken(code: string, redirectUri: string): Promise<{
   access_token: string;
   team: { id: string; name: string };
   bot_user_id: string;
@@ -39,7 +43,6 @@ export async function exchangeCodeForToken(code: string): Promise<{
   const clientSecret = process.env.SLACK_CLIENT_SECRET;
   if (!clientId || !clientSecret) throw new Error("Slack OAuth not configured");
 
-  const redirectUri = getSlackRedirectUri();
   const params = new URLSearchParams({
     client_id: clientId,
     client_secret: clientSecret,

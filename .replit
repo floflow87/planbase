@@ -58,3 +58,4 @@ timeoutMs = 20000
 
 [userenv.shared]
 GOOGLE_REDIRECT_DOMAIN = "https://app.planbase.io"
+SLACK_REDIRECT_DOMAIN = "https://app.planbase.io"

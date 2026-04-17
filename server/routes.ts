@@ -15388,9 +15388,12 @@ app.get("/config/feature-flags", async (_req, res) => {
       if (!process.env.SLACK_CLIENT_ID) {
         return res.status(400).json({ error: "SLACK_CLIENT_ID not configured" });
       }
-      const { getSlackAuthUrl } = await import("./lib/slack");
-      const state = Buffer.from(JSON.stringify({ accountId: req.accountId, userId: req.userId })).toString("base64");
-      const authUrl = getSlackAuthUrl(state);
+      const { getSlackAuthUrl, getSlackRedirectUri } = await import("./lib/slack");
+      const requestHost = (req.headers["x-forwarded-host"] as string) || req.headers.host || "";
+      const redirectUri = getSlackRedirectUri(requestHost);
+      const state = Buffer.from(JSON.stringify({ accountId: req.accountId, userId: req.userId, redirectUri })).toString("base64");
+      const authUrl = getSlackAuthUrl(state, requestHost);
+      console.log(`[Slack OAuth] redirect_uri = ${redirectUri}`);
       res.json({ url: authUrl });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -15403,9 +15406,11 @@ app.get("/config/feature-flags", async (_req, res) => {
       if (error) return res.redirect(`/settings?tab=integrations&slackError=${encodeURIComponent(error)}`);
       if (!code || !state) return res.status(400).send("Missing code or state");
 
-      const { accountId } = JSON.parse(Buffer.from(state, "base64").toString());
-      const { exchangeCodeForToken, saveSlackSettings } = await import("./lib/slack");
-      const token = await exchangeCodeForToken(code);
+      const stateData = JSON.parse(Buffer.from(state, "base64").toString());
+      const { accountId, redirectUri } = stateData;
+      const { exchangeCodeForToken, saveSlackSettings, getSlackRedirectUri } = await import("./lib/slack");
+      const resolvedRedirectUri = redirectUri || getSlackRedirectUri();
+      const token = await exchangeCodeForToken(code, resolvedRedirectUri);
 
       await saveSlackSettings(accountId, {
         slack_access_token: token.access_token,
