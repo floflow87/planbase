@@ -207,9 +207,10 @@ function getDefaultViewConfig(module: string): any {
   }
 }
 
-function getAppUrl(req: any): string {
-  const proto = (req.get("x-forwarded-proto") || req.protocol || "https") as string;
-  const host = req.get("host") || "";
+function getAppUrl(_req?: any): string {
+  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
+  const proto = (_req?.get("x-forwarded-proto") || _req?.protocol || "https") as string;
+  const host = _req?.get("host") || "";
   return `${proto}://${host}`;
 }
 
