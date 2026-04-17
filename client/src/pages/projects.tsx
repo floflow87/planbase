@@ -1546,6 +1546,12 @@ function DraggableProjectCard({
     id: project.id,
   });
 
+  const { t } = useLanguage();
+  const getBillingStatusI18nLabel = (key: string | null | undefined): string => {
+    if (!key) return (t.projects.billingStatus as Record<string, string>).brouillon;
+    return (t.projects.billingStatus as Record<string, string>)[key] || key;
+  };
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
