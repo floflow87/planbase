@@ -233,11 +233,7 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
     queryFn: async () => {
       const params = new URLSearchParams({ scopeType });
       if (scopeId) params.set("scopeId", scopeId);
-      const res = await fetch(`/api/automations?${params}`, {
-        headers: { "x-user-id": localStorage.getItem("userId") || "", "x-account-id": localStorage.getItem("accountId") || "" },
-        credentials: "include",
-      });
-      if (!res.ok) return [];
+      const res = await apiRequest(`/api/automations?${params}`, "GET");
       const data = await res.json();
       return Array.isArray(data) ? data : [];
     },
@@ -718,11 +714,7 @@ export function AutomationButton({ scopeType = "global", scopeId, scopeLabel, cl
     queryFn: async () => {
       const params = new URLSearchParams({ scopeType });
       if (scopeId) params.set("scopeId", scopeId);
-      const res = await fetch(`/api/automations?${params}`, {
-        headers: { "x-user-id": localStorage.getItem("userId") || "", "x-account-id": localStorage.getItem("accountId") || "" },
-        credentials: "include",
-      });
-      if (!res.ok) return [];
+      const res = await apiRequest(`/api/automations?${params}`, "GET");
       const data = await res.json();
       return Array.isArray(data) ? data : [];
     },

@@ -1818,11 +1818,7 @@ function AutomationsSettingsTab() {
   const { data: allAutomations = [], isLoading } = useQuery<any[]>({
     queryKey: qKey,
     queryFn: async () => {
-      const res = await fetch("/api/automations", {
-        headers: { "x-user-id": localStorage.getItem("userId") || "", "x-account-id": localStorage.getItem("accountId") || "" },
-        credentials: "include",
-      });
-      if (!res.ok) return [];
+      const res = await apiRequest("/api/automations", "GET");
       const data = await res.json();
       return Array.isArray(data) ? data : [];
     },
