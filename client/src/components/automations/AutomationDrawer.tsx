@@ -29,35 +29,45 @@ interface AutomationDrawerProps {
 }
 
 export const EVENT_OPTIONS: { value: string; label: string; variables: string[] }[] = [
-  { value: "backlog.created", label: "Backlog créé", variables: ["title", "project_name", "user_name"] },
-  { value: "backlog.updated", label: "Backlog mis à jour", variables: ["title", "project_name", "user_name"] },
-  { value: "backlog.prioritized", label: "Ticket priorisé", variables: ["title", "project_name", "user_name", "priority"] },
-  { value: "backlog.completed", label: "Ticket terminé", variables: ["title", "project_name", "user_name"] },
+  // Backlog
+  { value: "backlog.ticket_created", label: "Ticket créé", variables: ["title", "backlog_name", "product_name", "user_name", "priority"] },
+  { value: "backlog.ticket_updated", label: "Ticket mis à jour", variables: ["title", "backlog_name", "product_name", "user_name"] },
+  { value: "backlog.prioritized", label: "Ticket priorisé", variables: ["title", "backlog_name", "product_name", "user_name", "priority"] },
+  { value: "backlog.ticket_completed", label: "Ticket terminé", variables: ["title", "backlog_name", "product_name", "user_name"] },
+  { value: "backlog.sprint_started", label: "Sprint démarré", variables: ["sprint_name", "backlog_name", "product_name", "user_name"] },
+  { value: "backlog.sprint_completed", label: "Sprint terminé", variables: ["sprint_name", "backlog_name", "product_name", "user_name"] },
+  // Project
   { value: "project.created", label: "Projet créé", variables: ["project_name", "user_name", "client_name"] },
   { value: "project.updated", label: "Projet mis à jour", variables: ["project_name", "user_name", "status"] },
   { value: "project.milestone_reached", label: "Jalon atteint", variables: ["project_name", "milestone", "user_name"] },
+  { value: "task.created", label: "Tâche créée", variables: ["title", "project_name", "user_name"] },
+  { value: "task.completed", label: "Tâche terminée", variables: ["title", "project_name", "user_name"] },
+  // Roadmap
   { value: "roadmap.updated", label: "Roadmap mise à jour", variables: ["roadmap_name", "item_title", "user_name"] },
+  { value: "roadmap.item_created", label: "Élément créé", variables: ["item_title", "roadmap_name", "user_name"] },
+  { value: "roadmap.item_completed", label: "Élément terminé", variables: ["item_title", "roadmap_name", "user_name"] },
+  // CRM
   { value: "crm.deal_created", label: "Opportunité créée", variables: ["deal_name", "client_name", "user_name", "amount"] },
   { value: "crm.deal_won", label: "Deal gagné", variables: ["deal_name", "client_name", "user_name", "amount"] },
   { value: "crm.stage_changed", label: "Étape CRM modifiée", variables: ["deal_name", "client_name", "old_stage", "new_stage"] },
+  { value: "crm.client_created", label: "Client créé", variables: ["client_name", "user_name"] },
+  // Notes
   { value: "note.created", label: "Note créée", variables: ["title", "user_name"] },
-  { value: "task.created", label: "Tâche créée", variables: ["title", "project_name", "user_name"] },
-  { value: "task.completed", label: "Tâche terminée", variables: ["title", "project_name", "user_name"] },
 ];
 
 const SCOPE_EVENT_FILTER: Record<AutomationScopeType, string[] | null> = {
   global: null,
   project: ["project.created", "project.updated", "project.milestone_reached", "task.created", "task.completed"],
-  backlog: ["backlog.created", "backlog.updated", "backlog.prioritized", "backlog.completed", "task.created", "task.completed"],
-  roadmap: ["roadmap.updated"],
-  crm: ["crm.deal_created", "crm.deal_won", "crm.stage_changed"],
+  backlog: ["backlog.ticket_created", "backlog.ticket_updated", "backlog.prioritized", "backlog.ticket_completed", "backlog.sprint_started", "backlog.sprint_completed"],
+  roadmap: ["roadmap.updated", "roadmap.item_created", "roadmap.item_completed"],
+  crm: ["crm.deal_created", "crm.deal_won", "crm.stage_changed", "crm.client_created"],
 };
 
 const SCOPE_CONDITION_FIELDS: Record<AutomationScopeType, string[]> = {
   global: ["priority", "status", "stage", "client_name", "project_name", "user_name"],
   project: ["priority", "status", "project_name", "user_name"],
-  backlog: ["priority", "status", "project_name", "user_name"],
-  roadmap: ["project_name", "user_name"],
+  backlog: ["priority", "status", "backlog_name", "product_name", "user_name"],
+  roadmap: ["roadmap_name", "user_name"],
   crm: ["stage", "client_name", "user_name"],
 };
 
@@ -106,6 +116,9 @@ const VARIABLE_LABELS: Record<string, string> = {
   roadmap_name: "roadmap",
   item_title: "élément",
   milestone: "jalon",
+  backlog_name: "nom du backlog",
+  product_name: "produit",
+  sprint_name: "sprint",
 };
 
 const CONDITION_FIELD_LABELS: Record<string, string> = {
@@ -115,6 +128,9 @@ const CONDITION_FIELD_LABELS: Record<string, string> = {
   priority: "Priorité",
   status: "Statut",
   project_name: "Projet",
+  backlog_name: "Backlog",
+  product_name: "Produit",
+  roadmap_name: "Roadmap",
 };
 
 export const SCOPE_LABELS: Record<string, string> = {
@@ -171,6 +187,9 @@ function interpolatePreview(template: string): string {
     roadmap_name: "Q2 2026",
     item_title: "Refonte authentification",
     milestone: "MVP v1",
+    backlog_name: "Backlog Produit Q2",
+    product_name: "PlanBase",
+    sprint_name: "Sprint 4 – Automations",
   };
   return template.replace(/\{\{(\w+)\}\}/g, (_, k) => samples[k] ?? `{{${k}}}`);
 }
@@ -490,7 +509,7 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                 placeholder="Ex : Alerte deal gagné"
                 value={form.name}
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                className="text-sm"
+                className="text-xs h-8"
                 data-testid="input-automation-name"
               />
             </div>
@@ -728,7 +747,7 @@ export function AutomationButton({ scopeType = "global", scopeId, scopeLabel, cl
             )}
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Automatisations</TooltipContent>
+        <TooltipContent side="bottom" className="text-[10px] px-2 py-1 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-border shadow-sm">Automatisations</TooltipContent>
       </Tooltip>
       <AutomationDrawer
         open={open}
