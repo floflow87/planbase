@@ -114,7 +114,7 @@ const CONDITION_OPERATORS = [
 ];
 const VALUE_LESS_OPERATORS = new Set(["changed"]);
 
-const GLOBAL_VARIABLES = ["date", "link"];
+const GLOBAL_VARIABLES = ["date", "lien"];
 
 const CRM_STAGE_LIST = [
   { value: "Prospect" },
@@ -128,7 +128,7 @@ const CRM_STAGE_LIST = [
 
 const VARIABLE_LABELS: Record<string, string> = {
   date: "date",
-  link: "lien vers le module",
+  lien: "lien vers le module",
   deal_name: "opportunité",
   client_name: "nom du client",
   old_stage: "ancienne étape",
@@ -208,6 +208,8 @@ const DEFAULT_FORM: AutomationFormData = {
 
 function interpolatePreview(template: string): string {
   const samples: Record<string, string> = {
+    date: new Date().toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+    lien: "https://app.planbase.io/crm",
     title: "Refonte onboarding client",
     project_name: "LVBCA – Design Hermès",
     user_name: "Florent Martin",
