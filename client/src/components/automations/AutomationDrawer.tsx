@@ -285,8 +285,8 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[480px] sm:w-[520px] bg-white dark:bg-gray-900 flex flex-col gap-0 p-0" style={{ zIndex: 9999 }}>
-        <SheetHeader className="px-6 py-4 border-b flex-shrink-0">
+      <SheetContent side="right" className="w-full sm:w-[480px] bg-white dark:bg-gray-900 flex flex-col gap-0 p-0" style={{ zIndex: 9999 }}>
+        <SheetHeader className="px-4 sm:px-6 py-4 border-b flex-shrink-0">
           <div className="flex items-center gap-2">
             {view === "form" && (
               <Button variant="ghost" size="icon" onClick={resetForm} className="mr-1" data-testid="button-back-automations">
@@ -314,7 +314,7 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
         {view === "list" && (
           <div className="flex-1 overflow-y-auto">
             {/* Slack status banner */}
-            <div className={`mx-6 mt-4 mb-2 rounded-md px-3 py-2 flex items-center gap-2 text-xs border ${isSlackConnected ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400" : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400"}`}>
+            <div className={`mx-4 sm:mx-6 mt-4 mb-2 rounded-md px-3 py-2 flex items-center gap-2 text-xs border ${isSlackConnected ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400" : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400"}`}>
               <SiSlack className="w-3.5 h-3.5 flex-shrink-0" />
               {isSlackConnected ? (
                 <span>Slack connecté — <strong>{slackStatus?.teamName}</strong></span>
@@ -328,7 +328,7 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
               )}
             </div>
 
-            <div className="px-6 py-3">
+            <div className="px-4 sm:px-6 py-3">
               <Button size="sm" onClick={openCreate} className="w-full gap-2" data-testid="button-create-automation">
                 <Plus className="w-3.5 h-3.5" />
                 Créer une automation
@@ -346,7 +346,7 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                 <p className="text-xs text-muted-foreground/70 mt-1">Crée ta première règle pour recevoir des alertes Slack automatiquement.</p>
               </div>
             ) : (
-              <div className="px-6 space-y-2 pb-6">
+              <div className="px-4 sm:px-6 space-y-2 pb-6">
                 {automationList.map((auto: any) => {
                   const eventLabel = EVENT_OPTIONS.find(e => e.value === auto.eventType)?.label ?? auto.eventType;
                   const channelName = auto.slackChannelName || auto.slack_channel_name;
@@ -417,7 +417,7 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
 
         {/* FORM VIEW */}
         {view === "form" && (
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-5">
             {/* Slack not connected warning */}
             {!isSlackConnected && (
               <div className="flex items-start gap-2 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
@@ -470,44 +470,48 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
               {form.conditions.map((cond, i) => {
                 const valueOptions = CONDITION_VALUE_OPTIONS[cond.field];
                 return (
-                  <div key={i} className="flex items-center gap-1.5">
-                    <Select value={cond.field} onValueChange={v => updateCondition(i, { field: v, value: "" })}>
-                      <SelectTrigger className="text-xs h-8 flex-1" data-testid={`select-condition-field-${i}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent style={{ zIndex: 10000 }}>
-                        {conditionFields.map(f => <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Select value={cond.operator} onValueChange={v => updateCondition(i, { operator: v })}>
-                      <SelectTrigger className="text-xs h-8 w-24" data-testid={`select-condition-operator-${i}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent style={{ zIndex: 10000 }}>
-                        {CONDITION_OPERATORS.map(o => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    {valueOptions ? (
-                      <Select value={cond.value} onValueChange={v => updateCondition(i, { value: v })}>
-                        <SelectTrigger className="text-xs h-8 flex-1" data-testid={`select-condition-value-${i}`}>
-                          <SelectValue placeholder="Choisir..." />
+                  <div key={i} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 p-2 rounded-md border bg-muted/20">
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                      <Select value={cond.field} onValueChange={v => updateCondition(i, { field: v, value: "" })}>
+                        <SelectTrigger className="text-xs h-8 flex-1" data-testid={`select-condition-field-${i}`}>
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent style={{ zIndex: 10000 }}>
-                          {valueOptions.map(o => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
+                          {conditionFields.map(f => <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                    ) : (
-                      <Input
-                        placeholder="valeur"
-                        value={cond.value}
-                        onChange={e => updateCondition(i, { value: e.target.value })}
-                        className="text-xs h-8 flex-1"
-                        data-testid={`input-condition-value-${i}`}
-                      />
-                    )}
-                    <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-destructive" onClick={() => removeCondition(i)}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                      <Select value={cond.operator} onValueChange={v => updateCondition(i, { operator: v })}>
+                        <SelectTrigger className="text-xs h-8 w-20 flex-shrink-0" data-testid={`select-condition-operator-${i}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent style={{ zIndex: 10000 }}>
+                          {CONDITION_OPERATORS.map(o => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                      {valueOptions ? (
+                        <Select value={cond.value} onValueChange={v => updateCondition(i, { value: v })}>
+                          <SelectTrigger className="text-xs h-8 flex-1" data-testid={`select-condition-value-${i}`}>
+                            <SelectValue placeholder="Choisir..." />
+                          </SelectTrigger>
+                          <SelectContent style={{ zIndex: 10000 }}>
+                            {valueOptions.map(o => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          placeholder="valeur"
+                          value={cond.value}
+                          onChange={e => updateCondition(i, { value: e.target.value })}
+                          className="text-xs h-8 flex-1"
+                          data-testid={`input-condition-value-${i}`}
+                        />
+                      )}
+                      <Button variant="ghost" size="icon" className="w-8 h-8 flex-shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeCondition(i)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 );
               })}
@@ -589,7 +593,7 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
             </div>
 
             {/* Submit */}
-            <div className="flex gap-2 pt-2 border-t">
+            <div className="flex gap-2 pt-2 border-t pb-4">
               <Button variant="outline" size="sm" className="flex-1" onClick={resetForm} data-testid="button-cancel-automation">
                 Annuler
               </Button>
