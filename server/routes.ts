@@ -207,6 +207,12 @@ function getDefaultViewConfig(module: string): any {
   }
 }
 
+function getAppUrl(req: any): string {
+  const proto = (req.get("x-forwarded-proto") || req.protocol || "https") as string;
+  const host = req.get("host") || "";
+  return `${proto}://${host}`;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
 
   
@@ -1171,7 +1177,7 @@ app.get("/config/feature-flags", async (_req, res) => {
       // Fire automation event (non-blocking)
       try {
         const { emitEvent } = await import("./automationEngine");
-        await emitEvent("crm.deal_created", { client_name: client.name, client_id: client.id, stage: client.stage ?? "lead" }, req.accountId!);
+        await emitEvent("crm.deal_created", { client_name: client.name, client_id: client.id, stage: client.stage ?? "lead", link: `${getAppUrl(req)}/crm` }, req.accountId!);
       } catch (aeErr: any) {
         console.warn("[AutomationEngine] crm.deal_created error:", aeErr.message);
       }
@@ -1216,7 +1222,7 @@ app.get("/config/feature-flags", async (_req, res) => {
       // Fire automation events (non-blocking, after response sent)
       try {
         const { emitEvent } = await import("./automationEngine");
-        const basePayload = { client_name: client.name, deal_name: client.name, client_id: client.id };
+        const basePayload = { client_name: client.name, deal_name: client.name, client_id: client.id, link: `${getAppUrl(req)}/crm` };
         if (req.body.status !== undefined && req.body.status !== existing?.status) {
           const oldLabel = CRM_STATUS_LABELS[existing?.status ?? ""] ?? (existing?.status ?? "");
           const newLabel = CRM_STATUS_LABELS[client.status ?? ""] ?? (client.status ?? "");
@@ -3546,7 +3552,8 @@ app.get("/config/feature-flags", async (_req, res) => {
       try {
         const { emitEvent } = await import("./automationEngine");
         const scopePayload = task.projectId ? { scope_id: task.projectId, scopeType: "project" } : {};
-        await emitEvent("task.created", { title: task.title, task_title: task.title, ...scopePayload }, req.accountId!);
+        const taskLink = task.projectId ? `${getAppUrl(req)}/projects/${task.projectId}` : `${getAppUrl(req)}/tasks`;
+        await emitEvent("task.created", { title: task.title, task_title: task.title, ...scopePayload, link: taskLink }, req.accountId!);
       } catch (aeErr: any) {
         console.warn("[AutomationEngine] task.created error:", aeErr.message);
       }
@@ -3691,7 +3698,8 @@ app.get("/config/feature-flags", async (_req, res) => {
         const { emitEvent } = await import("./automationEngine");
         const scopePayload = task.projectId ? { scope_id: task.projectId, scopeType: "project" } : {};
         const taskTitle = task.title ?? existing.title;
-        const basePayload = { title: taskTitle, task_title: taskTitle, ...scopePayload };
+        const taskLink = task.projectId ? `${getAppUrl(req)}/projects/${task.projectId}` : `${getAppUrl(req)}/tasks`;
+        const basePayload = { title: taskTitle, task_title: taskTitle, ...scopePayload, link: taskLink };
 
         if (req.body.status !== undefined && req.body.status !== existing.status) {
           const newStatus = task.status ?? req.body.status;

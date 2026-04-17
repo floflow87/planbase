@@ -95,13 +95,13 @@ const CONDITION_VALUE_OPTIONS: Record<string, { value: string; label: string }[]
     { value: "cancelled", label: "Annulé" },
   ],
   stage: [
-    { value: "prospecting", label: "Prospect" },
-    { value: "qualified", label: "Qualifié" },
-    { value: "negotiation", label: "Négociation" },
-    { value: "quote_sent", label: "Devis envoyé" },
-    { value: "quote_approved", label: "Devis validé" },
-    { value: "won", label: "Gagné" },
-    { value: "lost", label: "Perdu" },
+    { value: "Prospect", label: "Prospect" },
+    { value: "Qualifié", label: "Qualifié" },
+    { value: "Négociation", label: "Négociation" },
+    { value: "Devis envoyé", label: "Devis envoyé" },
+    { value: "Devis validé", label: "Devis validé" },
+    { value: "Gagné", label: "Gagné" },
+    { value: "Perdu", label: "Perdu" },
   ],
 };
 
@@ -114,10 +114,21 @@ const CONDITION_OPERATORS = [
 ];
 const VALUE_LESS_OPERATORS = new Set(["changed"]);
 
-const GLOBAL_VARIABLES = ["date"];
+const GLOBAL_VARIABLES = ["date", "link"];
+
+const CRM_STAGE_LIST = [
+  { value: "Prospect" },
+  { value: "Qualifié" },
+  { value: "Négociation" },
+  { value: "Devis envoyé" },
+  { value: "Devis validé" },
+  { value: "Gagné" },
+  { value: "Perdu" },
+];
 
 const VARIABLE_LABELS: Record<string, string> = {
-  date: "date de mise à jour",
+  date: "date",
+  link: "lien vers le module",
   deal_name: "opportunité",
   client_name: "nom du client",
   old_stage: "ancienne étape",
@@ -742,6 +753,19 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
                       </button>
                     ))}
                 </div>
+                {selectedEvent?.value.startsWith("crm.") && (
+                  <div className="flex items-start gap-1.5 rounded bg-muted/40 border border-border px-2 py-1.5">
+                    <Info className="w-3 h-3 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <div className="flex flex-wrap gap-1 items-center">
+                      <span className="text-[10px] text-muted-foreground mr-0.5">Étapes :</span>
+                      {CRM_STAGE_LIST.map(s => (
+                        <span key={s.value} className="text-[10px] font-mono bg-background border border-border rounded px-1.5 py-0.5 text-foreground">
+                          {s.value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center gap-1">
                   {EMOJI_SHORTCUTS.map(({ emoji, label }) => (
                     <button
