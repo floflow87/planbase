@@ -1177,7 +1177,7 @@ app.get("/config/feature-flags", async (_req, res) => {
       // Fire automation event (non-blocking)
       try {
         const { emitEvent } = await import("./automationEngine");
-        await emitEvent("crm.deal_created", { client_name: client.name, client_id: client.id, stage: client.stage ?? "lead", lien: `${getAppUrl(req)}/crm` }, req.accountId!);
+        await emitEvent("crm.deal_created", { client_name: client.name, client_id: client.id, stage: client.stage ?? "lead", lien: `${getAppUrl(req)}/crm/${client.id}` }, req.accountId!);
       } catch (aeErr: any) {
         console.warn("[AutomationEngine] crm.deal_created error:", aeErr.message);
       }
@@ -1222,7 +1222,7 @@ app.get("/config/feature-flags", async (_req, res) => {
       // Fire automation events (non-blocking, after response sent)
       try {
         const { emitEvent } = await import("./automationEngine");
-        const basePayload = { client_name: client.name, deal_name: client.name, client_id: client.id, lien: `${getAppUrl(req)}/crm` };
+        const basePayload = { client_name: client.name, deal_name: client.name, client_id: client.id, lien: `${getAppUrl(req)}/crm/${client.id}` };
         if (req.body.status !== undefined && req.body.status !== existing?.status) {
           const oldLabel = CRM_STATUS_LABELS[existing?.status ?? ""] ?? (existing?.status ?? "");
           const newLabel = CRM_STATUS_LABELS[client.status ?? ""] ?? (client.status ?? "");

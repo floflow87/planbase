@@ -209,7 +209,7 @@ const DEFAULT_FORM: AutomationFormData = {
 function interpolatePreview(template: string): string {
   const samples: Record<string, string> = {
     date: new Date().toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
-    lien: "https://app.planbase.io/crm",
+    lien: "https://app.planbase.io/crm/6f68f383-…",
     title: "Refonte onboarding client",
     project_name: "LVBCA – Design Hermès",
     user_name: "Florent Martin",
