@@ -203,7 +203,7 @@ export function IntegrationsTab() {
 
   const disconnectGoogleMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("DELETE", "/api/google/disconnect");
+      const response = await apiRequest("/api/google/disconnect", "DELETE");
       return response.json();
     },
     onSuccess: () => {
@@ -217,7 +217,7 @@ export function IntegrationsTab() {
 
   const connectSlackMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("GET", "/api/slack/oauth/start");
+      const res = await apiRequest("/api/slack/oauth/start", "GET");
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       return data.url as string;
@@ -232,7 +232,7 @@ export function IntegrationsTab() {
 
   const disconnectSlackMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("DELETE", "/api/slack/disconnect");
+      const res = await apiRequest("/api/slack/disconnect", "DELETE");
       return res.json();
     },
     onSuccess: () => {
