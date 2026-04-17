@@ -126,7 +126,9 @@ export function AutomationDrawer({ open, onOpenChange, scopeType = "global", sco
         headers: { "x-user-id": localStorage.getItem("userId") || "", "x-account-id": localStorage.getItem("accountId") || "" },
         credentials: "include",
       });
-      return res.json();
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
     },
     enabled: open,
   });
@@ -561,7 +563,9 @@ export function AutomationButton({ scopeType = "global", scopeId, scopeLabel, cl
         headers: { "x-user-id": localStorage.getItem("userId") || "", "x-account-id": localStorage.getItem("accountId") || "" },
         credentials: "include",
       });
-      return res.json();
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
     },
   });
 
