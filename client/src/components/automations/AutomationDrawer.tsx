@@ -40,8 +40,14 @@ export const EVENT_OPTIONS: { value: string; label: string; variables: string[] 
   { value: "project.created", label: "Projet créé", variables: ["project_name", "user_name", "client_name"] },
   { value: "project.updated", label: "Projet mis à jour", variables: ["project_name", "user_name", "status"] },
   { value: "project.milestone_reached", label: "Jalon atteint", variables: ["project_name", "milestone", "user_name"] },
-  { value: "task.created", label: "Tâche créée", variables: ["title", "project_name", "user_name"] },
-  { value: "task.completed", label: "Tâche terminée", variables: ["title", "project_name", "user_name"] },
+  // Tasks
+  { value: "task.created", label: "Tâche créée", variables: ["title", "user_name", "assignee_name"] },
+  { value: "task.completed", label: "Tâche terminée", variables: ["title", "user_name", "assignee_name"] },
+  { value: "task.status_changed", label: "Statut de tâche modifié", variables: ["title", "old_status", "new_status", "user_name"] },
+  { value: "task.priority_changed", label: "Priorité de tâche modifiée", variables: ["title", "old_priority", "new_priority", "user_name"] },
+  { value: "task.effort_changed", label: "Effort modifié", variables: ["title", "effort", "user_name"] },
+  { value: "task.due_date_changed", label: "Échéance modifiée", variables: ["title", "due_date", "user_name"] },
+  { value: "task.assigned", label: "Tâche assignée", variables: ["title", "assignee_name", "user_name"] },
   // Roadmap
   { value: "roadmap.updated", label: "Roadmap mise à jour", variables: ["roadmap_name", "item_title", "user_name"] },
   { value: "roadmap.item_created", label: "Élément créé", variables: ["item_title", "roadmap_name", "user_name"] },
@@ -57,7 +63,11 @@ export const EVENT_OPTIONS: { value: string; label: string; variables: string[] 
 
 const SCOPE_EVENT_FILTER: Record<AutomationScopeType, string[] | null> = {
   global: null,
-  project: ["project.created", "project.updated", "project.milestone_reached", "task.created", "task.completed"],
+  project: [
+    "project.created", "project.updated", "project.milestone_reached",
+    "task.created", "task.completed", "task.status_changed",
+    "task.priority_changed", "task.effort_changed", "task.due_date_changed", "task.assigned",
+  ],
   backlog: ["backlog.ticket_created", "backlog.ticket_updated", "backlog.prioritized", "backlog.ticket_completed", "backlog.sprint_started", "backlog.sprint_completed"],
   roadmap: ["roadmap.updated", "roadmap.item_created", "roadmap.item_completed"],
   crm: ["crm.deal_created", "crm.deal_won", "crm.stage_changed", "crm.client_created"],
@@ -65,7 +75,7 @@ const SCOPE_EVENT_FILTER: Record<AutomationScopeType, string[] | null> = {
 
 const SCOPE_CONDITION_FIELDS: Record<AutomationScopeType, string[]> = {
   global: ["priority", "status", "stage", "client_name", "project_name", "user_name"],
-  project: ["priority", "status", "project_name", "user_name"],
+  project: ["priority", "status", "assignee_name", "user_name"],
   backlog: ["priority", "status", "backlog_name", "product_name", "user_name"],
   roadmap: ["roadmap_name", "user_name"],
   crm: ["stage", "client_name", "user_name"],
@@ -111,7 +121,11 @@ const VARIABLE_LABELS: Record<string, string> = {
   project_name: "projet",
   title: "titre",
   priority: "priorité",
+  old_priority: "ancienne priorité",
+  new_priority: "nouvelle priorité",
   status: "statut",
+  old_status: "ancien statut",
+  new_status: "nouveau statut",
   amount: "montant",
   roadmap_name: "roadmap",
   item_title: "élément",
@@ -119,6 +133,9 @@ const VARIABLE_LABELS: Record<string, string> = {
   backlog_name: "nom du backlog",
   product_name: "produit",
   sprint_name: "sprint",
+  assignee_name: "assigné à",
+  effort: "effort",
+  due_date: "échéance",
 };
 
 const CONDITION_FIELD_LABELS: Record<string, string> = {
@@ -128,6 +145,7 @@ const CONDITION_FIELD_LABELS: Record<string, string> = {
   priority: "Priorité",
   status: "Statut",
   project_name: "Projet",
+  assignee_name: "Assigné à",
   backlog_name: "Backlog",
   product_name: "Produit",
   roadmap_name: "Roadmap",
@@ -178,7 +196,11 @@ function interpolatePreview(template: string): string {
     project_name: "LVBCA – Design Hermès",
     user_name: "Florent Martin",
     priority: "Haute",
+    old_priority: "Normale",
+    new_priority: "Haute",
     status: "En cours",
+    old_status: "À faire",
+    new_status: "En cours",
     client_name: "LVBCA",
     deal_name: "Contrat LVBCA Q2 2026",
     amount: "8 500 €",
@@ -190,6 +212,9 @@ function interpolatePreview(template: string): string {
     backlog_name: "Backlog Produit Q2",
     product_name: "PlanBase",
     sprint_name: "Sprint 4 – Automations",
+    assignee_name: "Marie Dupont",
+    effort: "3 points",
+    due_date: "30/04/2026",
   };
   return template.replace(/\{\{(\w+)\}\}/g, (_, k) => samples[k] ?? `{{${k}}}`);
 }
