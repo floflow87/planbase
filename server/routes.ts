@@ -1167,6 +1167,14 @@ app.get("/config/feature-flags", async (_req, res) => {
       });
 
       res.json(client);
+
+      // Fire automation event (non-blocking)
+      try {
+        const { emitEvent } = await import("./automationEngine");
+        await emitEvent("crm.deal_created", { client_name: client.name, client_id: client.id, stage: client.stage ?? "lead" }, req.accountId!);
+      } catch (aeErr: any) {
+        console.warn("[AutomationEngine] crm.deal_created error:", aeErr.message);
+      }
     } catch (error: any) {
       console.error("[ERROR] Failed to create client:", error);
       console.error("[ERROR] Error message:", error.message);
@@ -1188,11 +1196,31 @@ app.get("/config/feature-flags", async (_req, res) => {
 
   app.patch("/api/clients/:id", requireAuth, requireOrgMember, requirePermission("crm", "update", "crm.clients"), async (req, res) => {
     try {
+      const existing = await storage.getClient(req.accountId!, req.params.id);
       const client = await storage.updateClient(req.accountId!, req.params.id, req.body);
       if (!client) {
         return res.status(404).json({ error: "Client not found" });
       }
       res.json(client);
+
+      // Fire automation events (non-blocking, after response sent)
+      try {
+        const { emitEvent } = await import("./automationEngine");
+        const basePayload = { client_name: client.name, deal_name: client.name, client_id: client.id };
+        if (req.body.status !== undefined && req.body.status !== existing?.status) {
+          await emitEvent("crm.stage_changed", {
+            ...basePayload,
+            old_stage: existing?.status ?? "",
+            new_stage: client.status ?? "",
+            stage: client.status ?? "",
+          }, req.accountId!);
+          if (client.status === "won") {
+            await emitEvent("crm.deal_won", basePayload, req.accountId!);
+          }
+        }
+      } catch (aeErr: any) {
+        console.warn("[AutomationEngine] crm.stage_changed error:", aeErr.message);
+      }
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -3501,6 +3529,15 @@ app.get("/config/feature-flags", async (_req, res) => {
       });
       
       res.json(task);
+
+      // Fire automation event (non-blocking)
+      try {
+        const { emitEvent } = await import("./automationEngine");
+        const scopePayload = task.projectId ? { scope_id: task.projectId, scopeType: "project" } : {};
+        await emitEvent("task.created", { title: task.title, task_title: task.title, ...scopePayload }, req.accountId!);
+      } catch (aeErr: any) {
+        console.warn("[AutomationEngine] task.created error:", aeErr.message);
+      }
     } catch (error: any) {
       console.error('Error creating task:', error.message);
       res.status(400).json({ error: error.message });
@@ -3636,6 +3673,61 @@ app.get("/config/feature-flags", async (_req, res) => {
       // PostgreSQL will handle the date string directly
       const task = await storage.updateTask(req.params.id, req.body);
       res.json(task);
+
+      // Fire automation events (non-blocking, response already sent)
+      try {
+        const { emitEvent } = await import("./automationEngine");
+        const scopePayload = task.projectId ? { scope_id: task.projectId, scopeType: "project" } : {};
+        const taskTitle = task.title ?? existing.title;
+        const basePayload = { title: taskTitle, task_title: taskTitle, ...scopePayload };
+
+        if (req.body.status !== undefined && req.body.status !== existing.status) {
+          const newStatus = task.status ?? req.body.status;
+          await emitEvent("task.status_changed", {
+            ...basePayload,
+            old_status: existing.status,
+            new_status: newStatus,
+            status: newStatus,
+          }, req.accountId!);
+          if (newStatus === "done") {
+            await emitEvent("task.completed", basePayload, req.accountId!);
+          }
+        }
+        if (req.body.priority !== undefined && req.body.priority !== existing.priority) {
+          const newPriority = task.priority ?? req.body.priority;
+          await emitEvent("task.priority_changed", {
+            ...basePayload,
+            old_priority: existing.priority,
+            new_priority: newPriority,
+            priority: newPriority,
+          }, req.accountId!);
+        }
+        if (req.body.effort !== undefined && req.body.effort !== existing.effort) {
+          await emitEvent("task.effort_changed", {
+            ...basePayload,
+            effort: String(task.effort ?? req.body.effort),
+          }, req.accountId!);
+        }
+        if (req.body.dueDate !== undefined && req.body.dueDate !== existing.dueDate) {
+          await emitEvent("task.due_date_changed", {
+            ...basePayload,
+            due_date: task.dueDate ?? req.body.dueDate ?? "",
+          }, req.accountId!);
+        }
+        if (req.body.assignedToId !== undefined && req.body.assignedToId !== existing.assignedToId && req.body.assignedToId) {
+          let assigneeName = "";
+          try {
+            const assignee = await storage.getUser(req.body.assignedToId);
+            if (assignee) assigneeName = [assignee.firstName, assignee.lastName].filter(Boolean).join(" ") || assignee.email;
+          } catch (_) {}
+          await emitEvent("task.assigned", {
+            ...basePayload,
+            assignee_name: assigneeName,
+          }, req.accountId!);
+        }
+      } catch (aeErr: any) {
+        console.warn("[AutomationEngine] task patch events error:", aeErr.message);
+      }
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

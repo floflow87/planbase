@@ -83,6 +83,7 @@ export async function emitEvent(
   accountId: string
 ): Promise<void> {
   try {
+    console.log(`🤖 [AutomationEngine] emitEvent: ${event}`, { accountId, payload });
     const scopeId = payload.scope_id ?? payload.projectId ?? payload.backlogId ?? payload.roadmapId ?? null;
 
     const allAutomations = await db
@@ -104,6 +105,8 @@ export async function emitEvent(
           )
         )
       );
+
+    console.log(`🤖 [AutomationEngine] found ${allAutomations.length} automation(s) for event ${event} (scopeId=${scopeId})`);
 
     await Promise.allSettled(
       allAutomations.map(async (auto) => {
