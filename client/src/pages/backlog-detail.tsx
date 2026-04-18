@@ -3952,6 +3952,7 @@ function UserStoryDialog({
   const [generatedTicket, setGeneratedTicket] = useState<GeneratedTicketData | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [acceptedSections, setAcceptedSections] = useState<Set<string>>(new Set());
+  const [editingSections, setEditingSections] = useState<Record<string, string>>({});
 
   useState(() => {
     if (userStory) {
@@ -4000,6 +4001,7 @@ function UserStoryDialog({
     setAiError(null);
     setGeneratedTicket(null);
     setAcceptedSections(new Set());
+    setEditingSections({});
     try {
       const res = await apiRequest("/api/ai/generate-ticket", "POST", {
         title: title.trim(),
@@ -4091,32 +4093,87 @@ function UserStoryDialog({
               ] as { key: keyof GeneratedTicketData; label: string }[]).map(({ key, label }) => {
                 const content = generatedTicket[key];
                 if (!content || acceptedSections.has(key)) return null;
+                const isEditing = key in editingSections;
+                const editedContent = isEditing ? editingSections[key] : content;
+                const enterEditMode = () => setEditingSections(prev => ({ ...prev, [key]: content }));
+                const exitEditMode = () => setEditingSections(prev => { const n = { ...prev }; delete n[key]; return n; });
+                const doAccept = () => {
+                  handleAcceptSection(key, editedContent);
+                  exitEditMode();
+                };
                 return (
                   <div key={key} className="rounded-md border bg-background p-2.5 space-y-1.5">
-                    <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-                    <p className="text-xs text-foreground whitespace-pre-wrap">{content}</p>
-                    <div className="flex gap-2 pt-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+                      {!isEditing && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="w-5 h-5 text-muted-foreground"
+                          onClick={enterEditMode}
+                          data-testid={`button-edit-ai-section-${key}`}
+                          title="Modifier avant d'accepter"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+                    {isEditing ? (
+                      <Textarea
+                        value={editedContent}
+                        onChange={(e) => setEditingSections(prev => ({ ...prev, [key]: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                            e.preventDefault();
+                            doAccept();
+                          } else if (e.key === "Escape") {
+                            exitEditMode();
+                          }
+                        }}
+                        className="text-xs min-h-[60px] resize-y"
+                        autoFocus
+                        data-testid={`textarea-edit-ai-section-${key}`}
+                      />
+                    ) : (
+                      <p className="text-xs text-foreground whitespace-pre-wrap">{content}</p>
+                    )}
+                    <div className="flex gap-2 pt-1 items-center">
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
                         className="h-6 text-xs gap-1"
-                        onClick={() => handleAcceptSection(key, content)}
+                        onClick={doAccept}
                         data-testid={`button-accept-ai-section-${key}`}
                       >
                         <Check className="w-3 h-3" />
                         Accepter
                       </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-6 text-xs text-muted-foreground"
-                        onClick={() => handleIgnoreSection(key)}
-                        data-testid={`button-ignore-ai-section-${key}`}
-                      >
-                        Ignorer
-                      </Button>
+                      {isEditing ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 text-xs text-muted-foreground gap-1"
+                          onClick={exitEditMode}
+                          data-testid={`button-cancel-edit-ai-section-${key}`}
+                        >
+                          <X className="w-3 h-3" />
+                          Annuler
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 text-xs text-muted-foreground"
+                          onClick={() => handleIgnoreSection(key)}
+                          data-testid={`button-ignore-ai-section-${key}`}
+                        >
+                          Ignorer
+                        </Button>
+                      )}
                     </div>
                   </div>
                 );
