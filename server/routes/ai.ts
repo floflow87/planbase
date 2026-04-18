@@ -1,64 +1,10 @@
 import { Router, Request, Response } from "express";
 import { requireAuth } from "../middleware/auth";
-import { callAi, extractTextFromProseMirror } from "../services/aiService";
-import { hasFeature } from "../services/billingService";
-import type { Plan, SubscriptionStatus } from "../services/billingService";
-import { db } from "../db";
-import { sql } from "drizzle-orm";
+import { requireAiAccess } from "../middleware/aiAccess";
+import { extractTextFromProseMirror } from "../services/aiService";
+import { runAi } from "../services/aiOrchestrator";
 
 const router = Router();
-
-const ADMIN_EMAILS = ["floflow87@planbase.io", "demo@yopmail.com"];
-
-interface AccountBillingRow {
-  plan: string | null;
-  subscription_status: string | null;
-  owner_email: string | null;
-}
-
-interface AccountBillingResult {
-  plan: Plan;
-  status: SubscriptionStatus;
-  ownerEmail: string | null;
-}
-
-async function getAccountBilling(accountId: string): Promise<AccountBillingResult> {
-  try {
-    const result = await db.execute(
-      sql`SELECT a.plan, a.subscription_status, u.email AS owner_email
-          FROM accounts a
-          LEFT JOIN app_users u ON u.account_id = a.id AND u.role = 'owner'
-          WHERE a.id = ${accountId}
-          LIMIT 1`
-    );
-    const row = result[0] as AccountBillingRow | undefined;
-    return {
-      plan: (row?.plan as Plan) ?? "freelance",
-      status: (row?.subscription_status as SubscriptionStatus) ?? null,
-      ownerEmail: row?.owner_email ?? null,
-    };
-  } catch (err) {
-    console.error("AI getAccountBilling error:", err);
-    return { plan: "freelance", status: null, ownerEmail: null };
-  }
-}
-
-function requireAiAccess(
-  plan: Plan,
-  status: SubscriptionStatus,
-  email: string | undefined,
-  res: Response
-): boolean {
-  if (email && ADMIN_EMAILS.includes(email)) return true;
-  if (hasFeature(plan, status, "ai_assistant")) return true;
-
-  res.status(403).json({
-    error: "PLAN_REQUIRED",
-    message: "L'assistant IA est réservé au plan Agence.",
-    requiredPlan: "agency",
-  });
-  return false;
-}
 
 interface ProjectContextBody {
   name?: string;
@@ -94,24 +40,24 @@ interface ProjectAnalysisBody {
   };
 }
 
-router.post("/chat", requireAuth, async (req: Request, res: Response) => {
+router.post("/chat", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
   try {
-    const accountId = req.accountId!;
-    const { plan, status, ownerEmail } = await getAccountBilling(accountId);
-    if (!requireAiAccess(plan, status, ownerEmail, res)) return;
-
     const { message, projectContext } = req.body as ChatRequestBody;
 
     if (!message?.trim()) {
       return res.status(400).json({ error: "Le message est requis" });
     }
 
-    const response = await callAi(message, {
-      user: { plan: plan ?? "freelance" },
-      project: projectContext,
+    const result = await runAi({
+      type: "chat",
+      provider: "ollama",
+      context: {
+        content: message,
+        project: projectContext,
+      },
     });
 
-    res.json({ response });
+    res.json({ response: result.text });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur de l'assistant IA";
     console.error("AI /chat error:", err);
@@ -119,50 +65,41 @@ router.post("/chat", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/project-analysis", requireAuth, async (req: Request, res: Response) => {
+router.post("/project-analysis", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
   try {
-    const accountId = req.accountId!;
-    const { plan, status, ownerEmail } = await getAccountBilling(accountId);
-    if (!requireAiAccess(plan, status, ownerEmail, res)) return;
-
     const { project } = req.body as ProjectAnalysisBody;
 
     if (!project?.name) {
       return res.status(400).json({ error: "Les données projet sont requises" });
     }
 
-    const prompt = `Analyse ce projet et fournis un diagnostic structuré en 4 sections :
-
-**Diagnostic de rentabilité** : évalue la santé financière du projet.
-**Risques identifiés** : liste les risques majeurs (dépassement budget, marge, etc.).
-**Quick wins** : actions rapides à fort impact pour améliorer la situation.
-**Priorités recommandées** : 3 actions prioritaires à mener maintenant.
-
-Données du projet :
-- Nom : ${project.name}
-- Description : ${project.description || "N/A"}
-- Catégorie : ${project.category || "N/A"}
-- Statut : ${project.status || "N/A"}
-- Budget : ${project.budget != null ? project.budget + "€" : "N/A"}
-- Facturé : ${project.totalBilled != null ? project.totalBilled + "€" : "N/A"}
-- Marge : ${project.margin != null ? project.margin + "€" : "N/A"} (${project.marginPercent != null ? project.marginPercent.toFixed(1) + "%" : "N/A"})
-- Temps consommé : ${project.timeConsumedHours != null ? project.timeConsumedHours + "h" : "N/A"}
-
-Sois concis et actionnable.`;
-
-    const response = await callAi(prompt, {
-      user: { plan: plan ?? "freelance" },
-      project: {
-        name: project.name,
-        description: project.description,
-        budget: project.budget,
-        status: project.status,
-        timeConsumedHours: project.timeConsumedHours,
-        marginPercent: project.marginPercent,
+    const result = await runAi({
+      type: "projectAnalysis",
+      provider: "auto",
+      context: {
+        promptContext: {
+          name: project.name,
+          description: project.description,
+          category: project.category,
+          status: project.status,
+          budget: project.budget,
+          totalBilled: project.totalBilled,
+          margin: project.margin,
+          marginPercent: project.marginPercent,
+          timeConsumedHours: project.timeConsumedHours,
+        },
+        project: {
+          name: project.name,
+          description: project.description,
+          budget: project.budget,
+          status: project.status,
+          timeConsumedHours: project.timeConsumedHours,
+          marginPercent: project.marginPercent,
+        },
       },
     });
 
-    res.json({ analysis: response });
+    res.json({ analysis: result.text });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur de l'analyse IA";
     console.error("AI /project-analysis error:", err);
@@ -170,12 +107,8 @@ Sois concis et actionnable.`;
   }
 });
 
-router.post("/summarize", requireAuth, async (req: Request, res: Response) => {
+router.post("/summarize", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
   try {
-    const accountId = req.accountId!;
-    const { plan, status, ownerEmail } = await getAccountBilling(accountId);
-    if (!requireAiAccess(plan, status, ownerEmail, res)) return;
-
     const { content, title, type = "note" } = req.body as ContentRequestBody;
 
     const text = typeof content === "string" ? content : extractTextFromProseMirror(content);
@@ -184,10 +117,16 @@ router.post("/summarize", requireAuth, async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Le contenu est vide" });
     }
 
-    const prompt = `Synthétise ce ${type === "document" ? "document" : "note"} en 3-5 points clés sous forme de liste.${title ? ` Titre : "${title}".` : ""} Sois concis.`;
+    const result = await runAi({
+      type: "summarize",
+      provider: "auto",
+      context: {
+        content: text,
+        promptContext: { type, title },
+      },
+    });
 
-    const response = await callAi(prompt, { user: { plan: plan ?? "freelance" }, content: text });
-    res.json({ result: response });
+    res.json({ result: result.text });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur de la synthèse IA";
     console.error("AI /summarize error:", err);
@@ -195,12 +134,8 @@ router.post("/summarize", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/improve", requireAuth, async (req: Request, res: Response) => {
+router.post("/improve", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
   try {
-    const accountId = req.accountId!;
-    const { plan, status, ownerEmail } = await getAccountBilling(accountId);
-    if (!requireAiAccess(plan, status, ownerEmail, res)) return;
-
     const { content, title, type = "note" } = req.body as ContentRequestBody;
 
     const text = typeof content === "string" ? content : extractTextFromProseMirror(content);
@@ -209,10 +144,16 @@ router.post("/improve", requireAuth, async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Le contenu est vide" });
     }
 
-    const prompt = `Améliore la clarté, la structure et le style de ce ${type === "document" ? "document" : "note"} professionnel${title ? ` intitulé "${title}"` : ""}. Conserve les idées principales. Fournis le texte amélioré directement sans introduction.`;
+    const result = await runAi({
+      type: "improve",
+      provider: "auto",
+      context: {
+        content: text,
+        promptContext: { type, title },
+      },
+    });
 
-    const response = await callAi(prompt, { user: { plan: plan ?? "freelance" }, content: text });
-    res.json({ result: response });
+    res.json({ result: result.text });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur de l'amélioration IA";
     console.error("AI /improve error:", err);
@@ -220,12 +161,8 @@ router.post("/improve", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/recommendations", requireAuth, async (req: Request, res: Response) => {
+router.post("/recommendations", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
   try {
-    const accountId = req.accountId!;
-    const { plan, status, ownerEmail } = await getAccountBilling(accountId);
-    if (!requireAiAccess(plan, status, ownerEmail, res)) return;
-
     const { content, title, type = "note" } = req.body as ContentRequestBody;
 
     const text = typeof content === "string" ? content : extractTextFromProseMirror(content);
@@ -234,10 +171,16 @@ router.post("/recommendations", requireAuth, async (req: Request, res: Response)
       return res.status(400).json({ error: "Le contenu est vide" });
     }
 
-    const prompt = `En te basant sur ce ${type === "document" ? "document" : "note"}${title ? ` "${title}"` : ""}, fournis 3-5 recommandations concrètes et actionnables pour améliorer la situation ou avancer. Format : liste numérotée.`;
+    const result = await runAi({
+      type: "recommendations",
+      provider: "auto",
+      context: {
+        content: text,
+        promptContext: { type, title },
+      },
+    });
 
-    const response = await callAi(prompt, { user: { plan: plan ?? "freelance" }, content: text });
-    res.json({ result: response });
+    res.json({ result: result.text });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur des recommandations IA";
     console.error("AI /recommendations error:", err);

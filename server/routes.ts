@@ -120,7 +120,8 @@ import {
   automations,
   insertAutomationSchema,
 } from "@shared/schema";
-import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
+import { extractActions, suggestNextActions } from "./lib/openai";
+import { requireAiAccess } from "./middleware/aiAccess";
 import { requireAuth, requireRole, optionalAuth, requireOrgMember, requireOrgAdmin, requirePermission } from "./middleware/auth";
 import { permissionService } from "./services/permissionService";
 import { getDemoCredentials } from "./middleware/demo-helper";
@@ -1324,7 +1325,7 @@ app.get("/config/feature-flags", async (_req, res) => {
   });
 
   // AI suggestion for client next actions
-  app.post("/api/clients/:id/suggest-actions", requireAuth, requireOrgMember, requirePermission("crm", "read", "crm.clients"), async (req, res) => {
+  app.post("/api/clients/:id/suggest-actions", requireAuth, requireOrgMember, requireAiAccess, requirePermission("crm", "read", "crm.clients"), async (req, res) => {
     try {
       const client = await storage.getClient(req.accountId!, req.params.id);
       if (!client) {
@@ -4748,26 +4749,7 @@ app.get("/config/feature-flags", async (_req, res) => {
   });
 
   // AI operations on notes (Protected)
-  app.post("/api/notes/:id/summarize", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
-    try {
-      const note = await storage.getNote(req.params.id);
-      if (!note) {
-        return res.status(404).json({ error: "Note not found" });
-      }
-      if (note.accountId !== req.accountId) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-
-      const text = typeof note.content === 'string' ? note.content : JSON.stringify(note.content);
-      const summary = await summarizeText(text);
-
-      res.json({ summary });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-  app.post("/api/notes/:id/extract-actions", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
+  app.post("/api/notes/:id/extract-actions", requireAuth, requireOrgMember, requireAiAccess, requirePermission("notes", "read"), async (req, res) => {
     try {
       const note = await storage.getNote(req.params.id);
       if (!note) {
