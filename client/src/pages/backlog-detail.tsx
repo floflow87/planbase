@@ -4050,7 +4050,7 @@ function UserStoryDialog({
             <div className="flex gap-2 items-center">
               <Input
                 value={title}
-                onChange={(e) => { setTitle(e.target.value); setGeneratedTicket(null); setAiError(null); setAcceptedSections(new Set()); }}
+                onChange={(e) => { setTitle(e.target.value); setGeneratedTicket(null); setAiError(null); setAcceptedSections(new Set()); setEditingSections({}); }}
                 placeholder={t.common.ph.userStoryTitle}
                 className="flex-1"
                 data-testid="input-userstory-title"
