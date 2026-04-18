@@ -11,15 +11,14 @@
  *   Covers:
  *     - All /api/ai/* endpoints (chat, search-context, project-analysis,
  *       generate-ticket, extract-actions, summarize, improve, recommendations)
- *     - /api/notes/:id/extract-actions  (special route in routes.ts)
- *     - /api/clients/:id/suggest-actions (special route in routes.ts)
+ *     - /api/notes/:id/extract-actions  (now in aiNested router)
+ *     - /api/clients/:id/suggest-actions (now in aiNested router)
  *
  * LAYER 2 — Route registration audit (source inspection)
- *   Reads the actual server/routes.ts source and asserts that
- *   `requireAiAccess` is present in the middleware chain for the two
- *   special routes that live outside the /api/ai sub-router. This
- *   catches wiring regressions (e.g. someone deleting the middleware
- *   from routes.ts) that supertest alone would not catch.
+ *   Reads the actual server/routes/aiNested.ts source and asserts that
+ *   `requireAiAccess` is present at the router level. This catches wiring
+ *   regressions (e.g. someone removing the middleware) that supertest alone
+ *   would not catch.
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -65,6 +64,7 @@ vi.mock("../services/aiContextBuilder", () => ({
   buildProjectContext: vi.fn().mockResolvedValue(null),
   buildNoteContext: vi.fn().mockResolvedValue(null),
   buildDocumentContext: vi.fn().mockResolvedValue(null),
+  buildClientContext: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock("../services/embeddingService", () => ({
@@ -75,6 +75,11 @@ vi.mock("../services/embeddingService", () => ({
 vi.mock("../services/aiService", () => ({
   callAi: vi.fn().mockResolvedValue("AI response"),
   extractTextFromProseMirror: vi.fn().mockReturnValue("text"),
+}));
+
+vi.mock("../lib/openai", () => ({
+  extractActions: vi.fn().mockResolvedValue([]),
+  suggestNextActions: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("../storage", () => ({
@@ -90,6 +95,7 @@ vi.mock("../storage", () => ({
       accountId: "test-account",
     }),
     getNotesByAccount: vi.fn().mockResolvedValue([]),
+    getProjectsByAccountId: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -108,11 +114,9 @@ vi.mock("drizzle-orm", () => ({
 // ─────────────────────────────────────────────────────────────────────────────
 // Imports that depend on mocked modules
 // ─────────────────────────────────────────────────────────────────────────────
-import { requireAiAccess } from "../middleware/aiAccess";
-import { requireAuth, requireOrgMember, requirePermission } from "../middleware/auth";
-import { storage } from "../storage";
 import { runAi } from "../services/aiOrchestrator";
 import aiRouter from "./ai";
+import aiNestedRouter from "./aiNested";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers: billing row factories
@@ -153,48 +157,14 @@ function buildAiApp() {
 }
 
 /**
- * Builds an app that mirrors the exact middleware chain used in server/routes.ts
- * for the two special AI routes that live outside the /api/ai sub-router.
- *
- * Middleware order is taken directly from routes.ts (lines ~1328, ~4800):
- *   requireAuth, requireOrgMember, requireAiAccess, requirePermission(...)
- *
- * The route handler bodies are simplified stubs — we only care that
- * requireAiAccess runs before the handler. LAYER 2 (source inspection)
- * provides the assurance that routes.ts itself applies the same chain.
+ * Builds an app that mounts the actual aiNested sub-router.
+ * This covers /api/notes/:id/extract-actions and /api/clients/:id/suggest-actions,
+ * both protected by the router-level requireAiAccess middleware in aiNested.ts.
  */
-function buildSpecialRouteApp() {
+function buildNestedAiApp() {
   const app = express();
   app.use(express.json());
-
-  app.post(
-    "/api/notes/:id/extract-actions",
-    requireAuth,
-    requireOrgMember,
-    requireAiAccess,
-    requirePermission("notes", "read"),
-    async (req: Request, res: Response) => {
-      const note = await storage.getNote(req.params.id);
-      if (!note) return res.status(404).json({ error: "Note not found" });
-      const result = await runAi({ type: "extractActions", context: { content: "note content" } });
-      const data = result.data as { actions?: string[] } | undefined;
-      res.json({ actions: data?.actions ?? [] });
-    }
-  );
-
-  app.post(
-    "/api/clients/:id/suggest-actions",
-    requireAuth,
-    requireOrgMember,
-    requireAiAccess,
-    requirePermission("crm", "read", "crm.clients"),
-    async (req: Request, res: Response) => {
-      const result = await runAi({ type: "suggestCrmActions", context: { content: "client info" } });
-      const data = result.data as { suggestions?: string[] } | undefined;
-      res.json({ suggestions: data?.suggestions ?? [] });
-    }
-  );
-
+  app.use("/api", aiNestedRouter);
   return app;
 }
 
@@ -281,7 +251,7 @@ describe("AI route access control — /api/notes/:id/extract-actions", () => {
   it("returns 403 PLAN_REQUIRED for a free-plan account", async () => {
     mockDbExecute.mockResolvedValue(freeAccountRow());
 
-    const res = await request(buildSpecialRouteApp())
+    const res = await request(buildNestedAiApp())
       .post("/api/notes/note-1/extract-actions")
       .set("x-account-id", "free-account")
       .send({});
@@ -293,9 +263,9 @@ describe("AI route access control — /api/notes/:id/extract-actions", () => {
   it("allows access for an agency-plan account with active subscription", async () => {
     mockDbExecute.mockResolvedValue(agencyAccountRow());
 
-    const res = await request(buildSpecialRouteApp())
+    const res = await request(buildNestedAiApp())
       .post("/api/notes/note-1/extract-actions")
-      .set("x-account-id", "agency-account")
+      .set("x-account-id", "test-account")
       .send({});
 
     expect(res.status).not.toBe(403);
@@ -304,9 +274,9 @@ describe("AI route access control — /api/notes/:id/extract-actions", () => {
   it("allows access for floflow87@planbase.io admin email", async () => {
     mockDbExecute.mockResolvedValue(adminAccountRow("floflow87@planbase.io"));
 
-    const res = await request(buildSpecialRouteApp())
+    const res = await request(buildNestedAiApp())
       .post("/api/notes/note-1/extract-actions")
-      .set("x-account-id", "admin-account")
+      .set("x-account-id", "test-account")
       .send({});
 
     expect(res.status).not.toBe(403);
@@ -315,7 +285,7 @@ describe("AI route access control — /api/notes/:id/extract-actions", () => {
   it("returns 403 for an agency account with a cancelled subscription", async () => {
     mockDbExecute.mockResolvedValue(canceledAgencyRow());
 
-    const res = await request(buildSpecialRouteApp())
+    const res = await request(buildNestedAiApp())
       .post("/api/notes/note-1/extract-actions")
       .set("x-account-id", "canceled-account")
       .send({});
@@ -337,7 +307,7 @@ describe("AI route access control — /api/clients/:id/suggest-actions", () => {
   it("returns 403 PLAN_REQUIRED for a free-plan account", async () => {
     mockDbExecute.mockResolvedValue(freeAccountRow());
 
-    const res = await request(buildSpecialRouteApp())
+    const res = await request(buildNestedAiApp())
       .post("/api/clients/client-1/suggest-actions")
       .set("x-account-id", "free-account")
       .send({});
@@ -349,7 +319,7 @@ describe("AI route access control — /api/clients/:id/suggest-actions", () => {
   it("allows access for an agency-plan account with active subscription", async () => {
     mockDbExecute.mockResolvedValue(agencyAccountRow());
 
-    const res = await request(buildSpecialRouteApp())
+    const res = await request(buildNestedAiApp())
       .post("/api/clients/client-1/suggest-actions")
       .set("x-account-id", "agency-account")
       .send({});
@@ -360,7 +330,7 @@ describe("AI route access control — /api/clients/:id/suggest-actions", () => {
   it("allows access for demo@yopmail.com admin email", async () => {
     mockDbExecute.mockResolvedValue(adminAccountRow("demo@yopmail.com"));
 
-    const res = await request(buildSpecialRouteApp())
+    const res = await request(buildNestedAiApp())
       .post("/api/clients/client-1/suggest-actions")
       .set("x-account-id", "demo-account")
       .send({});
@@ -371,7 +341,7 @@ describe("AI route access control — /api/clients/:id/suggest-actions", () => {
   it("returns 403 for an agency account with an incomplete subscription", async () => {
     mockDbExecute.mockResolvedValue(incompleteAgencyRow());
 
-    const res = await request(buildSpecialRouteApp())
+    const res = await request(buildNestedAiApp())
       .post("/api/clients/client-1/suggest-actions")
       .set("x-account-id", "incomplete-account")
       .send({});
@@ -382,49 +352,58 @@ describe("AI route access control — /api/clients/:id/suggest-actions", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LAYER 2 — Route registration audit: verify routes.ts wiring
+// LAYER 2 — Route registration audit: verify aiNested.ts wiring
 //
-// Reads the actual server/routes.ts source to assert that requireAiAccess
-// is present in the middleware chain for the two special routes. This
-// complements the HTTP tests by catching regressions in the real route
-// file (e.g. someone accidentally removing the middleware from routes.ts).
+// Reads the actual server/routes/aiNested.ts source to assert that
+// requireAiAccess is applied at the router level. This complements the
+// HTTP tests by catching regressions (e.g. someone removing the middleware).
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("Route registration audit — routes.ts wiring for special AI routes", () => {
-  const routesSrc = readFileSync(
-    path.resolve(__dirname, "../routes.ts"),
+describe("Route registration audit — aiNested.ts wiring for special AI routes", () => {
+  const aiNestedSrc = readFileSync(
+    path.resolve(__dirname, "./aiNested.ts"),
     "utf-8"
   );
 
-  it('/api/notes/:id/extract-actions has requireAiAccess in its middleware chain in routes.ts', () => {
-    const pattern = /app\.post\(\s*["']\/api\/notes\/:id\/extract-actions["'][^)]*requireAiAccess/s;
+  it("aiNested.ts imports requireAiAccess", () => {
+    expect(aiNestedSrc).toContain("requireAiAccess");
+  });
+
+  it("aiNested.ts applies requireAiAccess at the router level via router.use()", () => {
+    const pattern = /router\.use\([^)]*requireAiAccess/s;
     expect(
-      pattern.test(routesSrc),
-      "Expected requireAiAccess to appear before the handler for /api/notes/:id/extract-actions in server/routes.ts"
+      pattern.test(aiNestedSrc),
+      "Expected requireAiAccess to be applied at the router level via router.use() in aiNested.ts"
     ).toBe(true);
   });
 
-  it('/api/clients/:id/suggest-actions has requireAiAccess in its middleware chain in routes.ts', () => {
-    const pattern = /app\.post\(\s*["']\/api\/clients\/:id\/suggest-actions["'][^)]*requireAiAccess/s;
-    expect(
-      pattern.test(routesSrc),
-      "Expected requireAiAccess to appear before the handler for /api/clients/:id/suggest-actions in server/routes.ts"
-    ).toBe(true);
+  it("aiNested.ts defines the /notes/:id/extract-actions route", () => {
+    expect(aiNestedSrc).toContain('"/notes/:id/extract-actions"');
   });
 
-  it('/api/ai/* sub-router is mounted with requireAiAccess enforced inside the router in ai.ts', () => {
+  it("aiNested.ts defines the /clients/:id/suggest-actions route", () => {
+    expect(aiNestedSrc).toContain('"/clients/:id/suggest-actions"');
+  });
+
+  it("/api/ai/* sub-router is mounted with requireAiAccess enforced inside the router in ai.ts", () => {
     const aiRouterSrc = readFileSync(
       path.resolve(__dirname, "./ai.ts"),
       "utf-8"
     );
-    // The ai.ts router must import requireAiAccess and apply it to its routes
     expect(aiRouterSrc).toContain("requireAiAccess");
-    // And it must be mounted in server/index.ts at /api/ai
     const indexSrc = readFileSync(
       path.resolve(__dirname, "../index.ts"),
       "utf-8"
     );
     expect(indexSrc).toContain('"/api/ai"');
     expect(indexSrc).toContain("aiRouter");
+  });
+
+  it("server/routes.ts no longer imports requireAiAccess", () => {
+    const routesSrc = readFileSync(
+      path.resolve(__dirname, "../routes.ts"),
+      "utf-8"
+    );
+    expect(routesSrc).not.toContain("requireAiAccess");
   });
 });

@@ -4,6 +4,7 @@ import { strapiGet } from "./lib/strapi";
 import billingRouter from "./routes/billing";
 import strapiAdminRouter from "./routes/strapi-admin";
 import aiRouter from "./routes/ai";
+import aiNestedRouter from "./routes/aiNested";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
@@ -579,6 +580,7 @@ app.use("/api/billing/webhook", express.raw({ type: "application/json" }), (req:
 app.use("/api/billing", billingRouter);
 app.use("/api/strapi", strapiAdminRouter);
 app.use("/api/ai", aiRouter);
+app.use("/api", aiNestedRouter);
 
 app.get("/api/config/feature-flags", async (req, res) => {
   try {
