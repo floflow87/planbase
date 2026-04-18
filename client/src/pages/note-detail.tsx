@@ -77,12 +77,16 @@ const PRIORITY_LABELS: Record<string, string> = { low: "Basse", medium: "Moyenne
 function LinkedTaskRow({ taskId, noteId }: { taskId: string; noteId: string }) {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { data: task, isError } = useQuery<any>({ queryKey: ['/api/tasks', taskId] });
 
   const unlinkMutation = useMutation({
     mutationFn: () => apiRequest(`/api/notes/${noteId}/links/task/${taskId}`, "DELETE"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/notes', noteId, 'links'] });
+    },
+    onError: () => {
+      toast({ title: "Erreur", description: "Impossible de retirer ce lien.", variant: "destructive" });
     },
   });
 
@@ -103,7 +107,7 @@ function LinkedTaskRow({ taskId, noteId }: { taskId: string; noteId: string }) {
         type="button"
         onClick={() => unlinkMutation.mutate()}
         disabled={unlinkMutation.isPending}
-        className="shrink-0 p-1 text-muted-foreground hover:text-destructive invisible group-hover:visible"
+        className="shrink-0 p-1 text-muted-foreground hover:text-destructive invisible group-hover:visible group-focus-within:visible"
         title="Retirer ce lien"
         data-testid={`button-unlink-task-${taskId}`}
       >
