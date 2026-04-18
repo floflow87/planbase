@@ -76,7 +76,10 @@ const PRIORITY_LABELS: Record<string, string> = { low: "Basse", medium: "Moyenne
 
 function LinkedTaskRow({ taskId }: { taskId: string }) {
   const [, setLocation] = useLocation();
-  const { data: task } = useQuery<any>({ queryKey: ['/api/tasks', taskId] });
+  const { data: task, isError } = useQuery<any>({ queryKey: ['/api/tasks', taskId] });
+  if (isError) return (
+    <div className="text-xs text-muted-foreground px-1.5 py-1 italic">Tâche introuvable</div>
+  );
   if (!task) return <div className="h-6 rounded animate-pulse bg-muted/60 mx-0.5" />;
   return (
     <button
