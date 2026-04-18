@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useLocation } from "wouter";
 import {
   Sheet,
   SheetContent,
@@ -22,7 +23,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon, Star, Trash2, CheckCircle2, ListTodo, Check, ChevronsUpDown, Paperclip, File, Image, Plus, Download, Circle, Package, ChevronRight } from "lucide-react";
+import { CalendarIcon, Star, Trash2, CheckCircle2, ListTodo, Check, ChevronsUpDown, Paperclip, File, Image, Plus, Download, Circle, Package, ChevronRight, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -83,6 +84,7 @@ export function TaskDetailModal({
 }: TaskDetailModalProps) {
   const { toast } = useToast();
   const { celebrate } = useCelebration();
+  const [, setLocation] = useLocation();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
@@ -92,6 +94,12 @@ export function TaskDetailModal({
   const [projectId, setProjectId] = useState<string | undefined>();
   const [effort, setEffort] = useState<number | null>(null);
   const [scopeItemId, setScopeItemId] = useState<string | null>(null);
+
+  // Fetch source note linked to this task (if any)
+  const { data: sourceNote } = useQuery<{ id: string; title: string } | null>({
+    queryKey: ['/api/tasks', task?.id, 'source-note'],
+    enabled: !!task?.id && isOpen,
+  });
 
   // Fetch scope items for the livrable selector
   const { data: taskScopeItems = [] } = useQuery<any[]>({
@@ -575,6 +583,22 @@ export function TaskDetailModal({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {/* Source note (if this task was created from AI note extraction) */}
+          {sourceNote && (
+            <div>
+              <Label className="text-xs">Note source</Label>
+              <button
+                type="button"
+                onClick={() => { onClose(); setLocation(`/notes/${sourceNote.id}`); }}
+                className="flex items-center gap-2 w-full text-left text-xs rounded-md border px-2.5 py-1.5 hover-elevate text-foreground"
+                data-testid="button-task-source-note"
+              >
+                <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <span className="flex-1 truncate">{sourceNote.title || "Note sans titre"}</span>
+              </button>
             </div>
           )}
 

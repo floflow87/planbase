@@ -3762,6 +3762,23 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  // Get source note linked to a task (from note_links where targetType='task')
+  app.get("/api/tasks/:id/source-note", requireAuth, requireOrgMember, requirePermission("tasks", "read"), async (req, res) => {
+    try {
+      const task = await storage.getTask(req.params.id);
+      if (!task) return res.status(404).json({ error: "Task not found" });
+      if (task.accountId !== req.accountId) return res.status(403).json({ error: "Access denied" });
+
+      const linkedNotes = await storage.getNotesByEntityLink("task", req.params.id);
+      if (linkedNotes.length === 0) return res.json(null);
+
+      const note = linkedNotes[0];
+      res.json({ id: note.id, title: note.title || "Note sans titre" });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Update a task
   app.patch("/api/tasks/:id", requireAuth, requireOrgMember, requirePermission("tasks", "update"), async (req, res) => {
     try {
