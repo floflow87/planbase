@@ -1,0 +1,272 @@
+Je souhaite faire évoluer l’architecture IA de PlanBase.
+
+Aujourd’hui, plusieurs fonctionnalités IA existent (OpenAI + Ollama + Whisper), mais elles sont encore fragmentées. Mon objectif est de transformer cela en un système IA cohérent, contextuel et réellement utile dans les workflows produit.
+
+---
+
+# 🎯 OBJECTIF GLOBAL
+
+Passer de :
+- fonctionnalités IA isolées
+
+à :
+- un assistant intelligent unifié, capable de :
+  - comprendre le contexte projet / client / document
+  - proposer des actions concrètes
+  - aider à produire (tickets, notes, roadmap, décisions)
+  - améliorer la rentabilité et la gestion
+
+---
+
+# 🧪 ÉTAPE 1 — AUDIT & CORRECTIONS
+
+Avant toute amélioration, je veux :
+
+1. Vérifier la cohérence entre :
+   - OpenAI (résumés, extraction, CRM)
+   - Ollama (chat assistant)
+   - Whisper (transcription)
+
+2. Identifier les incohérences :
+   - logique dupliquée (résumé / recommandations / actions)
+   - prompts différents pour des usages similaires
+   - données non partagées entre moteurs
+
+3. Vérifier :
+   - que toutes les routes IA sont sécurisées (requireAiAccess)
+   - que les erreurs sont bien gérées (timeout, modèle absent, etc.)
+   - que les réponses sont structurées (pas de texte brut inutilisable)
+
+4. Centraliser les prompts :
+   - créer un système de prompt templates réutilisables
+   - éviter les prompts écrits en dur dans plusieurs fichiers
+
+---
+
+# 🧱 ÉTAPE 2 — UNIFIER LE MOTEUR IA
+
+Créer une couche centrale :
+
+## AI Orchestrator
+
+Un service unique qui gère :
+- quel moteur utiliser (OpenAI vs Ollama)
+- quel prompt utiliser
+- quel contexte injecter
+
+Exemple :
+
+aiOrchestrator.run({
+  type: "project_analysis",
+  context: {...},
+  provider: "auto"
+})
+
+Règles :
+- Ollama → chat temps réel / assistant
+- OpenAI → tâches complexes / structuration / extraction
+- Whisper → input vocal uniquement
+
+---
+
+# 🧠 ÉTAPE 3 — CONTEXTE INTELLIGENT (CRITIQUE)
+
+Aujourd’hui, l’IA fonctionne mais manque de profondeur contextuelle.
+
+Je veux enrichir le contexte automatiquement :
+
+## Contexte injecté selon la page :
+
+### Projet
+- budget
+- marge
+- temps consommé / restant
+- statut
+- livrables
+- tâches
+
+### Client / CRM
+- historique des échanges
+- statut commercial
+- projets liés
+
+### Notes / Documents
+- contenu
+- tags
+- type de document
+
+---
+
+## IMPORTANT
+
+Ne jamais demander à l’utilisateur de fournir le contexte manuellement.
+
+---
+
+# 🔎 ÉTAPE 4 — VECTOR DB (RAG)
+
+Activer la recherche sémantique (déjà prévue avec pgvector).
+
+Objectif :
+- permettre à l’IA de répondre sur :
+  - les notes
+  - les documents
+  - les historiques
+
+## À implémenter :
+
+1. Embeddings pour :
+   - notes
+   - documents
+   - emails (plus tard)
+
+2. Stockage pgvector
+
+3. Endpoint :
+/api/ai/search-context
+
+4. Injection automatique dans les prompts
+
+---
+
+# 🤖 ÉTAPE 5 — AMÉLIORER L’ASSISTANT (OLLAMA)
+
+Aujourd’hui :
+→ chat flottant basique
+
+Je veux :
+
+## 1. Assistant orienté action
+
+Exemples :
+
+- "Ce projet est-il rentable ?"
+- "Que dois-je faire maintenant ?"
+- "Quels sont les risques ?"
+
+Réponses attendues :
+- structurées
+- concrètes
+- actionnables
+
+---
+
+## 2. Suggestions proactives
+
+Exemples :
+
+- marge faible → proposer d’ajuster le TJM
+- retard → proposer une priorisation
+- manque de CDC → proposer de structurer
+
+---
+
+## 3. Intégration UI
+
+Depuis une réponse IA, pouvoir :
+- créer une tâche
+- créer une note
+- modifier un projet
+
+---
+
+# 📝 ÉTAPE 6 — NOTES & DOCUMENTS
+
+Unifier les actions IA :
+
+Aujourd’hui :
+- résumé
+- amélioration
+- recommandations
+- extraction
+
+Je veux :
+
+## 1. Un seul point d’entrée IA
+
+Exemple :
+"Analyser ce document"
+
+Puis proposer :
+- résumé
+- actions
+- amélioration
+- risques
+
+---
+
+## 2. Extraction intelligente
+
+Quand on extrait des actions :
+- associer automatiquement au projet
+- proposer une assignation
+- proposer une priorité
+
+---
+
+# 🎯 ÉTAPE 7 — USE CASES PRODUIT PRIORITAIRES
+
+Implémenter en priorité :
+
+## 1. Rédaction de ticket
+À partir d’un titre :
+→ générer :
+- description
+- critères d’acceptation
+- non-régression
+- métriques
+
+## 2. Analyse rentabilité projet
+→ diagnostic + recommandations concrètes
+
+## 3. Synthèse + actions (notes)
+→ résumé + tasks auto
+
+## 4. CRM suggestions
+→ prochaines étapes commerciales
+
+---
+
+# ⚙️ ÉTAPE 8 — UX IA
+
+Améliorer l’intégration :
+
+- éviter les blocs IA isolés
+- intégrer l’IA dans les actions existantes
+- rendre les résultats directement exploitables
+
+Exemples :
+- bouton "Générer avec IA"
+- suggestions inline
+- actions rapides
+
+---
+
+# 🚫 À NE PAS FAIRE
+
+- ajouter trop de features IA
+- complexifier l’UI
+- créer une "usine à gaz"
+- multiplier les points d’entrée IA
+
+---
+
+# 🎯 OBJECTIF FINAL
+
+Créer une IA qui :
+- comprend le contexte automatiquement
+- propose des actions concrètes
+- s’intègre dans les workflows existants
+- améliore réellement la productivité
+
+---
+
+# LIVRABLE ATTENDU
+
+Avant implémentation :
+1. audit technique et fonctionnel
+2. proposition d’architecture AI Orchestrator
+3. plan d’intégration du RAG
+4. priorisation des use cases
+
+Puis implémentation progressive.
