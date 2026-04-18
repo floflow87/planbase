@@ -30,6 +30,7 @@ const OPENAI_STRUCTURED_TYPES: PromptType[] = [
   "classifyDocument",
   "suggestCrmActions",
   "generateTicket",
+  "projectAnalysis",
 ];
 
 const OPENAI_JSON_TYPES: PromptType[] = [
@@ -89,7 +90,7 @@ function parseOpenAiResponse(type: PromptType, raw: string): ParsedResponse {
       return { text: summary };
     }
     if (type === "extractActions") {
-      const actions: string[] = parsed.actions ?? [];
+      const actions: { title: string; priority: string; suggestedProjectId: string | null }[] = parsed.actions ?? [];
       return { text: JSON.stringify({ actions }), data: { actions } };
     }
     if (type === "classifyDocument") {
@@ -101,6 +102,9 @@ function parseOpenAiResponse(type: PromptType, raw: string): ParsedResponse {
       return { text: JSON.stringify({ suggestions }), data: { suggestions } };
     }
     if (type === "generateTicket") {
+      return { text: JSON.stringify(parsed), data: parsed as Record<string, unknown> };
+    }
+    if (type === "projectAnalysis") {
       return { text: JSON.stringify(parsed), data: parsed as Record<string, unknown> };
     }
     return { text: raw };

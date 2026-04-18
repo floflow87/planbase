@@ -2810,7 +2810,7 @@ export default function ProjectDetail() {
   const [isBillingSettingsOpen, setIsBillingSettingsOpen] = useState(false);
   const [isSimulationOpen, setIsSimulationOpen] = useState(false);
   const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
-  const [aiAnalysisResult, setAiAnalysisResult] = useState<string | null>(null);
+  const [aiAnalysisResult, setAiAnalysisResult] = useState<string | { health?: string; risks?: string; quickWins?: string; priorities?: string } | null>(null);
   const [isAiAnalysisLoading, setIsAiAnalysisLoading] = useState(false);
   const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
   
@@ -3654,6 +3654,10 @@ export default function ProjectDetail() {
     } finally {
       setIsAiAnalysisLoading(false);
     }
+  };
+
+  const isStructuredAnalysis = (result: typeof aiAnalysisResult): result is { health?: string; risks?: string; quickWins?: string; priorities?: string } => {
+    return result !== null && typeof result === "object";
   };
 
   const getBillingDaysOverdue = (billingDueDate: string | null) => {
@@ -5469,7 +5473,63 @@ export default function ProjectDetail() {
                   {aiAnalysisError && (
                     <p className="text-sm text-destructive">{aiAnalysisError}</p>
                   )}
-                  {aiAnalysisResult && (
+                  {aiAnalysisResult && isStructuredAnalysis(aiAnalysisResult) && (
+                    <Accordion type="multiple" className="w-full" defaultValue={["health"]}>
+                      {aiAnalysisResult.health && (
+                        <AccordionItem value="health">
+                          <AccordionTrigger className="text-sm font-medium py-2 hover:no-underline" data-testid="accordion-ai-health">
+                            <div className="flex items-center gap-2">
+                              <TrendingUp className="w-3.5 h-3.5 text-green-600" />
+                              Santé financière
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <p className="text-sm text-foreground whitespace-pre-wrap pb-2">{aiAnalysisResult.health}</p>
+                          </AccordionContent>
+                        </AccordionItem>
+                      )}
+                      {aiAnalysisResult.risks && (
+                        <AccordionItem value="risks">
+                          <AccordionTrigger className="text-sm font-medium py-2 hover:no-underline" data-testid="accordion-ai-risks">
+                            <div className="flex items-center gap-2">
+                              <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
+                              Risques identifiés
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <p className="text-sm text-foreground whitespace-pre-wrap pb-2">{aiAnalysisResult.risks}</p>
+                          </AccordionContent>
+                        </AccordionItem>
+                      )}
+                      {aiAnalysisResult.quickWins && (
+                        <AccordionItem value="quickWins">
+                          <AccordionTrigger className="text-sm font-medium py-2 hover:no-underline" data-testid="accordion-ai-quickwins">
+                            <div className="flex items-center gap-2">
+                              <Lightbulb className="w-3.5 h-3.5 text-yellow-500" />
+                              Quick wins
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <p className="text-sm text-foreground whitespace-pre-wrap pb-2">{aiAnalysisResult.quickWins}</p>
+                          </AccordionContent>
+                        </AccordionItem>
+                      )}
+                      {aiAnalysisResult.priorities && (
+                        <AccordionItem value="priorities">
+                          <AccordionTrigger className="text-sm font-medium py-2 hover:no-underline" data-testid="accordion-ai-priorities">
+                            <div className="flex items-center gap-2">
+                              <Target className="w-3.5 h-3.5 text-violet-600" />
+                              Actions prioritaires
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <p className="text-sm text-foreground whitespace-pre-wrap pb-2">{aiAnalysisResult.priorities}</p>
+                          </AccordionContent>
+                        </AccordionItem>
+                      )}
+                    </Accordion>
+                  )}
+                  {aiAnalysisResult && !isStructuredAnalysis(aiAnalysisResult) && (
                     <p className="text-sm text-foreground whitespace-pre-wrap">{aiAnalysisResult}</p>
                   )}
                 </CardContent>

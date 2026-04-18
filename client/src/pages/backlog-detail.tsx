@@ -13,7 +13,7 @@ import {
   CheckSquare, BarChart3, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2,
   ArrowUp, ArrowDown, ArrowUpDown, Lock, FlaskConical, MessageSquare, X,
   Wrench, Bug, Sparkles, ExternalLink, Filter, HelpCircle, XCircle, AlertTriangle,
-  FileText, Eye, Ticket
+  FileText, Eye, Ticket, Bot, Loader2, ChevronUp
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -3170,6 +3170,7 @@ export default function BacklogDetail() {
         userStory={editingUserStory}
         epics={backlog.epics}
         sprints={backlog.sprints}
+        backlogId={backlog.id}
         onCreate={(data) => createUserStoryMutation.mutate(data)}
         onUpdate={(data) => editingUserStory && updateUserStoryMutation.mutate({ id: editingUserStory.id, data })}
         isPending={createUserStoryMutation.isPending || updateUserStoryMutation.isPending}
@@ -3904,12 +3905,20 @@ function EpicDialog({
   );
 }
 
+interface GeneratedTicketData {
+  description?: string;
+  acceptanceCriteria?: string;
+  nonRegression?: string;
+  successMetrics?: string;
+}
+
 function UserStoryDialog({ 
   open, 
   onClose, 
   userStory, 
   epics,
   sprints,
+  backlogId,
   onCreate, 
   onUpdate, 
   isPending 
@@ -3919,6 +3928,7 @@ function UserStoryDialog({
   userStory: UserStory | null;
   epics: Epic[];
   sprints: Sprint[];
+  backlogId?: string;
   onCreate: (data: { 
     title: string; 
     description?: string; 
@@ -3937,6 +3947,11 @@ function UserStoryDialog({
   const [priority, setPriority] = useState("medium");
   const [complexity, setComplexity] = useState<string | null>(null);
   const [estimatePoints, setEstimatePoints] = useState<number | null>(null);
+
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedTicket, setGeneratedTicket] = useState<GeneratedTicketData | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [acceptedSections, setAcceptedSections] = useState<Set<string>>(new Set());
 
   useState(() => {
     if (userStory) {
@@ -3979,20 +3994,139 @@ function UserStoryDialog({
     }
   };
 
+  const handleGenerateWithAi = async () => {
+    if (!title.trim()) return;
+    setIsGenerating(true);
+    setAiError(null);
+    setGeneratedTicket(null);
+    setAcceptedSections(new Set());
+    try {
+      const res = await apiRequest("/api/ai/generate-ticket", "POST", {
+        title: title.trim(),
+        backlogId,
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      if (data.ticket) {
+        setGeneratedTicket(data.ticket);
+      }
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "Erreur de génération IA");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleAcceptSection = (sectionKey: string, sectionContent: string) => {
+    const sectionLabels: Record<string, string> = {
+      description: "Description",
+      acceptanceCriteria: "Critères d'acceptation",
+      nonRegression: "Non-régression",
+      successMetrics: "Métriques de succès",
+    };
+    const label = sectionLabels[sectionKey] ?? sectionKey;
+    const toAppend = `**${label} :**\n${sectionContent}`;
+    setDescription(prev => prev ? `${prev}\n\n${toAppend}` : toAppend);
+    setAcceptedSections(prev => new Set([...prev, sectionKey]));
+  };
+
+  const handleIgnoreSection = (sectionKey: string) => {
+    setAcceptedSections(prev => new Set([...prev, sectionKey]));
+  };
+
+  const allSectionsHandled = generatedTicket && Object.keys(generatedTicket).every(k => acceptedSections.has(k));
+
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-md w-full overflow-y-auto dark:bg-card">
+      <SheetContent className="sm:max-w-lg w-full overflow-y-auto dark:bg-card">
         <SheetHeader>
           <SheetTitle>{userStory ? "Modifier la User Story" : "Nouvelle User Story"}</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Titre *</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t.common.ph.userStoryTitle} className="" data-testid="input-userstory-title" />
+            <div className="flex gap-2 items-center">
+              <Input
+                value={title}
+                onChange={(e) => { setTitle(e.target.value); setGeneratedTicket(null); setAiError(null); setAcceptedSections(new Set()); }}
+                placeholder={t.common.ph.userStoryTitle}
+                className="flex-1"
+                data-testid="input-userstory-title"
+              />
+              {!userStory && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 shrink-0 text-xs"
+                  disabled={!title.trim() || isGenerating}
+                  onClick={handleGenerateWithAi}
+                  data-testid="button-generate-ticket-ai"
+                >
+                  {isGenerating
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <Bot className="w-3.5 h-3.5 text-violet-500" />
+                  }
+                  Générer avec IA
+                </Button>
+              )}
+            </div>
           </div>
+
+          {aiError && (
+            <p className="text-xs text-destructive">{aiError}</p>
+          )}
+
+          {generatedTicket && !allSectionsHandled && (
+            <div className="rounded-md border bg-muted/30 p-3 space-y-3">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-violet-600 dark:text-violet-400">
+                <Sparkles className="w-3.5 h-3.5" />
+                Contenu généré par IA — acceptez ou ignorez chaque section
+              </div>
+              {([
+                { key: "description", label: "Description fonctionnelle" },
+                { key: "acceptanceCriteria", label: "Critères d'acceptation" },
+                { key: "nonRegression", label: "Non-régression" },
+                { key: "successMetrics", label: "Métriques de succès" },
+              ] as { key: keyof GeneratedTicketData; label: string }[]).map(({ key, label }) => {
+                const content = generatedTicket[key];
+                if (!content || acceptedSections.has(key)) return null;
+                return (
+                  <div key={key} className="rounded-md border bg-background p-2.5 space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+                    <p className="text-xs text-foreground whitespace-pre-wrap">{content}</p>
+                    <div className="flex gap-2 pt-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-6 text-xs gap-1"
+                        onClick={() => handleAcceptSection(key, content)}
+                        data-testid={`button-accept-ai-section-${key}`}
+                      >
+                        <Check className="w-3 h-3" />
+                        Accepter
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 text-xs text-muted-foreground"
+                        onClick={() => handleIgnoreSection(key)}
+                        data-testid={`button-ignore-ai-section-${key}`}
+                      >
+                        Ignorer
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>Description</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="" data-testid="input-userstory-description" />
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="" data-testid="input-userstory-description" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

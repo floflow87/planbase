@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Bot, X, Send, Loader2, ChevronDown, FileText } from "lucide-react";
+import { Bot, X, Send, Loader2, ChevronDown, FileText, AlertTriangle, TrendingDown, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useBilling } from "@/hooks/useBilling";
@@ -7,7 +7,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import type { Project } from "@shared/schema";
+import type { Project, Task } from "@shared/schema";
 
 interface NoteSource {
   title: string;
@@ -91,6 +91,14 @@ function SimpleMarkdown({ text }: { text: string }) {
 }
 
 
+interface ProactiveSuggestion {
+  id: string;
+  icon: typeof AlertTriangle;
+  label: string;
+  prompt: string;
+  variant: "warning" | "danger" | "info";
+}
+
 function AiAssistantPanel({ onClose, projectId, projectName }: { onClose: () => void; projectId?: string; projectName?: string }) {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -102,7 +110,50 @@ function AiAssistantPanel({ onClose, projectId, projectName }: { onClose: () => 
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const { data: profitabilityData } = useQuery<{ marginPercent?: number }>({
+    queryKey: ["/api/projects", projectId, "profitability"],
+    enabled: !!projectId,
+  });
+
+  const { data: tasksData } = useQuery<Task[]>({
+    queryKey: ["/api/projects", projectId, "tasks"],
+    enabled: !!projectId,
+  });
+
+  const proactiveSuggestions: ProactiveSuggestion[] = [];
+  if (projectId) {
+    if (profitabilityData?.marginPercent !== undefined && profitabilityData.marginPercent < 20) {
+      proactiveSuggestions.push({
+        id: "low-margin",
+        icon: TrendingDown,
+        label: `Marge faible (${Math.round(profitabilityData.marginPercent)}%) — Comment l'améliorer ?`,
+        prompt: `La marge du projet ${projectName ?? ""} est actuellement de ${Math.round(profitabilityData.marginPercent ?? 0)}%, ce qui est en dessous de 20%. Quelles actions concrètes me suggères-tu pour améliorer cette rentabilité ?`,
+        variant: profitabilityData.marginPercent < 0 ? "danger" : "warning",
+      });
+    }
+    if (tasksData) {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const overdueCount = tasksData.filter((t) => {
+        if (!t.dueDate || t.status === "done") return false;
+        return new Date(t.dueDate) < sevenDaysAgo;
+      }).length;
+      if (overdueCount > 0) {
+        proactiveSuggestions.push({
+          id: "overdue-tasks",
+          icon: Clock,
+          label: `${overdueCount} tâche${overdueCount > 1 ? "s" : ""} en retard — Que faire ?`,
+          prompt: `Il y a ${overdueCount} tâche${overdueCount > 1 ? "s" : ""} en retard de plus de 7 jours dans le projet ${projectName ?? ""}. Quelles actions prioritaires me conseilles-tu pour rattraper ce retard ?`,
+          variant: "warning",
+        });
+      }
+    }
+  }
+
+  const visibleSuggestions = proactiveSuggestions.filter((s) => !dismissedSuggestions.has(s.id));
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -110,11 +161,11 @@ function AiAssistantPanel({ onClose, projectId, projectName }: { onClose: () => 
     }
   }, [messages, isLoading]);
 
-  const sendMessage = async () => {
-    const trimmed = input.trim();
+  const sendMessage = async (messageText?: string) => {
+    const trimmed = (messageText ?? input).trim();
     if (!trimmed || isLoading) return;
 
-    setInput("");
+    if (!messageText) setInput("");
     setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
     setIsLoading(true);
 
@@ -161,6 +212,11 @@ function AiAssistantPanel({ onClose, projectId, projectName }: { onClose: () => 
     }
   };
 
+  const handleSuggestionClick = (suggestion: ProactiveSuggestion) => {
+    setDismissedSuggestions(prev => new Set([...prev, suggestion.id]));
+    sendMessage(suggestion.prompt);
+  };
+
   return (
     <div className="flex flex-col h-full" data-testid="ai-assistant-panel">
       <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
@@ -179,6 +235,31 @@ function AiAssistantPanel({ onClose, projectId, projectName }: { onClose: () => 
           <X className="w-4 h-4" />
         </Button>
       </div>
+
+      {visibleSuggestions.length > 0 && (
+        <div className="border-b px-3 py-2 shrink-0 space-y-1.5" data-testid="ai-proactive-suggestions">
+          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Alertes détectées</p>
+          {visibleSuggestions.map((suggestion) => {
+            const Icon = suggestion.icon;
+            return (
+              <button
+                key={suggestion.id}
+                className={cn(
+                  "flex items-center gap-2 w-full text-left rounded-md px-2.5 py-1.5 text-xs border transition-colors hover-elevate",
+                  suggestion.variant === "danger"
+                    ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"
+                    : "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-orange-400"
+                )}
+                onClick={() => handleSuggestionClick(suggestion)}
+                data-testid={`button-ai-suggestion-${suggestion.id}`}
+              >
+                <Icon className="w-3.5 h-3.5 shrink-0" />
+                <span className="flex-1">{suggestion.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div
         ref={scrollRef}
@@ -249,7 +330,7 @@ function AiAssistantPanel({ onClose, projectId, projectName }: { onClose: () => 
           />
           <Button
             size="icon"
-            onClick={sendMessage}
+            onClick={() => sendMessage()}
             disabled={!input.trim() || isLoading}
             data-testid="button-send-ai-message"
           >

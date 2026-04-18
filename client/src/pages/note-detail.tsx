@@ -66,23 +66,43 @@ import { useBilling } from "@/hooks/useBilling";
 
 type AiAction = "summarize" | "improve" | "recommendations";
 
+interface ExtractedAction {
+  title: string;
+  priority: "low" | "medium" | "high";
+  suggestedProjectId: string | null;
+}
+
+const PRIORITY_LABELS: Record<string, string> = { low: "Basse", medium: "Moyenne", high: "Haute" };
+
 function NoteAiActions({
   noteTitle,
+  noteId,
   content,
   collapsed,
   onToggle,
+  projects,
 }: {
   noteTitle: string;
+  noteId?: string;
   content: unknown;
   collapsed: boolean;
   onToggle: () => void;
+  projects?: Project[];
 }) {
   const { hasFeature } = useBilling();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [activeAction, setActiveAction] = useState<AiAction | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractedActions, setExtractedActions] = useState<ExtractedAction[] | null>(null);
+  const [extractError, setExtractError] = useState<string | null>(null);
+  const [extractModalOpen, setExtractModalOpen] = useState(false);
+  const [editedActions, setEditedActions] = useState<(ExtractedAction & { selected: boolean })[]>([]);
+  const [isCreatingTasks, setIsCreatingTasks] = useState(false);
 
   const extractText = (doc: unknown): string => {
     if (!doc) return "";
@@ -120,6 +140,60 @@ function NoteAiActions({
     }
   };
 
+  const handleExtractActions = async () => {
+    if (!noteId) return;
+    setIsExtracting(true);
+    setExtractError(null);
+    try {
+      const res = await apiRequest("/api/ai/extract-actions", "POST", { noteId });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      const actions: ExtractedAction[] = (data.actions || []).map((a: any) => ({
+        title: a.title ?? "",
+        priority: a.priority ?? "medium",
+        suggestedProjectId: a.suggestedProjectId ?? null,
+      }));
+      if (actions.length === 0) {
+        toast({ title: "Aucune action trouvée", description: "L'IA n'a pas identifié d'actions dans cette note.", variant: "default" });
+        return;
+      }
+      setExtractedActions(actions);
+      setEditedActions(actions.map(a => ({ ...a, selected: true })));
+      setExtractModalOpen(true);
+    } catch (err) {
+      setExtractError(err instanceof Error ? err.message : "Erreur d'extraction");
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
+  const handleCreateSelectedTasks = async () => {
+    const selected = editedActions.filter(a => a.selected && a.title.trim());
+    if (!selected.length) return;
+    setIsCreatingTasks(true);
+    try {
+      for (const action of selected) {
+        await apiRequest("/api/tasks", "POST", {
+          title: action.title,
+          priority: action.priority,
+          projectId: action.suggestedProjectId || undefined,
+          status: "todo",
+        });
+      }
+      toast({
+        title: `${selected.length} tâche${selected.length > 1 ? "s" : ""} créée${selected.length > 1 ? "s" : ""}`,
+        description: "Les actions ont été ajoutées à vos tâches.",
+        variant: "success",
+      });
+      setExtractModalOpen(false);
+      setExtractedActions(null);
+    } catch (err) {
+      toast({ title: "Erreur", description: err instanceof Error ? err.message : "Impossible de créer les tâches", variant: "destructive" });
+    } finally {
+      setIsCreatingTasks(false);
+    }
+  };
+
   const actionLabels: Record<AiAction, string> = {
     summarize: "Synthétiser",
     improve: "Améliorer",
@@ -136,98 +210,202 @@ function NoteAiActions({
   const noAi = !hasFeature("ai_assistant");
 
   return (
-    <div className="border-l bg-background flex flex-col flex-shrink-0 w-64" data-testid="note-ai-panel">
-      <div className="flex items-center justify-between border-b px-3 py-1.5 flex-shrink-0">
-        <span className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
-          <Bot className="w-3.5 h-3.5 text-violet-500" />
-          Infos IA
-        </span>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button size="icon" variant="ghost" onClick={onToggle} data-testid="button-toggle-ai-panel-close">
-              <ChevronsRight className="w-4 h-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md text-xs">
-            Réduire le panneau IA
-          </TooltipContent>
-        </Tooltip>
-      </div>
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {noAi ? (
-          <div className="space-y-2" data-testid="note-ai-actions-upgrade">
-            <div className="flex flex-col gap-1.5 rounded-md border px-3 py-2.5 bg-muted/30">
-              <div className="flex items-center gap-2">
-                <Crown className="w-3.5 h-3.5 text-violet-500 shrink-0" />
-                <span className="text-xs font-medium">Plan Agence requis</span>
+    <>
+      <div className="border-l bg-background flex flex-col flex-shrink-0 w-64" data-testid="note-ai-panel">
+        <div className="flex items-center justify-between border-b px-3 py-1.5 flex-shrink-0">
+          <span className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
+            <Bot className="w-3.5 h-3.5 text-violet-500" />
+            Infos IA
+          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="icon" variant="ghost" onClick={onToggle} data-testid="button-toggle-ai-panel-close">
+                <ChevronsRight className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md text-xs">
+              Réduire le panneau IA
+            </TooltipContent>
+          </Tooltip>
+        </div>
+        <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          {noAi ? (
+            <div className="space-y-2" data-testid="note-ai-actions-upgrade">
+              <div className="flex flex-col gap-1.5 rounded-md border px-3 py-2.5 bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <Crown className="w-3.5 h-3.5 text-violet-500 shrink-0" />
+                  <span className="text-xs font-medium">Plan Agence requis</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Les actions IA sont réservées au plan Agence.
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Les actions IA sont réservées au plan Agence.
-              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full text-xs"
+                onClick={() => setLocation("/pricing")}
+                data-testid="button-upgrade-note-ai"
+              >
+                Passer au plan Agence
+              </Button>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full text-xs"
-              onClick={() => setLocation("/pricing")}
-              data-testid="button-upgrade-note-ai"
-            >
-              Passer au plan Agence
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-2" data-testid="note-ai-actions">
-            <p className="text-[11px] text-muted-foreground px-0.5">Actions IA sur cette note :</p>
-            <div className="space-y-1.5">
-              {(["summarize", "improve", "recommendations"] as AiAction[]).map((action) => {
-                const Icon = actionIcons[action];
-                return (
+          ) : (
+            <div className="space-y-2" data-testid="note-ai-actions">
+              <p className="text-[11px] text-muted-foreground px-0.5">Actions IA sur cette note :</p>
+              <div className="space-y-1.5">
+                {(["summarize", "improve", "recommendations"] as AiAction[]).map((action) => {
+                  const Icon = actionIcons[action];
+                  return (
+                    <Button
+                      key={action}
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start text-xs h-7 gap-2"
+                      onClick={() => handleAction(action)}
+                      disabled={isLoading || isExtracting}
+                      data-testid={`button-ai-note-${action}`}
+                    >
+                      {isLoading && activeAction === action
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <Icon className="w-3 h-3" />
+                      }
+                      {actionLabels[action]}
+                    </Button>
+                  );
+                })}
+                {noteId && (
                   <Button
-                    key={action}
                     variant="outline"
                     size="sm"
                     className="w-full justify-start text-xs h-7 gap-2"
-                    onClick={() => handleAction(action)}
-                    disabled={isLoading}
-                    data-testid={`button-ai-note-${action}`}
+                    onClick={handleExtractActions}
+                    disabled={isLoading || isExtracting}
+                    data-testid="button-ai-note-extract-actions"
                   >
-                    {isLoading && activeAction === action
+                    {isExtracting
                       ? <Loader2 className="w-3 h-3 animate-spin" />
-                      : <Icon className="w-3 h-3" />
+                      : <CheckCircle2 className="w-3 h-3" />
                     }
-                    {actionLabels[action]}
+                    Extraire les actions
                   </Button>
-                );
-              })}
+                )}
+              </div>
+              {extractError && (
+                <p className="text-xs text-destructive px-0.5">{extractError}</p>
+              )}
+              {(result || error) && (
+                <Card className="mt-1">
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <Badge variant="secondary" className="text-[10px]">
+                        {activeAction ? actionLabels[activeAction] : "IA"} — Résultat
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 text-[10px] text-muted-foreground px-1"
+                        onClick={() => { setResult(null); setError(null); setActiveAction(null); }}
+                        data-testid="button-ai-result-close"
+                      >
+                        Fermer
+                      </Button>
+                    </div>
+                    {error
+                      ? <p className="text-xs text-destructive">{error}</p>
+                      : <p className="text-xs text-foreground whitespace-pre-wrap">{result}</p>
+                    }
+                  </CardContent>
+                </Card>
+              )}
             </div>
-            {(result || error) && (
-              <Card className="mt-1">
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge variant="secondary" className="text-[10px]">
-                      {activeAction ? actionLabels[activeAction] : "IA"} — Résultat
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-5 text-[10px] text-muted-foreground px-1"
-                      onClick={() => { setResult(null); setError(null); setActiveAction(null); }}
-                      data-testid="button-ai-result-close"
-                    >
-                      Fermer
-                    </Button>
-                  </div>
-                  {error
-                    ? <p className="text-xs text-destructive">{error}</p>
-                    : <p className="text-xs text-foreground whitespace-pre-wrap">{result}</p>
-                  }
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Extract Actions Validation Modal */}
+      <Dialog open={extractModalOpen} onOpenChange={setExtractModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-violet-500" />
+              Actions extraites par l'IA
+            </DialogTitle>
+            <DialogDescription>
+              Validez, ajustez ou désélectionnez les actions avant de les créer en tâches.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 max-h-80 overflow-y-auto py-2">
+            {editedActions.map((action, index) => (
+              <div key={index} className={`rounded-md border p-3 space-y-2 transition-opacity ${action.selected ? "" : "opacity-50"}`} data-testid={`extract-action-item-${index}`}>
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={action.selected}
+                    onChange={(e) => setEditedActions(prev => prev.map((a, i) => i === index ? { ...a, selected: e.target.checked } : a))}
+                    className="mt-0.5 shrink-0"
+                    data-testid={`checkbox-extract-action-${index}`}
+                  />
+                  <Input
+                    value={action.title}
+                    onChange={(e) => setEditedActions(prev => prev.map((a, i) => i === index ? { ...a, title: e.target.value } : a))}
+                    className="flex-1 h-7 text-xs"
+                    data-testid={`input-extract-action-title-${index}`}
+                  />
+                </div>
+                <div className="flex gap-2 ml-5">
+                  <Select
+                    value={action.priority}
+                    onValueChange={(v) => setEditedActions(prev => prev.map((a, i) => i === index ? { ...a, priority: v as "low" | "medium" | "high" } : a))}
+                  >
+                    <SelectTrigger className="h-6 text-xs w-28" data-testid={`select-extract-action-priority-${index}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Basse</SelectItem>
+                      <SelectItem value="medium">Moyenne</SelectItem>
+                      <SelectItem value="high">Haute</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {projects && projects.length > 0 && (
+                    <Select
+                      value={action.suggestedProjectId || "none"}
+                      onValueChange={(v) => setEditedActions(prev => prev.map((a, i) => i === index ? { ...a, suggestedProjectId: v === "none" ? null : v } : a))}
+                    >
+                      <SelectTrigger className="h-6 text-xs flex-1" data-testid={`select-extract-action-project-${index}`}>
+                        <SelectValue placeholder="Projet..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Aucun projet</SelectItem>
+                        {projects.map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setExtractModalOpen(false)} data-testid="button-cancel-extract-actions">
+              Annuler
+            </Button>
+            <Button
+              onClick={handleCreateSelectedTasks}
+              disabled={isCreatingTasks || !editedActions.some(a => a.selected && a.title.trim())}
+              data-testid="button-confirm-extract-actions"
+            >
+              {isCreatingTasks
+                ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                : null
+              }
+              Créer {editedActions.filter(a => a.selected).length} tâche{editedActions.filter(a => a.selected).length !== 1 ? "s" : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -2844,9 +3022,11 @@ export default function NoteDetail() {
         {!isMobile && contentReady && (
           <NoteAiActions
             noteTitle={title}
+            noteId={id}
             content={content}
             collapsed={aiPanelCollapsed}
             onToggle={() => setAiPanelCollapsed(v => !v)}
+            projects={projects}
           />
         )}
       </div>

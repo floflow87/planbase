@@ -16,6 +16,7 @@ export interface SummarizeContext {
 
 export interface ExtractActionsContext {
   title?: string;
+  projects?: { id: string; name: string }[];
 }
 
 export interface SuggestCrmActionsContext {
@@ -59,6 +60,7 @@ export interface RecommendationsContext {
 export interface GenerateTicketContext {
   projectName?: string;
   projectDescription?: string;
+  backlogName?: string;
 }
 
 export interface ClassifyDocumentContext {
@@ -80,12 +82,16 @@ export const aiPrompts = {
 
   extractActions(ctx: ExtractActionsContext = {}): string {
     const titlePart = ctx.title ? ` intitulé "${ctx.title}"` : "";
+    const projectsList = ctx.projects && ctx.projects.length > 0
+      ? `\nProjets disponibles pour l'assignation : ${ctx.projects.map(p => `${p.id}:${p.name}`).join(", ")}`
+      : "";
     return (
       `Tu es un assistant expert en gestion de projets pour PlanBase.\n` +
-      `Identifie toutes les actions à réaliser, décisions prises et prochaines étapes dans ce texte${titlePart}.\n` +
+      `Identifie toutes les actions à réaliser, décisions prises et prochaines étapes dans ce texte${titlePart}.${projectsList}\n` +
+      `Pour chaque action, détermine une priorité (low, medium, high) et si possible le projet associé parmi la liste fournie (utilise null si aucun projet ne correspond).\n` +
       `Réponds en français uniquement.\n` +
       `Réponds exclusivement en JSON valide avec ce format :\n` +
-      `{ "actions": ["action 1", "action 2", "action 3"] }`
+      `{ "actions": [{ "title": "string", "priority": "low|medium|high", "suggestedProjectId": "uuid|null" }] }`
     );
   },
 
@@ -123,7 +129,7 @@ export const aiPrompts = {
       : "N/A";
     return (
       `Tu es un assistant expert en gestion de projets et rentabilité pour PlanBase.\n` +
-      `Analyse ce projet et fournis un diagnostic structuré en 4 sections.\n` +
+      `Analyse ce projet et fournis un diagnostic structuré.\n` +
       `Réponds en français, de manière concise et actionnable.\n\n` +
       `**Données du projet :**\n` +
       `- Nom : ${ctx.name}\n` +
@@ -144,11 +150,8 @@ export const aiPrompts = {
       (ctx.budgetConsumedPercent != null ? `- Taux consommé : ${ctx.budgetConsumedPercent}%\n` : "") +
       `- Tâches : ${taskLine}\n` +
       `- Livrables : ${scopeLine}\n\n` +
-      `**Sections attendues (en markdown) :**\n` +
-      `1. **Diagnostic de rentabilité** : évalue la santé financière du projet.\n` +
-      `2. **Risques identifiés** : liste les risques majeurs (dépassement budget, marge insuffisante, tâches en retard, etc.).\n` +
-      `3. **Quick wins** : actions rapides à fort impact pour améliorer la situation.\n` +
-      `4. **Priorités recommandées** : 3 actions prioritaires à mener maintenant.`
+      `Réponds exclusivement en JSON valide avec ce format :\n` +
+      `{ "health": "diagnostic de santé financière en markdown", "risks": "risques identifiés en markdown liste", "quickWins": "actions rapides à fort impact en markdown liste", "priorities": "3 actions prioritaires en markdown liste numérotée" }`
     );
   },
 
@@ -178,12 +181,13 @@ export const aiPrompts = {
     const projectPart = ctx.projectName
       ? ` dans le projet "${ctx.projectName}"${ctx.projectDescription ? ` (${ctx.projectDescription})` : ""}`
       : "";
+    const backlogPart = ctx.backlogName ? ` (backlog : ${ctx.backlogName})` : "";
     return (
-      `Tu es un assistant expert en gestion de projets pour PlanBase.\n` +
-      `Génère un ticket de tâche structuré et actionnable${projectPart} à partir de la description fournie.\n` +
+      `Tu es un assistant expert en gestion de produit et backlog pour PlanBase.\n` +
+      `Génère un ticket structuré et actionnable${projectPart}${backlogPart} à partir du titre fourni.\n` +
       `Réponds en français uniquement.\n` +
       `Réponds exclusivement en JSON valide avec ce format :\n` +
-      `{ "title": "string", "description": "string", "priority": "low|medium|high", "estimatedHours": number|null }`
+      `{ "description": "description fonctionnelle claire de la fonctionnalité (2-4 phrases)", "acceptanceCriteria": "critères d'acceptation en liste markdown (3-5 points)", "nonRegression": "scénarios de non-régression en liste markdown (2-3 points)", "successMetrics": "métriques de succès mesurables en liste markdown (2-3 points)" }`
     );
   },
 

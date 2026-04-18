@@ -9,6 +9,10 @@ import {
   buildDocumentContext,
 } from "../services/aiContextBuilder";
 import { searchSimilarNotes, type SimilarNote } from "../services/embeddingService";
+import { storage } from "../storage";
+import { db } from "../db";
+import { backlogs, projects } from "@shared/schema";
+import { eq, and } from "drizzle-orm";
 
 const router = Router();
 
@@ -45,6 +49,15 @@ interface SearchContextBody {
   query: string;
   accountId?: string;
   limit?: number;
+}
+
+interface GenerateTicketBody {
+  title: string;
+  backlogId?: string;
+}
+
+interface ExtractActionsBody {
+  noteId: string;
 }
 
 router.post("/chat", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
@@ -230,10 +243,158 @@ router.post("/project-analysis", requireAuth, requireAiAccess, async (req: Reque
       },
     });
 
-    res.json({ analysis: result.text });
+    // Try to parse structured JSON response
+    let analysisData: { health?: string; risks?: string; quickWins?: string; priorities?: string } | null = null;
+    try {
+      const parsed = JSON.parse(result.text);
+      if (parsed.health || parsed.risks || parsed.quickWins || parsed.priorities) {
+        analysisData = parsed;
+      }
+    } catch {
+      // fall back to plain text
+    }
+
+    if (analysisData) {
+      res.json({ analysis: analysisData });
+    } else {
+      res.json({ analysis: result.text });
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur de l'analyse IA";
     console.error("AI /project-analysis error:", err);
+    res.status(503).json({ error: message });
+  }
+});
+
+router.post("/generate-ticket", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
+  try {
+    const accountId = req.accountId!;
+    const { title, backlogId } = req.body as GenerateTicketBody;
+
+    if (!title?.trim()) {
+      return res.status(400).json({ error: "Le titre est requis" });
+    }
+
+    let projectName: string | undefined;
+    let projectDescription: string | undefined;
+    let backlogName: string | undefined;
+
+    if (backlogId) {
+      const [backlog] = await db
+        .select()
+        .from(backlogs)
+        .where(and(eq(backlogs.id, backlogId), eq(backlogs.accountId, accountId)));
+      if (backlog) {
+        backlogName = backlog.name;
+        if (backlog.projectId) {
+          const [project] = await db
+            .select()
+            .from(projects)
+            .where(eq(projects.id, backlog.projectId));
+          if (project) {
+            projectName = project.name;
+            projectDescription = project.description ?? undefined;
+          }
+        }
+      }
+    }
+
+    const result = await runAi({
+      type: "generateTicket",
+      provider: "auto",
+      context: {
+        content: title,
+        promptContext: {
+          projectName,
+          projectDescription,
+          backlogName,
+        },
+      },
+    });
+
+    // Parse the JSON response
+    let ticketData: {
+      description?: string;
+      acceptanceCriteria?: string;
+      nonRegression?: string;
+      successMetrics?: string;
+    } | null = null;
+
+    try {
+      ticketData = JSON.parse(result.text);
+    } catch {
+      // If parsing fails, return as plain text
+      return res.json({ result: result.text });
+    }
+
+    res.json({ ticket: ticketData });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur de génération du ticket";
+    console.error("AI /generate-ticket error:", err);
+    res.status(503).json({ error: message });
+  }
+});
+
+router.post("/extract-actions", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
+  try {
+    const accountId = req.accountId!;
+    const { noteId } = req.body as ExtractActionsBody;
+
+    if (!noteId) {
+      return res.status(400).json({ error: "noteId est requis" });
+    }
+
+    const note = await storage.getNote(noteId);
+    if (!note || note.accountId !== accountId) {
+      return res.status(404).json({ error: "Note introuvable" });
+    }
+
+    const text = typeof note.content === "string"
+      ? note.content
+      : extractTextFromProseMirror(note.content);
+
+    if (!text.trim()) {
+      return res.status(400).json({ error: "La note est vide" });
+    }
+
+    // Get available projects for context
+    const projects = await storage.getProjectsByAccountId(accountId);
+    const projectList = projects.map(p => ({ id: p.id, name: p.name }));
+
+    // Determine note context for project suggestion
+    const noteContext = await buildNoteContext(accountId, noteId);
+
+    const result = await runAi({
+      type: "extractActions",
+      provider: "auto",
+      context: {
+        content: text,
+        promptContext: {
+          title: noteContext?.title,
+          projects: projectList,
+        },
+      },
+    });
+
+    // Parse enriched actions
+    let actions: { title: string; priority: string; suggestedProjectId: string | null }[] = [];
+    try {
+      const parsed = JSON.parse(result.text);
+      if (Array.isArray(parsed.actions)) {
+        actions = parsed.actions.map((a: any) => ({
+          title: typeof a === "string" ? a : (a.title ?? ""),
+          priority: a.priority ?? "medium",
+          suggestedProjectId: a.suggestedProjectId ?? null,
+        }));
+      }
+    } catch {
+      // fallback - empty
+    }
+
+    res.json({ actions });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur d'extraction des actions";
+    console.error("AI /extract-actions error:", err);
     res.status(503).json({ error: message });
   }
 });
