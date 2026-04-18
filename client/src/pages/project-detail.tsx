@@ -398,7 +398,8 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   const scopeItems = scopeItemsData?.scopeItems || [];
   
   // Fetch tasks for this project
-  const { data: projectTasksData } = useQuery<Task[]>({
+  type TaskWithSource = Task & { sourceNoteId: string | null; sourceNoteTitle: string | null };
+  const { data: projectTasksData } = useQuery<TaskWithSource[]>({
     queryKey: [`/api/projects/${projectId}/tasks`],
     enabled: !!projectId,
   });
@@ -5003,6 +5004,23 @@ export default function ProjectDetail() {
                                             <Clock className="h-3 w-3" />
                                             {task.estimatedHours}h
                                           </div>
+                                        )}
+                                        {(task as TaskWithSource).sourceNoteId && (
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); navigate(`/notes/${(task as TaskWithSource).sourceNoteId}`); }}
+                                                className="inline-flex items-center text-muted-foreground hover:text-foreground"
+                                                data-testid={`note-origin-badge-${task.id}`}
+                                              >
+                                                <FileText className="h-3 w-3" />
+                                              </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              <p>Issu de la note: {(task as TaskWithSource).sourceNoteTitle || "—"}</p>
+                                            </TooltipContent>
+                                          </Tooltip>
                                         )}
                                       </div>
                                     </div>

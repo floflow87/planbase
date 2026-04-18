@@ -97,7 +97,7 @@ function LinkedTaskRow({ taskId, noteId }: { taskId: string; noteId: string }) {
   return (
     <div className="group flex items-center gap-0.5 rounded hover-elevate" data-testid={`linked-task-row-${taskId}`}>
       <button
-        onClick={() => setLocation("/tasks")}
+        onClick={() => setLocation(`/tasks?taskId=${taskId}`)}
         className="flex items-center gap-1.5 flex-1 min-w-0 text-left text-xs px-1.5 py-1 text-foreground"
       >
         <CheckCircle2 className="w-3 h-3 shrink-0 text-muted-foreground" />

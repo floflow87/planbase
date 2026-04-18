@@ -124,6 +124,7 @@ export interface IStorage {
   // Projects
   getProject(id: string): Promise<Project | undefined>;
   getProjectsByAccountId(accountId: string): Promise<Project[]>;
+  getProjectsByClientId(accountId: string, clientId: string): Promise<Project[]>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, project: Partial<InsertProject>): Promise<Project | undefined>;
   deleteProject(id: string): Promise<boolean>;
@@ -184,7 +185,7 @@ export interface IStorage {
 
   // Tasks
   getTask(id: string): Promise<Task | undefined>;
-  getTasksByProjectId(projectId: string): Promise<Task[]>;
+  getTasksByProjectId(projectId: string): Promise<(Task & { sourceNoteId: string | null; sourceNoteTitle: string | null })[]>;
   getTasksByAccountId(accountId: string): Promise<(Task & { sourceNoteId: string | null; sourceNoteTitle: string | null })[]>;
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined>;
@@ -264,6 +265,7 @@ export interface IStorage {
   // Deals (Sales Pipeline)
   getDeal(id: string): Promise<Deal | undefined>;
   getDealsByAccountId(accountId: string): Promise<Deal[]>;
+  getDealsByClientId(accountId: string, clientId: string): Promise<Deal[]>;
   createDeal(deal: InsertDeal): Promise<Deal>;
   updateDeal(id: string, deal: Partial<InsertDeal>): Promise<Deal | undefined>;
   deleteDeal(id: string): Promise<boolean>;
@@ -707,6 +709,10 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(projects).where(eq(projects.accountId, accountId));
   }
 
+  async getProjectsByClientId(accountId: string, clientId: string): Promise<Project[]> {
+    return await db.select().from(projects).where(and(eq(projects.accountId, accountId), eq(projects.clientId, clientId)));
+  }
+
   async createProject(insertProject: InsertProject): Promise<Project> {
     const [project] = await db
       .insert(projects)
@@ -1086,12 +1092,29 @@ export class DatabaseStorage implements IStorage {
     return task || undefined;
   }
 
-  async getTasksByProjectId(projectId: string): Promise<Task[]> {
-    return await db
-      .select()
+  async getTasksByProjectId(projectId: string): Promise<(Task & { sourceNoteId: string | null; sourceNoteTitle: string | null })[]> {
+    const rows = await db
+      .select({
+        ...getTableColumns(tasks),
+        sourceNoteId: noteLinks.noteId,
+        sourceNoteTitle: notes.title,
+      })
       .from(tasks)
+      .leftJoin(noteLinks, and(eq(noteLinks.targetType, "task"), eq(noteLinks.targetId, tasks.id)))
+      .leftJoin(notes, eq(notes.id, noteLinks.noteId))
       .where(eq(tasks.projectId, projectId))
-      .orderBy(tasks.positionInColumn);
+      .orderBy(tasks.positionInColumn, asc(notes.id));
+
+    const seen = new Set<string>();
+    return rows.filter(row => {
+      if (seen.has(row.id)) return false;
+      seen.add(row.id);
+      return true;
+    }).map(row => ({
+      ...row,
+      sourceNoteId: row.sourceNoteId ?? null,
+      sourceNoteTitle: row.sourceNoteTitle ?? null,
+    }));
   }
 
   async getTasksByAccountId(accountId: string): Promise<(Task & { sourceNoteId: string | null; sourceNoteTitle: string | null })[]> {
@@ -1686,6 +1709,12 @@ export class DatabaseStorage implements IStorage {
 
   async getDealsByAccountId(accountId: string): Promise<Deal[]> {
     return await db.select().from(deals).where(eq(deals.accountId, accountId))
+      .orderBy(desc(deals.createdAt));
+  }
+
+  async getDealsByClientId(accountId: string, clientId: string): Promise<Deal[]> {
+    return await db.select().from(deals)
+      .where(and(eq(deals.accountId, accountId), eq(deals.clientId, clientId)))
       .orderBy(desc(deals.createdAt));
   }
 

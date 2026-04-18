@@ -175,24 +175,22 @@ export async function buildClientContext(
   const client = await storage.getClient(accountId, clientId);
   if (!client) return null;
 
-  const [activities, allProjects, contacts, allDeals] = await Promise.all([
+  const [activities, clientProjects, contacts, clientDeals] = await Promise.all([
     storage.getActivitiesBySubject(accountId, "client", clientId),
-    storage.getProjectsByAccountId(accountId),
+    storage.getProjectsByClientId(accountId, clientId),
     storage.getContactsByClientId(accountId, clientId),
-    storage.getDealsByAccountId(accountId),
+    storage.getDealsByClientId(accountId, clientId),
   ]);
 
-  const linkedProjects = allProjects
-    .filter((p) => p.clientId === clientId)
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      stage: p.stage ?? undefined,
-      budget: p.budget ? parseFloat(p.budget.toString()) : undefined,
-    }));
+  const linkedProjects = clientProjects.map((p) => ({
+    id: p.id,
+    name: p.name,
+    stage: p.stage ?? undefined,
+    budget: p.budget ? parseFloat(p.budget.toString()) : undefined,
+  }));
 
-  const activeDeals = allDeals
-    .filter((d) => d.clientId === clientId && d.stage !== "lost")
+  const activeDeals = clientDeals
+    .filter((d) => d.stage !== "lost")
     .map((d) => ({
       title: d.title,
       value: d.value ? parseFloat(d.value.toString()) : undefined,

@@ -1,5 +1,6 @@
 // Tasks page - Complete duplicate of tasks tab from projects page
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useLocation, useSearch } from "wouter";
 import { useCelebration } from "@/hooks/useCelebration";
 import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight, Eye, EyeOff, Search, X, Play, Layers, Package, CheckCircle2, Circle, SlidersHorizontal, FileText } from "lucide-react";
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
@@ -509,6 +510,7 @@ function SortableTaskCard({
   columnColor,
   columnRawColor,
 }: SortableTaskCardProps) {
+  const [, setLocation] = useLocation();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const {
@@ -617,12 +619,14 @@ function SortableTaskCard({
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span
-                        className="inline-flex items-center text-muted-foreground"
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setLocation(`/notes/${task.sourceNoteId}`); }}
+                        className="inline-flex items-center text-muted-foreground hover:text-foreground"
                         data-testid={`note-origin-badge-${task.id}`}
                       >
                         <FileText className="h-3 w-3" />
-                      </span>
+                      </button>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>Issu de la note: {task.sourceNoteTitle || "—"}</p>
@@ -844,7 +848,9 @@ export default function Tasks() {
   const { toast } = useToast();
   const { celebrate } = useCelebration();
   const { t } = useLanguage();
+  const searchString = useSearch();
   const [celebratingTaskId, setCelebratingTaskId] = useState<string | null>(null);
+  const autoOpenTaskRef = useRef(false);
 
   useEffect(() => {
     if (!celebratingTaskId) return;
@@ -970,6 +976,19 @@ export default function Tasks() {
     queryKey: ["/api/tasks"],
     enabled: !!accountId,
   });
+
+  useEffect(() => {
+    if (autoOpenTaskRef.current || tasks.length === 0) return;
+    const params = new URLSearchParams(searchString);
+    const taskId = params.get("taskId");
+    if (!taskId) return;
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      setSelectedTask(task);
+      setIsTaskDetailOpen(true);
+      autoOpenTaskRef.current = true;
+    }
+  }, [searchString, tasks]);
 
   const { data: users = [] } = useQuery<AppUser[]>({
     queryKey: ["/api/accounts", accountId, "users"],
