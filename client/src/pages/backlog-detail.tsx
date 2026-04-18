@@ -13,7 +13,7 @@ import {
   CheckSquare, BarChart3, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2,
   ArrowUp, ArrowDown, ArrowUpDown, Lock, FlaskConical, MessageSquare, X,
   Wrench, Bug, Sparkles, ExternalLink, Filter, HelpCircle, XCircle, AlertTriangle,
-  FileText, Eye, Ticket, Bot, Loader2, ChevronUp
+  FileText, Eye, Ticket, Bot, Loader2, ChevronUp, CheckCheck
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -4036,6 +4036,31 @@ function UserStoryDialog({
     setAcceptedSections(prev => new Set([...prev, sectionKey]));
   };
 
+  const handleAcceptAll = () => {
+    const sectionOrder = ["description", "acceptanceCriteria", "nonRegression", "successMetrics"] as const;
+    const sectionLabels: Record<string, string> = {
+      description: "Description",
+      acceptanceCriteria: "Critères d'acceptation",
+      nonRegression: "Non-régression",
+      successMetrics: "Métriques de succès",
+    };
+    if (!generatedTicket) return;
+    const toAccept = sectionOrder.filter(k => generatedTicket[k] && !acceptedSections.has(k));
+    if (toAccept.length === 0) return;
+    setDescription(prev => {
+      let result = prev ?? "";
+      for (const key of toAccept) {
+        const content = key in editingSections ? editingSections[key] : generatedTicket[key];
+        const label = sectionLabels[key] ?? key;
+        const toAppend = `**${label} :**\n${content}`;
+        result = result ? `${result}\n\n${toAppend}` : toAppend;
+      }
+      return result;
+    });
+    setAcceptedSections(prev => new Set([...prev, ...toAccept]));
+    setEditingSections({});
+  };
+
   const allSectionsHandled = generatedTicket && Object.keys(generatedTicket).every(k => acceptedSections.has(k));
 
   return (
@@ -4081,9 +4106,22 @@ function UserStoryDialog({
 
           {generatedTicket && !allSectionsHandled && (
             <div className="rounded-md border bg-muted/30 p-3 space-y-3">
-              <div className="flex items-center gap-1.5 text-xs font-medium text-violet-600 dark:text-violet-400">
-                <Sparkles className="w-3.5 h-3.5" />
-                Contenu généré par IA — acceptez ou ignorez chaque section
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-violet-600 dark:text-violet-400">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Contenu généré par IA — acceptez ou ignorez chaque section
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-6 text-xs gap-1 shrink-0"
+                  onClick={handleAcceptAll}
+                  data-testid="button-accept-all-ai-sections"
+                >
+                  <CheckCheck className="w-3 h-3" />
+                  Accepter tout
+                </Button>
               </div>
               {([
                 { key: "description", label: "Description fonctionnelle" },
