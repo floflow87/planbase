@@ -99,6 +99,27 @@ interface ProactiveSuggestion {
   variant: "warning" | "danger" | "info";
 }
 
+function getDismissedStorageKey(projectId?: string) {
+  return `ai-dismissed-suggestions-${projectId ?? "global"}`;
+}
+
+function loadDismissedFromStorage(projectId?: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(getDismissedStorageKey(projectId));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return new Set<string>(parsed);
+    }
+  } catch { /* ignore */ }
+  return new Set<string>();
+}
+
+function saveDismissedToStorage(projectId: string | undefined, dismissed: Set<string>) {
+  try {
+    localStorage.setItem(getDismissedStorageKey(projectId), JSON.stringify([...dismissed]));
+  } catch { /* ignore */ }
+}
+
 function AiAssistantPanel({ onClose, projectId, projectName }: { onClose: () => void; projectId?: string; projectName?: string }) {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -110,7 +131,11 @@ function AiAssistantPanel({ onClose, projectId, projectName }: { onClose: () => 
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(
+    () => loadDismissedFromStorage(projectId)
+  );
+  const projectIdRef = useRef(projectId);
+  projectIdRef.current = projectId;
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { data: profitabilityData } = useQuery<{ marginPercent?: number }>({
@@ -152,6 +177,28 @@ function AiAssistantPanel({ onClose, projectId, projectName }: { onClose: () => 
       }
     }
   }
+
+  const activeIds = proactiveSuggestions.map((s) => s.id);
+
+  useEffect(() => {
+    setDismissedSuggestions(loadDismissedFromStorage(projectId));
+  }, [projectId]);
+
+  useEffect(() => {
+    saveDismissedToStorage(projectIdRef.current, dismissedSuggestions);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dismissedSuggestions]);
+
+  useEffect(() => {
+    setDismissedSuggestions((prev) => {
+      if (prev.size === 0) return prev;
+      const activeSet = new Set(activeIds);
+      const cleaned = new Set([...prev].filter((id) => activeSet.has(id)));
+      if (cleaned.size === prev.size) return prev;
+      return cleaned;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIds.join(",")]);
 
   const visibleSuggestions = proactiveSuggestions.filter((s) => !dismissedSuggestions.has(s.id));
 
