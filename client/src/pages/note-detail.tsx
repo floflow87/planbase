@@ -74,22 +74,42 @@ interface ExtractedAction {
 
 const PRIORITY_LABELS: Record<string, string> = { low: "Basse", medium: "Moyenne", high: "Haute" };
 
-function LinkedTaskRow({ taskId }: { taskId: string }) {
+function LinkedTaskRow({ taskId, noteId }: { taskId: string; noteId: string }) {
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   const { data: task, isError } = useQuery<any>({ queryKey: ['/api/tasks', taskId] });
+
+  const unlinkMutation = useMutation({
+    mutationFn: () => apiRequest(`/api/notes/${noteId}/links/task/${taskId}`, "DELETE"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/notes', noteId, 'links'] });
+    },
+  });
+
   if (isError) return (
     <div className="text-xs text-muted-foreground px-1.5 py-1 italic">Tâche introuvable</div>
   );
   if (!task) return <div className="h-6 rounded animate-pulse bg-muted/60 mx-0.5" />;
   return (
-    <button
-      onClick={() => setLocation("/tasks")}
-      className="flex items-center gap-1.5 w-full text-left text-xs rounded px-1.5 py-1 hover-elevate text-foreground"
-      data-testid={`linked-task-row-${taskId}`}
-    >
-      <CheckCircle2 className="w-3 h-3 shrink-0 text-muted-foreground" />
-      <span className="flex-1 truncate">{task.title}</span>
-    </button>
+    <div className="group flex items-center gap-0.5 rounded hover-elevate" data-testid={`linked-task-row-${taskId}`}>
+      <button
+        onClick={() => setLocation("/tasks")}
+        className="flex items-center gap-1.5 flex-1 min-w-0 text-left text-xs px-1.5 py-1 text-foreground"
+      >
+        <CheckCircle2 className="w-3 h-3 shrink-0 text-muted-foreground" />
+        <span className="flex-1 truncate">{task.title}</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => unlinkMutation.mutate()}
+        disabled={unlinkMutation.isPending}
+        className="shrink-0 p-1 text-muted-foreground hover:text-destructive invisible group-hover:visible"
+        title="Retirer ce lien"
+        data-testid={`button-unlink-task-${taskId}`}
+      >
+        <X className="w-3 h-3" />
+      </button>
+    </div>
   );
 }
 
@@ -340,7 +360,7 @@ function NoteAiActions({
                   </p>
                   <div className="space-y-0.5">
                     {taskLinks.map((link: any) => (
-                      <LinkedTaskRow key={link.targetId} taskId={link.targetId} />
+                      <LinkedTaskRow key={link.targetId} taskId={link.targetId} noteId={noteId!} />
                     ))}
                   </div>
                 </div>
