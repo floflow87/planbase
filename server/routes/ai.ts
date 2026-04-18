@@ -16,6 +16,8 @@ import { eq, and } from "drizzle-orm";
 
 const router = Router();
 
+router.use(requireAuth, requireAiAccess);
+
 interface ChatRequestBody {
   message: string;
   projectId?: string;
@@ -60,7 +62,7 @@ interface ExtractActionsBody {
   noteId: string;
 }
 
-router.post("/chat", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
+router.post("/chat", async (req: Request, res: Response) => {
   try {
     const accountId = req.accountId!;
     const { message, projectId } = req.body as ChatRequestBody;
@@ -126,7 +128,7 @@ router.post("/chat", requireAuth, requireAiAccess, async (req: Request, res: Res
   }
 });
 
-router.post("/search-context", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
+router.post("/search-context", async (req: Request, res: Response) => {
   try {
     const { query, limit = 5 } = req.body as SearchContextBody;
 
@@ -145,7 +147,7 @@ router.post("/search-context", requireAuth, requireAiAccess, async (req: Request
   }
 });
 
-router.post("/project-analysis", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
+router.post("/project-analysis", async (req: Request, res: Response) => {
   try {
     const accountId = req.accountId!;
     const body = req.body as ProjectAnalysisBody;
@@ -266,7 +268,7 @@ router.post("/project-analysis", requireAuth, requireAiAccess, async (req: Reque
   }
 });
 
-router.post("/generate-ticket", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
+router.post("/generate-ticket", async (req: Request, res: Response) => {
   try {
     const accountId = req.accountId!;
     const { title, backlogId } = req.body as GenerateTicketBody;
@@ -335,7 +337,7 @@ router.post("/generate-ticket", requireAuth, requireAiAccess, async (req: Reques
   }
 });
 
-router.post("/extract-actions", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
+router.post("/extract-actions", async (req: Request, res: Response) => {
   try {
     const accountId = req.accountId!;
     const { noteId } = req.body as ExtractActionsBody;
@@ -399,7 +401,7 @@ router.post("/extract-actions", requireAuth, requireAiAccess, async (req: Reques
   }
 });
 
-router.post("/summarize", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
+router.post("/summarize", async (req: Request, res: Response) => {
   try {
     const accountId = req.accountId!;
     const { content, title, type = "note", noteId, documentId } = req.body as ContentRequestBody;
@@ -458,7 +460,7 @@ router.post("/summarize", requireAuth, requireAiAccess, async (req: Request, res
   }
 });
 
-router.post("/improve", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
+router.post("/improve", async (req: Request, res: Response) => {
   try {
     const { content, title, type = "note" } = req.body as ContentRequestBody;
 
@@ -485,7 +487,7 @@ router.post("/improve", requireAuth, requireAiAccess, async (req: Request, res: 
   }
 });
 
-router.post("/recommendations", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
+router.post("/recommendations", async (req: Request, res: Response) => {
   try {
     const accountId = req.accountId!;
     const { content, title, type = "note", noteId, documentId } = req.body as ContentRequestBody;
