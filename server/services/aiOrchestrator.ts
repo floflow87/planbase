@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { callAi, AiContext } from "./aiService";
 import { aiPrompts, PromptType } from "./aiPrompts";
+import { alertOllamaFallback } from "./alertService";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -201,6 +202,14 @@ export async function runAi(options: RunAiOptions): Promise<RunAiResult> {
       console.warn(
         `[AI Orchestrator] Ollama indisponible pour type="${type}", bascule sur OpenAI (fallback).`
       );
+      alertOllamaFallback({
+        promptType: type,
+        timestamp: new Date(),
+        errorMessage: msg,
+      }).catch((alertErr: unknown) => {
+        const alertMsg = alertErr instanceof Error ? alertErr.message : String(alertErr);
+        console.error('[AI Orchestrator] Failed to send provider alert:', alertMsg);
+      });
       try {
         const { text, data } = await callOpenAi(type, systemPrompt, userContent);
         return { text, data, provider: "openai" };
