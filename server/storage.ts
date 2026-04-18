@@ -58,7 +58,7 @@ import {
   crmEmailMessages, crmEmailParticipants, crmEmailLinks,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, like, ilike, desc, sql, isNull, isNotNull, inArray, gte, lte, asc } from "drizzle-orm";
+import { eq, and, or, like, ilike, desc, sql, isNull, isNotNull, inArray, gte, lte, asc, getTableColumns } from "drizzle-orm";
 
 // Helper functions to access Google OAuth credentials from environment variables
 // Global credentials shared across all accounts for multi-tenant SaaS
@@ -185,7 +185,7 @@ export interface IStorage {
   // Tasks
   getTask(id: string): Promise<Task | undefined>;
   getTasksByProjectId(projectId: string): Promise<Task[]>;
-  getTasksByAccountId(accountId: string): Promise<Task[]>;
+  getTasksByAccountId(accountId: string): Promise<(Task & { sourceNoteId: string | null; sourceNoteTitle: string | null })[]>;
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined>;
   deleteTask(id: string): Promise<boolean>;
@@ -1094,12 +1094,29 @@ export class DatabaseStorage implements IStorage {
       .orderBy(tasks.positionInColumn);
   }
 
-  async getTasksByAccountId(accountId: string): Promise<Task[]> {
-    return await db
-      .select()
+  async getTasksByAccountId(accountId: string): Promise<(Task & { sourceNoteId: string | null; sourceNoteTitle: string | null })[]> {
+    const rows = await db
+      .select({
+        ...getTableColumns(tasks),
+        sourceNoteId: noteLinks.noteId,
+        sourceNoteTitle: notes.title,
+      })
       .from(tasks)
+      .leftJoin(noteLinks, and(eq(noteLinks.targetType, "task"), eq(noteLinks.targetId, tasks.id)))
+      .leftJoin(notes, eq(notes.id, noteLinks.noteId))
       .where(eq(tasks.accountId, accountId))
-      .orderBy(desc(tasks.createdAt));
+      .orderBy(desc(tasks.createdAt), asc(notes.id));
+
+    const seen = new Set<string>();
+    return rows.filter(row => {
+      if (seen.has(row.id)) return false;
+      seen.add(row.id);
+      return true;
+    }).map(row => ({
+      ...row,
+      sourceNoteId: row.sourceNoteId ?? null,
+      sourceNoteTitle: row.sourceNoteTitle ?? null,
+    }));
   }
 
   async createTask(taskData: InsertTask): Promise<Task> {

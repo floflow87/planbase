@@ -1,7 +1,7 @@
 // Tasks page - Complete duplicate of tasks tab from projects page
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useCelebration } from "@/hooks/useCelebration";
-import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight, Eye, EyeOff, Search, X, Play, Layers, Package, CheckCircle2, Circle, SlidersHorizontal } from "lucide-react";
+import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight, Eye, EyeOff, Search, X, Play, Layers, Package, CheckCircle2, Circle, SlidersHorizontal, FileText } from "lucide-react";
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -478,8 +478,10 @@ function CalendarView({ tasks, onTaskClick }: CalendarViewProps) {
   );
 }
 
+type TaskWithSource = Task & { sourceNoteId: string | null; sourceNoteTitle: string | null };
+
 interface SortableTaskCardProps{
-  task: Task;
+  task: TaskWithSource;
   users: AppUser[];
   onDuplicate: (task: Task) => void;
   onEdit: (task: Task) => void;
@@ -611,6 +613,23 @@ function SortableTaskCard({
                   {formatDate(new Date(task.dueDate), "dd MMM yyyy", { locale: fr })}
                 </div>
               )}
+              {task.sourceNoteId && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        className="inline-flex items-center text-muted-foreground"
+                        data-testid={`note-origin-badge-${task.id}`}
+                      >
+                        <FileText className="h-3 w-3" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Issu de la note: {task.sourceNoteTitle || "—"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
             {assignedUser && (
               <TooltipProvider>
@@ -639,7 +658,7 @@ function SortableTaskCard({
 
 interface SortableColumnProps {
   column: TaskColumn;
-  tasks: Task[];
+  tasks: TaskWithSource[];
   users: AppUser[];
   onRename: (column: TaskColumn) => void;
   onChangeColor: (column: TaskColumn) => void;
@@ -947,7 +966,7 @@ export default function Tasks() {
     enabled: !!accountId,
   });
 
-  const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
+  const { data: tasks = [], isLoading: tasksLoading } = useQuery<TaskWithSource[]>({
     queryKey: ["/api/tasks"],
     enabled: !!accountId,
   });
