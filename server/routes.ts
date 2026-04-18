@@ -4489,6 +4489,14 @@ app.get("/config/feature-flags", async (_req, res) => {
         await emitEvent("note.created", { title: note.title ?? "", user_name: noteUserName, tag: noteTagName, lien: `${getAppUrl(req)}/notes` }, req.accountId!);
       } catch (_) {}
 
+      // Non-blocking embedding for RAG semantic search
+      const _noteTextForEmbedding = `${note.title || ""} ${(note as any).plainText || ""}`.trim();
+      if (_noteTextForEmbedding) {
+        import("./services/embeddingService").then(({ upsertNoteEmbedding }) => {
+          upsertNoteEmbedding(note.id, req.accountId!, _noteTextForEmbedding).catch(() => {});
+        }).catch(() => {});
+      }
+
       res.json(note);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -4542,6 +4550,16 @@ app.get("/config/feature-flags", async (_req, res) => {
           ]);
           await emitEvent("note.updated", { title: note?.title ?? "", user_name: updUserName, tag: updTagName || "", lien: `${getAppUrl(req)}/notes` }, req.accountId!);
         } catch (_) {}
+      }
+
+      // Non-blocking embedding update for RAG semantic search
+      if (req.body.content !== undefined || req.body.title !== undefined || req.body.plainText !== undefined) {
+        const _patchedText = `${note?.title || ""} ${(note as any)?.plainText || ""}`.trim();
+        if (_patchedText) {
+          import("./services/embeddingService").then(({ upsertNoteEmbedding }) => {
+            upsertNoteEmbedding(note.id, req.accountId!, _patchedText).catch(() => {});
+          }).catch(() => {});
+        }
       }
       
       res.json(note);

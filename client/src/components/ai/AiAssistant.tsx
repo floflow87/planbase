@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Bot, X, Send, Loader2, ChevronDown } from "lucide-react";
+import { Bot, X, Send, Loader2, ChevronDown, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useBilling } from "@/hooks/useBilling";
@@ -9,9 +9,15 @@ import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import type { Project } from "@shared/schema";
 
+interface NoteSource {
+  title: string;
+  noteId: string;
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
+  sources?: NoteSource[];
 }
 
 interface AiAssistantProps {
@@ -22,6 +28,7 @@ interface AiAssistantProps {
 interface AiChatResponse {
   response?: string;
   error?: string;
+  sources?: NoteSource[];
 }
 
 function parseApiError(err: unknown): string {
@@ -118,7 +125,14 @@ function AiAssistantPanel({ onClose, projectId, projectName }: { onClose: () => 
       });
       const data: AiChatResponse = await res.json();
       if (data.error) throw new Error(data.error);
-      setMessages((prev) => [...prev, { role: "assistant", content: data.response ?? "" }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: data.response ?? "",
+          sources: data.sources && data.sources.length > 0 ? data.sources : undefined,
+        },
+      ]);
     } catch (err) {
       let errorMsg = "Désolé, une erreur est survenue.";
       try {
@@ -173,7 +187,7 @@ function AiAssistantPanel({ onClose, projectId, projectName }: { onClose: () => 
         {messages.map((msg, i) => (
           <div
             key={i}
-            className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
+            className={cn("flex flex-col", msg.role === "user" ? "items-end" : "items-start")}
             data-testid={`ai-message-${msg.role}-${i}`}
           >
             <div
@@ -190,6 +204,24 @@ function AiAssistantPanel({ onClose, projectId, projectName }: { onClose: () => 
                 <span className="text-sm">{msg.content}</span>
               )}
             </div>
+            {msg.role === "assistant" && msg.sources && msg.sources.length > 0 && (
+              <div className="max-w-[85%] mt-1 flex flex-wrap gap-1" data-testid={`ai-sources-${i}`}>
+                <span className="text-[10px] text-muted-foreground flex items-center gap-1 w-full">
+                  <FileText className="w-3 h-3" />
+                  Contexte trouvé dans {msg.sources.length} note{msg.sources.length > 1 ? "s" : ""}
+                </span>
+                {msg.sources.map((src) => (
+                  <span
+                    key={src.noteId}
+                    className="text-[10px] bg-muted border rounded px-1.5 py-0.5 text-muted-foreground truncate max-w-[180px]"
+                    title={src.title}
+                    data-testid={`ai-source-note-${src.noteId}`}
+                  >
+                    {src.title}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         ))}
 

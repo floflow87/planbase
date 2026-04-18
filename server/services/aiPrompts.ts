@@ -187,11 +187,19 @@ export const aiPrompts = {
     );
   },
 
-  chat(): string {
-    return (
+  chat(ctx?: { semanticContext?: string }): string {
+    let base =
       `Tu es un assistant expert en gestion de projets freelance et d'agence pour PlanBase, un outil de pilotage business.\n` +
       `Tu réponds en français, de manière concise et structurée.\n` +
-      `PlanBase couvre : CRM, projets, tâches, notes, documents, rentabilité, trésorerie, roadmap produit, ressources.`
-    );
+      `PlanBase couvre : CRM, projets, tâches, notes, documents, rentabilité, trésorerie, roadmap produit, ressources.`;
+
+    if (ctx?.semanticContext) {
+      base +=
+        `\n\n---\nContexte pertinent issu des notes de l'organisation (utilise ces informations pour répondre précisément) :\n` +
+        ctx.semanticContext +
+        `\n---`;
+    }
+
+    return base;
   },
 };

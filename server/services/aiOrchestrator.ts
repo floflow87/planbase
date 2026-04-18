@@ -14,6 +14,7 @@ export interface RunAiOptions {
     userPlan?: string;
     project?: AiContext["project"];
     noteOrDocument?: AiContext["noteOrDocument"];
+    semanticContext?: string;
   };
   provider?: AiProvider;
 }
@@ -46,7 +47,11 @@ function resolveProvider(type: PromptType, requested: AiProvider): "openai" | "o
   return "openai";
 }
 
-function buildSystemPrompt(type: PromptType, promptContext: Record<string, unknown>): string {
+function buildSystemPrompt(
+  type: PromptType,
+  promptContext: Record<string, unknown>,
+  semanticContext?: string
+): string {
   switch (type) {
     case "summarize":
       return aiPrompts.summarize(promptContext as Parameters<typeof aiPrompts.summarize>[0]);
@@ -66,7 +71,7 @@ function buildSystemPrompt(type: PromptType, promptContext: Record<string, unkno
       return aiPrompts.generateTicket(promptContext as Parameters<typeof aiPrompts.generateTicket>[0]);
     case "chat":
     default:
-      return aiPrompts.chat();
+      return aiPrompts.chat({ semanticContext });
   }
 }
 
@@ -169,7 +174,7 @@ export async function runAi(options: RunAiOptions): Promise<RunAiResult> {
     content: userContent,
   };
 
-  const systemPrompt = buildSystemPrompt(type, promptContext);
+  const systemPrompt = buildSystemPrompt(type, promptContext, context.semanticContext);
 
   if (resolvedProvider === "openai") {
     try {

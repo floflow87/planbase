@@ -3005,6 +3005,14 @@ export async function runStartupMigrations() {
     }
     // ─────────────────────────────────────────────────────────────
 
+    // ── Note embeddings (pgvector RAG) ──
+    try {
+      const { initNoteEmbeddingsTable } = await import("./services/embeddingService");
+      await initNoteEmbeddingsTable();
+    } catch (e: any) {
+      console.warn("⚠️  Note embeddings table migration (non-blocking):", e.message);
+    }
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

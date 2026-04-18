@@ -8,6 +8,7 @@ import {
   buildNoteContext,
   buildDocumentContext,
 } from "../services/aiContextBuilder";
+import { searchSimilarNotes, type SimilarNote } from "../services/embeddingService";
 
 const router = Router();
 
@@ -40,6 +41,12 @@ interface ProjectAnalysisBody {
   };
 }
 
+interface SearchContextBody {
+  query: string;
+  accountId?: string;
+  limit?: number;
+}
+
 router.post("/chat", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
   try {
     const accountId = req.accountId!;
@@ -53,6 +60,19 @@ router.post("/chat", requireAuth, requireAiAccess, async (req: Request, res: Res
     if (projectId) {
       projectCtx = await buildProjectContext(accountId, projectId);
     }
+
+    let semanticContext: string | undefined;
+    let sources: Array<{ title: string; noteId: string }> = [];
+
+    try {
+      const similarNotes = await searchSimilarNotes(message, accountId, 5);
+      if (similarNotes.length > 0) {
+        sources = similarNotes.map((n) => ({ title: n.title, noteId: n.noteId }));
+        semanticContext = similarNotes
+          .map((n, i) => `[Note ${i + 1}] "${n.title}":\n${n.snippet}`)
+          .join("\n\n");
+      }
+    } catch (_) {}
 
     const result = await runAi({
       type: "chat",
@@ -81,13 +101,33 @@ router.post("/chat", requireAuth, requireAiAccess, async (req: Request, res: Res
               scopeItems: projectCtx.scopeItems,
             }
           : undefined,
+        semanticContext,
       },
     });
 
-    res.json({ response: result.text });
+    res.json({ response: result.text, sources });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur de l'assistant IA";
     console.error("AI /chat error:", err);
+    res.status(503).json({ error: message });
+  }
+});
+
+router.post("/search-context", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
+  try {
+    const { query, limit = 5 } = req.body as SearchContextBody;
+
+    if (!query?.trim()) {
+      return res.status(400).json({ error: "La requête est requise" });
+    }
+
+    const accountId = req.accountId!;
+    const results: SimilarNote[] = await searchSimilarNotes(query, accountId, limit);
+
+    res.json({ results });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur de la recherche sémantique";
+    console.error("AI /search-context error:", err);
     res.status(503).json({ error: message });
   }
 });
