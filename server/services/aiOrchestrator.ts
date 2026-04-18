@@ -13,6 +13,7 @@ export interface RunAiOptions {
     promptContext?: Record<string, unknown>;
     userPlan?: string;
     project?: AiContext["project"];
+    noteOrDocument?: AiContext["noteOrDocument"];
   };
   provider?: AiProvider;
 }
@@ -164,6 +165,7 @@ export async function runAi(options: RunAiOptions): Promise<RunAiResult> {
   const aiContext: AiContext = {
     user: { plan: context.userPlan },
     project: context.project,
+    noteOrDocument: context.noteOrDocument,
     content: userContent,
   };
 

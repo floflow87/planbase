@@ -3643,19 +3643,8 @@ export default function ProjectDetail() {
     setAiAnalysisResult(null);
     setIsAiAnalysisOpen(true);
     try {
-      const totalBilledNum = parseFloat(totalBilledValue || "0") || 0;
       const res = await apiRequest("/api/ai/project-analysis", "POST", {
-        project: {
-          name: project.name,
-          description: project.description || undefined,
-          category: project.category || undefined,
-          budget: project.budget ? parseFloat(String(project.budget)) : undefined,
-          status: project.stage || undefined,
-          timeConsumedHours: projectTimeEntries.reduce((s, e) => s + (e.duration || 0), 0) / 3600,
-          marginPercent: profitabilityMetrics?.marginPercent,
-          totalBilled: totalBilledNum,
-          margin: profitabilityMetrics?.margin,
-        },
+        projectId: id,
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);

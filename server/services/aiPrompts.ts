@@ -30,11 +30,20 @@ export interface ProjectAnalysisContext {
   description?: string;
   category?: string;
   status?: string;
+  priority?: string;
   budget?: number | null;
   totalBilled?: number | null;
   margin?: number | null;
   marginPercent?: number | null;
+  targetTJM?: number | null;
+  actualTJM?: number | null;
+  theoreticalDays?: number | null;
   timeConsumedHours?: number | null;
+  budgetConsumedPercent?: number | null;
+  healthScore?: number | null;
+  profitabilityStatus?: string | null;
+  taskCounts?: { total: number; todo: number; inProgress: number; done: number; overdue: number } | null;
+  scopeItems?: { total: number; completed: number; titles: string[] } | null;
 }
 
 export interface ImproveContext {
@@ -106,6 +115,12 @@ export const aiPrompts = {
   },
 
   projectAnalysis(ctx: ProjectAnalysisContext): string {
+    const taskLine = ctx.taskCounts
+      ? `${ctx.taskCounts.total} total (${ctx.taskCounts.inProgress} en cours, ${ctx.taskCounts.overdue} en retard)`
+      : "N/A";
+    const scopeLine = ctx.scopeItems
+      ? `${ctx.scopeItems.completed}/${ctx.scopeItems.total} livrables complétés`
+      : "N/A";
     return (
       `Tu es un assistant expert en gestion de projets et rentabilité pour PlanBase.\n` +
       `Analyse ce projet et fournis un diagnostic structuré en 4 sections.\n` +
@@ -115,14 +130,23 @@ export const aiPrompts = {
       `- Description : ${ctx.description || "N/A"}\n` +
       `- Catégorie : ${ctx.category || "N/A"}\n` +
       `- Statut : ${ctx.status || "N/A"}\n` +
+      (ctx.priority ? `- Priorité : ${ctx.priority}\n` : "") +
+      (ctx.profitabilityStatus ? `- Rentabilité : ${ctx.profitabilityStatus}\n` : "") +
+      (ctx.healthScore != null ? `- Score de santé : ${ctx.healthScore}/100\n` : "") +
       `- Budget : ${ctx.budget != null ? ctx.budget + "€" : "N/A"}\n` +
       `- Facturé : ${ctx.totalBilled != null ? ctx.totalBilled + "€" : "N/A"}\n` +
-      `- Marge : ${ctx.margin != null ? ctx.margin + "€" : "N/A"} ` +
+      `- Marge : ${ctx.margin != null ? Number(ctx.margin).toFixed(0) + "€" : "N/A"} ` +
       `(${ctx.marginPercent != null ? ctx.marginPercent.toFixed(1) + "%" : "N/A"})\n` +
-      `- Temps consommé : ${ctx.timeConsumedHours != null ? ctx.timeConsumedHours + "h" : "N/A"}\n\n` +
+      (ctx.targetTJM != null ? `- TJM cible : ${ctx.targetTJM}€/j\n` : "") +
+      (ctx.actualTJM != null ? `- TJM effectif : ${Number(ctx.actualTJM).toFixed(0)}€/j\n` : "") +
+      (ctx.theoreticalDays != null ? `- Jours prévus : ${ctx.theoreticalDays}j\n` : "") +
+      `- Temps consommé : ${ctx.timeConsumedHours != null ? ctx.timeConsumedHours + "h" : "N/A"}\n` +
+      (ctx.budgetConsumedPercent != null ? `- Taux consommé : ${ctx.budgetConsumedPercent}%\n` : "") +
+      `- Tâches : ${taskLine}\n` +
+      `- Livrables : ${scopeLine}\n\n` +
       `**Sections attendues (en markdown) :**\n` +
       `1. **Diagnostic de rentabilité** : évalue la santé financière du projet.\n` +
-      `2. **Risques identifiés** : liste les risques majeurs (dépassement budget, marge insuffisante, etc.).\n` +
+      `2. **Risques identifiés** : liste les risques majeurs (dépassement budget, marge insuffisante, tâches en retard, etc.).\n` +
       `3. **Quick wins** : actions rapides à fort impact pour améliorer la situation.\n` +
       `4. **Priorités recommandées** : 3 actions prioritaires à mener maintenant.`
     );

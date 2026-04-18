@@ -380,7 +380,8 @@ export function AppSidebar() {
       <AiAssistantDrawer
         isOpen={aiAssistant.isOpen}
         onClose={aiAssistant.toggle}
-        projectContext={aiAssistant.projectContext}
+        projectId={aiAssistant.projectId}
+        projectName={aiAssistant.projectName}
       />
     </Sidebar>
   );

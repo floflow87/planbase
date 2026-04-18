@@ -1327,14 +1327,44 @@ app.get("/config/feature-flags", async (_req, res) => {
   // AI suggestion for client next actions
   app.post("/api/clients/:id/suggest-actions", requireAuth, requireOrgMember, requireAiAccess, requirePermission("crm", "read", "crm.clients"), async (req, res) => {
     try {
-      const client = await storage.getClient(req.accountId!, req.params.id);
-      if (!client) {
+      const { buildClientContext } = await import("./services/aiContextBuilder");
+      const clientCtx = await buildClientContext(req.accountId!, req.params.id);
+      if (!clientCtx) {
         return res.status(404).json({ error: "Client not found" });
       }
-      
-      const history = `Client: ${client.name}, Type: ${client.type}, Status: ${client.status}, Budget: ${client.budget}`;
+
+      const parts: string[] = [
+        `Client: ${clientCtx.name}, Type: ${clientCtx.type ?? "N/A"}, Status: ${clientCtx.status ?? "N/A"}, Budget: ${clientCtx.budget != null ? clientCtx.budget + "€" : "N/A"}`,
+      ];
+
+      if (clientCtx.contacts.length > 0) {
+        const primary = clientCtx.contacts.find((c) => c.isPrimary) ?? clientCtx.contacts[0];
+        parts.push(`Primary contact: ${primary.fullName}${primary.position ? ` (${primary.position})` : ""}`);
+      }
+
+      if (clientCtx.linkedProjects.length > 0) {
+        parts.push(
+          `Related projects: ${clientCtx.linkedProjects.map((p) => `${p.name} (${p.stage ?? "N/A"}${p.budget != null ? ", " + p.budget + "€" : ""})`).join("; ")}`
+        );
+      }
+
+      if (clientCtx.activeDeals.length > 0) {
+        parts.push(
+          `Active deals: ${clientCtx.activeDeals.map((d) => `${d.title} (${d.stage}${d.value != null ? ", " + d.value + "€" : ""})`).join("; ")}`
+        );
+      }
+
+      if (clientCtx.recentActivities.length > 0) {
+        const activitySummary = clientCtx.recentActivities
+          .slice(0, 5)
+          .map((a) => `${a.kind}${a.description ? ": " + a.description : ""}${a.occurredAt ? " (" + a.occurredAt + ")" : ""}`)
+          .join("; ");
+        parts.push(`Recent interactions: ${activitySummary}`);
+      }
+
+      const history = parts.join(". ");
       const suggestions = await suggestNextActions(history);
-      
+
       res.json({ suggestions });
     } catch (error: any) {
       res.status(400).json({ error: error.message });

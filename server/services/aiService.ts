@@ -18,6 +18,46 @@ export interface AiContext {
     status?: string;
     timeConsumedHours?: number;
     marginPercent?: number;
+    totalBilled?: number;
+    margin?: number;
+    targetTJM?: number;
+    actualTJM?: number;
+    theoreticalDays?: number;
+    budgetConsumedPercent?: number;
+    healthScore?: number;
+    profitabilityStatus?: string;
+    category?: string;
+    priority?: string;
+    taskCounts?: {
+      total: number;
+      todo: number;
+      inProgress: number;
+      done: number;
+      overdue: number;
+    };
+    scopeItems?: {
+      total: number;
+      completed: number;
+      titles: string[];
+    };
+  };
+  client?: {
+    name: string;
+    type?: string;
+    status?: string;
+    budget?: number;
+    recentActivities?: { kind: string; description?: string; occurredAt?: string }[];
+    linkedProjects?: { name: string; stage?: string; budget?: number }[];
+    contacts?: { fullName: string; position?: string; isPrimary: boolean }[];
+    activeDeals?: { title: string; value?: number; stage: string }[];
+  };
+  noteOrDocument?: {
+    type: "note" | "document";
+    title: string;
+    contentType?: string;
+    status?: string;
+    createdAt?: string;
+    date?: string;
   };
   content?: string;
 }
@@ -48,12 +88,77 @@ export async function callAi(
 
   if (context?.project) {
     const p = context.project;
+    const projectParts: string[] = [
+      `Contexte projet actuel : "${p.name}"${p.description ? ` — ${p.description}` : ""}.`,
+    ];
+    if (p.category) projectParts.push(`Catégorie : ${p.category}.`);
+    if (p.priority) projectParts.push(`Priorité : ${p.priority}.`);
+    if (p.status) projectParts.push(`Statut : ${p.status}.`);
+    if (p.profitabilityStatus) projectParts.push(`Rentabilité : ${p.profitabilityStatus}.`);
+    if (p.budget != null) projectParts.push(`Budget : ${p.budget}€.`);
+    if (p.totalBilled != null) projectParts.push(`Montant facturé : ${p.totalBilled}€.`);
+    if (p.margin != null) projectParts.push(`Marge : ${p.margin.toFixed(0)}€.`);
+    if (p.marginPercent != null) projectParts.push(`Taux de marge : ${p.marginPercent.toFixed(1)}%.`);
+    if (p.targetTJM != null) projectParts.push(`TJM cible : ${p.targetTJM}€/j.`);
+    if (p.actualTJM != null) projectParts.push(`TJM effectif : ${p.actualTJM.toFixed(0)}€/j.`);
+    if (p.theoreticalDays != null) projectParts.push(`Jours prévus : ${p.theoreticalDays}j.`);
+    if (p.timeConsumedHours != null) projectParts.push(`Temps consommé : ${p.timeConsumedHours}h.`);
+    if (p.budgetConsumedPercent != null) projectParts.push(`Taux consommé : ${p.budgetConsumedPercent}%.`);
+    if (p.healthScore != null) projectParts.push(`Score de santé : ${p.healthScore}/100.`);
+    if (p.taskCounts) {
+      projectParts.push(
+        `Tâches : ${p.taskCounts.total} au total (${p.taskCounts.todo} à faire, ${p.taskCounts.inProgress} en cours, ${p.taskCounts.done} terminées${p.taskCounts.overdue > 0 ? `, ${p.taskCounts.overdue} en retard` : ""}).`
+      );
+    }
+    if (p.scopeItems && p.scopeItems.total > 0) {
+      projectParts.push(
+        `Livrables : ${p.scopeItems.completed}/${p.scopeItems.total} complétés${p.scopeItems.titles.length > 0 ? ` (${p.scopeItems.titles.join(", ")})` : ""}.`
+      );
+    }
+    systemParts.push(projectParts.join(" "));
+  }
+
+  if (context?.client) {
+    const c = context.client;
+    const clientParts: string[] = [
+      `Contexte client CRM : "${c.name}" (${c.type ?? "entreprise"}, statut : ${c.status ?? "N/A"}).`,
+    ];
+    if (c.budget != null) clientParts.push(`Budget client : ${c.budget}€.`);
+    if (c.contacts && c.contacts.length > 0) {
+      const primaryContact = c.contacts.find((ct) => ct.isPrimary) ?? c.contacts[0];
+      clientParts.push(
+        `Contact principal : ${primaryContact.fullName}${primaryContact.position ? ` (${primaryContact.position})` : ""}.`
+      );
+    }
+    if (c.linkedProjects && c.linkedProjects.length > 0) {
+      clientParts.push(
+        `Projets liés : ${c.linkedProjects.map((p) => `${p.name} (${p.stage ?? "N/A"}${p.budget != null ? `, ${p.budget}€` : ""})`).join(", ")}.`
+      );
+    }
+    if (c.activeDeals && c.activeDeals.length > 0) {
+      const totalDealsValue = c.activeDeals.reduce((sum, d) => sum + (d.value ?? 0), 0);
+      clientParts.push(
+        `Deals actifs : ${c.activeDeals.length} deal(s) pour ${totalDealsValue.toFixed(0)}€ total.`
+      );
+    }
+    if (c.recentActivities && c.recentActivities.length > 0) {
+      const activitySummary = c.recentActivities
+        .slice(0, 5)
+        .map((a) => `${a.kind}${a.description ? ` : ${a.description}` : ""}${a.occurredAt ? ` (${a.occurredAt})` : ""}`)
+        .join("; ");
+      clientParts.push(`Derniers échanges : ${activitySummary}.`);
+    }
+    systemParts.push(clientParts.join(" "));
+  }
+
+  if (context?.noteOrDocument) {
+    const nd = context.noteOrDocument;
     systemParts.push(
-      `Contexte projet actuel : "${p.name}"${p.description ? ` — ${p.description}` : ""}.` +
-        (p.budget != null ? ` Budget : ${p.budget}€.` : "") +
-        (p.status ? ` Statut : ${p.status}.` : "") +
-        (p.timeConsumedHours != null ? ` Temps consommé : ${p.timeConsumedHours}h.` : "") +
-        (p.marginPercent != null ? ` Marge actuelle : ${p.marginPercent.toFixed(1)}%.` : "")
+      `Contexte ${nd.type === "document" ? "document" : "note"} : "${nd.title}"` +
+        (nd.contentType ? ` (type : ${nd.contentType})` : "") +
+        (nd.status ? `, statut : ${nd.status}` : "") +
+        (nd.date ? `, date : ${nd.date}` : nd.createdAt ? `, créé le : ${nd.createdAt}` : "") +
+        "."
     );
   }
 

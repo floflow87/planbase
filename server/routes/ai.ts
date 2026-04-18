@@ -3,31 +3,31 @@ import { requireAuth } from "../middleware/auth";
 import { requireAiAccess } from "../middleware/aiAccess";
 import { extractTextFromProseMirror } from "../services/aiService";
 import { runAi } from "../services/aiOrchestrator";
+import {
+  buildProjectContext,
+  buildNoteContext,
+  buildDocumentContext,
+} from "../services/aiContextBuilder";
 
 const router = Router();
 
-interface ProjectContextBody {
-  name?: string;
-  description?: string;
-  budget?: number;
-  status?: string;
-  timeConsumedHours?: number;
-  marginPercent?: number;
-}
-
 interface ChatRequestBody {
   message: string;
-  projectContext?: ProjectContextBody;
+  projectId?: string;
+  clientId?: string;
 }
 
 interface ContentRequestBody {
   content: unknown;
   title?: string;
   type?: "note" | "document";
+  noteId?: string;
+  documentId?: string;
 }
 
 interface ProjectAnalysisBody {
-  project: {
+  projectId?: string;
+  project?: {
     name: string;
     description?: string;
     budget?: number | null;
@@ -42,10 +42,16 @@ interface ProjectAnalysisBody {
 
 router.post("/chat", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
   try {
-    const { message, projectContext } = req.body as ChatRequestBody;
+    const accountId = req.accountId!;
+    const { message, projectId } = req.body as ChatRequestBody;
 
     if (!message?.trim()) {
       return res.status(400).json({ error: "Le message est requis" });
+    }
+
+    let projectCtx: Awaited<ReturnType<typeof buildProjectContext>> = null;
+    if (projectId) {
+      projectCtx = await buildProjectContext(accountId, projectId);
     }
 
     const result = await runAi({
@@ -53,7 +59,28 @@ router.post("/chat", requireAuth, requireAiAccess, async (req: Request, res: Res
       provider: "ollama",
       context: {
         content: message,
-        project: projectContext,
+        project: projectCtx
+          ? {
+              name: projectCtx.name,
+              description: projectCtx.description,
+              category: projectCtx.category,
+              status: projectCtx.stage,
+              priority: projectCtx.priority,
+              budget: projectCtx.budget,
+              totalBilled: projectCtx.totalBilled,
+              margin: projectCtx.margin,
+              marginPercent: projectCtx.marginPercent,
+              targetTJM: projectCtx.targetTJM,
+              actualTJM: projectCtx.actualTJM,
+              theoreticalDays: projectCtx.theoreticalDays,
+              timeConsumedHours: projectCtx.timeConsumedHours,
+              budgetConsumedPercent: projectCtx.budgetConsumedPercent,
+              healthScore: projectCtx.healthScore,
+              profitabilityStatus: projectCtx.profitabilityStatus,
+              taskCounts: projectCtx.taskCounts,
+              scopeItems: projectCtx.scopeItems,
+            }
+          : undefined,
       },
     });
 
@@ -67,34 +94,98 @@ router.post("/chat", requireAuth, requireAiAccess, async (req: Request, res: Res
 
 router.post("/project-analysis", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
   try {
-    const { project } = req.body as ProjectAnalysisBody;
+    const accountId = req.accountId!;
+    const body = req.body as ProjectAnalysisBody;
 
-    if (!project?.name) {
+    let projectData: {
+      name: string;
+      description?: string;
+      category?: string;
+      stage?: string;
+      priority?: string;
+      budget?: number | null;
+      totalBilled?: number;
+      margin?: number;
+      marginPercent?: number;
+      targetTJM?: number;
+      actualTJM?: number;
+      theoreticalDays?: number;
+      timeConsumedHours?: number;
+      budgetConsumedPercent?: number;
+      healthScore?: number;
+      profitabilityStatus?: string;
+      taskCounts?: { total: number; todo: number; inProgress: number; done: number; overdue: number };
+      scopeItems?: { total: number; completed: number; titles: string[] };
+    } | null = null;
+
+    if (body.projectId) {
+      const ctx = await buildProjectContext(accountId, body.projectId);
+      if (!ctx) {
+        return res.status(404).json({ error: "Projet introuvable" });
+      }
+      projectData = ctx;
+    } else if (body.project?.name) {
+      projectData = {
+        name: body.project.name,
+        description: body.project.description,
+        category: body.project.category,
+        stage: body.project.status,
+        budget: body.project.budget ?? undefined,
+        totalBilled: body.project.totalBilled,
+        margin: body.project.margin,
+        marginPercent: body.project.marginPercent,
+        timeConsumedHours: body.project.timeConsumedHours,
+      };
+    }
+
+    if (!projectData?.name) {
       return res.status(400).json({ error: "Les données projet sont requises" });
     }
+
+    const p = projectData;
 
     const result = await runAi({
       type: "projectAnalysis",
       provider: "auto",
       context: {
         promptContext: {
-          name: project.name,
-          description: project.description,
-          category: project.category,
-          status: project.status,
-          budget: project.budget,
-          totalBilled: project.totalBilled,
-          margin: project.margin,
-          marginPercent: project.marginPercent,
-          timeConsumedHours: project.timeConsumedHours,
+          name: p.name,
+          description: p.description,
+          category: p.category,
+          status: p.stage,
+          priority: p.priority,
+          budget: p.budget,
+          totalBilled: p.totalBilled,
+          margin: p.margin,
+          marginPercent: p.marginPercent,
+          targetTJM: p.targetTJM,
+          actualTJM: p.actualTJM,
+          theoreticalDays: p.theoreticalDays,
+          timeConsumedHours: p.timeConsumedHours,
+          budgetConsumedPercent: p.budgetConsumedPercent,
+          healthScore: p.healthScore,
+          profitabilityStatus: p.profitabilityStatus,
+          taskCounts: p.taskCounts,
+          scopeItems: p.scopeItems,
         },
         project: {
-          name: project.name,
-          description: project.description,
-          budget: project.budget,
-          status: project.status,
-          timeConsumedHours: project.timeConsumedHours,
-          marginPercent: project.marginPercent,
+          name: p.name,
+          description: p.description,
+          category: p.category,
+          status: p.stage,
+          budget: p.budget,
+          totalBilled: p.totalBilled,
+          margin: p.margin,
+          marginPercent: p.marginPercent,
+          targetTJM: p.targetTJM,
+          actualTJM: p.actualTJM,
+          theoreticalDays: p.theoreticalDays,
+          timeConsumedHours: p.timeConsumedHours,
+          budgetConsumedPercent: p.budgetConsumedPercent,
+          healthScore: p.healthScore,
+          profitabilityStatus: p.profitabilityStatus,
+          taskCounts: p.taskCounts,
+          scopeItems: p.scopeItems,
         },
       },
     });
@@ -109,7 +200,8 @@ router.post("/project-analysis", requireAuth, requireAiAccess, async (req: Reque
 
 router.post("/summarize", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
   try {
-    const { content, title, type = "note" } = req.body as ContentRequestBody;
+    const accountId = req.accountId!;
+    const { content, title, type = "note", noteId, documentId } = req.body as ContentRequestBody;
 
     const text = typeof content === "string" ? content : extractTextFromProseMirror(content);
 
@@ -117,12 +209,43 @@ router.post("/summarize", requireAuth, requireAiAccess, async (req: Request, res
       return res.status(400).json({ error: "Le contenu est vide" });
     }
 
+    let noteOrDocCtx: { type: "note" | "document"; title: string; contentType?: string; status?: string; createdAt?: string; date?: string } | undefined;
+
+    if (noteId) {
+      const noteCtx = await buildNoteContext(accountId, noteId);
+      if (noteCtx) {
+        noteOrDocCtx = {
+          type: "note",
+          title: noteCtx.title,
+          contentType: noteCtx.type ?? undefined,
+          status: noteCtx.status,
+          createdAt: noteCtx.createdAt,
+          date: noteCtx.noteDate,
+        };
+      }
+    } else if (documentId) {
+      const docCtx = await buildDocumentContext(accountId, documentId);
+      if (docCtx) {
+        noteOrDocCtx = {
+          type: "document",
+          title: docCtx.name,
+          contentType: docCtx.sourceType,
+          status: docCtx.status,
+          createdAt: docCtx.createdAt,
+          date: docCtx.documentDate,
+        };
+      }
+    }
+
+    const effectiveTitle = noteOrDocCtx?.title ?? title;
+
     const result = await runAi({
       type: "summarize",
       provider: "auto",
       context: {
         content: text,
-        promptContext: { type, title },
+        promptContext: { type, title: effectiveTitle },
+        noteOrDocument: noteOrDocCtx,
       },
     });
 
@@ -163,7 +286,8 @@ router.post("/improve", requireAuth, requireAiAccess, async (req: Request, res: 
 
 router.post("/recommendations", requireAuth, requireAiAccess, async (req: Request, res: Response) => {
   try {
-    const { content, title, type = "note" } = req.body as ContentRequestBody;
+    const accountId = req.accountId!;
+    const { content, title, type = "note", noteId, documentId } = req.body as ContentRequestBody;
 
     const text = typeof content === "string" ? content : extractTextFromProseMirror(content);
 
@@ -171,12 +295,43 @@ router.post("/recommendations", requireAuth, requireAiAccess, async (req: Reques
       return res.status(400).json({ error: "Le contenu est vide" });
     }
 
+    let noteOrDocCtx: { type: "note" | "document"; title: string; contentType?: string; status?: string; createdAt?: string; date?: string } | undefined;
+
+    if (noteId) {
+      const noteCtx = await buildNoteContext(accountId, noteId);
+      if (noteCtx) {
+        noteOrDocCtx = {
+          type: "note",
+          title: noteCtx.title,
+          contentType: noteCtx.type ?? undefined,
+          status: noteCtx.status,
+          createdAt: noteCtx.createdAt,
+          date: noteCtx.noteDate,
+        };
+      }
+    } else if (documentId) {
+      const docCtx = await buildDocumentContext(accountId, documentId);
+      if (docCtx) {
+        noteOrDocCtx = {
+          type: "document",
+          title: docCtx.name,
+          contentType: docCtx.sourceType,
+          status: docCtx.status,
+          createdAt: docCtx.createdAt,
+          date: docCtx.documentDate,
+        };
+      }
+    }
+
+    const effectiveTitle = noteOrDocCtx?.title ?? title;
+
     const result = await runAi({
       type: "recommendations",
       provider: "auto",
       context: {
         content: text,
-        promptContext: { type, title },
+        promptContext: { type, title: effectiveTitle },
+        noteOrDocument: noteOrDocCtx,
       },
     });
 

@@ -14,17 +14,9 @@ interface Message {
   content: string;
 }
 
-interface ProjectContext {
-  name?: string;
-  description?: string;
-  budget?: number | null;
-  status?: string;
-  timeConsumedHours?: number;
-  marginPercent?: number;
-}
-
 interface AiAssistantProps {
-  projectContext?: ProjectContext;
+  projectId?: string;
+  projectName?: string;
 }
 
 interface AiChatResponse {
@@ -92,12 +84,12 @@ function SimpleMarkdown({ text }: { text: string }) {
 }
 
 
-function AiAssistantPanel({ onClose, projectContext }: { onClose: () => void; projectContext?: ProjectContext }) {
+function AiAssistantPanel({ onClose, projectId, projectName }: { onClose: () => void; projectId?: string; projectName?: string }) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: projectContext?.name
-        ? `Bonjour ! Je suis votre assistant IA PlanBase. Je suis prêt à vous aider sur le projet **${projectContext.name}** ou toute autre question business.`
+      content: projectName
+        ? `Bonjour ! Je suis votre assistant IA PlanBase. Je suis prêt à vous aider sur le projet **${projectName}** ou toute autre question business.`
         : "Bonjour ! Je suis votre assistant IA PlanBase. Posez-moi vos questions sur la gestion de projet, la rentabilité, ou comment tirer le meilleur parti de PlanBase.",
     },
   ]);
@@ -122,7 +114,7 @@ function AiAssistantPanel({ onClose, projectContext }: { onClose: () => void; pr
     try {
       const res = await apiRequest("/api/ai/chat", "POST", {
         message: trimmed,
-        projectContext: projectContext ?? undefined,
+        projectId: projectId ?? undefined,
       });
       const data: AiChatResponse = await res.json();
       if (data.error) throw new Error(data.error);
@@ -164,8 +156,8 @@ function AiAssistantPanel({ onClose, projectContext }: { onClose: () => void; pr
           </div>
           <div>
             <p className="text-sm font-semibold">Assistant IA</p>
-            {projectContext?.name && (
-              <p className="text-xs text-muted-foreground">Contexte : {projectContext.name}</p>
+            {projectName && (
+              <p className="text-xs text-muted-foreground">Contexte : {projectName}</p>
             )}
           </div>
         </div>
@@ -242,30 +234,31 @@ function AiAssistantPanel({ onClose, projectContext }: { onClose: () => void; pr
   );
 }
 
-function useProjectContextFromUrl(): ProjectContext | undefined {
+interface UrlProjectInfo {
+  projectId: string | null;
+  projectName: string | null;
+}
+
+function useProjectInfoFromUrl(): UrlProjectInfo {
   const [location] = useLocation();
-  const match = location.match(/^\/projects\/(\d+)/);
-  const projectId = match ? Number(match[1]) : null;
+  const match = location.match(/^\/projects\/([^/]+)/);
+  const projectId = match ? match[1] : null;
 
   const { data: project } = useQuery<Project>({
     queryKey: ["/api/projects", projectId],
     enabled: projectId !== null,
   });
 
-  if (!project || projectId === null) return undefined;
-
   return {
-    name: project.name,
-    description: project.description ?? undefined,
-    budget: project.budget,
-    status: project.stage ?? undefined,
+    projectId: projectId ?? null,
+    projectName: project?.name ?? null,
   };
 }
 
 export function useAiAssistantState() {
   const { hasFeature, isLoading } = useBilling();
   const [isOpen, setIsOpen] = useState(false);
-  const urlProjectContext = useProjectContextFromUrl();
+  const { projectId, projectName } = useProjectInfoFromUrl();
 
   return {
     isOpen,
@@ -273,11 +266,12 @@ export function useAiAssistantState() {
     toggle: () => setIsOpen((v) => !v),
     hasAccess: !isLoading && hasFeature("ai_assistant"),
     isLoading,
-    projectContext: urlProjectContext,
+    projectId: projectId ?? undefined,
+    projectName: projectName ?? undefined,
   };
 }
 
-export function AiAssistantDrawer({ isOpen, onClose, projectContext }: { isOpen: boolean; onClose: () => void; projectContext?: ProjectContext }) {
+export function AiAssistantDrawer({ isOpen, onClose, projectId, projectName }: { isOpen: boolean; onClose: () => void; projectId?: string; projectName?: string }) {
   if (!isOpen) return null;
 
   return (
@@ -286,15 +280,16 @@ export function AiAssistantDrawer({ isOpen, onClose, projectContext }: { isOpen:
       data-testid="ai-assistant-container"
     >
       <div className="w-[380px] h-[520px] bg-background border rounded-md shadow-lg flex flex-col overflow-hidden">
-        <AiAssistantPanel onClose={onClose} projectContext={projectContext} />
+        <AiAssistantPanel onClose={onClose} projectId={projectId} projectName={projectName} />
       </div>
     </div>
   );
 }
 
-export function AiAssistant({ projectContext: propProjectContext }: AiAssistantProps) {
-  const { hasAccess, isLoading, isOpen, toggle, projectContext: urlProjectContext } = useAiAssistantState();
-  const projectContext = propProjectContext ?? urlProjectContext;
+export function AiAssistant({ projectId: propProjectId, projectName: propProjectName }: AiAssistantProps) {
+  const { hasAccess, isLoading, isOpen, toggle, projectId: urlProjectId, projectName: urlProjectName } = useAiAssistantState();
+  const projectId = propProjectId ?? urlProjectId;
+  const projectName = propProjectName ?? urlProjectName;
 
   if (isLoading || !hasAccess) return null;
 
@@ -305,7 +300,7 @@ export function AiAssistant({ projectContext: propProjectContext }: AiAssistantP
     >
       {isOpen && (
         <div className="w-[380px] h-[520px] bg-background border rounded-md shadow-lg flex flex-col overflow-hidden">
-          <AiAssistantPanel onClose={toggle} projectContext={projectContext} />
+          <AiAssistantPanel onClose={toggle} projectId={projectId} projectName={projectName} />
         </div>
       )}
 
