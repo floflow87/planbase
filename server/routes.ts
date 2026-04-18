@@ -3763,17 +3763,18 @@ app.get("/config/feature-flags", async (_req, res) => {
   });
 
   // Get source note linked to a task (from note_links where targetType='task')
-  app.get("/api/tasks/:id/source-note", requireAuth, requireOrgMember, requirePermission("tasks", "read"), async (req, res) => {
+  app.get("/api/tasks/:id/source-note", requireAuth, requireOrgMember, requirePermission("tasks", "read"), requirePermission("notes", "read"), async (req, res) => {
     try {
       const task = await storage.getTask(req.params.id);
       if (!task) return res.status(404).json({ error: "Task not found" });
       if (task.accountId !== req.accountId) return res.status(403).json({ error: "Access denied" });
 
       const linkedNotes = await storage.getNotesByEntityLink("task", req.params.id);
-      if (linkedNotes.length === 0) return res.json(null);
+      // Explicitly filter to only return notes belonging to the same account
+      const accountNote = linkedNotes.find((n) => n.accountId === req.accountId);
+      if (!accountNote) return res.json(null);
 
-      const note = linkedNotes[0];
-      res.json({ id: note.id, title: note.title || "Note sans titre" });
+      res.json({ id: accountNote.id, title: accountNote.title || "Note sans titre" });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
