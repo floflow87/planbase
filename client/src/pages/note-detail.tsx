@@ -74,6 +74,22 @@ interface ExtractedAction {
 
 const PRIORITY_LABELS: Record<string, string> = { low: "Basse", medium: "Moyenne", high: "Haute" };
 
+function LinkedTaskRow({ taskId }: { taskId: string }) {
+  const [, setLocation] = useLocation();
+  const { data: task } = useQuery<any>({ queryKey: ['/api/tasks', taskId] });
+  if (!task) return <div className="h-6 rounded animate-pulse bg-muted/60 mx-0.5" />;
+  return (
+    <button
+      onClick={() => setLocation("/tasks")}
+      className="flex items-center gap-1.5 w-full text-left text-xs rounded px-1.5 py-1 hover-elevate text-foreground"
+      data-testid={`linked-task-row-${taskId}`}
+    >
+      <CheckCircle2 className="w-3 h-3 shrink-0 text-muted-foreground" />
+      <span className="flex-1 truncate">{task.title}</span>
+    </button>
+  );
+}
+
 function NoteAiActions({
   noteTitle,
   noteId,
@@ -92,6 +108,7 @@ function NoteAiActions({
   const { hasFeature } = useBilling();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeAction, setActiveAction] = useState<AiAction | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -103,6 +120,12 @@ function NoteAiActions({
   const [extractModalOpen, setExtractModalOpen] = useState(false);
   const [editedActions, setEditedActions] = useState<(ExtractedAction & { selected: boolean })[]>([]);
   const [isCreatingTasks, setIsCreatingTasks] = useState(false);
+
+  const { data: noteLinksData } = useQuery<any[]>({
+    queryKey: ['/api/notes', noteId, 'links'],
+    enabled: !!noteId,
+  });
+  const taskLinks = (noteLinksData ?? []).filter((l: any) => l.targetType === 'task');
 
   const extractText = (doc: unknown): string => {
     if (!doc) return "";
@@ -173,13 +196,25 @@ function NoteAiActions({
     setIsCreatingTasks(true);
     try {
       for (const action of selected) {
-        await apiRequest("/api/tasks", "POST", {
+        const taskRes = await apiRequest("/api/tasks", "POST", {
           title: action.title,
           priority: action.priority,
           projectId: action.suggestedProjectId || undefined,
           status: "todo",
         });
+        const task = await taskRes.json();
+        if (noteId && task?.id) {
+          try {
+            await apiRequest(`/api/notes/${noteId}/links`, "POST", {
+              targetType: "task",
+              targetId: task.id,
+            });
+          } catch {
+            // Non-bloquant : échec du lien ne bloque pas la création de la tâche
+          }
+        }
       }
+      queryClient.invalidateQueries({ queryKey: ['/api/notes', noteId, 'links'] });
       toast({
         title: `${selected.length} tâche${selected.length > 1 ? "s" : ""} créée${selected.length > 1 ? "s" : ""}`,
         description: "Les actions ont été ajoutées à vos tâches.",
@@ -293,6 +328,19 @@ function NoteAiActions({
               </div>
               {extractError && (
                 <p className="text-xs text-destructive px-0.5">{extractError}</p>
+              )}
+              {taskLinks.length > 0 && (
+                <div className="space-y-1 pt-1" data-testid="note-linked-tasks-section">
+                  <p className="text-[11px] text-muted-foreground px-0.5 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Actions extraites ({taskLinks.length})
+                  </p>
+                  <div className="space-y-0.5">
+                    {taskLinks.map((link: any) => (
+                      <LinkedTaskRow key={link.targetId} taskId={link.targetId} />
+                    ))}
+                  </div>
+                </div>
               )}
               {(result || error) && (
                 <Card className="mt-1">
