@@ -15495,8 +15495,8 @@ app.get("/config/feature-flags", async (_req, res) => {
       const newLine = Array.isArray(newLineResult) ? newLineResult[0] : (newLineResult as any).rows?.[0];
       if (!newLine) return res.status(404).json({ error: "Source line not found" });
       await db.execute(sql`
-        INSERT INTO treasury_plan_cells (line_id, period_key, amount)
-        SELECT ${newLine.id}, period_key, amount
+        INSERT INTO treasury_plan_cells (line_id, period_key, amount, formula, cell_color)
+        SELECT ${newLine.id}, period_key, amount, formula, cell_color
         FROM treasury_plan_cells
         WHERE line_id = ${srcId}
         ON CONFLICT ON CONSTRAINT treasury_plan_cells_unique DO NOTHING

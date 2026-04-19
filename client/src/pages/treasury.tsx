@@ -1161,14 +1161,16 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     if (!fillDrag) return;
     const onMouseUp = () => {
       if (fillDrag && fillEndIdx !== null && fillEndIdx > fillDrag.startIdx) {
-        const cells: Array<{ lineId: string; periodKey: string; amount: number }> = [];
+        const cells: Array<CellPayload> = [];
         const snapshots: Array<{ lineId: string; periodKey: string; prevAmount: number; nextAmount: number }> = [];
+        const affected: Array<{ lineId: string; periodKey: string }> = [];
         const ps = periods;
         for (let i = fillDrag.startIdx + 1; i <= fillEndIdx; i++) {
           if (ps[i]) {
             const prevAmount = localCells[fillDrag.lineId]?.[ps[i].key] ?? 0;
-            cells.push({ lineId: fillDrag.lineId, periodKey: ps[i].key, amount: fillDrag.value });
+            cells.push({ lineId: fillDrag.lineId, periodKey: ps[i].key, amount: fillDrag.value, formula: null });
             snapshots.push({ lineId: fillDrag.lineId, periodKey: ps[i].key, prevAmount, nextAmount: fillDrag.value });
+            affected.push({ lineId: fillDrag.lineId, periodKey: ps[i].key });
             setLocalCells((lc) => ({
               ...lc,
               [fillDrag.lineId]: { ...(lc[fillDrag.lineId] ?? {}), [ps[i].key]: fillDrag.value },
@@ -1176,6 +1178,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
           }
         }
         if (cells.length > 0) {
+          clearFormulasForEntries(affected);
           saveCellMutation.mutate(cells);
           setUndoStack((prev) => [...prev, snapshots]);
           setRedoStack([]);
@@ -1254,10 +1257,24 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     }
   };
 
+  const clearFormulasForEntries = (entries: Array<{ lineId: string; periodKey: string }>) => {
+    setLocalFormulas((prev) => {
+      const next = { ...prev };
+      for (const e of entries) {
+        if (next[e.lineId]?.[e.periodKey] !== undefined) {
+          const lc = { ...next[e.lineId] };
+          delete lc[e.periodKey];
+          next[e.lineId] = lc;
+        }
+      }
+      return next;
+    });
+  };
+
   const handleUndo = () => {
     if (undoStack.length === 0) return;
     const entries = undoStack[undoStack.length - 1];
-    const cells = entries.map((e) => ({ lineId: e.lineId, periodKey: e.periodKey, amount: e.prevAmount }));
+    const cells = entries.map((e) => ({ lineId: e.lineId, periodKey: e.periodKey, amount: e.prevAmount, formula: null as null }));
     setLocalCells((prev) => {
       const next = { ...prev };
       for (const e of entries) {
@@ -1265,6 +1282,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
       }
       return next;
     });
+    clearFormulasForEntries(entries);
     saveCellMutation.mutate(cells);
     setUndoStack((prev) => prev.slice(0, -1));
     setRedoStack((prev) => [...prev, entries]);
@@ -1273,7 +1291,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   const handleRedo = () => {
     if (redoStack.length === 0) return;
     const entries = redoStack[redoStack.length - 1];
-    const cells = entries.map((e) => ({ lineId: e.lineId, periodKey: e.periodKey, amount: e.nextAmount }));
+    const cells = entries.map((e) => ({ lineId: e.lineId, periodKey: e.periodKey, amount: e.nextAmount, formula: null as null }));
     setLocalCells((prev) => {
       const next = { ...prev };
       for (const e of entries) {
@@ -1281,6 +1299,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
       }
       return next;
     });
+    clearFormulasForEntries(entries);
     saveCellMutation.mutate(cells);
     setRedoStack((prev) => prev.slice(0, -1));
     setUndoStack((prev) => [...prev, entries]);
@@ -1290,9 +1309,18 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     if (!selectedCell || editingCell) return;
     const { lineId, periodKey } = selectedCell;
     const prevAmount = getCellValue(lineId, periodKey);
-    if (prevAmount === 0) return;
+    if (prevAmount === 0 && !localFormulas[lineId]?.[periodKey]) return;
     setLocalCells((prev) => ({ ...prev, [lineId]: { ...(prev[lineId] ?? {}), [periodKey]: 0 } }));
-    saveCellMutation.mutate([{ lineId, periodKey, amount: 0 }]);
+    setLocalFormulas((prev) => {
+      const next = { ...prev };
+      if (next[lineId]) {
+        const lc = { ...next[lineId] };
+        delete lc[periodKey];
+        next[lineId] = lc;
+      }
+      return next;
+    });
+    saveCellMutation.mutate([{ lineId, periodKey, amount: 0, formula: null }]);
     setUndoStack((prev) => [...prev, [{ lineId, periodKey, prevAmount, nextAmount: 0 }]]);
     setRedoStack([]);
   };
@@ -1373,7 +1401,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                     const weekNum = Math.ceil(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
                     return `${year}-W${String(weekNum).padStart(2, "0")}`;
                   };
-                  const newCells: Array<{ lineId: string; periodKey: string; amount: number }> = [];
+                  const newCells: Array<CellPayload> = [];
                   const nextLocalCells: Record<string, Record<string, number>> = {};
                   for (const [lineId, lineCells] of Object.entries(localCells)) {
                     nextLocalCells[lineId] = {};
@@ -1384,16 +1412,17 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                         const lastDay = new Date(yr, mo, 0);
                         const weekKey = getWeekKey(lastDay);
                         nextLocalCells[lineId][weekKey] = (nextLocalCells[lineId][weekKey] ?? 0) + amount;
-                        newCells.push({ lineId, periodKey: weekKey, amount });
+                        newCells.push({ lineId, periodKey: weekKey, amount, formula: null });
                       } else {
                         nextLocalCells[lineId][pk] = amount;
                       }
                     }
                   }
                   setLocalCells(nextLocalCells);
+                  setLocalFormulas({});
                   if (newCells.length > 0) saveCellMutation.mutate(newCells);
                 } else if (prev === "week" && g === "month") {
-                  const newCells: Array<{ lineId: string; periodKey: string; amount: number }> = [];
+                  const newCells: Array<CellPayload> = [];
                   const monthTotals: Record<string, Record<string, number>> = {};
                   for (const [lineId, lineCells] of Object.entries(localCells)) {
                     for (const [pk, amount] of Object.entries(lineCells)) {
@@ -1416,10 +1445,11 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                     nextLocalCells[lineId] = {};
                     for (const [mKey, amount] of Object.entries(months)) {
                       nextLocalCells[lineId][mKey] = amount;
-                      newCells.push({ lineId, periodKey: mKey, amount });
+                      newCells.push({ lineId, periodKey: mKey, amount, formula: null });
                     }
                   }
                   setLocalCells(nextLocalCells);
+                  setLocalFormulas({});
                   if (newCells.length > 0) saveCellMutation.mutate(newCells);
                 }
               }}
