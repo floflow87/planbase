@@ -15318,34 +15318,42 @@ app.get("/config/feature-flags", async (_req, res) => {
       `);
       const src = toRows(srcResult)[0] as any;
       if (!src) return res.status(404).json({ error: "Scénario introuvable" });
-      const newScResult = await db.execute(sql`
-        INSERT INTO treasury_plan_scenarios (account_id, name, initial_balance, granularity)
-        VALUES (${accountId}, ${src.name + " (copie)"}, ${src.initial_balance ?? 0}, ${src.granularity ?? "month"})
-        RETURNING *
-      `);
-      const newSc = toRows(newScResult)[0] as any;
-      if (!newSc) return res.status(500).json({ error: "Échec création scénario" });
-      const linesResult = await db.execute(sql`
-        SELECT * FROM treasury_plan_lines WHERE plan_scenario_id = ${srcId} AND account_id = ${accountId}
-      `);
-      const srcLines = toRows(linesResult);
-      for (const line of srcLines) {
-        const newLineResult = await db.execute(sql`
-          INSERT INTO treasury_plan_lines (account_id, rubrique, label, position, source_type, plan_scenario_id)
-          VALUES (${accountId}, ${line.rubrique}, ${line.label}, ${line.position ?? 0}, ${line.source_type ?? "manual"}, ${newSc.id})
-          RETURNING id
+
+      // Run everything in a transaction for atomicity
+      let newSc: any;
+      await db.transaction(async (tx) => {
+        const newScResult = await tx.execute(sql`
+          INSERT INTO treasury_plan_scenarios (account_id, name, initial_balance, granularity)
+          VALUES (${accountId}, ${src.name + " (copie)"}, ${src.initial_balance ?? 0}, ${src.granularity ?? "month"})
+          RETURNING *
         `);
-        const newLine = toRows(newLineResult)[0] as any;
-        if (newLine?.id) {
-          await db.execute(sql`
-            INSERT INTO treasury_plan_cells (line_id, period_key, amount, formula, cell_color)
-            SELECT ${newLine.id}, period_key, amount, formula, cell_color
-            FROM treasury_plan_cells
-            WHERE line_id = ${line.id}
-            ON CONFLICT ON CONSTRAINT treasury_plan_cells_unique DO NOTHING
+        newSc = toRows(newScResult)[0];
+        if (!newSc) throw new Error("Échec création scénario");
+
+        const linesResult = await tx.execute(sql`
+          SELECT * FROM treasury_plan_lines WHERE plan_scenario_id = ${srcId} AND account_id = ${accountId}
+        `);
+        const srcLines = toRows(linesResult);
+        for (const line of srcLines) {
+          const sourceId = line.source_id ?? null;
+          const newLineResult = await tx.execute(sql`
+            INSERT INTO treasury_plan_lines (account_id, rubrique, label, position, source_type, source_id, plan_scenario_id)
+            VALUES (${accountId}, ${line.rubrique}, ${line.label}, ${line.position ?? 0}, ${line.source_type ?? "manual"}, ${sourceId}, ${newSc.id})
+            RETURNING id
           `);
+          const newLine = toRows(newLineResult)[0] as any;
+          if (newLine?.id) {
+            await tx.execute(sql`
+              INSERT INTO treasury_plan_cells (line_id, period_key, amount, formula, cell_color)
+              SELECT ${newLine.id}, period_key, amount, formula, cell_color
+              FROM treasury_plan_cells
+              WHERE line_id = ${line.id}
+              ON CONFLICT ON CONSTRAINT treasury_plan_cells_unique DO NOTHING
+            `);
+          }
         }
-      }
+      });
+
       res.json(newSc);
     } catch (e: any) {
       console.error("❌ POST /api/treasury/plan/scenarios/:id/duplicate error:", e.message);
