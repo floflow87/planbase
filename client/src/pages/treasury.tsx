@@ -41,6 +41,7 @@ import {
   GitBranch,
   ChevronDown,
   ChevronRight,
+  ChevronsRight,
   Check,
   Table2,
   Info,
@@ -725,16 +726,19 @@ function TxPanel({
 
 function PlanCell({
   lineId, periodKey, value, isFillRange, isSelected, hasValue, colW, fmt,
-  cellColor, hasClipboard,
+  cellColor, hasClipboard, availableYears,
   onSelect, onStartEdit, onFillDragStart, onCopy, onPaste, onSetColor,
+  onFillYear, onFillUntilYear,
 }: {
   lineId: string; periodKey: string; value: number; isFillRange: boolean;
   isSelected: boolean; hasValue: boolean; colW: number;
   fmt: (n: number) => string;
   cellColor?: string | null;
   hasClipboard: boolean;
+  availableYears: number[];
   onSelect: () => void; onStartEdit: () => void; onFillDragStart: () => void;
   onCopy: () => void; onPaste: () => void; onSetColor: (color: string | null) => void;
+  onFillYear: () => void; onFillUntilYear: (year: number) => void;
 }) {
   const colorDef = cellColor ? CELL_COLORS.find((c) => c.key === cellColor) : null;
   const cellStyle = colorDef ? { backgroundColor: colorDef.bg, color: colorDef.text } : undefined;
@@ -770,7 +774,7 @@ function PlanCell({
           )}
         </div>
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-44">
+      <ContextMenuContent className="w-52">
         <ContextMenuItem onClick={onCopy} className="text-xs gap-2">
           <Copy className="h-3 w-3" />
           Copier
@@ -779,6 +783,28 @@ function PlanCell({
           <Copy className="h-3 w-3 opacity-50 scale-x-[-1]" />
           Coller
         </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={onFillYear} disabled={value === 0} className="text-xs gap-2">
+          <ChevronRight className="h-3 w-3" />
+          Étirer sur l'année
+        </ContextMenuItem>
+        <ContextMenuSub>
+          <ContextMenuSubTrigger disabled={value === 0} className="text-xs gap-2">
+            <ChevronsRight className="h-3 w-3" />
+            Étirer jusqu'à fin…
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent className="w-28">
+            {availableYears.map((y) => (
+              <ContextMenuItem
+                key={y}
+                className="text-xs gap-2"
+                onClick={() => onFillUntilYear(y)}
+              >
+                {y}
+              </ContextMenuItem>
+            ))}
+          </ContextMenuSubContent>
+        </ContextMenuSub>
         <ContextMenuSeparator />
         <ContextMenuSub>
           <ContextMenuSubTrigger className="text-xs gap-2">
@@ -837,6 +863,10 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   const [editingLineLabel, setEditingLineLabel] = useState("");
   const [fillDrag, setFillDrag] = useState<{ lineId: string; startIdx: number; value: number } | null>(null);
   const [fillEndIdx, setFillEndIdx] = useState<number | null>(null);
+  const NOW_YEAR = new Date().getFullYear();
+  const MAX_PLAN_YEAR = 2033;
+  const [endYear, setEndYear] = useState<number>(NOW_YEAR);
+  const availableYears = Array.from({ length: MAX_PLAN_YEAR - NOW_YEAR + 1 }, (_, i) => NOW_YEAR + i);
 
   // Undo/redo history
   type CellSnapshot = { lineId: string; periodKey: string; prevAmount: number; nextAmount: number };
@@ -1119,14 +1149,17 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     const result: Array<{ key: string; label: string; isCurrent: boolean; subtitle?: string }> = [];
     const now = new Date();
     if (localSettings.granularity === "month") {
-      for (let i = -2; i <= 9; i++) {
-        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const startD = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+      const endD = new Date(endYear, 11, 1);
+      const cur = new Date(startD);
+      while (cur <= endD) {
+        const key = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`;
         result.push({
           key,
-          label: d.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
-          isCurrent: i === 0,
+          label: cur.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
+          isCurrent: cur.getFullYear() === now.getFullYear() && cur.getMonth() === now.getMonth(),
         });
+        cur.setMonth(cur.getMonth() + 1);
       }
     } else {
       const getMonday = (d: Date) => {
@@ -1136,9 +1169,11 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
         return copy;
       };
       const monday = getMonday(new Date());
-      for (let i = -2; i <= 17; i++) {
+      const endD = new Date(endYear, 11, 31);
+      for (let i = -2; ; i++) {
         const d = new Date(monday);
         d.setDate(d.getDate() + i * 7);
+        if (d > endD) break;
         const year = d.getFullYear();
         const startOfYear = new Date(year, 0, 1);
         const weekNum = Math.ceil(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
@@ -1155,7 +1190,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
       }
     }
     return result;
-  }, [localSettings.granularity]);
+  }, [localSettings.granularity, endYear]);
 
   useEffect(() => {
     if (!fillDrag) return;
@@ -1464,6 +1499,28 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
               {g === "month" ? "Mois" : "Semaine"}
             </button>
           ))}
+        </div>
+
+        {/* Year horizon selector */}
+        <div className="flex items-center gap-1 shrink-0">
+          <span className="text-[10px] text-muted-foreground font-medium pr-1">Jusqu'à</span>
+          <div className="flex items-center rounded-md border overflow-hidden">
+            {availableYears.map((y) => (
+              <button
+                key={y}
+                onClick={() => setEndYear(y)}
+                className={cn(
+                  "px-2.5 py-1.5 text-[11px] font-medium transition-colors",
+                  endYear === y
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+                data-testid={`btn-year-${y}`}
+              >
+                {y}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Plan scenario selector */}
@@ -1910,6 +1967,64 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                                           return next;
                                         });
                                         saveCellColorMutation.mutate({ lineId: line.id, periodKey: p.key, cell_color: color });
+                                      }}
+                                      availableYears={availableYears}
+                                      onFillYear={() => {
+                                        const cellYear = p.key.startsWith("20") ? parseInt(p.key.substring(0, 4)) : null;
+                                        if (cellYear === null) return;
+                                        const amount = getCellValue(line.id, p.key);
+                                        if (amount === 0) return;
+                                        const targetKeys = periods
+                                          .filter((per) => {
+                                            const perYear = parseInt(per.key.substring(0, 4));
+                                            return perYear === cellYear && per.key >= p.key;
+                                          });
+                                        if (targetKeys.length === 0) return;
+                                        const cells: Array<CellPayload> = targetKeys.map((per) => ({
+                                          lineId: line.id, periodKey: per.key, amount, formula: null,
+                                        }));
+                                        const snapshots = targetKeys.map((per) => ({
+                                          lineId: line.id, periodKey: per.key,
+                                          prevAmount: getCellValue(line.id, per.key), nextAmount: amount,
+                                        }));
+                                        setLocalCells((prev) => {
+                                          const next = { ...prev };
+                                          next[line.id] = { ...(next[line.id] ?? {}) };
+                                          for (const per of targetKeys) next[line.id][per.key] = amount;
+                                          return next;
+                                        });
+                                        clearFormulasForEntries(targetKeys.map((per) => ({ lineId: line.id, periodKey: per.key })));
+                                        saveCellMutation.mutate(cells);
+                                        setUndoStack((prev) => [...prev, snapshots]);
+                                        setRedoStack([]);
+                                      }}
+                                      onFillUntilYear={(year) => {
+                                        const amount = getCellValue(line.id, p.key);
+                                        if (amount === 0) return;
+                                        const targetKeys = periods
+                                          .filter((per) => {
+                                            const perYear = parseInt(per.key.substring(0, 4));
+                                            return per.key >= p.key && perYear <= year;
+                                          });
+                                        if (targetKeys.length === 0) return;
+                                        const cells: Array<CellPayload> = targetKeys.map((per) => ({
+                                          lineId: line.id, periodKey: per.key, amount, formula: null,
+                                        }));
+                                        const snapshots = targetKeys.map((per) => ({
+                                          lineId: line.id, periodKey: per.key,
+                                          prevAmount: getCellValue(line.id, per.key), nextAmount: amount,
+                                        }));
+                                        setLocalCells((prev) => {
+                                          const next = { ...prev };
+                                          next[line.id] = { ...(next[line.id] ?? {}) };
+                                          for (const per of targetKeys) next[line.id][per.key] = amount;
+                                          return next;
+                                        });
+                                        clearFormulasForEntries(targetKeys.map((per) => ({ lineId: line.id, periodKey: per.key })));
+                                        saveCellMutation.mutate(cells);
+                                        setUndoStack((prev) => [...prev, snapshots]);
+                                        setRedoStack([]);
+                                        if (year > endYear) setEndYear(year);
                                       }}
                                     />
                                   )}
