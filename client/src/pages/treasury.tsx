@@ -1575,7 +1575,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
 
         {/* Year horizon selector */}
         <div className="flex items-center gap-1 shrink-0">
-          <span className="text-[10px] text-muted-foreground font-medium">Jusqu'à</span>
+          <span className="text-[10px] text-muted-foreground font-medium">Horizon à fin</span>
           <Select value={String(endYear)} onValueChange={(v) => setEndYear(Number(v))}>
             <SelectTrigger className="h-7 text-[11px] font-semibold px-2 gap-1 min-w-[60px] w-fit border-0 bg-muted/60 hover:bg-muted focus:ring-0" data-testid="select-year-horizon">
               <SelectValue />
@@ -1755,7 +1755,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
             <thead>
               <tr className="border-b bg-muted/30">
                 <th
-                  className="text-left py-2 px-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sticky left-0 bg-muted/30 z-10"
+                  className="text-left py-2 px-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sticky left-0 bg-muted z-10"
                   style={{ minWidth: 200 }}
                 >
                   Postes
@@ -1790,7 +1790,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                   <Fragment key={rubrique.key}>
                     {/* Rubrique header row */}
                     <tr
-                      className="border-t border-border/50 bg-muted/10 cursor-pointer hover:bg-muted/20 transition-colors"
+                      className="border-t border-border/50 bg-muted/10 cursor-pointer hover:bg-muted/20 transition-colors group"
                       onClick={() =>
                         setExpandedRubriques((prev) => {
                           const next = new Set(prev);
@@ -1800,7 +1800,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                         })
                       }
                     >
-                      <td className="py-2 px-3 sticky left-0 bg-inherit z-10">
+                      <td className="py-2 px-3 sticky left-0 bg-background group-hover:bg-muted z-10">
                         <div className="flex items-center gap-1.5">
                           {isExpanded ? (
                             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -1899,7 +1899,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                       <>
                         {lines.map((line) => (
                           <tr key={line.id} className="border-t border-border/20 group hover:bg-muted/5 transition-colors">
-                            <td className="py-1 px-3 sticky left-0 bg-card z-10 group-hover:bg-muted/5">
+                            <td className="py-1 px-3 sticky left-0 bg-card z-10 group-hover:bg-muted">
                               <div className="flex items-center gap-1 pl-5">
                                 {editingLineId === line.id ? (
                                   <input
@@ -2143,7 +2143,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                         {/* Add line */}
                         {addingToRubrique === rubrique.key ? (
                           <tr className="border-t border-border/20 bg-muted/5">
-                            <td className="py-1.5 px-3 sticky left-0 bg-muted/5 z-10">
+                            <td className="py-1.5 px-3 sticky left-0 bg-card z-10">
                               <div className="flex items-center gap-1.5 pl-5">
                                 <Input
                                   value={newLineLabel}
@@ -2237,7 +2237,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                 </td>
               </tr>
               <tr className="border-t border-border/50 bg-muted/5">
-                <td className="py-2 px-3 sticky left-0 bg-muted/5 z-10">
+                <td className="py-2 px-3 sticky left-0 bg-card z-10">
                   <span className="text-[11px] font-semibold text-foreground">Variation nette</span>
                 </td>
                 {periods.map((p) => {
@@ -2255,7 +2255,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                 </td>
               </tr>
               <tr className="border-t-2 border-border bg-muted/10">
-                <td className="py-2.5 px-3 sticky left-0 bg-muted/10 z-10">
+                <td className="py-2.5 px-3 sticky left-0 bg-muted z-10">
                   <div className="flex items-center gap-1.5">
                     <Wallet className="h-3.5 w-3.5 text-primary shrink-0" />
                     <span className="text-[11px] font-bold text-foreground">Balance cumulée</span>
