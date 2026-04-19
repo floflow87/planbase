@@ -15502,18 +15502,39 @@ app.get("/config/feature-flags", async (_req, res) => {
 
   app.put("/api/treasury/plan/cells", requireAuth, requireOrgMember, async (req, res) => {
     try {
+      const accountId = req.accountId!;
       const { cells } = req.body as { cells: Array<{ lineId: string; periodKey: string; amount: number; formula?: string | null; cell_color?: string | null }> };
       for (const cell of cells) {
-        const formula = cell.formula ?? null;
-        const cellColor = cell.cell_color ?? null;
-        await db.execute(sql`
-          INSERT INTO treasury_plan_cells (line_id, period_key, amount, formula, cell_color)
-          VALUES (${cell.lineId}, ${cell.periodKey}, ${cell.amount}, ${formula}, ${cellColor})
-          ON CONFLICT ON CONSTRAINT treasury_plan_cells_unique DO UPDATE
-            SET amount = ${cell.amount},
-                formula = COALESCE(${formula}, treasury_plan_cells.formula),
-                cell_color = ${cellColor}
-        `);
+        const formulaInPayload = Object.prototype.hasOwnProperty.call(cell, "formula");
+        const colorInPayload = Object.prototype.hasOwnProperty.call(cell, "cell_color");
+        const formula = formulaInPayload ? (cell.formula ?? null) : undefined;
+        const cellColor = colorInPayload ? (cell.cell_color ?? null) : undefined;
+        // Use conditional branches to avoid COALESCE ambiguity and preserve fields not in payload
+        if (formulaInPayload && colorInPayload) {
+          await db.execute(sql`
+            INSERT INTO treasury_plan_cells (line_id, period_key, amount, formula, cell_color)
+            SELECT ${cell.lineId}, ${cell.periodKey}, ${cell.amount}, ${formula}, ${cellColor}
+            FROM treasury_plan_lines WHERE id = ${cell.lineId} AND account_id = ${accountId}
+            ON CONFLICT ON CONSTRAINT treasury_plan_cells_unique DO UPDATE
+              SET amount = ${cell.amount}, formula = ${formula}, cell_color = ${cellColor}
+          `);
+        } else if (formulaInPayload) {
+          await db.execute(sql`
+            INSERT INTO treasury_plan_cells (line_id, period_key, amount, formula)
+            SELECT ${cell.lineId}, ${cell.periodKey}, ${cell.amount}, ${formula}
+            FROM treasury_plan_lines WHERE id = ${cell.lineId} AND account_id = ${accountId}
+            ON CONFLICT ON CONSTRAINT treasury_plan_cells_unique DO UPDATE
+              SET amount = ${cell.amount}, formula = ${formula}
+          `);
+        } else {
+          await db.execute(sql`
+            INSERT INTO treasury_plan_cells (line_id, period_key, amount)
+            SELECT ${cell.lineId}, ${cell.periodKey}, ${cell.amount}
+            FROM treasury_plan_lines WHERE id = ${cell.lineId} AND account_id = ${accountId}
+            ON CONFLICT ON CONSTRAINT treasury_plan_cells_unique DO UPDATE
+              SET amount = ${cell.amount}
+          `);
+        }
       }
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
@@ -15521,10 +15542,12 @@ app.get("/config/feature-flags", async (_req, res) => {
 
   app.put("/api/treasury/plan/cells/color", requireAuth, requireOrgMember, async (req, res) => {
     try {
+      const accountId = req.accountId!;
       const { lineId, periodKey, cell_color } = req.body as { lineId: string; periodKey: string; cell_color: string | null };
       await db.execute(sql`
         INSERT INTO treasury_plan_cells (line_id, period_key, amount, cell_color)
-        VALUES (${lineId}, ${periodKey}, 0, ${cell_color ?? null})
+        SELECT ${lineId}, ${periodKey}, 0, ${cell_color ?? null}
+        FROM treasury_plan_lines WHERE id = ${lineId} AND account_id = ${accountId}
         ON CONFLICT ON CONSTRAINT treasury_plan_cells_unique DO UPDATE
           SET cell_color = ${cell_color ?? null}
       `);

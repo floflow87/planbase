@@ -957,8 +957,9 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     onSuccess: () => queryClient.invalidateQueries({ queryKey: planQueryKey }),
   });
 
+  type CellPayload = { lineId: string; periodKey: string; amount: number; formula?: string | null; cell_color?: string | null };
   const saveCellMutation = useMutation({
-    mutationFn: (cells: Array<{ lineId: string; periodKey: string; amount: number }>) =>
+    mutationFn: (cells: Array<CellPayload>) =>
       apiRequest("/api/treasury/plan/cells", "PUT", { cells }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: planQueryKey }),
   });
@@ -1229,7 +1230,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
         return next;
       });
     }
-    saveCellMutation.mutate([{ lineId, periodKey, amount, formula, cell_color: localColors[lineId]?.[periodKey] ?? null } as any]);
+    saveCellMutation.mutate([{ lineId, periodKey, amount, formula, cell_color: localColors[lineId]?.[periodKey] ?? null }]);
     setEditingCell(null);
     if (prevAmount !== amount) {
       setUndoStack((prev) => [...prev, [{ lineId, periodKey, prevAmount, nextAmount: amount }]]);
@@ -1832,8 +1833,18 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                                         setLocalCells((prev) => ({ ...prev, [line.id]: { ...(prev[line.id] ?? {}), [p.key]: amount } }));
                                         if (formula) {
                                           setLocalFormulas((prev) => ({ ...prev, [line.id]: { ...(prev[line.id] ?? {}), [p.key]: formula } }));
+                                        } else {
+                                          setLocalFormulas((prev) => {
+                                            const next = { ...prev };
+                                            if (next[line.id]) {
+                                              const lc = { ...next[line.id] };
+                                              delete lc[p.key];
+                                              next[line.id] = lc;
+                                            }
+                                            return next;
+                                          });
                                         }
-                                        saveCellMutation.mutate([{ lineId: line.id, periodKey: p.key, amount, formula, cell_color: localColors[line.id]?.[p.key] ?? null } as any]);
+                                        saveCellMutation.mutate([{ lineId: line.id, periodKey: p.key, amount, formula, cell_color: localColors[line.id]?.[p.key] ?? null }]);
                                         if (prevAmount !== amount) {
                                           setUndoStack((prev) => [...prev, [{ lineId: line.id, periodKey: p.key, prevAmount, nextAmount: amount }]]);
                                           setRedoStack([]);
