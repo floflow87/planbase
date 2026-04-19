@@ -49,6 +49,7 @@ import {
   type CrmEmailMessage, type InsertCrmEmailMessage,
   type CrmEmailParticipant, type InsertCrmEmailParticipant,
   type CrmEmailLink, type InsertCrmEmailLink,
+  type AiFallbackEvent, type InsertAiFallbackEvent, aiFallbackEvents,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
   projects, projectCategories, projectPayments, cdcSessions, projectBaselines, projectScopeItems, recommendationActions, taskColumns, tasks, notes, noteCategories, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems, roadmapItemLinks, roadmapDependencies,
@@ -434,6 +435,11 @@ export interface IStorage {
   createTreasuryScenario(scenario: InsertTreasuryScenario): Promise<TreasuryScenario>;
   deleteTreasuryScenario(accountId: string, id: string): Promise<boolean>;
   ensureBaseScenario(accountId: string): Promise<TreasuryScenario>;
+
+  // AI Fallback Events
+  logAiFallbackEvent(event: InsertAiFallbackEvent): Promise<AiFallbackEvent>;
+  getAiFallbackEvents(limit?: number, offset?: number): Promise<AiFallbackEvent[]>;
+  getAiFallbackEventCount(): Promise<number>;
 }
 
 // Supabase PostgreSQL implementation using Drizzle ORM
@@ -2756,6 +2762,24 @@ export class DatabaseStorage implements IStorage {
       .values({ accountId, name: "Base", color: "#6366f1", isBase: 1 })
       .returning();
     return created;
+  }
+
+  // AI Fallback Events
+  async logAiFallbackEvent(event: InsertAiFallbackEvent): Promise<AiFallbackEvent> {
+    const [created] = await db.insert(aiFallbackEvents).values(event).returning();
+    return created;
+  }
+
+  async getAiFallbackEvents(limit = 100, offset = 0): Promise<AiFallbackEvent[]> {
+    return db.select().from(aiFallbackEvents)
+      .orderBy(desc(aiFallbackEvents.createdAt))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async getAiFallbackEventCount(): Promise<number> {
+    const [result] = await db.select({ count: sql<number>`count(*)::int` }).from(aiFallbackEvents);
+    return result?.count ?? 0;
   }
 }
 

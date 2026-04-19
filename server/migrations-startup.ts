@@ -3013,6 +3013,26 @@ export async function runStartupMigrations() {
       console.warn("⚠️  Note embeddings table migration (non-blocking):", e.message);
     }
 
+    // ── AI Fallback Events ──
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS ai_fallback_events (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          prompt_type text NOT NULL,
+          error_message text,
+          fallback_succeeded boolean NOT NULL DEFAULT true,
+          created_at timestamp with time zone NOT NULL DEFAULT now()
+        )
+      `);
+      await db.execute(sql`
+        CREATE INDEX IF NOT EXISTS ai_fallback_events_created_at_idx
+        ON ai_fallback_events(created_at DESC)
+      `);
+      console.log("✅ AI fallback events table created");
+    } catch (e: any) {
+      console.warn("⚠️  AI fallback events table migration (non-blocking):", e.message);
+    }
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

@@ -364,3 +364,20 @@ export function requireOrgAdmin(req: Request, res: Response, next: NextFunction)
   }
   next();
 }
+
+// Emails that are always treated as platform (Planbase) administrators
+export const PLATFORM_ADMIN_EMAILS: readonly string[] = [
+  'floflow87@planbase.io',
+  'demo@yopmail.com',
+];
+
+/**
+ * Returns true if the given account/user represents a Planbase platform admin.
+ * Uses isAdminAccount DB flag as the primary signal, falling back to an
+ * explicit email allowlist for legacy/demo accounts.
+ */
+export function isPlatformAdmin(isAdminAccount: boolean | null | undefined, email: string | null | undefined): boolean {
+  if (isAdminAccount === true) return true;
+  if (email && PLATFORM_ADMIN_EMAILS.includes(email)) return true;
+  return false;
+}

@@ -2542,6 +2542,19 @@ export const insertEmailTemplateSchema = createInsertSchema(emailTemplates).omit
 export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
 export type EmailTemplate = typeof emailTemplates.$inferSelect;
 
+// AI Fallback Events
+export const aiFallbackEvents = pgTable("ai_fallback_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  promptType: text("prompt_type").notNull(),
+  errorMessage: text("error_message"),
+  fallbackSucceeded: boolean("fallback_succeeded").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const insertAiFallbackEventSchema = createInsertSchema(aiFallbackEvents).omit({ id: true, createdAt: true });
+export type InsertAiFallbackEvent = z.infer<typeof insertAiFallbackEventSchema>;
+export type AiFallbackEvent = typeof aiFallbackEvents.$inferSelect;
+
 // Billing Status Options - Re-exported from centralized config for backwards compatibility
 export { 
   billingStatusOptions,

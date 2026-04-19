@@ -1,4 +1,5 @@
 import { getResendClient } from "./emailService";
+import { storage } from "../storage";
 
 interface ProviderAlertParams {
   promptType: string;
@@ -126,7 +127,17 @@ async function sendWebhookAlert(params: ProviderAlertParams): Promise<void> {
   }
 }
 
-export async function alertOllamaFallback(params: ProviderAlertParams): Promise<void> {
+export async function alertOllamaFallback(params: ProviderAlertParams & { fallbackSucceeded?: boolean }): Promise<void> {
+  // Always persist the event regardless of alert channel configuration
+  storage.logAiFallbackEvent({
+    promptType: params.promptType,
+    errorMessage: params.errorMessage ?? null,
+    fallbackSucceeded: params.fallbackSucceeded !== false,
+  }).catch((err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[Alert] Failed to persist AI fallback event:', msg);
+  });
+
   const hasEmail = !!process.env.ALERT_EMAIL;
   const hasWebhook = !!process.env.ALERT_WEBHOOK_URL;
 

@@ -9,14 +9,11 @@ import getStripe, {
   getPlanFromPriceId,
   getIntervalFromPriceId,
 } from "../services/stripeService";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, isPlatformAdmin } from "../middleware/auth";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
 
 const router = Router();
-
-// Emails that always get full admin access
-const PLATFORM_ADMIN_EMAILS = ['floflow87@planbase.io', 'demo@yopmail.com'];
 
 // ─── Helper: get billing info for an account ──────────────────────────────────
 async function getAccountBilling(accountId: string) {
@@ -42,8 +39,7 @@ router.get("/status", requireAuth, async (req: Request, res: Response) => {
     if (!account) return res.status(404).json({ error: "Account not found" });
 
     // Check if this is an admin account (by DB flag or owner email)
-    const isAdminAccount = account.is_admin_account === true ||
-      PLATFORM_ADMIN_EMAILS.includes(account.owner_email ?? "");
+    const isAdminAccount = isPlatformAdmin(account.is_admin_account, account.owner_email);
 
     // Admin accounts bypass billing entirely — always active agency plan
     if (isAdminAccount) {

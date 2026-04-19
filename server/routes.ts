@@ -120,7 +120,7 @@ import {
   automations,
   insertAutomationSchema,
 } from "@shared/schema";
-import { requireAuth, requireRole, optionalAuth, requireOrgMember, requireOrgAdmin, requirePermission } from "./middleware/auth";
+import { requireAuth, requireRole, optionalAuth, requireOrgMember, requireOrgAdmin, requirePermission, isPlatformAdmin } from "./middleware/auth";
 import { permissionService } from "./services/permissionService";
 import { getDemoCredentials } from "./middleware/demo-helper";
 import { configService } from "./services/configService";
@@ -15799,6 +15799,30 @@ app.get("/config/feature-flags", async (_req, res) => {
   // ============================================
   // SEED DATA (Development only)
   // ============================================
+
+  // AI Fallback Events - platform admin only endpoint to view fallback history
+  app.get("/api/admin/ai-fallback-events", requireAuth, async (req, res) => {
+    try {
+      const userId = req.userId!;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(401).json({ error: "User not found" });
+
+      const account = await storage.getAccount(user.accountId);
+      if (!isPlatformAdmin(account?.isAdminAccount, user.email)) {
+        return res.status(403).json({ error: "Forbidden — platform administrators only" });
+      }
+
+      const limit = Math.min(parseInt(String(req.query.limit ?? "100"), 10) || 100, 500);
+      const offset = parseInt(String(req.query.offset ?? "0"), 10) || 0;
+      const [events, total] = await Promise.all([
+        storage.getAiFallbackEvents(limit, offset),
+        storage.getAiFallbackEventCount(),
+      ]);
+      res.json({ events, total, limit, offset });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   app.post("/api/seed", async (req, res) => {
     try {

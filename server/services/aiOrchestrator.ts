@@ -202,16 +202,19 @@ export async function runAi(options: RunAiOptions): Promise<RunAiResult> {
       console.warn(
         `[AI Orchestrator] Ollama indisponible pour type="${type}", bascule sur OpenAI (fallback).`
       );
-      alertOllamaFallback({
-        promptType: type,
-        timestamp: new Date(),
-        errorMessage: msg,
-      }).catch((alertErr: unknown) => {
-        const alertMsg = alertErr instanceof Error ? alertErr.message : String(alertErr);
-        console.error('[AI Orchestrator] Failed to send provider alert:', alertMsg);
-      });
+      const ollamaErrorMsg = msg;
+      const fallbackTimestamp = new Date();
       try {
         const { text, data } = await callOpenAi(type, systemPrompt, userContent);
+        alertOllamaFallback({
+          promptType: type,
+          timestamp: fallbackTimestamp,
+          errorMessage: ollamaErrorMsg,
+          fallbackSucceeded: true,
+        }).catch((alertErr: unknown) => {
+          const alertMsg = alertErr instanceof Error ? alertErr.message : String(alertErr);
+          console.error('[AI Orchestrator] Failed to send provider alert:', alertMsg);
+        });
         return { text, data, provider: "openai" };
       } catch (fallbackErr: unknown) {
         const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
@@ -219,6 +222,15 @@ export async function runAi(options: RunAiOptions): Promise<RunAiResult> {
           `[AI Orchestrator] Fallback OpenAI également échoué pour type="${type}":`,
           fallbackMsg
         );
+        alertOllamaFallback({
+          promptType: type,
+          timestamp: fallbackTimestamp,
+          errorMessage: ollamaErrorMsg,
+          fallbackSucceeded: false,
+        }).catch((alertErr: unknown) => {
+          const alertMsg = alertErr instanceof Error ? alertErr.message : String(alertErr);
+          console.error('[AI Orchestrator] Failed to send provider alert:', alertMsg);
+        });
         throw new Error(classifyOpenAiError(fallbackMsg));
       }
     }
