@@ -1577,7 +1577,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
         <div className="flex items-center gap-1 shrink-0">
           <span className="text-[10px] text-muted-foreground font-medium">Jusqu'à</span>
           <Select value={String(endYear)} onValueChange={(v) => setEndYear(Number(v))}>
-            <SelectTrigger className="h-7 text-[11px] font-medium px-2 gap-1 w-auto border-0 bg-muted/60 hover:bg-muted focus:ring-0" data-testid="select-year-horizon">
+            <SelectTrigger className="h-7 text-[11px] font-semibold px-2 gap-1 min-w-[60px] w-fit border-0 bg-muted/60 hover:bg-muted focus:ring-0" data-testid="select-year-horizon">
               <SelectValue />
             </SelectTrigger>
             <SelectContent align="start">
