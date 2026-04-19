@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, Fragment } from "react";
+import { useState, useMemo, useEffect, useRef, Fragment } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -52,6 +52,10 @@ import {
   Loader2,
   ArrowRightLeft,
   MapPin,
+  Sun,
+  Moon,
+  EyeOff,
+  RotateCcw,
 } from "lucide-react";
 import {
   Dialog,
@@ -889,6 +893,16 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   const [syncResourcesDialogOpen, setSyncResourcesDialogOpen] = useState(false);
   const [syncResourcesSelectedProjects, setSyncResourcesSelectedProjects] = useState<Set<string>>(new Set());
 
+  // Column grey/hide state
+  const [greyedPeriods, setGreyedPeriods] = useState<Set<string>>(new Set());
+  const [hiddenPeriods, setHiddenPeriods] = useState<Set<string>>(new Set());
+  const [colContextMenu, setColContextMenu] = useState<{ x: number; y: number; periodKey: string } | null>(null);
+
+  // Synchronized scroll refs (top scrollbar ↔ table)
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const isSyncingScroll = useRef(false);
+
   const planQueryKey = activePlanScenarioId
     ? ["/api/treasury/plan", activePlanScenarioId]
     : ["/api/treasury/plan"];
@@ -1250,6 +1264,43 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     }
     return result;
   }, [localSettings.granularity, endYear]);
+
+  // Helper: extra CSS classes for a given period column
+  const getColClass = (periodKey: string) =>
+    cn(hiddenPeriods.has(periodKey) && "!hidden", greyedPeriods.has(periodKey) && "opacity-30");
+
+  // Sync scroll between top scrollbar and table
+  useEffect(() => {
+    const tableEl = tableScrollRef.current;
+    const topEl = topScrollRef.current;
+    if (!tableEl || !topEl) return;
+    const onTableScroll = () => {
+      if (isSyncingScroll.current) return;
+      isSyncingScroll.current = true;
+      topEl.scrollLeft = tableEl.scrollLeft;
+      isSyncingScroll.current = false;
+    };
+    const onTopScroll = () => {
+      if (isSyncingScroll.current) return;
+      isSyncingScroll.current = true;
+      tableEl.scrollLeft = topEl.scrollLeft;
+      isSyncingScroll.current = false;
+    };
+    tableEl.addEventListener("scroll", onTableScroll);
+    topEl.addEventListener("scroll", onTopScroll);
+    return () => {
+      tableEl.removeEventListener("scroll", onTableScroll);
+      topEl.removeEventListener("scroll", onTopScroll);
+    };
+  }, []);
+
+  // Close column context menu on outside click
+  useEffect(() => {
+    if (!colContextMenu) return;
+    const close = () => setColContextMenu(null);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [colContextMenu]);
 
   useEffect(() => {
     if (!fillDrag) return;
@@ -1750,7 +1801,15 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
 
       {/* Plan table */}
       <Card>
-        <div className="overflow-x-auto">
+        {/* Top scrollbar mirror */}
+        <div
+          ref={topScrollRef}
+          className="overflow-x-auto overflow-y-hidden border-b border-border/30"
+          style={{ height: 10 }}
+        >
+          <div style={{ minWidth: 200 + COL_W * periods.length, height: 1 }} />
+        </div>
+        <div ref={tableScrollRef} className="overflow-x-auto">
           <table className="w-full border-collapse" style={{ minWidth: 200 + COL_W * periods.length }}>
             <thead>
               <tr className="border-b bg-muted/30">
@@ -1764,10 +1823,15 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                   <th
                     key={p.key}
                     className={cn(
-                      "text-right py-2 px-2 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap",
-                      p.isCurrent ? "text-primary bg-primary/5" : "text-muted-foreground"
+                      "text-right py-2 px-2 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap cursor-context-menu select-none",
+                      p.isCurrent ? "text-primary bg-primary/5" : "text-muted-foreground",
+                      getColClass(p.key)
                     )}
                     style={{ minWidth: COL_W }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setColContextMenu({ x: e.clientX, y: e.clientY, periodKey: p.key });
+                    }}
                   >
                     {p.label}
                     {p.subtitle && <span className="block text-[9px] font-normal normal-case text-muted-foreground/60">{p.subtitle}</span>}
@@ -1875,7 +1939,8 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                             key={p.key}
                             className={cn(
                               "py-2 px-2 text-right tabular-nums text-[11px] font-semibold",
-                              p.isCurrent ? "bg-primary/5" : ""
+                              p.isCurrent ? "bg-primary/5" : "",
+                              getColClass(p.key)
                             )}
                           >
                             {total !== 0 && (
@@ -1984,7 +2049,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                               return (
                                 <td
                                   key={p.key}
-                                  className={cn("py-0.5 px-1 relative", p.isCurrent ? "bg-primary/5" : "", isFillRange ? "bg-blue-50 dark:bg-blue-900/20" : "")}
+                                  className={cn("py-0.5 px-1 relative", p.isCurrent ? "bg-primary/5" : "", isFillRange ? "bg-blue-50 dark:bg-blue-900/20" : "", getColClass(p.key))}
                                   onMouseEnter={() => { if (fillDrag?.lineId === line.id) setFillEndIdx(pIdx); }}
                                 >
                                   {isEditing ? (
@@ -2173,7 +2238,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                                 >Annuler</Button>
                               </div>
                             </td>
-                            {periods.map((p) => <td key={p.key} className={p.isCurrent ? "bg-primary/5" : ""} />)}
+                            {periods.map((p) => <td key={p.key} className={cn(p.isCurrent ? "bg-primary/5" : "", getColClass(p.key))} />)}
                           <td className="border-l border-border/50 bg-muted/10" />
                           </tr>
                         ) : (
@@ -2187,7 +2252,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                                 <Plus className="h-3 w-3" /> Ajouter une ligne
                               </button>
                             </td>
-                            {periods.map((p) => <td key={p.key} className={p.isCurrent ? "bg-primary/5" : ""} />)}
+                            {periods.map((p) => <td key={p.key} className={cn(p.isCurrent ? "bg-primary/5" : "", getColClass(p.key))} />)}
                             <td className="border-l border-border/50 bg-muted/10" />
                           </tr>
                         )}
@@ -2208,7 +2273,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                 {periods.map((p) => {
                   const t = getTotalEntrees(p.key);
                   return (
-                    <td key={p.key} className={cn("py-2 px-2 text-right tabular-nums text-[11px] font-semibold", p.isCurrent ? "bg-primary/5" : "")}>
+                    <td key={p.key} className={cn("py-2 px-2 text-right tabular-nums text-[11px] font-semibold", p.isCurrent ? "bg-primary/5" : "", getColClass(p.key))}>
                       <span className={t > 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}>{t !== 0 ? fmt(t) : "—"}</span>
                     </td>
                   );
@@ -2227,7 +2292,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                 {periods.map((p) => {
                   const t = getTotalSorties(p.key);
                   return (
-                    <td key={p.key} className={cn("py-2 px-2 text-right tabular-nums text-[11px] font-semibold", p.isCurrent ? "bg-primary/5" : "")}>
+                    <td key={p.key} className={cn("py-2 px-2 text-right tabular-nums text-[11px] font-semibold", p.isCurrent ? "bg-primary/5" : "", getColClass(p.key))}>
                       <span className={t > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}>{t !== 0 ? fmt(t) : "—"}</span>
                     </td>
                   );
@@ -2243,7 +2308,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                 {periods.map((p) => {
                   const v = balances[p.key]?.variation ?? 0;
                   return (
-                    <td key={p.key} className={cn("py-2 px-2 text-right tabular-nums text-[11px] font-bold", p.isCurrent ? "bg-primary/5" : "")}>
+                    <td key={p.key} className={cn("py-2 px-2 text-right tabular-nums text-[11px] font-bold", p.isCurrent ? "bg-primary/5" : "", getColClass(p.key))}>
                       <span className={v > 0 ? "text-green-600 dark:text-green-400" : v < 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}>
                         {v !== 0 ? `${v > 0 ? "+" : ""}${fmt(v)}` : "—"}
                       </span>
@@ -2264,7 +2329,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                 {periods.map((p) => {
                   const bal = balances[p.key]?.balance ?? localSettings.initialBalance;
                   return (
-                    <td key={p.key} className={cn("py-2.5 px-2 text-right tabular-nums text-[11px] font-bold", p.isCurrent ? "bg-primary/5" : "")}>
+                    <td key={p.key} className={cn("py-2.5 px-2 text-right tabular-nums text-[11px] font-bold", p.isCurrent ? "bg-primary/5" : "", getColClass(p.key))}>
                       <span className={bal >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>{fmt(bal)}</span>
                     </td>
                   );
@@ -2275,6 +2340,74 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
           </table>
         </div>
       </Card>
+
+      {/* Column context menu */}
+      {colContextMenu && (() => {
+        const pk = colContextMenu.periodKey;
+        const isGreyed = greyedPeriods.has(pk);
+        const isHidden = hiddenPeriods.has(pk);
+        const per = periods.find((p) => p.key === pk);
+        return (
+          <div
+            className="fixed z-[9999] bg-popover border border-border rounded-md shadow-lg py-1 min-w-[180px] text-sm"
+            style={{ left: colContextMenu.x, top: colContextMenu.y }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide border-b border-border/50 mb-1">
+              {per?.label ?? pk}
+            </div>
+            <button
+              className="w-full text-left px-3 py-1.5 text-[12px] hover-elevate flex items-center gap-2"
+              onClick={() => {
+                setGreyedPeriods((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(pk)) next.delete(pk); else next.add(pk);
+                  return next;
+                });
+                setColContextMenu(null);
+              }}
+            >
+              {isGreyed ? (
+                <><Sun className="h-3.5 w-3.5 text-amber-500" /> Dégriser la colonne</>
+              ) : (
+                <><Moon className="h-3.5 w-3.5 text-slate-400" /> Griser la colonne</>
+              )}
+            </button>
+            <button
+              className="w-full text-left px-3 py-1.5 text-[12px] hover-elevate flex items-center gap-2"
+              onClick={() => {
+                setHiddenPeriods((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(pk)) next.delete(pk); else next.add(pk);
+                  return next;
+                });
+                setColContextMenu(null);
+              }}
+            >
+              {isHidden ? (
+                <><Eye className="h-3.5 w-3.5 text-primary" /> Afficher la colonne</>
+              ) : (
+                <><EyeOff className="h-3.5 w-3.5 text-muted-foreground" /> Masquer la colonne</>
+              )}
+            </button>
+            {(isGreyed || isHidden) && (
+              <>
+                <div className="border-t border-border/50 my-1" />
+                <button
+                  className="w-full text-left px-3 py-1.5 text-[12px] hover-elevate flex items-center gap-2 text-muted-foreground"
+                  onClick={() => {
+                    setGreyedPeriods((prev) => { const n = new Set(prev); n.delete(pk); return n; });
+                    setHiddenPeriods((prev) => { const n = new Set(prev); n.delete(pk); return n; });
+                    setColContextMenu(null);
+                  }}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" /> Réinitialiser
+                </button>
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Sync dialog */}
       <Dialog open={syncDialogOpen} onOpenChange={setSyncDialogOpen}>
