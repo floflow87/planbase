@@ -15308,6 +15308,51 @@ app.get("/config/feature-flags", async (_req, res) => {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  app.post("/api/treasury/plan/scenarios/:id/duplicate", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const srcId = req.params.id;
+      const toRows = (r: any): any[] => Array.isArray(r) ? r : (r?.rows ?? []);
+      const srcResult = await db.execute(sql`
+        SELECT * FROM treasury_plan_scenarios WHERE id = ${srcId} AND account_id = ${accountId}
+      `);
+      const src = toRows(srcResult)[0] as any;
+      if (!src) return res.status(404).json({ error: "Scénario introuvable" });
+      const newScResult = await db.execute(sql`
+        INSERT INTO treasury_plan_scenarios (account_id, name, initial_balance, granularity)
+        VALUES (${accountId}, ${src.name + " (copie)"}, ${src.initial_balance ?? 0}, ${src.granularity ?? "month"})
+        RETURNING *
+      `);
+      const newSc = toRows(newScResult)[0] as any;
+      if (!newSc) return res.status(500).json({ error: "Échec création scénario" });
+      const linesResult = await db.execute(sql`
+        SELECT * FROM treasury_plan_lines WHERE plan_scenario_id = ${srcId} AND account_id = ${accountId}
+      `);
+      const srcLines = toRows(linesResult);
+      for (const line of srcLines) {
+        const newLineResult = await db.execute(sql`
+          INSERT INTO treasury_plan_lines (account_id, rubrique, label, position, source_type, plan_scenario_id)
+          VALUES (${accountId}, ${line.rubrique}, ${line.label}, ${line.position ?? 0}, ${line.source_type ?? "manual"}, ${newSc.id})
+          RETURNING id
+        `);
+        const newLine = toRows(newLineResult)[0] as any;
+        if (newLine?.id) {
+          await db.execute(sql`
+            INSERT INTO treasury_plan_cells (line_id, period_key, amount, formula, cell_color)
+            SELECT ${newLine.id}, period_key, amount, formula, cell_color
+            FROM treasury_plan_cells
+            WHERE line_id = ${line.id}
+            ON CONFLICT ON CONSTRAINT treasury_plan_cells_unique DO NOTHING
+          `);
+        }
+      }
+      res.json(newSc);
+    } catch (e: any) {
+      console.error("❌ POST /api/treasury/plan/scenarios/:id/duplicate error:", e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/treasury/plan", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const accountId = req.accountId!;
@@ -15336,7 +15381,7 @@ app.get("/config/feature-flags", async (_req, res) => {
           `);
 
       const cellsResult = await db.execute(sql`
-        SELECT c.id, c.line_id, c.period_key, c.amount
+        SELECT c.id, c.line_id, c.period_key, c.amount, c.formula, c.cell_color
         FROM treasury_plan_cells c
         JOIN treasury_plan_lines l ON l.id = c.line_id
         WHERE l.account_id = ${accountId}
@@ -15457,14 +15502,32 @@ app.get("/config/feature-flags", async (_req, res) => {
 
   app.put("/api/treasury/plan/cells", requireAuth, requireOrgMember, async (req, res) => {
     try {
-      const { cells } = req.body as { cells: Array<{ lineId: string; periodKey: string; amount: number }> };
+      const { cells } = req.body as { cells: Array<{ lineId: string; periodKey: string; amount: number; formula?: string | null; cell_color?: string | null }> };
       for (const cell of cells) {
+        const formula = cell.formula ?? null;
+        const cellColor = cell.cell_color ?? null;
         await db.execute(sql`
-          INSERT INTO treasury_plan_cells (line_id, period_key, amount)
-          VALUES (${cell.lineId}, ${cell.periodKey}, ${cell.amount})
-          ON CONFLICT ON CONSTRAINT treasury_plan_cells_unique DO UPDATE SET amount = ${cell.amount}
+          INSERT INTO treasury_plan_cells (line_id, period_key, amount, formula, cell_color)
+          VALUES (${cell.lineId}, ${cell.periodKey}, ${cell.amount}, ${formula}, ${cellColor})
+          ON CONFLICT ON CONSTRAINT treasury_plan_cells_unique DO UPDATE
+            SET amount = ${cell.amount},
+                formula = COALESCE(${formula}, treasury_plan_cells.formula),
+                cell_color = ${cellColor}
         `);
       }
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.put("/api/treasury/plan/cells/color", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { lineId, periodKey, cell_color } = req.body as { lineId: string; periodKey: string; cell_color: string | null };
+      await db.execute(sql`
+        INSERT INTO treasury_plan_cells (line_id, period_key, amount, cell_color)
+        VALUES (${lineId}, ${periodKey}, 0, ${cell_color ?? null})
+        ON CONFLICT ON CONSTRAINT treasury_plan_cells_unique DO UPDATE
+          SET cell_color = ${cell_color ?? null}
+      `);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });

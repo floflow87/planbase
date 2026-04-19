@@ -2437,6 +2437,11 @@ export async function runStartupMigrations() {
       ALTER TABLE treasury_settings
         ADD COLUMN IF NOT EXISTS flow_tags JSONB DEFAULT '{}'::jsonb;
     `);
+    await db.execute(sql`
+      ALTER TABLE treasury_plan_cells
+        ADD COLUMN IF NOT EXISTS formula TEXT,
+        ADD COLUMN IF NOT EXISTS cell_color TEXT;
+    `);
     console.log("✅ Treasury plan tables created");
 
     // ── GMAIL INTEGRATION ──

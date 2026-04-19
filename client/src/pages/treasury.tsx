@@ -74,6 +74,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
@@ -168,7 +178,16 @@ type PlanCell = {
   line_id: string;
   period_key: string;
   amount: number;
+  formula?: string | null;
+  cell_color?: string | null;
 };
+
+const CELL_COLORS: Array<{ key: string; bg: string; text: string; label: string }> = [
+  { key: "red", bg: "#fee2e2", text: "#b91c1c", label: "Rouge" },
+  { key: "orange", bg: "#ffedd5", text: "#c2410c", label: "Orange" },
+  { key: "gray", bg: "#f3f4f6", text: "#4b5563", label: "Gris" },
+  { key: "green", bg: "#dcfce7", text: "#15803d", label: "Vert" },
+];
 
 type PlanSettings = {
   initialBalance: number;
@@ -706,41 +725,91 @@ function TxPanel({
 
 function PlanCell({
   lineId, periodKey, value, isFillRange, isSelected, hasValue, colW, fmt,
-  onSelect, onStartEdit, onFillDragStart,
+  cellColor, hasClipboard,
+  onSelect, onStartEdit, onFillDragStart, onCopy, onPaste, onSetColor,
 }: {
   lineId: string; periodKey: string; value: number; isFillRange: boolean;
   isSelected: boolean; hasValue: boolean; colW: number;
   fmt: (n: number) => string;
+  cellColor?: string | null;
+  hasClipboard: boolean;
   onSelect: () => void; onStartEdit: () => void; onFillDragStart: () => void;
+  onCopy: () => void; onPaste: () => void; onSetColor: (color: string | null) => void;
 }) {
+  const colorDef = cellColor ? CELL_COLORS.find((c) => c.key === cellColor) : null;
+  const cellStyle = colorDef ? { backgroundColor: colorDef.bg, color: colorDef.text } : undefined;
+
   return (
-    <div className="relative group/cell">
-      <button
-        onClick={onSelect}
-        onDoubleClick={onStartEdit}
-        className={cn(
-          "w-full text-right text-[11px] tabular-nums px-1 py-1 rounded transition-colors block outline-none",
-          isFillRange ? "text-blue-700 dark:text-blue-300 font-medium" : "",
-          isSelected ? "ring-1 ring-primary bg-primary/10 text-foreground" : "hover:bg-muted/60"
-        )}
-        style={{ minWidth: colW - 8 }}
-        data-testid={`cell-plan-${lineId}-${periodKey}`}
-      >
-        {value !== 0 ? (
-          <span>{fmt(value)}</span>
-        ) : (
-          <span className={isSelected ? "text-muted-foreground/60" : "text-border/50"}>—</span>
-        )}
-      </button>
-      {hasValue && (
-        <div
-          onMouseDown={(e) => { e.preventDefault(); onFillDragStart(); }}
-          className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 bg-primary rounded-sm cursor-crosshair opacity-0 group-hover/cell:opacity-100 transition-opacity z-10 flex items-center justify-center"
-          title="Glisser pour étirer la valeur"
-          data-testid={`fill-handle-${lineId}-${periodKey}`}
-        />
-      )}
-    </div>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div className="relative group/cell" style={cellStyle ? { borderRadius: 3 } : undefined}>
+          <button
+            onClick={onSelect}
+            onDoubleClick={onStartEdit}
+            className={cn(
+              "w-full text-right text-[11px] tabular-nums px-1 py-1 rounded transition-colors block outline-none",
+              isFillRange ? "text-blue-700 dark:text-blue-300 font-medium" : "",
+              isSelected ? "ring-1 ring-primary bg-primary/10" : !colorDef ? "hover:bg-muted/60" : "",
+            )}
+            style={{ minWidth: colW - 8, ...(colorDef && !isSelected ? cellStyle : {}) }}
+            data-testid={`cell-plan-${lineId}-${periodKey}`}
+          >
+            {value !== 0 ? (
+              <span>{fmt(value)}</span>
+            ) : (
+              <span className={isSelected ? "text-muted-foreground/60" : colorDef ? "" : "text-border/50"}>—</span>
+            )}
+          </button>
+          {hasValue && (
+            <div
+              onMouseDown={(e) => { e.preventDefault(); onFillDragStart(); }}
+              className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 bg-primary rounded-sm cursor-crosshair opacity-0 group-hover/cell:opacity-100 transition-opacity z-10 flex items-center justify-center"
+              title="Glisser pour étirer la valeur"
+              data-testid={`fill-handle-${lineId}-${periodKey}`}
+            />
+          )}
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-44">
+        <ContextMenuItem onClick={onCopy} className="text-xs gap-2">
+          <Copy className="h-3 w-3" />
+          Copier
+        </ContextMenuItem>
+        <ContextMenuItem onClick={onPaste} disabled={!hasClipboard} className="text-xs gap-2">
+          <Copy className="h-3 w-3 opacity-50 scale-x-[-1]" />
+          Coller
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuSub>
+          <ContextMenuSubTrigger className="text-xs gap-2">
+            <span className="h-3 w-3 rounded-sm inline-block border border-border" style={{ background: colorDef?.bg ?? "transparent" }} />
+            Mise en forme
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent className="w-36">
+            {CELL_COLORS.map((c) => (
+              <ContextMenuItem
+                key={c.key}
+                className="text-xs gap-2"
+                onClick={() => onSetColor(cellColor === c.key ? null : c.key)}
+              >
+                <span className="h-3.5 w-3.5 rounded-sm shrink-0 border" style={{ backgroundColor: c.bg, borderColor: c.text + "40" }} />
+                {c.label}
+                {cellColor === c.key && <Check className="h-3 w-3 ml-auto" />}
+              </ContextMenuItem>
+            ))}
+            {cellColor && (
+              <>
+                <ContextMenuSeparator />
+                <ContextMenuItem className="text-xs text-muted-foreground gap-2" onClick={() => onSetColor(null)}>
+                  <X className="h-3 w-3" />
+                  Effacer
+                </ContextMenuItem>
+              </>
+            )}
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
@@ -758,6 +827,9 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   const [addingToRubrique, setAddingToRubrique] = useState<string | null>(null);
   const [newLineLabel, setNewLineLabel] = useState("");
   const [localCells, setLocalCells] = useState<Record<string, Record<string, number>>>({});
+  const [localFormulas, setLocalFormulas] = useState<Record<string, Record<string, string>>>({});
+  const [localColors, setLocalColors] = useState<Record<string, Record<string, string>>>({});
+  const [cellClipboard, setCellClipboard] = useState<{ formula: string; amount: number } | null>(null);
   const [localSettings, setLocalSettings] = useState<PlanSettings>({ initialBalance: 0, granularity: "month" });
   const [editingInitBalance, setEditingInitBalance] = useState(false);
   const [initBalanceValue, setInitBalanceValue] = useState("");
@@ -801,11 +873,23 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   useEffect(() => {
     if (!planData) return;
     const cm: Record<string, Record<string, number>> = {};
+    const fm: Record<string, Record<string, string>> = {};
+    const colm: Record<string, Record<string, string>> = {};
     for (const c of planData.cells) {
       if (!cm[c.line_id]) cm[c.line_id] = {};
       cm[c.line_id][c.period_key] = Number(c.amount);
+      if (c.formula) {
+        if (!fm[c.line_id]) fm[c.line_id] = {};
+        fm[c.line_id][c.period_key] = c.formula;
+      }
+      if (c.cell_color) {
+        if (!colm[c.line_id]) colm[c.line_id] = {};
+        colm[c.line_id][c.period_key] = c.cell_color;
+      }
     }
     setLocalCells(cm);
+    setLocalFormulas(fm);
+    setLocalColors(colm);
     setLocalSettings(planData.settings);
   }, [planData]);
 
@@ -840,6 +924,21 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
       toast({ title: "Scénario renommé", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100" });
     },
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+  });
+
+  const duplicatePlanScenarioMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/treasury/plan/scenarios/${id}/duplicate`, "POST", {}),
+    onSuccess: (res: any) => res.json().then((s: PlanScenario) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] });
+      setActivePlanScenarioId(s.id);
+      toast({ title: `Scénario "${s.name}" créé`, className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100" });
+    }),
+    onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+  });
+
+  const saveCellColorMutation = useMutation({
+    mutationFn: ({ lineId, periodKey, cell_color }: { lineId: string; periodKey: string; cell_color: string | null }) =>
+      apiRequest("/api/treasury/plan/cells/color", "PUT", { lineId, periodKey, cell_color }),
   });
 
   const createLineMutation = useMutation({
@@ -1114,8 +1213,23 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   const handleCellSave = (lineId: string, periodKey: string) => {
     const amount = evalFormula(editValue);
     const prevAmount = getCellValue(lineId, periodKey);
+    const rawIsFormula = editValue.trim().startsWith("=");
+    const formula = rawIsFormula ? editValue.trim() : null;
     setLocalCells((prev) => ({ ...prev, [lineId]: { ...(prev[lineId] ?? {}), [periodKey]: amount } }));
-    saveCellMutation.mutate([{ lineId, periodKey, amount }]);
+    if (formula) {
+      setLocalFormulas((prev) => ({ ...prev, [lineId]: { ...(prev[lineId] ?? {}), [periodKey]: formula } }));
+    } else {
+      setLocalFormulas((prev) => {
+        const next = { ...prev };
+        if (next[lineId]) {
+          const lineCopy = { ...next[lineId] };
+          delete lineCopy[periodKey];
+          next[lineId] = lineCopy;
+        }
+        return next;
+      });
+    }
+    saveCellMutation.mutate([{ lineId, periodKey, amount, formula, cell_color: localColors[lineId]?.[periodKey] ?? null } as any]);
     setEditingCell(null);
     if (prevAmount !== amount) {
       setUndoStack((prev) => [...prev, [{ lineId, periodKey, prevAmount, nextAmount: amount }]]);
@@ -1358,12 +1472,22 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                         <Button size="icon" variant="ghost" className="h-4 w-4"
                           onClick={(e) => { e.stopPropagation(); setRenamePlanScenarioId(s.id); setRenamePlanScenarioName(s.name); }}
                           data-testid={`btn-rename-plan-scenario-${s.id}`}
+                          title="Renommer"
                         >
                           <Pencil className="h-2.5 w-2.5" />
                         </Button>
                         <Button size="icon" variant="ghost" className="h-4 w-4"
+                          onClick={(e) => { e.stopPropagation(); duplicatePlanScenarioMutation.mutate(s.id); }}
+                          data-testid={`btn-duplicate-plan-scenario-${s.id}`}
+                          title="Dupliquer"
+                          disabled={duplicatePlanScenarioMutation.isPending}
+                        >
+                          <Copy className="h-2.5 w-2.5" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-4 w-4"
                           onClick={(e) => { e.stopPropagation(); setDeletePlanScenarioConfirm({ id: s.id, name: s.name }); }}
                           data-testid={`btn-delete-plan-scenario-${s.id}`}
+                          title="Supprimer"
                         >
                           <X className="h-2.5 w-2.5" />
                         </Button>
@@ -1683,15 +1807,51 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                                       hasValue={hasValue}
                                       colW={COL_W}
                                       fmt={fmt}
+                                      cellColor={localColors[line.id]?.[p.key] ?? null}
+                                      hasClipboard={cellClipboard !== null}
                                       onSelect={() => setSelectedCell({ lineId: line.id, periodKey: p.key })}
                                       onStartEdit={() => {
                                         setEditingCell({ lineId: line.id, periodKey: p.key });
-                                        setEditValue(value !== 0 ? String(value) : "");
+                                        const rawFormula = localFormulas[line.id]?.[p.key];
+                                        setEditValue(rawFormula ?? (value !== 0 ? String(value) : ""));
                                         setSelectedCell(null);
                                       }}
                                       onFillDragStart={() => {
                                         setFillDrag({ lineId: line.id, startIdx: pIdx, value: getCellValue(line.id, p.key) });
                                         setFillEndIdx(pIdx);
+                                      }}
+                                      onCopy={() => {
+                                        const rawFormula = localFormulas[line.id]?.[p.key];
+                                        setCellClipboard({ formula: rawFormula ?? String(getCellValue(line.id, p.key)), amount: getCellValue(line.id, p.key) });
+                                      }}
+                                      onPaste={() => {
+                                        if (!cellClipboard) return;
+                                        const amount = evalFormula(cellClipboard.formula);
+                                        const prevAmount = getCellValue(line.id, p.key);
+                                        const formula = cellClipboard.formula.startsWith("=") ? cellClipboard.formula : null;
+                                        setLocalCells((prev) => ({ ...prev, [line.id]: { ...(prev[line.id] ?? {}), [p.key]: amount } }));
+                                        if (formula) {
+                                          setLocalFormulas((prev) => ({ ...prev, [line.id]: { ...(prev[line.id] ?? {}), [p.key]: formula } }));
+                                        }
+                                        saveCellMutation.mutate([{ lineId: line.id, periodKey: p.key, amount, formula, cell_color: localColors[line.id]?.[p.key] ?? null } as any]);
+                                        if (prevAmount !== amount) {
+                                          setUndoStack((prev) => [...prev, [{ lineId: line.id, periodKey: p.key, prevAmount, nextAmount: amount }]]);
+                                          setRedoStack([]);
+                                        }
+                                      }}
+                                      onSetColor={(color) => {
+                                        setLocalColors((prev) => {
+                                          const next = { ...prev };
+                                          if (color) {
+                                            next[line.id] = { ...(next[line.id] ?? {}), [p.key]: color };
+                                          } else {
+                                            const lineCopy = { ...(next[line.id] ?? {}) };
+                                            delete lineCopy[p.key];
+                                            next[line.id] = lineCopy;
+                                          }
+                                          return next;
+                                        });
+                                        saveCellColorMutation.mutate({ lineId: line.id, periodKey: p.key, cell_color: color });
                                       }}
                                     />
                                   )}
