@@ -939,6 +939,22 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   const saveCellColorMutation = useMutation({
     mutationFn: ({ lineId, periodKey, cell_color }: { lineId: string; periodKey: string; cell_color: string | null }) =>
       apiRequest("/api/treasury/plan/cells/color", "PUT", { lineId, periodKey, cell_color }),
+    onError: (_err, { lineId, periodKey, cell_color }) => {
+      // Revert optimistic local update: restore previous color (inverse of what we applied)
+      setLocalColors((prev) => {
+        const next = { ...prev };
+        if (cell_color === null) {
+          // We tried to clear; the old color is unknown — invalidate query to re-sync from server
+        } else {
+          // We tried to set a color; clear it locally to resync
+          const lc = { ...(next[lineId] ?? {}) };
+          delete lc[periodKey];
+          next[lineId] = lc;
+        }
+        return next;
+      });
+      queryClient.invalidateQueries({ queryKey: planQueryKey });
+    },
   });
 
   const createLineMutation = useMutation({
@@ -1307,12 +1323,13 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
         handleDeleteSelectedCell();
         return;
       }
-      // Enter or F2 = open editor on selected cell
+      // Enter or F2 = open editor on selected cell (formula-first, consistent with double-click)
       if ((e.key === "Enter" || e.key === "F2") && !isInput && selectedCell && !editingCell) {
         e.preventDefault();
+        const rawFormula = localFormulas[selectedCell.lineId]?.[selectedCell.periodKey];
         const val = getCellValue(selectedCell.lineId, selectedCell.periodKey);
         setEditingCell(selectedCell);
-        setEditValue(val !== 0 ? String(val) : "");
+        setEditValue(rawFormula ?? (val !== 0 ? String(val) : ""));
         setSelectedCell(null);
         return;
       }
