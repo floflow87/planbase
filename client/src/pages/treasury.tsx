@@ -861,7 +861,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   const [initBalanceValue, setInitBalanceValue] = useState("");
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [editingLineLabel, setEditingLineLabel] = useState("");
-  const [fillDrag, setFillDrag] = useState<{ lineId: string; startIdx: number; value: number } | null>(null);
+  const [fillDrag, setFillDrag] = useState<{ lineId: string; startIdx: number; value: number; color?: string | null } | null>(null);
   const [fillEndIdx, setFillEndIdx] = useState<number | null>(null);
   const NOW_YEAR = new Date().getFullYear();
   const MAX_PLAN_YEAR = 2033;
@@ -884,6 +884,10 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   // Sync entrées dialog
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
   const [syncSelectedProjects, setSyncSelectedProjects] = useState<Set<string>>(new Set());
+
+  // Sync ressources dialog
+  const [syncResourcesDialogOpen, setSyncResourcesDialogOpen] = useState(false);
+  const [syncResourcesSelectedProjects, setSyncResourcesSelectedProjects] = useState<Set<string>>(new Set());
 
   const planQueryKey = activePlanScenarioId
     ? ["/api/treasury/plan", activePlanScenarioId]
@@ -1145,6 +1149,61 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     onError: (e: any) => toast({ title: "Erreur sync", description: e.message, variant: "destructive" }),
   });
 
+  const syncResourcesMutation = useMutation({
+    mutationFn: async (projectIds: string[]) => {
+      const toPeriodKey = (dateStr: string): string => {
+        if (localSettings.granularity === "month") return dateStr.substring(0, 7);
+        const d = new Date(dateStr);
+        const day = d.getDay();
+        d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
+        const year = d.getFullYear();
+        const startOfYear = new Date(year, 0, 1);
+        const weekNum = Math.ceil(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
+        return `${year}-W${String(weekNum).padStart(2, "0")}`;
+      };
+      const now = new Date();
+      const currentPeriodKey = toPeriodKey(now.toISOString().substring(0, 10));
+      const resourceFlows = flows.filter(
+        (f) => f.type === "expense" && f.sourceType === "project_resource" && f.projectId && projectIds.includes(f.projectId)
+      );
+      // Group by project
+      const byProject: Record<string, { name: string; periodAmounts: Record<string, number> }> = {};
+      for (const f of resourceFlows) {
+        const key = f.projectId!;
+        if (!byProject[key]) byProject[key] = { name: f.projectName ?? key, periodAmounts: {} };
+        const pk = f.date ? toPeriodKey(f.date) : currentPeriodKey;
+        byProject[key].periodAmounts[pk] = (byProject[key].periodAmounts[pk] ?? 0) + f.amount;
+      }
+      let count = 0;
+      for (const [, { name, periodAmounts }] of Object.entries(byProject)) {
+        const lineRes = await apiRequest("/api/treasury/plan/lines", "POST", {
+          rubrique: "sorties_ressources",
+          label: name,
+          planScenarioId: activePlanScenarioId,
+        });
+        const created = await lineRes.json();
+        if (created?.id) {
+          const cells = Object.entries(periodAmounts)
+            .filter(([, amount]) => amount > 0)
+            .map(([periodKey, amount]) => ({ lineId: created.id, periodKey, amount }));
+          if (cells.length > 0) await apiRequest("/api/treasury/plan/cells", "PUT", { cells });
+          count++;
+        }
+      }
+      return count;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: planQueryKey });
+      setSyncResourcesDialogOpen(false);
+      toast({
+        title: `${count} ligne${count > 1 ? "s" : ""} importée${count > 1 ? "s" : ""}`,
+        description: "Les ressources projets ont été synchronisées avec le plan.",
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+      });
+    },
+    onError: (e: any) => toast({ title: "Erreur sync", description: e.message, variant: "destructive" }),
+  });
+
   const periods = useMemo(() => {
     const result: Array<{ key: string; label: string; isCurrent: boolean; subtitle?: string }> = [];
     const now = new Date();
@@ -1200,6 +1259,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
         const snapshots: Array<{ lineId: string; periodKey: string; prevAmount: number; nextAmount: number }> = [];
         const affected: Array<{ lineId: string; periodKey: string }> = [];
         const ps = periods;
+        const fillColor = fillDrag.color ?? null;
         for (let i = fillDrag.startIdx + 1; i <= fillEndIdx; i++) {
           if (ps[i]) {
             const prevAmount = localCells[fillDrag.lineId]?.[ps[i].key] ?? 0;
@@ -1214,6 +1274,18 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
         }
         if (cells.length > 0) {
           clearFormulasForEntries(affected);
+          // Propagate source cell color to all filled cells (only when source has a color)
+          if (fillColor) {
+            setLocalColors((prev) => {
+              const next = { ...prev };
+              next[fillDrag.lineId] = { ...(next[fillDrag.lineId] ?? {}) };
+              for (const e of affected) next[fillDrag.lineId][e.periodKey] = fillColor;
+              return next;
+            });
+            for (const e of affected) {
+              saveCellColorMutation.mutate({ lineId: fillDrag.lineId, periodKey: e.periodKey, cell_color: fillColor });
+            }
+          }
           saveCellMutation.mutate(cells);
           setUndoStack((prev) => [...prev, snapshots]);
           setRedoStack([]);
@@ -1745,26 +1817,61 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                           <span className="text-[11px] font-semibold text-foreground">{rubrique.label}</span>
                           <Badge variant="secondary" className="text-[9px] ml-1 px-1.5 h-4">{lines.length}</Badge>
                           {rubrique.key === "entrees_clients" && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-5 px-1.5 text-[10px] gap-1 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 ml-1"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const incomeFlows = flows.filter((f) => f.type === "income" && f.projectId);
-                                const grouped: Record<string, { name: string; total: number }> = {};
-                                for (const f of incomeFlows) {
-                                  if (!grouped[f.projectId!]) grouped[f.projectId!] = { name: f.projectName ?? f.projectId!, total: 0 };
-                                  grouped[f.projectId!].total += f.amount;
-                                }
-                                setSyncSelectedProjects(new Set(Object.keys(grouped)));
-                                setSyncDialogOpen(true);
-                              }}
-                              data-testid="btn-sync-entrees"
-                            >
-                              <Sparkles className="h-3 w-3" />
-                              Synchroniser les entrées
-                            </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-5 w-5 px-0 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 ml-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const incomeFlows = flows.filter((f) => f.type === "income" && f.projectId);
+                                      const grouped: Record<string, { name: string; total: number }> = {};
+                                      for (const f of incomeFlows) {
+                                        if (!grouped[f.projectId!]) grouped[f.projectId!] = { name: f.projectName ?? f.projectId!, total: 0 };
+                                        grouped[f.projectId!].total += f.amount;
+                                      }
+                                      setSyncSelectedProjects(new Set(Object.keys(grouped)));
+                                      setSyncDialogOpen(true);
+                                    }}
+                                    data-testid="btn-sync-entrees"
+                                  >
+                                    <Sparkles className="h-3 w-3" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md text-[11px]">
+                                  Synchroniser les entrées
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                          {rubrique.key === "sorties_ressources" && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-5 w-5 px-0 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 ml-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const resFlows = flows.filter((f) => f.type === "expense" && f.sourceType === "project_resource" && f.projectId);
+                                      const grouped: Record<string, string> = {};
+                                      for (const f of resFlows) grouped[f.projectId!] = f.projectName ?? f.projectId!;
+                                      setSyncResourcesSelectedProjects(new Set(Object.keys(grouped)));
+                                      setSyncResourcesDialogOpen(true);
+                                    }}
+                                    data-testid="btn-sync-ressources"
+                                  >
+                                    <Sparkles className="h-3 w-3" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md text-[11px]">
+                                  Synchroniser les ressources
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
                         </div>
                       </td>
@@ -1922,7 +2029,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                                         setSelectedCell(null);
                                       }}
                                       onFillDragStart={() => {
-                                        setFillDrag({ lineId: line.id, startIdx: pIdx, value: getCellValue(line.id, p.key) });
+                                        setFillDrag({ lineId: line.id, startIdx: pIdx, value: getCellValue(line.id, p.key), color: localColors[line.id]?.[p.key] ?? null });
                                         setFillEndIdx(pIdx);
                                       }}
                                       onCopy={() => {
@@ -2232,6 +2339,67 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
             >
               {syncEntriesMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
               Importer {syncSelectedProjects.size > 0 ? `(${syncSelectedProjects.size})` : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog sync ressources */}
+      <Dialog open={syncResourcesDialogOpen} onOpenChange={setSyncResourcesDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-orange-500" />
+              Synchroniser les ressources projets
+            </DialogTitle>
+            <DialogDescription>
+              Sélectionnez les projets dont les ressources seront importées dans les sorties du plan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2 max-h-64 overflow-y-auto">
+            {(() => {
+              const resFlows = flows.filter((f) => f.type === "expense" && f.sourceType === "project_resource" && f.projectId);
+              const grouped: Record<string, { name: string; total: number; count: number }> = {};
+              for (const f of resFlows) {
+                if (!grouped[f.projectId!]) grouped[f.projectId!] = { name: f.projectName ?? f.projectId!, total: 0, count: 0 };
+                grouped[f.projectId!].total += f.amount;
+                grouped[f.projectId!].count += 1;
+              }
+              const entries = Object.entries(grouped);
+              if (entries.length === 0) {
+                return <p className="text-sm text-muted-foreground text-center py-4">Aucun flux de ressources avec projet trouvé.</p>;
+              }
+              return entries.map(([projectId, { name, total, count }]) => (
+                <div key={projectId} className="flex items-center gap-3 px-2 py-1.5 rounded-md hover-elevate cursor-pointer" onClick={() => {
+                  setSyncResourcesSelectedProjects((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(projectId)) next.delete(projectId);
+                    else next.add(projectId);
+                    return next;
+                  });
+                }}>
+                  <input type="checkbox" checked={syncResourcesSelectedProjects.has(projectId)} readOnly className="accent-orange-600 h-4 w-4" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium truncate block">{name}</span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {fmt(total)} · {count} ressource{count > 1 ? "s" : ""}
+                    </span>
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+          <DialogFooter className="gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={() => setSyncResourcesDialogOpen(false)}>Annuler</Button>
+            <Button
+              size="sm"
+              className="gap-1.5"
+              disabled={syncResourcesSelectedProjects.size === 0 || syncResourcesMutation.isPending}
+              onClick={() => syncResourcesMutation.mutate(Array.from(syncResourcesSelectedProjects))}
+              data-testid="btn-confirm-sync-ressources"
+            >
+              {syncResourcesMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              Importer {syncResourcesSelectedProjects.size > 0 ? `(${syncResourcesSelectedProjects.size})` : ""}
             </Button>
           </DialogFooter>
         </DialogContent>
