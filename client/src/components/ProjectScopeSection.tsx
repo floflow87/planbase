@@ -206,11 +206,11 @@ function SortableScopeItem({ item, onUpdate, onDelete, users }: ScopeItemRowProp
           }}
         >
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm truncate">{item.label}</span>
+            <span className="text-xs truncate">{item.label}</span>
             {/* Deliverable badge */}
             {(item as any).isDeliverable === 1 && (
-              <Badge className="text-[10px] px-1.5 py-0 shrink-0 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
-                <Package className="h-2.5 w-2.5 mr-0.5" />
+              <Badge className="text-[10px] px-2 py-0.5 shrink-0 bg-violet-600 text-white dark:bg-violet-500 dark:text-white font-semibold">
+                <Package className="h-3 w-3 mr-1" />
                 Livrable
               </Badge>
             )}

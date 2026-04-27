@@ -1268,26 +1268,19 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   const getColClass = (periodKey: string) =>
     cn(hiddenPeriods.has(periodKey) && "!hidden", greyedPeriods.has(periodKey) && "opacity-30");
 
-  // Sync scroll between top scrollbar and table
-  useEffect(() => {
+  // Scroll sync handlers (top ↔ table)
+  const handleTopScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const tableEl = tableScrollRef.current;
+    if (tableEl && Math.abs(tableEl.scrollLeft - e.currentTarget.scrollLeft) > 0.5) {
+      tableEl.scrollLeft = e.currentTarget.scrollLeft;
+    }
+  };
+  const handleTableScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const topEl = topScrollRef.current;
-    if (!tableEl || !topEl) return;
-    const onTableScroll = () => {
-      if (Math.abs(topEl.scrollLeft - tableEl.scrollLeft) < 1) return;
-      topEl.scrollLeft = tableEl.scrollLeft;
-    };
-    const onTopScroll = () => {
-      if (Math.abs(tableEl.scrollLeft - topEl.scrollLeft) < 1) return;
-      tableEl.scrollLeft = topEl.scrollLeft;
-    };
-    tableEl.addEventListener("scroll", onTableScroll, { passive: true });
-    topEl.addEventListener("scroll", onTopScroll, { passive: true });
-    return () => {
-      tableEl.removeEventListener("scroll", onTableScroll);
-      topEl.removeEventListener("scroll", onTopScroll);
-    };
-  }, []);
+    if (topEl && Math.abs(topEl.scrollLeft - e.currentTarget.scrollLeft) > 0.5) {
+      topEl.scrollLeft = e.currentTarget.scrollLeft;
+    }
+  };
 
   // Close column context menu on outside click
   useEffect(() => {
@@ -1799,12 +1792,13 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
         {/* Top scrollbar mirror */}
         <div
           ref={topScrollRef}
+          onScroll={handleTopScroll}
           style={{ overflowX: "scroll", overflowY: "hidden", height: 20 }}
           className="border-b border-border/30"
         >
           <div style={{ minWidth: 200 + COL_W * periods.length, height: 1 }} />
         </div>
-        <div ref={tableScrollRef} className="overflow-x-auto">
+        <div ref={tableScrollRef} onScroll={handleTableScroll} className="overflow-x-auto">
           <table className="w-full border-collapse" style={{ minWidth: 200 + COL_W * periods.length }}>
             <thead>
               <tr className="border-b bg-muted/30">

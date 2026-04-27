@@ -688,12 +688,13 @@ function QuickCreateMenu() {
 
       {/* Project Sheet */}
       <Sheet open={isProjectSheetOpen} onOpenChange={setIsProjectSheetOpen}>
-        <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="sheet-create-project">
-          <SheetHeader>
+        <SheetContent className="sm:max-w-2xl w-full flex flex-col h-full" data-testid="sheet-create-project">
+          <SheetHeader className="shrink-0">
             <SheetTitle>Créer un nouveau projet</SheetTitle>
           </SheetHeader>
           <Form {...projectForm}>
-            <form onSubmit={projectForm.handleSubmit((data) => createProjectMutation.mutate(data))} className="space-y-4 mt-4 flex-1">
+            <form onSubmit={projectForm.handleSubmit((data) => createProjectMutation.mutate(data))} className="flex flex-col flex-1 min-h-0 mt-4">
+              <div className="flex-1 overflow-y-auto space-y-4 pr-1">
               <FormField
                 control={projectForm.control}
                 name="name"
@@ -893,7 +894,8 @@ function QuickCreateMenu() {
                   </FormItem>
                 )}
               />
-              <div className="flex gap-2 pt-4">
+              </div>
+              <div className="flex gap-2 pt-4 shrink-0">
                 <Button type="button" variant="outline" onClick={() => setIsProjectSheetOpen(false)} className="flex-1">
                   Annuler
                 </Button>

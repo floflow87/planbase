@@ -396,7 +396,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                   key={t}
                   variant={ticket.type === t ? "default" : "ghost"}
                   size="sm"
-                  className="w-full h-7 text-xs justify-start gap-2"
+                  className="w-full h-6 text-[10px] justify-start gap-2"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (t !== ticket.type) {
@@ -510,7 +510,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                   key={pts}
                   variant={ticket.estimatePoints === pts ? "default" : "ghost"}
                   size="sm"
-                  className="w-full h-7 text-xs justify-start"
+                  className="w-full h-6 text-[10px] justify-start"
                   onClick={(e) => {
                     e.stopPropagation();
                     onUpdateField(ticket.id, ticket.type, "estimatePoints", pts);
@@ -557,7 +557,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                   key={opt.value}
                   variant={ticket.priority === opt.value ? "default" : "ghost"}
                   size="sm"
-                  className="w-full h-7 text-xs justify-start gap-2"
+                  className="w-full h-6 text-[10px] justify-start gap-2"
                   onClick={(e) => {
                     e.stopPropagation();
                     onUpdateField(ticket.id, ticket.type, "priority", opt.value);
@@ -612,7 +612,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
               <Button
                 variant={!ticket.assigneeId ? "default" : "ghost"}
                 size="sm"
-                className="w-full h-7 text-xs justify-start gap-2"
+                className="w-full h-6 text-[10px] justify-start gap-2"
                 onClick={(e) => {
                   e.stopPropagation();
                   onUpdateField(ticket.id, ticket.type, "assigneeId", null);
@@ -627,7 +627,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                   key={user.id}
                   variant={ticket.assigneeId === user.id ? "default" : "ghost"}
                   size="sm"
-                  className="w-full h-7 text-xs justify-start gap-2"
+                  className="w-full h-6 text-[10px] justify-start gap-2"
                   onClick={(e) => {
                     e.stopPropagation();
                     onUpdateField(ticket.id, ticket.type, "assigneeId", user.id);
@@ -705,7 +705,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
               <Button
                 variant={!ticket.epicId ? "default" : "ghost"}
                 size="sm"
-                className="w-full h-7 text-xs justify-start gap-2"
+                className="w-full h-6 text-[10px] justify-start gap-2"
                 onClick={(e) => {
                   e.stopPropagation();
                   onUpdateField(ticket.id, ticket.type, "epicId", null);
@@ -720,7 +720,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                   key={epic.id}
                   variant={ticket.epicId === epic.id ? "default" : "ghost"}
                   size="sm"
-                  className="w-full h-7 text-xs justify-start gap-2"
+                  className="w-full h-6 text-[10px] justify-start gap-2"
                   onClick={(e) => {
                     e.stopPropagation();
                     onUpdateField(ticket.id, ticket.type, "epicId", epic.id);

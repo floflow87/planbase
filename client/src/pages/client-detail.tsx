@@ -29,11 +29,20 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Loader } from "@/components/Loader";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useProjectStagesUI } from "@/hooks/useProjectStagesUI";
 import { AppointmentPanel } from "@/components/appointment-panel";
+
+const newProjectSchema = z.object({
+  name: z.string().min(1, "Le nom est requis"),
+  stage: z.string().min(1),
+  type: z.string().optional(),
+  startDate: z.date().optional().nullable(),
+  endDate: z.date().optional().nullable(),
+});
 
 function ClientLogoUpload({ client }: { client: Client }) {
   const { toast } = useToast();
@@ -131,7 +140,8 @@ export default function ClientDetail() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { getLabel: getStageLabel, getColor: getStageColor } = useProjectStagesUI();
+  const { getLabel: getStageLabel, getColor: getStageColor, visibleStages: projectStagesForClient } = useProjectStagesUI();
+  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [isDeleteContactDialogOpen, setIsDeleteContactDialogOpen] = useState(false);
@@ -438,6 +448,36 @@ export default function ClientDetail() {
       budget: "",
       accountId: accountId || "",
       createdBy: currentUser?.id || "",
+    },
+  });
+
+  // ── New project form pre-filled with this client ──
+  const [startDateOpen, setStartDateOpen] = useState(false);
+  const newProjectForm = useForm<z.infer<typeof newProjectSchema>>({
+    resolver: zodResolver(newProjectSchema),
+    defaultValues: { name: "", stage: "prospection", type: "", startDate: null, endDate: null },
+  });
+  const createProjectForClientMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof newProjectSchema>) => {
+      const res = await apiRequest("/api/projects", "POST", {
+        name: data.name,
+        stage: data.stage,
+        clientId: id,
+        type: data.type?.trim() || null,
+        startDate: data.startDate ? formatDateForStorage(data.startDate) : null,
+        endDate: data.endDate ? formatDateForStorage(data.endDate) : null,
+      });
+      return res.json();
+    },
+    onSuccess: (newProject: any) => {
+      toast({ title: "Projet créé avec succès" });
+      setIsCreateProjectOpen(false);
+      newProjectForm.reset({ name: "", stage: "prospection", type: "", startDate: null, endDate: null });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      if (newProject?.id) setLocation(`/projects/${newProject.id}?openCdc=true`);
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la création", variant: "destructive" });
     },
   });
 
@@ -2121,8 +2161,12 @@ export default function ClientDetail() {
               {/* ── Projets ── */}
               <TabsContent value="projets" className="space-y-4">
                 <Card>
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
                     <CardTitle className="text-sm font-semibold tracking-tight">Projets du client</CardTitle>
+                    <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs" onClick={() => setIsCreateProjectOpen(true)} data-testid="button-create-project-for-client">
+                      <Plus className="h-3 w-3" />
+                      Nouveau projet
+                    </Button>
                   </CardHeader>
                   <CardContent>
                     {projects.length === 0 ? (
@@ -3420,6 +3464,100 @@ export default function ClientDetail() {
                 </Button>
               </div>
             </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* ── Créer un projet pour ce client ── */}
+        <Sheet open={isCreateProjectOpen} onOpenChange={setIsCreateProjectOpen}>
+          <SheetContent className="sm:max-w-md w-full overflow-y-auto flex flex-col" data-testid="sheet-create-project-client">
+            <SheetHeader>
+              <SheetTitle className="text-base">Nouveau projet — {client?.name}</SheetTitle>
+            </SheetHeader>
+            <Form {...newProjectForm}>
+              <form onSubmit={newProjectForm.handleSubmit((data) => createProjectForClientMutation.mutate(data))} className="space-y-4 mt-4 flex-1">
+                <FormField
+                  control={newProjectForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs">Nom du projet *</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Ex. Refonte site web" data-testid="input-new-project-name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={newProjectForm.control}
+                  name="stage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs">Étape</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-new-project-stage">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {projectStagesForClient.map((s: any) => (
+                            <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={newProjectForm.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs">Type</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Ex. Développement" data-testid="input-new-project-type" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div>
+                  <Label className="text-xs">Date de début</Label>
+                  <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        type="button"
+                        className={cn("w-full justify-start text-left font-normal text-xs mt-1.5", !newProjectForm.watch("startDate") && "text-muted-foreground")}
+                        data-testid="button-new-project-start-date"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {newProjectForm.watch("startDate") ? format(newProjectForm.watch("startDate")!, "dd/MM/yyyy", { locale: fr }) : "Choisir une date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" style={{ zIndex: 9999 }}>
+                      <Calendar
+                        mode="single"
+                        selected={newProjectForm.watch("startDate") || undefined}
+                        onSelect={(d) => { newProjectForm.setValue("startDate", d || null); setStartDateOpen(false); }}
+                        locale={fr}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="flex gap-2 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setIsCreateProjectOpen(false)} className="flex-1">
+                    Annuler
+                  </Button>
+                  <Button type="submit" disabled={createProjectForClientMutation.isPending} className="flex-1" data-testid="button-submit-new-project">
+                    Créer le projet
+                  </Button>
+                </div>
+              </form>
+            </Form>
           </SheetContent>
         </Sheet>
 

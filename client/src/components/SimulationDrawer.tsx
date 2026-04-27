@@ -265,7 +265,7 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
             {/* Date de début + Jours / semaine — même taille */}
             <div className="grid grid-cols-2 gap-3 items-start">
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Date de début</Label>
+                <Label className="text-xs text-muted-foreground">Date de début <span className="text-destructive">*</span></Label>
                 <Popover open={isStartOpen} onOpenChange={setIsStartOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" size="sm"
@@ -275,7 +275,7 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
                       {startDate ? format(startDate, "dd/MM/yyyy", { locale: fr }) : "Sélectionner"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0" align="start" style={{ zIndex: 9999 }}>
                     <Calendar mode="single" selected={startDate} onSelect={(d) => { if (d) { setStartDate(d); setIsStartOpen(false); } }} initialFocus locale={fr} />
                   </PopoverContent>
                 </Popover>
@@ -337,7 +337,7 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
                       {targetEndDate ? format(targetEndDate, "dd/MM/yyyy", { locale: fr }) : "Choisir une date limite"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0" align="start" style={{ zIndex: 9999 }}>
                     <Calendar mode="single" selected={targetEndDate} onSelect={(d) => { if (d) { setTargetEndDate(d); setIsEndOpen(false); } }} disabled={(d) => d <= startDate} initialFocus locale={fr} />
                   </PopoverContent>
                 </Popover>
@@ -351,7 +351,7 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
               {/* Type (forfait / régie) — pleine largeur */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                  Type
+                  Type <span className="text-destructive">*</span>
                   <Tooltip>
                     <TooltipTrigger asChild><Info className="h-3 w-3 cursor-help" /></TooltipTrigger>
                     <TooltipContent className="text-xs max-w-xs bg-white dark:bg-gray-900 text-foreground border shadow-md">
@@ -374,7 +374,7 @@ export function SimulationDrawer({ open, onClose, project, currentState, payment
               {/* TJM + Jours facturés — même ligne */}
               <div className="grid grid-cols-2 gap-3 items-start">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">TJM (€/j)</Label>
+                  <Label className="text-xs text-muted-foreground">TJM (€/j) <span className="text-destructive">*</span></Label>
                   <Input type="number" min={0} step={50} value={simTJMStr}
                     onChange={(e) => setSimTJMStr(e.target.value)}
                     placeholder="Ex. 800" className="h-8 text-xs"
