@@ -901,7 +901,6 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   // Synchronized scroll refs (top scrollbar ↔ table)
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const topScrollRef = useRef<HTMLDivElement>(null);
-  const isSyncingScroll = useRef(false);
 
   const planQueryKey = activePlanScenarioId
     ? ["/api/treasury/plan", activePlanScenarioId]
@@ -1275,19 +1274,15 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     const topEl = topScrollRef.current;
     if (!tableEl || !topEl) return;
     const onTableScroll = () => {
-      if (isSyncingScroll.current) return;
-      isSyncingScroll.current = true;
+      if (Math.abs(topEl.scrollLeft - tableEl.scrollLeft) < 1) return;
       topEl.scrollLeft = tableEl.scrollLeft;
-      isSyncingScroll.current = false;
     };
     const onTopScroll = () => {
-      if (isSyncingScroll.current) return;
-      isSyncingScroll.current = true;
+      if (Math.abs(tableEl.scrollLeft - topEl.scrollLeft) < 1) return;
       tableEl.scrollLeft = topEl.scrollLeft;
-      isSyncingScroll.current = false;
     };
-    tableEl.addEventListener("scroll", onTableScroll);
-    topEl.addEventListener("scroll", onTopScroll);
+    tableEl.addEventListener("scroll", onTableScroll, { passive: true });
+    topEl.addEventListener("scroll", onTopScroll, { passive: true });
     return () => {
       tableEl.removeEventListener("scroll", onTableScroll);
       topEl.removeEventListener("scroll", onTopScroll);
@@ -1804,8 +1799,8 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
         {/* Top scrollbar mirror */}
         <div
           ref={topScrollRef}
-          className="overflow-x-auto overflow-y-hidden border-b border-border/30"
-          style={{ height: 10 }}
+          style={{ overflowX: "scroll", overflowY: "hidden", height: 20 }}
+          className="border-b border-border/30"
         >
           <div style={{ minWidth: 200 + COL_W * periods.length, height: 1 }} />
         </div>
