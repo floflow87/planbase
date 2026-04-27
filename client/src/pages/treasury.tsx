@@ -56,6 +56,10 @@ import {
   Moon,
   EyeOff,
   RotateCcw,
+  Clock,
+  CheckCircle2,
+  Zap,
+  CornerDownRight,
 } from "lucide-react";
 import {
   Dialog,
@@ -730,9 +734,9 @@ function TxPanel({
 
 function PlanCell({
   lineId, periodKey, value, isFillRange, isSelected, hasValue, colW, fmt,
-  cellColor, hasClipboard, availableYears,
+  cellColor, hasClipboard, availableYears, planMode, dynamicStatus,
   onSelect, onStartEdit, onFillDragStart, onCopy, onPaste, onSetColor,
-  onFillYear, onFillUntilYear,
+  onFillYear, onFillUntilYear, onSetDynamicStatus,
 }: {
   lineId: string; periodKey: string; value: number; isFillRange: boolean;
   isSelected: boolean; hasValue: boolean; colW: number;
@@ -740,12 +744,26 @@ function PlanCell({
   cellColor?: string | null;
   hasClipboard: boolean;
   availableYears: number[];
+  planMode: "static" | "dynamic";
+  dynamicStatus?: "paid" | "deferred" | null;
   onSelect: () => void; onStartEdit: () => void; onFillDragStart: () => void;
   onCopy: () => void; onPaste: () => void; onSetColor: (color: string | null) => void;
   onFillYear: () => void; onFillUntilYear: (year: number) => void;
+  onSetDynamicStatus: (status: "paid" | "deferred" | null) => void;
 }) {
   const colorDef = cellColor ? CELL_COLORS.find((c) => c.key === cellColor) : null;
-  const cellStyle = colorDef ? { backgroundColor: colorDef.bg, color: colorDef.text } : undefined;
+
+  // Dynamic mode overrides static cell color
+  const dynamicStyle =
+    planMode === "dynamic" && dynamicStatus === "paid"
+      ? { backgroundColor: "#dcfce7", color: "#15803d" }
+      : planMode === "dynamic" && dynamicStatus === "deferred"
+      ? { backgroundColor: "#f3f4f6", color: "#9ca3af" }
+      : null;
+
+  const cellStyle = dynamicStyle ?? (colorDef ? { backgroundColor: colorDef.bg, color: colorDef.text } : undefined);
+  const isDeferred = planMode === "dynamic" && dynamicStatus === "deferred";
+  const isPaid = planMode === "dynamic" && dynamicStatus === "paid";
 
   return (
     <ContextMenu>
@@ -753,22 +771,27 @@ function PlanCell({
         <div className="relative group/cell" style={cellStyle ? { borderRadius: 3 } : undefined}>
           <button
             onClick={onSelect}
-            onDoubleClick={onStartEdit}
+            onDoubleClick={planMode === "static" ? onStartEdit : undefined}
             className={cn(
               "w-full text-right text-[11px] tabular-nums px-1 py-1 rounded transition-colors block outline-none",
               isFillRange ? "text-blue-700 dark:text-blue-300 font-medium" : "",
-              isSelected ? "ring-1 ring-primary bg-primary/10" : !colorDef ? "hover:bg-muted/60" : "",
+              isSelected ? "ring-1 ring-primary bg-primary/10" : !cellStyle ? "hover:bg-muted/60" : "",
+              isDeferred ? "line-through opacity-60" : "",
             )}
-            style={{ minWidth: colW - 8, ...(colorDef && !isSelected ? cellStyle : {}) }}
+            style={{ minWidth: colW - 8, ...(cellStyle && !isSelected ? cellStyle : {}) }}
             data-testid={`cell-plan-${lineId}-${periodKey}`}
           >
-            {value !== 0 ? (
-              <span>{fmt(value)}</span>
-            ) : (
-              <span className={isSelected ? "text-muted-foreground/60" : colorDef ? "" : "text-border/50"}>—</span>
-            )}
+            <span className="flex items-center justify-end gap-1">
+              {isPaid && <CheckCircle2 className="h-2.5 w-2.5 shrink-0 text-green-600" />}
+              {isDeferred && <Clock className="h-2.5 w-2.5 shrink-0 text-gray-400" />}
+              {value !== 0 ? (
+                <span>{fmt(value)}</span>
+              ) : (
+                <span className={isSelected ? "text-muted-foreground/60" : cellStyle ? "" : "text-border/50"}>—</span>
+              )}
+            </span>
           </button>
-          {hasValue && (
+          {hasValue && planMode === "static" && (
             <div
               onMouseDown={(e) => { e.preventDefault(); onFillDragStart(); }}
               className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 bg-primary rounded-sm cursor-crosshair opacity-0 group-hover/cell:opacity-100 transition-opacity z-10 flex items-center justify-center"
@@ -779,65 +802,99 @@ function PlanCell({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-52">
-        <ContextMenuItem onClick={onCopy} className="text-xs gap-2">
-          <Copy className="h-3 w-3" />
-          Copier
-        </ContextMenuItem>
-        <ContextMenuItem onClick={onPaste} disabled={!hasClipboard} className="text-xs gap-2">
-          <Copy className="h-3 w-3 opacity-50 scale-x-[-1]" />
-          Coller
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onClick={onFillYear} disabled={value === 0} className="text-xs gap-2">
-          <ChevronRight className="h-3 w-3" />
-          Étirer sur l'année
-        </ContextMenuItem>
-        <ContextMenuSub>
-          <ContextMenuSubTrigger disabled={value === 0} className="text-xs gap-2">
-            <ChevronsRight className="h-3 w-3" />
-            Étirer jusqu'à fin…
-          </ContextMenuSubTrigger>
-          <ContextMenuSubContent className="w-28">
-            {availableYears.map((y) => (
-              <ContextMenuItem
-                key={y}
-                className="text-xs gap-2"
-                onClick={() => onFillUntilYear(y)}
-              >
-                {y}
-              </ContextMenuItem>
-            ))}
-          </ContextMenuSubContent>
-        </ContextMenuSub>
-        <ContextMenuSeparator />
-        <ContextMenuSub>
-          <ContextMenuSubTrigger className="text-xs gap-2">
-            <span className="h-3 w-3 rounded-sm inline-block border border-border" style={{ background: colorDef?.bg ?? "transparent" }} />
-            Mise en forme
-          </ContextMenuSubTrigger>
-          <ContextMenuSubContent className="w-36">
-            {CELL_COLORS.map((c) => (
-              <ContextMenuItem
-                key={c.key}
-                className="text-xs gap-2"
-                onClick={() => onSetColor(cellColor === c.key ? null : c.key)}
-              >
-                <span className="h-3.5 w-3.5 rounded-sm shrink-0 border" style={{ backgroundColor: c.bg, borderColor: c.text + "40" }} />
-                {c.label}
-                {cellColor === c.key && <Check className="h-3 w-3 ml-auto" />}
-              </ContextMenuItem>
-            ))}
-            {cellColor && (
+        {planMode === "dynamic" ? (
+          <>
+            <ContextMenuItem
+              onClick={() => onSetDynamicStatus(dynamicStatus === "paid" ? null : "paid")}
+              className="text-xs gap-2"
+              data-testid={`cell-mark-paid-${lineId}-${periodKey}`}
+            >
+              <CheckCircle2 className="h-3 w-3 text-green-600" />
+              {dynamicStatus === "paid" ? "Retirer 'payé'" : "Marquer comme payé"}
+              {dynamicStatus === "paid" && <Check className="h-3 w-3 ml-auto text-green-600" />}
+            </ContextMenuItem>
+            <ContextMenuItem
+              onClick={() => onSetDynamicStatus(dynamicStatus === "deferred" ? null : "deferred")}
+              className="text-xs gap-2"
+              data-testid={`cell-mark-deferred-${lineId}-${periodKey}`}
+            >
+              <Clock className="h-3 w-3 text-gray-500" />
+              {dynamicStatus === "deferred" ? "Retirer 'reporté'" : "Marquer comme reporté"}
+              {dynamicStatus === "deferred" && <Check className="h-3 w-3 ml-auto text-gray-500" />}
+            </ContextMenuItem>
+            {dynamicStatus && (
               <>
                 <ContextMenuSeparator />
-                <ContextMenuItem className="text-xs text-muted-foreground gap-2" onClick={() => onSetColor(null)}>
+                <ContextMenuItem onClick={() => onSetDynamicStatus(null)} className="text-xs gap-2 text-muted-foreground">
                   <X className="h-3 w-3" />
-                  Effacer
+                  Réinitialiser
                 </ContextMenuItem>
               </>
             )}
-          </ContextMenuSubContent>
-        </ContextMenuSub>
+          </>
+        ) : (
+          <>
+            <ContextMenuItem onClick={onCopy} className="text-xs gap-2">
+              <Copy className="h-3 w-3" />
+              Copier
+            </ContextMenuItem>
+            <ContextMenuItem onClick={onPaste} disabled={!hasClipboard} className="text-xs gap-2">
+              <Copy className="h-3 w-3 opacity-50 scale-x-[-1]" />
+              Coller
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={onFillYear} disabled={value === 0} className="text-xs gap-2">
+              <ChevronRight className="h-3 w-3" />
+              Étirer sur l'année
+            </ContextMenuItem>
+            <ContextMenuSub>
+              <ContextMenuSubTrigger disabled={value === 0} className="text-xs gap-2">
+                <ChevronsRight className="h-3 w-3" />
+                Étirer jusqu'à fin…
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-28">
+                {availableYears.map((y) => (
+                  <ContextMenuItem
+                    key={y}
+                    className="text-xs gap-2"
+                    onClick={() => onFillUntilYear(y)}
+                  >
+                    {y}
+                  </ContextMenuItem>
+                ))}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+            <ContextMenuSeparator />
+            <ContextMenuSub>
+              <ContextMenuSubTrigger className="text-xs gap-2">
+                <span className="h-3 w-3 rounded-sm inline-block border border-border" style={{ background: colorDef?.bg ?? "transparent" }} />
+                Mise en forme
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-36">
+                {CELL_COLORS.map((c) => (
+                  <ContextMenuItem
+                    key={c.key}
+                    className="text-xs gap-2"
+                    onClick={() => onSetColor(cellColor === c.key ? null : c.key)}
+                  >
+                    <span className="h-3.5 w-3.5 rounded-sm shrink-0 border" style={{ backgroundColor: c.bg, borderColor: c.text + "40" }} />
+                    {c.label}
+                    {cellColor === c.key && <Check className="h-3 w-3 ml-auto" />}
+                  </ContextMenuItem>
+                ))}
+                {cellColor && (
+                  <>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem className="text-xs text-muted-foreground gap-2" onClick={() => onSetColor(null)}>
+                      <X className="h-3 w-3" />
+                      Effacer
+                    </ContextMenuItem>
+                  </>
+                )}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );
@@ -897,6 +954,40 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   const [greyedPeriods, setGreyedPeriods] = useState<Set<string>>(new Set());
   const [hiddenPeriods, setHiddenPeriods] = useState<Set<string>>(new Set());
   const [colContextMenu, setColContextMenu] = useState<{ x: number; y: number; periodKey: string } | null>(null);
+
+  // ── Dynamic mode ──────────────────────────────────────────────────────────
+  const [planMode, setPlanMode] = useState<"static" | "dynamic">("static");
+  type DynamicStatus = "paid" | "deferred";
+  const [dynamicStatuses, setDynamicStatuses] = useState<Record<string, Record<string, DynamicStatus>>>({});
+
+  // Persist dynamic statuses to localStorage per scenario
+  const dynamicStorageKey = `treasury_dynamic_${activePlanScenarioId ?? "base"}`;
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(dynamicStorageKey);
+      if (saved) setDynamicStatuses(JSON.parse(saved));
+      else setDynamicStatuses({});
+    } catch { setDynamicStatuses({}); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dynamicStorageKey]);
+  useEffect(() => {
+    try { localStorage.setItem(dynamicStorageKey, JSON.stringify(dynamicStatuses)); }
+    catch { /* ignore */ }
+  }, [dynamicStatuses, dynamicStorageKey]);
+
+  const setDynamicStatus = (lineId: string, periodKey: string, status: DynamicStatus | null) => {
+    setDynamicStatuses((prev) => {
+      const next = { ...prev };
+      if (status === null) {
+        const line = { ...(next[lineId] ?? {}) };
+        delete line[periodKey];
+        next[lineId] = line;
+      } else {
+        next[lineId] = { ...(next[lineId] ?? {}), [periodKey]: status };
+      }
+      return next;
+    });
+  };
 
   // Synchronized scroll refs (top scrollbar ↔ table)
   const tableScrollRef = useRef<HTMLDivElement>(null);
@@ -1340,10 +1431,34 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   const getCellValue = (lineId: string, periodKey: string): number =>
     localCells[lineId]?.[periodKey] ?? 0;
 
-  const getRubriqueTotal = (rubriqKey: string, periodKey: string): number =>
-    (planData?.lines ?? [])
+  // In dynamic mode, deferred cells don't count in their period's total
+  const getEffectiveCellValue = (lineId: string, periodKey: string): number => {
+    if (planMode === "dynamic" && dynamicStatuses[lineId]?.[periodKey] === "deferred") return 0;
+    return getCellValue(lineId, periodKey);
+  };
+
+  // Carry-in: sum of deferred amounts from the previous period
+  const getDeferredCarryIn = (rubriqKey: string, periodKey: string): number => {
+    if (planMode !== "dynamic") return 0;
+    const periodIdx = periods.findIndex((p) => p.key === periodKey);
+    if (periodIdx <= 0) return 0;
+    const prevPeriodKey = periods[periodIdx - 1].key;
+    return (planData?.lines ?? [])
       .filter((l) => l.rubrique === rubriqKey)
-      .reduce((sum, l) => sum + getCellValue(l.id, periodKey), 0);
+      .reduce((sum, l) => {
+        if (dynamicStatuses[l.id]?.[prevPeriodKey] === "deferred") {
+          return sum + getCellValue(l.id, prevPeriodKey);
+        }
+        return sum;
+      }, 0);
+  };
+
+  const getRubriqueTotal = (rubriqKey: string, periodKey: string): number => {
+    const base = (planData?.lines ?? [])
+      .filter((l) => l.rubrique === rubriqKey)
+      .reduce((sum, l) => sum + getEffectiveCellValue(l.id, periodKey), 0);
+    return base + getDeferredCarryIn(rubriqKey, periodKey);
+  };
 
   const getTotalEntrees = (periodKey: string): number =>
     ["entrees_clients", "entrees_exceptionnelles"].reduce((s, k) => s + getRubriqueTotal(k, periodKey), 0);
@@ -1360,7 +1475,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
       result[p.key] = { variation, balance };
     }
     return result;
-  }, [periods, localCells, localSettings.initialBalance, planData?.lines]);
+  }, [periods, localCells, localSettings.initialBalance, planData?.lines, dynamicStatuses, planMode]);
 
   const evalFormula = (raw: string): number => {
     const trimmed = raw.trim();
@@ -1610,6 +1725,33 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
               {g === "month" ? "Mois" : "Semaine"}
             </button>
           ))}
+        </div>
+
+        {/* Mode toggle: Statique / Dynamique */}
+        <div className="flex items-center border border-border rounded-md overflow-hidden shrink-0" data-testid="plan-mode-toggle">
+          <button
+            onClick={() => setPlanMode("static")}
+            className={cn(
+              "flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium transition-colors",
+              planMode === "static" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/40"
+            )}
+            data-testid="btn-plan-mode-static"
+          >
+            <Eye className="h-3 w-3" />
+            Statique
+          </button>
+          <div className="w-px bg-border h-4" />
+          <button
+            onClick={() => setPlanMode("dynamic")}
+            className={cn(
+              "flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium transition-colors",
+              planMode === "dynamic" ? "bg-violet-600 text-white" : "text-muted-foreground hover:bg-muted/40"
+            )}
+            data-testid="btn-plan-mode-dynamic"
+          >
+            <Zap className="h-3 w-3" />
+            Dynamique
+          </button>
         </div>
 
         {/* Year horizon selector */}
@@ -1923,6 +2065,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                       </td>
                       {periods.map((p) => {
                         const total = getRubriqueTotal(rubrique.key, p.key);
+                        const carryIn = getDeferredCarryIn(rubrique.key, p.key);
                         return (
                           <td
                             key={p.key}
@@ -1936,6 +2079,21 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                               <span className={rubrique.type === "income" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
                                 {fmt(total)}
                               </span>
+                            )}
+                            {carryIn > 0 && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="flex items-center justify-end gap-0.5 text-[9px] text-gray-400 mt-0.5 cursor-default">
+                                      <CornerDownRight className="h-2 w-2" />
+                                      +{fmt(carryIn)}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="text-[11px]">
+                                    {fmt(carryIn)} reporté du mois précédent
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             )}
                           </td>
                         );
@@ -2122,6 +2280,9 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                                         });
                                         saveCellColorMutation.mutate({ lineId: line.id, periodKey: p.key, cell_color: color });
                                       }}
+                                      planMode={planMode}
+                                      dynamicStatus={dynamicStatuses[line.id]?.[p.key] ?? null}
+                                      onSetDynamicStatus={(status) => setDynamicStatus(line.id, p.key, status)}
                                       availableYears={availableYears}
                                       onFillYear={() => {
                                         const cellYear = p.key.startsWith("20") ? parseInt(p.key.substring(0, 4)) : null;
