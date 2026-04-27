@@ -733,23 +733,24 @@ function TxPanel({
 // ── Plan cell component (click-to-select, dbl-click-to-edit, fill handle) ─────
 
 function PlanCell({
-  lineId, periodKey, value, isFillRange, isSelected, hasValue, colW, fmt,
+  lineId, periodKey, value, isFillRange, isSelected, isMultiSelected, hasValue, colW, fmt,
   cellColor, hasClipboard, availableYears, planMode, dynamicStatus,
   onSelect, onStartEdit, onFillDragStart, onCopy, onPaste, onSetColor,
-  onFillYear, onFillUntilYear, onSetDynamicStatus,
+  onFillYear, onFillUntilYear, onSetDynamicStatus, onInterceptContextMenu,
 }: {
   lineId: string; periodKey: string; value: number; isFillRange: boolean;
-  isSelected: boolean; hasValue: boolean; colW: number;
+  isSelected: boolean; isMultiSelected: boolean; hasValue: boolean; colW: number;
   fmt: (n: number) => string;
   cellColor?: string | null;
   hasClipboard: boolean;
   availableYears: number[];
   planMode: "static" | "dynamic";
   dynamicStatus?: "paid" | "deferred" | null;
-  onSelect: () => void; onStartEdit: () => void; onFillDragStart: () => void;
+  onSelect: (e: React.MouseEvent) => void; onStartEdit: () => void; onFillDragStart: () => void;
   onCopy: () => void; onPaste: () => void; onSetColor: (color: string | null) => void;
   onFillYear: () => void; onFillUntilYear: (year: number) => void;
   onSetDynamicStatus: (status: "paid" | "deferred" | null) => void;
+  onInterceptContextMenu?: (x: number, y: number) => void;
 }) {
   const colorDef = cellColor ? CELL_COLORS.find((c) => c.key === cellColor) : null;
 
@@ -770,15 +771,26 @@ function PlanCell({
       <ContextMenuTrigger asChild>
         <div className="relative group/cell" style={cellStyle ? { borderRadius: 3 } : undefined}>
           <button
-            onClick={onSelect}
+            onClick={(e) => onSelect(e)}
             onDoubleClick={planMode === "static" ? onStartEdit : undefined}
+            onContextMenu={(e) => {
+              if (isMultiSelected && onInterceptContextMenu) {
+                e.preventDefault();
+                e.stopPropagation();
+                onInterceptContextMenu(e.clientX, e.clientY);
+              }
+            }}
             className={cn(
               "w-full text-right text-[11px] tabular-nums px-1 py-1 rounded transition-colors block outline-none",
               isFillRange ? "text-blue-700 dark:text-blue-300 font-medium" : "",
-              isSelected ? "ring-1 ring-primary bg-primary/10" : !cellStyle ? "hover:bg-muted/60" : "",
+              isMultiSelected
+                ? "ring-1 ring-blue-400 bg-blue-50 dark:bg-blue-900/30"
+                : isSelected
+                ? "ring-1 ring-primary bg-primary/10"
+                : !cellStyle ? "hover:bg-muted/60" : "",
               isDeferred ? "line-through opacity-60" : "",
             )}
-            style={{ minWidth: colW - 8, ...(cellStyle && !isSelected ? cellStyle : {}) }}
+            style={{ minWidth: colW - 8, ...(cellStyle && !isSelected && !isMultiSelected ? cellStyle : {}) }}
             data-testid={`cell-plan-${lineId}-${periodKey}`}
           >
             <span className="flex items-center justify-end gap-1">
@@ -941,6 +953,15 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   );
   const [editingCell, setEditingCell] = useState<{ lineId: string; periodKey: string } | null>(null);
   const [selectedCell, setSelectedCell] = useState<{ lineId: string; periodKey: string } | null>(null);
+
+  // Multi-cell selection
+  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
+  const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
+  const [multiCtxMenu, setMultiCtxMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const mkCellKey = (lineId: string, periodKey: string) => `${lineId}:::${periodKey}`;
+  const parseCellKey = (key: string) => { const [l, p] = key.split(":::"); return { lineId: l, periodKey: p }; };
+
   const [editValue, setEditValue] = useState("");
   const [addingToRubrique, setAddingToRubrique] = useState<string | null>(null);
   const [newLineLabel, setNewLineLabel] = useState("");
@@ -962,6 +983,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
 
   // Undo/redo history
   type CellSnapshot = { lineId: string; periodKey: string; prevAmount: number; nextAmount: number };
+  type CellPayload = { lineId: string; periodKey: string; amount: number; formula?: string | null; cell_color?: string | null };
   const [undoStack, setUndoStack] = useState<CellSnapshot[][]>([]);
   const [redoStack, setRedoStack] = useState<CellSnapshot[][]>([]);
 
@@ -1018,6 +1040,174 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
       }
       return next;
     });
+  };
+
+  // ── Multi-cell selection helpers ───────────────────────────────────────────
+
+  // All plan line IDs in table display order (rubrique order then line order within rubrique)
+  const planLines = (planData as any)?.lines as Array<{ id: string; rubrique: string; label: string; position: number }> | undefined;
+
+  const allLineIdsInOrder = useMemo(() => {
+    if (!planLines) return [];
+    return RUBRIQUES.flatMap((r) =>
+      [...planLines].filter((l) => l.rubrique === r.key).sort((a, b) => a.position - b.position).map((l) => l.id)
+    );
+  }, [planLines]);
+
+  const handleCellClick = (e: React.MouseEvent, lineId: string, pIdx: number, periodKey: string) => {
+    const key = mkCellKey(lineId, periodKey);
+    if (e.shiftKey && selectionAnchor) {
+      const anc = parseCellKey(selectionAnchor);
+      const ancLineIdx = allLineIdsInOrder.indexOf(anc.lineId);
+      const thisLineIdx = allLineIdsInOrder.indexOf(lineId);
+      const ancPIdx = periods.findIndex((p) => p.key === anc.periodKey);
+      const thisPIdx = pIdx;
+      const minLine = Math.min(ancLineIdx, thisLineIdx);
+      const maxLine = Math.max(ancLineIdx, thisLineIdx);
+      const minPeriod = Math.min(ancPIdx, thisPIdx);
+      const maxPeriod = Math.max(ancPIdx, thisPIdx);
+      const newSel = new Set<string>();
+      for (let li = minLine; li <= maxLine; li++) {
+        for (let pi = minPeriod; pi <= maxPeriod; pi++) {
+          if (allLineIdsInOrder[li] && periods[pi]) {
+            newSel.add(mkCellKey(allLineIdsInOrder[li], periods[pi].key));
+          }
+        }
+      }
+      setSelectedCells(newSel);
+      setSelectedCell({ lineId: anc.lineId, periodKey: anc.periodKey });
+    } else if (e.ctrlKey || e.metaKey) {
+      const newSel = new Set(selectedCells);
+      if (newSel.has(key)) newSel.delete(key);
+      else newSel.add(key);
+      setSelectedCells(newSel);
+      setSelectionAnchor(key);
+      setSelectedCell({ lineId, periodKey });
+    } else {
+      setSelectedCells(new Set([key]));
+      setSelectionAnchor(key);
+      setSelectedCell({ lineId, periodKey });
+    }
+  };
+
+  // Multi-cell: fill year (each selected line fills from its earliest selected period to end of year)
+  const multiCellFillYear = () => {
+    const byLine = new Map<string, string[]>();
+    for (const key of selectedCells) {
+      const { lineId, periodKey } = parseCellKey(key);
+      if (!byLine.has(lineId)) byLine.set(lineId, []);
+      byLine.get(lineId)!.push(periodKey);
+    }
+    const allCellsPayload: CellPayload[] = [];
+    const allSnapshots: CellSnapshot[] = [];
+    const localUpdates: Record<string, Record<string, number>> = {};
+    for (const [lineId, pKeys] of byLine) {
+      const sourcePKey = [...pKeys].sort()[0];
+      const amount = getCellValue(lineId, sourcePKey);
+      if (amount === 0) continue;
+      const year = parseInt(sourcePKey.substring(0, 4));
+      const targets = periods.filter((p) => parseInt(p.key.substring(0, 4)) === year && p.key >= sourcePKey);
+      for (const t of targets) {
+        allSnapshots.push({ lineId, periodKey: t.key, prevAmount: getCellValue(lineId, t.key), nextAmount: amount });
+        allCellsPayload.push({ lineId, periodKey: t.key, amount, formula: null });
+        if (!localUpdates[lineId]) localUpdates[lineId] = {};
+        localUpdates[lineId][t.key] = amount;
+      }
+    }
+    if (allCellsPayload.length === 0) return;
+    setLocalCells((prev) => {
+      const next = { ...prev };
+      for (const [lid, periodMap] of Object.entries(localUpdates)) {
+        next[lid] = { ...(next[lid] ?? {}), ...periodMap };
+      }
+      return next;
+    });
+    clearFormulasForEntries(allCellsPayload.map((c) => ({ lineId: c.lineId, periodKey: c.periodKey })));
+    saveCellMutation.mutate(allCellsPayload);
+    setUndoStack((prev) => [...prev, allSnapshots]);
+    setRedoStack([]);
+  };
+
+  // Multi-cell: fill to selection (each line fills its earliest selected period value to all selected periods)
+  const multiCellFillToSelection = () => {
+    const byLine = new Map<string, string[]>();
+    for (const key of selectedCells) {
+      const { lineId, periodKey } = parseCellKey(key);
+      if (!byLine.has(lineId)) byLine.set(lineId, []);
+      byLine.get(lineId)!.push(periodKey);
+    }
+    const allCellsPayload: CellPayload[] = [];
+    const allSnapshots: CellSnapshot[] = [];
+    const localUpdates: Record<string, Record<string, number>> = {};
+    for (const [lineId, pKeys] of byLine) {
+      const sortedKeys = [...pKeys].sort();
+      const amount = getCellValue(lineId, sortedKeys[0]);
+      if (amount === 0) continue;
+      for (const pk of sortedKeys) {
+        allSnapshots.push({ lineId, periodKey: pk, prevAmount: getCellValue(lineId, pk), nextAmount: amount });
+        allCellsPayload.push({ lineId, periodKey: pk, amount, formula: null });
+        if (!localUpdates[lineId]) localUpdates[lineId] = {};
+        localUpdates[lineId][pk] = amount;
+      }
+    }
+    if (allCellsPayload.length === 0) return;
+    setLocalCells((prev) => {
+      const next = { ...prev };
+      for (const [lid, periodMap] of Object.entries(localUpdates)) {
+        next[lid] = { ...(next[lid] ?? {}), ...periodMap };
+      }
+      return next;
+    });
+    clearFormulasForEntries(allCellsPayload.map((c) => ({ lineId: c.lineId, periodKey: c.periodKey })));
+    saveCellMutation.mutate(allCellsPayload);
+    setUndoStack((prev) => [...prev, allSnapshots]);
+    setRedoStack([]);
+  };
+
+  // Multi-cell: fill until year
+  const multiCellFillUntilYear = (year: number) => {
+    const byLine = new Map<string, string[]>();
+    for (const key of selectedCells) {
+      const { lineId, periodKey } = parseCellKey(key);
+      if (!byLine.has(lineId)) byLine.set(lineId, []);
+      byLine.get(lineId)!.push(periodKey);
+    }
+    const allCellsPayload: CellPayload[] = [];
+    const allSnapshots: CellSnapshot[] = [];
+    const localUpdates: Record<string, Record<string, number>> = {};
+    for (const [lineId, pKeys] of byLine) {
+      const sourcePKey = [...pKeys].sort()[0];
+      const amount = getCellValue(lineId, sourcePKey);
+      if (amount === 0) continue;
+      const targets = periods.filter((p) => p.key >= sourcePKey && parseInt(p.key.substring(0, 4)) <= year);
+      for (const t of targets) {
+        allSnapshots.push({ lineId, periodKey: t.key, prevAmount: getCellValue(lineId, t.key), nextAmount: amount });
+        allCellsPayload.push({ lineId, periodKey: t.key, amount, formula: null });
+        if (!localUpdates[lineId]) localUpdates[lineId] = {};
+        localUpdates[lineId][t.key] = amount;
+      }
+    }
+    if (allCellsPayload.length === 0) return;
+    setLocalCells((prev) => {
+      const next = { ...prev };
+      for (const [lid, periodMap] of Object.entries(localUpdates)) {
+        next[lid] = { ...(next[lid] ?? {}), ...periodMap };
+      }
+      return next;
+    });
+    clearFormulasForEntries(allCellsPayload.map((c) => ({ lineId: c.lineId, periodKey: c.periodKey })));
+    saveCellMutation.mutate(allCellsPayload);
+    setUndoStack((prev) => [...prev, allSnapshots]);
+    setRedoStack([]);
+    if (year > endYear) setEndYear(year);
+  };
+
+  // Multi-cell: set dynamic status on all selected cells
+  const multiSetDynamicStatus = (status: DynamicStatus | null) => {
+    for (const key of selectedCells) {
+      const { lineId, periodKey } = parseCellKey(key);
+      setDynamicStatus(lineId, periodKey, status);
+    }
   };
 
   // Synchronized scroll refs (top scrollbar ↔ table)
@@ -1142,7 +1332,6 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     onSuccess: () => queryClient.invalidateQueries({ queryKey: planQueryKey }),
   });
 
-  type CellPayload = { lineId: string; periodKey: string; amount: number; formula?: string | null; cell_color?: string | null };
   const saveCellMutation = useMutation({
     mutationFn: (cells: Array<CellPayload>) =>
       apiRequest("/api/treasury/plan/cells", "PUT", { cells }),
@@ -1412,6 +1601,14 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     return () => window.removeEventListener("click", close);
   }, [colContextMenu]);
 
+  // Close multi-cell context menu on outside click
+  useEffect(() => {
+    if (!multiCtxMenu) return;
+    const close = () => setMultiCtxMenu(null);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [multiCtxMenu]);
+
   useEffect(() => {
     if (!fillDrag) return;
     const onMouseUp = () => {
@@ -1653,9 +1850,11 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
         setSelectedCell(null);
         return;
       }
-      // Escape = deselect cell
-      if (e.key === "Escape" && selectedCell && !editingCell) {
+      // Escape = deselect cell(s)
+      if (e.key === "Escape" && !editingCell) {
         setSelectedCell(null);
+        setSelectedCells(new Set());
+        setMultiCtxMenu(null);
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -2251,18 +2450,23 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                                       periodKey={p.key}
                                       value={value}
                                       isFillRange={isFillRange}
-                                      isSelected={selectedCell?.lineId === line.id && selectedCell?.periodKey === p.key}
+                                      isSelected={selectedCells.size === 1 && selectedCell?.lineId === line.id && selectedCell?.periodKey === p.key}
+                                      isMultiSelected={selectedCells.size > 1 && selectedCells.has(mkCellKey(line.id, p.key))}
                                       hasValue={hasValue}
                                       colW={COL_W}
                                       fmt={fmt}
                                       cellColor={localColors[line.id]?.[p.key] ?? null}
                                       hasClipboard={cellClipboard !== null}
-                                      onSelect={() => setSelectedCell({ lineId: line.id, periodKey: p.key })}
+                                      onSelect={(e) => {
+                                        handleCellClick(e, line.id, pIdx, p.key);
+                                      }}
+                                      onInterceptContextMenu={(x, y) => setMultiCtxMenu({ x, y })}
                                       onStartEdit={() => {
                                         setEditingCell({ lineId: line.id, periodKey: p.key });
                                         const rawFormula = localFormulas[line.id]?.[p.key];
                                         setEditValue(rawFormula ?? (value !== 0 ? String(value) : ""));
                                         setSelectedCell(null);
+                                        setSelectedCells(new Set());
                                       }}
                                       onFillDragStart={() => {
                                         setFillDrag({ lineId: line.id, startIdx: pIdx, value: getCellValue(line.id, p.key), color: localColors[line.id]?.[p.key] ?? null });
@@ -2586,6 +2790,78 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                 </button>
               </>
             )}
+          </div>
+        );
+      })()}
+
+      {/* Multi-cell selection context menu */}
+      {multiCtxMenu && selectedCells.size > 1 && (() => {
+        const lines = [...selectedCells].map(parseCellKey);
+        const uniqueLineIds = new Set(lines.map((c) => c.lineId));
+        const hasFirstCellValue = [...uniqueLineIds].some((lid) => {
+          const pKeys = [...selectedCells].filter((k) => parseCellKey(k).lineId === lid).map((k) => parseCellKey(k).periodKey).sort();
+          return getCellValue(lid, pKeys[0]) !== 0;
+        });
+        const closeMenu = () => setMultiCtxMenu(null);
+        return (
+          <div
+            className="fixed z-[9999] bg-popover border border-border rounded-md shadow-lg py-1 min-w-[210px] text-sm"
+            style={{ left: multiCtxMenu.x, top: multiCtxMenu.y }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide border-b border-border/50 mb-1">
+              {selectedCells.size} cellule{selectedCells.size > 1 ? "s" : ""} sélectionnée{selectedCells.size > 1 ? "s" : ""}
+            </div>
+            {planMode === "dynamic" && (
+              <>
+                <button
+                  className="w-full text-left px-3 py-1.5 text-[12px] hover-elevate flex items-center gap-2"
+                  onClick={() => { multiSetDynamicStatus("paid"); closeMenu(); }}
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> Marquer comme payé
+                </button>
+                <button
+                  className="w-full text-left px-3 py-1.5 text-[12px] hover-elevate flex items-center gap-2"
+                  onClick={() => { multiSetDynamicStatus("deferred"); closeMenu(); }}
+                >
+                  <Clock className="h-3.5 w-3.5 text-gray-500" /> Marquer comme reporté
+                </button>
+                <button
+                  className="w-full text-left px-3 py-1.5 text-[12px] hover-elevate flex items-center gap-2 text-muted-foreground"
+                  onClick={() => { multiSetDynamicStatus(null); closeMenu(); }}
+                >
+                  <X className="h-3.5 w-3.5" /> Réinitialiser les statuts
+                </button>
+                <div className="border-t border-border/50 my-1" />
+              </>
+            )}
+            <button
+              className="w-full text-left px-3 py-1.5 text-[12px] hover-elevate flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={!hasFirstCellValue}
+              onClick={() => { if (hasFirstCellValue) { multiCellFillToSelection(); closeMenu(); } }}
+            >
+              <ChevronRight className="h-3.5 w-3.5" /> Étirer jusqu'à la sélection
+            </button>
+            <button
+              className="w-full text-left px-3 py-1.5 text-[12px] hover-elevate flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={!hasFirstCellValue}
+              onClick={() => { if (hasFirstCellValue) { multiCellFillYear(); closeMenu(); } }}
+            >
+              <ChevronRight className="h-3.5 w-3.5" /> Étirer sur l'année
+            </button>
+            <div className="px-2 py-1">
+              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide px-1 py-1">Étirer jusqu'à fin…</div>
+              {availableYears.map((y) => (
+                <button
+                  key={y}
+                  disabled={!hasFirstCellValue}
+                  className="w-full text-left px-3 py-1 text-[12px] hover-elevate flex items-center gap-2 rounded disabled:opacity-40 disabled:cursor-not-allowed"
+                  onClick={() => { if (hasFirstCellValue) { multiCellFillUntilYear(y); closeMenu(); } }}
+                >
+                  <ChevronsRight className="h-3.5 w-3.5" /> {y}
+                </button>
+              ))}
+            </div>
           </div>
         );
       })()}
