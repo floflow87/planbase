@@ -772,7 +772,7 @@ function PlanCell({
         <div className="relative group/cell" style={cellStyle ? { borderRadius: 3 } : undefined}>
           <button
             onClick={(e) => onSelect(e)}
-            onDoubleClick={planMode === "static" ? onStartEdit : undefined}
+            onDoubleClick={onStartEdit}
             onContextMenu={(e) => {
               if (isMultiSelected && onInterceptContextMenu) {
                 e.preventDefault();
