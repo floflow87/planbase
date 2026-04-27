@@ -1,4 +1,4 @@
-import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, FileText, Trash2, MoreVertical, CheckCircle2, Copy, Globe, GripVertical, ArrowUp, ArrowDown, ArrowUpDown, Star, Settings2, FolderKanban, ChevronDown, ChevronRight, ChevronsUpDown, Check } from "lucide-react";
+import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, FileText, Trash2, MoreVertical, CheckCircle2, Copy, Globe, GripVertical, ArrowUp, ArrowDown, ArrowUpDown, Star, Settings2, FolderKanban, ChevronDown, ChevronRight, ChevronsUpDown, Check, ExternalLink } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader } from "@/components/Loader";
@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -152,6 +153,9 @@ export default function Notes() {
   const [isQuickAddingNote, setIsQuickAddingNote] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
+  // Context menu (right-click) state
+  const [ctxLinkNoteId, setCtxLinkNoteId] = useState<string | null>(null);
+  const [ctxProjectSearch, setCtxProjectSearch] = useState("");
   const [pageSize, setPageSize] = useState(() => {
     const saved = localStorage.getItem('noteListPageSize');
     return saved ? parseInt(saved) : 20;
@@ -1957,59 +1961,94 @@ export default function Notes() {
                 };
                 
                 return (
-                  <div
-                    key={note.id}
-                    className="flex items-center gap-4 px-4 py-2 border-b border-border last:border-b-0 hover-elevate"
-                    data-testid={`row-note-${note.id}`}
-                  >
-                    {/* Fixed checkbox column */}
-                    <div className="w-8 flex-shrink-0 flex items-center">
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => toggleNoteSelection(note.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        data-testid={`checkbox-note-${note.id}`}
-                      />
-                    </div>
-                    
-                    {/* Fixed favorite column */}
-                    {columnVisibility['favorite'] !== false && (
-                      <div 
-                        className="w-8 flex-shrink-0 flex items-center justify-center"
-                        onClick={(e) => e.stopPropagation()}
+                  <ContextMenu key={note.id}>
+                    <ContextMenuTrigger asChild>
+                      <div
+                        className="flex items-center gap-4 px-4 py-2 border-b border-border last:border-b-0 hover-elevate"
+                        data-testid={`row-note-${note.id}`}
                       >
-                        <button
-                          onClick={() => {
-                            updateNoteMutation.mutate({
-                              noteId: note.id,
-                              data: { isFavorite: !note.isFavorite }
-                            });
-                          }}
-                          className="p-1 rounded hover:bg-muted transition-colors"
-                          data-testid={`button-favorite-${note.id}`}
-                        >
-                          <Star 
-                            className={`h-4 w-4 transition-colors ${
-                              note.isFavorite 
-                                ? 'fill-yellow-400 text-yellow-400' 
-                                : 'text-muted-foreground hover:text-yellow-400'
-                            }`}
+                        {/* Fixed checkbox column */}
+                        <div className="w-8 flex-shrink-0 flex items-center">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleNoteSelection(note.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            data-testid={`checkbox-note-${note.id}`}
                           />
-                        </button>
+                        </div>
+                        
+                        {/* Fixed favorite column */}
+                        {columnVisibility['favorite'] !== false && (
+                          <div 
+                            className="w-8 flex-shrink-0 flex items-center justify-center"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              onClick={() => {
+                                updateNoteMutation.mutate({
+                                  noteId: note.id,
+                                  data: { isFavorite: !note.isFavorite }
+                                });
+                              }}
+                              className="p-1 rounded hover:bg-muted transition-colors"
+                              data-testid={`button-favorite-${note.id}`}
+                            >
+                              <Star 
+                                className={`h-4 w-4 transition-colors ${
+                                  note.isFavorite 
+                                    ? 'fill-yellow-400 text-yellow-400' 
+                                    : 'text-muted-foreground hover:text-yellow-400'
+                                }`}
+                              />
+                            </button>
+                          </div>
+                        )}
+                        
+                        {/* Dynamic columns */}
+                        {columnOrder.filter(col => 
+                          col !== 'checkbox' && 
+                          col !== 'favorite' && 
+                          col !== 'actions' && 
+                          columnVisibility[col] !== false
+                        ).map((columnId) => cellContent[columnId])}
+                        
+                        {/* Fixed actions column */}
+                        {cellContent.actions}
                       </div>
-                    )}
-                    
-                    {/* Dynamic columns */}
-                    {columnOrder.filter(col => 
-                      col !== 'checkbox' && 
-                      col !== 'favorite' && 
-                      col !== 'actions' && 
-                      columnVisibility[col] !== false
-                    ).map((columnId) => cellContent[columnId])}
-                    
-                    {/* Fixed actions column */}
-                    {cellContent.actions}
-                  </div>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent className="w-52">
+                      <ContextMenuItem
+                        onClick={() => navigate(`/notes/${note.id}`)}
+                        data-testid={`ctx-open-note-${note.id}`}
+                      >
+                        <FileText className="w-3.5 h-3.5 mr-2" />
+                        Ouvrir
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onClick={() => window.open(`${window.location.origin}/notes/${note.id}`, "_blank")}
+                        data-testid={`ctx-open-newtab-note-${note.id}`}
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 mr-2" />
+                        Ouvrir dans un nouvel onglet
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onClick={() => { setCtxLinkNoteId(note.id); setCtxProjectSearch(""); }}
+                        data-testid={`ctx-link-project-note-${note.id}`}
+                      >
+                        <FolderKanban className="w-3.5 h-3.5 mr-2" />
+                        Lier à un projet
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => handleDeleteNote(note.id)}
+                        data-testid={`ctx-delete-note-${note.id}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-2" />
+                        Supprimer
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
                 );
               })}
               </div>
@@ -2123,6 +2162,52 @@ export default function Notes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Context menu: Lier à un projet */}
+      <Dialog open={ctxLinkNoteId !== null} onOpenChange={(open) => { if (!open) setCtxLinkNoteId(null); }}>
+        <DialogContent className="max-w-sm p-0" data-testid="dialog-ctx-link-project">
+          <DialogHeader className="px-4 pt-4">
+            <DialogTitle className="text-sm">Lier à un projet</DialogTitle>
+          </DialogHeader>
+          <Command className="bg-white dark:bg-gray-900">
+            <CommandInput
+              placeholder="Rechercher un projet..."
+              value={ctxProjectSearch}
+              onValueChange={setCtxProjectSearch}
+            />
+            <CommandList className="max-h-60">
+              <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+              <CommandGroup>
+                <CommandItem
+                  value="none"
+                  onSelect={() => {
+                    if (ctxLinkNoteId) linkProjectMutation.mutate({ noteId: ctxLinkNoteId, projectId: null });
+                    setCtxLinkNoteId(null);
+                  }}
+                >
+                  <Check className={`mr-2 h-4 w-4 ${!getLinkedProject(ctxLinkNoteId ?? "") ? "opacity-100" : "opacity-0"}`} />
+                  Aucun
+                </CommandItem>
+                {projects
+                  .filter(p => !ctxProjectSearch || p.name.toLowerCase().includes(ctxProjectSearch.toLowerCase()))
+                  .map((project) => (
+                    <CommandItem
+                      key={project.id}
+                      value={project.name}
+                      onSelect={() => {
+                        if (ctxLinkNoteId) linkProjectMutation.mutate({ noteId: ctxLinkNoteId, projectId: project.id });
+                        setCtxLinkNoteId(null);
+                      }}
+                    >
+                      <Check className={`mr-2 h-4 w-4 ${getLinkedProject(ctxLinkNoteId ?? "")?.id === project.id ? "opacity-100" : "opacity-0"}`} />
+                      {project.name}
+                    </CommandItem>
+                  ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </DialogContent>
+      </Dialog>
+
       {/* Bulk Publish Dialog */}
       <Dialog open={bulkPublishDialogOpen} onOpenChange={setBulkPublishDialogOpen}>
         <DialogContent data-testid="dialog-bulk-publish">

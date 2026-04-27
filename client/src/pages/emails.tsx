@@ -762,6 +762,31 @@ export default function Emails() {
     },
   });
 
+  const handleArchiveAndNext = async () => {
+    if (!selected) return;
+    const currentId = selected.id;
+    const idx = messages.findIndex((m) => m.id === currentId);
+    const next = messages[idx + 1] ?? messages[idx - 1] ?? null;
+    // Mark as read if needed
+    if (selected.isRead === 0) {
+      setLocalReadIds((prev) => new Set([...prev, currentId]));
+      markReadMutation.mutate({ ids: [currentId], isRead: true });
+    }
+    // Navigate to next immediately
+    setSelected(next);
+    // Archive via direct call to avoid the shared onSuccess nulling selected
+    try {
+      await apiRequest("/api/gmail/messages/archive", "PATCH", { ids: [currentId], archive: true });
+      queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
+      toast({
+        title: "Email archivé",
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+      });
+    } catch {
+      toast({ title: "Erreur", description: "Impossible d'archiver.", variant: "destructive" });
+    }
+  };
+
   const createTaskMutation = useMutation({
     mutationFn: async ({ title, columnId }: { title: string; columnId?: string }) => {
       const payload: any = { title };
@@ -1496,6 +1521,21 @@ export default function Emails() {
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent className={WT}>Désarchiver</TooltipContent>
+                  </Tooltip>
+                )}
+                {!isTrash && !isArchived && !isDrafts && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={handleArchiveAndNext}
+                        data-testid="button-archive-and-next"
+                      >
+                        <Archive className="w-3.5 h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className={WT}>Archiver et suivant</TooltipContent>
                   </Tooltip>
                 )}
                 <Tooltip>
