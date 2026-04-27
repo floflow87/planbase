@@ -1044,16 +1044,6 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
 
   // ── Multi-cell selection helpers ───────────────────────────────────────────
 
-  // All plan line IDs in table display order (rubrique order then line order within rubrique)
-  const planLines = (planData as any)?.lines as Array<{ id: string; rubrique: string; label: string; position: number }> | undefined;
-
-  const allLineIdsInOrder = useMemo(() => {
-    if (!planLines) return [];
-    return RUBRIQUES.flatMap((r) =>
-      [...planLines].filter((l) => l.rubrique === r.key).sort((a, b) => a.position - b.position).map((l) => l.id)
-    );
-  }, [planLines]);
-
   const handleCellClick = (e: React.MouseEvent, lineId: string, pIdx: number, periodKey: string) => {
     const key = mkCellKey(lineId, periodKey);
     if (e.shiftKey && selectionAnchor) {
@@ -1228,6 +1218,16 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     refetchOnMount: true,
     staleTime: 0,
   });
+
+  // All plan line IDs in table display order — declared after planData to avoid TDZ
+  const planLines = (planData as any)?.lines as Array<{ id: string; rubrique: string; label: string; position: number }> | undefined;
+  const allLineIdsInOrder = useMemo(() => {
+    if (!planLines) return [];
+    return RUBRIQUES.flatMap((r) =>
+      [...planLines].filter((l) => l.rubrique === r.key).sort((a, b) => a.position - b.position).map((l) => l.id)
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planData]);
 
   useEffect(() => {
     if (!planData) return;
