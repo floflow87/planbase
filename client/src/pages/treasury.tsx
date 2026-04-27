@@ -831,6 +831,37 @@ function PlanCell({
                 </ContextMenuItem>
               </>
             )}
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={onCopy} className="text-xs gap-2">
+              <Copy className="h-3 w-3" />
+              Copier
+            </ContextMenuItem>
+            <ContextMenuItem onClick={onPaste} disabled={!hasClipboard} className="text-xs gap-2">
+              <Copy className="h-3 w-3 opacity-50 scale-x-[-1]" />
+              Coller
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={onFillYear} disabled={value === 0} className="text-xs gap-2">
+              <ChevronRight className="h-3 w-3" />
+              Étirer sur l'année
+            </ContextMenuItem>
+            <ContextMenuSub>
+              <ContextMenuSubTrigger disabled={value === 0} className="text-xs gap-2">
+                <ChevronsRight className="h-3 w-3" />
+                Étirer jusqu'à fin…
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-28">
+                {availableYears.map((y) => (
+                  <ContextMenuItem
+                    key={y}
+                    className="text-xs gap-2"
+                    onClick={() => onFillUntilYear(y)}
+                  >
+                    {y}
+                  </ContextMenuItem>
+                ))}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
           </>
         ) : (
           <>
