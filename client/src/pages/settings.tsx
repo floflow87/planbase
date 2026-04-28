@@ -100,6 +100,7 @@ interface ThresholdConfig {
     typeEntreprise?: "BNC" | "BIC";
     seuilTVA?: number;
     tauxTVA?: number;
+    isVatDeductible?: boolean;
   };
 }
 
@@ -528,6 +529,7 @@ function ThresholdEditor({
   const [typeEntreprise, setTypeEntreprise] = useState<"BNC" | "BIC" | "">("");
   const [seuilTVA, setSeuilTVA] = useState("");
   const [tauxTVA, setTauxTVA] = useState("20");
+  const [isVatDeductible, setIsVatDeductible] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
@@ -538,6 +540,7 @@ function ThresholdEditor({
       setTypeEntreprise(thresholds.tva?.typeEntreprise || "");
       setSeuilTVA(thresholds.tva?.seuilTVA?.toString() || "");
       setTauxTVA(thresholds.tva?.tauxTVA?.toString() || "20");
+      setIsVatDeductible(thresholds.tva?.isVatDeductible ?? false);
     }
   }, [thresholds, hasChanges]);
 
@@ -553,7 +556,8 @@ function ThresholdEditor({
       tva: {
         typeEntreprise: typeEntreprise || undefined,
         seuilTVA: seuilTVA ? parseFloat(seuilTVA) : undefined,
-        tauxTVA: tauxTVA ? parseFloat(tauxTVA) : 20
+        tauxTVA: tauxTVA ? parseFloat(tauxTVA) : 20,
+        isVatDeductible,
       }
     });
     setHasChanges(false);
@@ -670,16 +674,27 @@ function ThresholdEditor({
             </div>
             <div className="space-y-2">
               <Label htmlFor="seuilTVA" className="text-xs">Seuil de franchise TVA (€)</Label>
-              <Input
-                id="seuilTVA"
-                type="number"
-                min="0"
-                value={seuilTVA}
-                onChange={handleChange(setSeuilTVA)}
-                placeholder="ex: 37500"
-                className="max-w-[140px]"
-                data-testid="input-seuil-tva"
-              />
+              <div className="flex items-center gap-3">
+                <Input
+                  id="seuilTVA"
+                  type="number"
+                  min="0"
+                  value={seuilTVA}
+                  onChange={handleChange(setSeuilTVA)}
+                  placeholder="ex: 37500"
+                  className="max-w-[140px]"
+                  data-testid="input-seuil-tva"
+                />
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="toggle-vat-deductible" className="text-[10px] text-muted-foreground whitespace-nowrap">TVA déductible</Label>
+                  <Switch
+                    id="toggle-vat-deductible"
+                    checked={isVatDeductible}
+                    onCheckedChange={(v) => { setIsVatDeductible(v); setHasChanges(true); }}
+                    data-testid="toggle-vat-deductible"
+                  />
+                </div>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="tauxTVA" className="text-xs">Taux TVA (%)</Label>

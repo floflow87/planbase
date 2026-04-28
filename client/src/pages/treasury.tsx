@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -3144,6 +3145,7 @@ type VatData = {
   defaultVatRate: number;
   seuilTVA: number;
   isBelowThreshold: boolean;
+  isVatDeductible: boolean;
   collectedVat: number; deductibleVat: number; vatDue: number; revenueHt: number;
   payments: VatPayment[]; expenses: VatExpense[];
   periodStatus: { id: string; status: string; declared_at: string | null; paid_at: string | null } | null;
@@ -3207,7 +3209,7 @@ function TvaTabView() {
       }).then(r => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/treasury/vat"] });
-      toast({ title: "Statut de la période mis à jour" });
+      toast({ title: "Statut de la période mis à jour", className: "border-emerald-500 bg-emerald-50 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-100" });
     },
     onError: () => toast({ title: "Erreur lors de la mise à jour", variant: "destructive" }),
   });
@@ -3215,7 +3217,10 @@ function TvaTabView() {
   const toggleDeductibleMutation = useMutation({
     mutationFn: ({ id, isVatDeductible }: { id: string; isVatDeductible: boolean }) =>
       apiRequest(`/api/treasury/transactions/${id}`, "PATCH", { isVatDeductible }).then(r => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/treasury/vat"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/treasury/vat"] });
+      toast({ title: "Dépense mise à jour", className: "border-emerald-500 bg-emerald-50 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-100" });
+    },
     onError: () => toast({ title: "Erreur lors de la mise à jour", variant: "destructive" }),
   });
 
@@ -3337,39 +3342,53 @@ function TvaTabView() {
         ))}
       </div>
 
-      {/* Alerts */}
-      {data && (
-        <div className="flex items-center gap-2 rounded-md border border-muted bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+      {/* Alerts — grouped with tight spacing */}
+      <div className="flex flex-col gap-1.5">
+        {data && (
+          <div className="flex items-center gap-2 rounded-md border border-muted bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            <Info className="h-3.5 w-3.5 shrink-0" />
+            <span>
+              Taux TVA par défaut : <span className="font-semibold text-foreground">{data.defaultVatRate}%</span>
+              {data.seuilTVA > 0
+                ? <> · Seuil franchise : <span className="font-semibold text-foreground">{fmt(data.seuilTVA)}</span> HT</>
+                : <> · Pas de franchise (TVA dès le 1er euro)</>}
+            </span>
+          </div>
+        )}
+        {data?.isBelowThreshold && data.seuilTVA > 0 && (
+          <div className="rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800/40 dark:bg-emerald-900/20 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-300 space-y-2">
+            <div className="flex items-center gap-2">
+              <Info className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                CA HT encaissé : <span className="font-semibold">{fmt(data.revenueHt)}</span> · Seuil : <span className="font-semibold">{fmt(data.seuilTVA)}</span> · Reste à encaisser : <span className="font-semibold">{fmt(Math.max(0, data.seuilTVA - data.revenueHt))}</span> — TVA non due.
+              </span>
+            </div>
+            <div className="space-y-1">
+              <div className="flex justify-between text-[10px]">
+                <span>{fmt(data.revenueHt)}</span>
+                <span className="text-emerald-700 dark:text-emerald-400">{Math.min(100, Math.round(data.revenueHt / data.seuilTVA * 100))}% du seuil</span>
+                <span>{fmt(data.seuilTVA)}</span>
+              </div>
+              <Progress value={Math.min(100, data.revenueHt / data.seuilTVA * 100)} className="h-2" />
+            </div>
+          </div>
+        )}
+        {data?.alerts.paymentsWithoutVat && (
+          <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800/40 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+            <CircleAlert className="h-3.5 w-3.5 shrink-0" />
+            Certaines factures n'ont pas de TVA explicite — le taux par défaut ({data.defaultVatRate}%) a été appliqué.
+          </div>
+        )}
+        {data?.alerts.expensesWithVatNotDeductible && data?.isVatDeductible && (
+          <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800/40 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+            <CircleAlert className="h-3.5 w-3.5 shrink-0" />
+            Certaines dépenses ont une TVA renseignée mais ne sont pas marquées comme déductibles.
+          </div>
+        )}
+        <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 dark:border-blue-800/40 dark:bg-blue-900/20 px-3 py-2 text-xs text-blue-800 dark:text-blue-300">
           <Info className="h-3.5 w-3.5 shrink-0" />
-          <span>
-            Taux TVA par défaut : <span className="font-semibold text-foreground">{data.defaultVatRate}%</span>
-            {data.seuilTVA > 0
-              ? <> · Seuil franchise : <span className="font-semibold text-foreground">{fmt(data.seuilTVA)}</span> HT</>
-              : <> · Pas de franchise (TVA dès le 1er euro)</>}
-          </span>
+          Ce récap est indicatif et doit être vérifié avant déclaration officielle.
         </div>
-      )}
-      {data?.isBelowThreshold && (
-        <div className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800/40 dark:bg-emerald-900/20 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-300">
-          <Info className="h-3.5 w-3.5 shrink-0" />
-          CA HT ({fmt(data.revenueHt)}) sous le seuil de franchise ({fmt(data.seuilTVA)}) — TVA à payer : 0 €.
-        </div>
-      )}
-      {data?.alerts.paymentsWithoutVat && (
-        <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800/40 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
-          <CircleAlert className="h-3.5 w-3.5 shrink-0" />
-          Certaines factures n'ont pas de TVA explicite — le taux par défaut ({data.defaultVatRate}%) a été appliqué pour l'estimation.
-        </div>
-      )}
-      {data?.alerts.expensesWithVatNotDeductible && (
-        <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800/40 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
-          <CircleAlert className="h-3.5 w-3.5 shrink-0" />
-          Certaines dépenses ont une TVA renseignée mais ne sont pas marquées comme déductibles.
-        </div>
-      )}
-      <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 dark:border-blue-800/40 dark:bg-blue-900/20 px-3 py-2 text-xs text-blue-800 dark:text-blue-300">
-        <Info className="h-3.5 w-3.5 shrink-0" />
-        Ce récap est indicatif et doit être vérifié avant déclaration officielle.
       </div>
 
       {/* KPI cards */}
@@ -3378,7 +3397,7 @@ function TvaTabView() {
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 rounded-lg" />)}
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className={`grid gap-3 ${data?.isVatDeductible ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2 lg:grid-cols-3"}`}>
           <Card>
             <CardContent className="p-4">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">CA HT encaissé</p>
@@ -3391,12 +3410,14 @@ function TvaTabView() {
               <p className="text-lg font-bold mt-1 tabular-nums text-emerald-600 dark:text-emerald-400">{fmt(data?.collectedVat ?? 0)}</p>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">TVA déductible</p>
-              <p className="text-lg font-bold mt-1 tabular-nums text-blue-600 dark:text-blue-400">{fmt(data?.deductibleVat ?? 0)}</p>
-            </CardContent>
-          </Card>
+          {data?.isVatDeductible && (
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">TVA déductible</p>
+                <p className="text-lg font-bold mt-1 tabular-nums text-blue-600 dark:text-blue-400">{fmt(data.deductibleVat)}</p>
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardContent className="p-4">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
@@ -3431,16 +3452,18 @@ function TvaTabView() {
         </Card>
       ) : (
         /* Detail tabs */
-        <Tabs value={vatTab} onValueChange={(v) => setVatTab(v as typeof vatTab)}>
+        <Tabs value={!data?.isVatDeductible && vatTab === "deductible" ? "collected" : vatTab} onValueChange={(v) => setVatTab(v as typeof vatTab)}>
           <TabsList className="h-8">
             <TabsTrigger value="collected" className="text-xs h-7 gap-1.5" data-testid="tab-vat-collected">
               <ArrowUpRight className="h-3 w-3" />
               TVA collectée ({data?.payments.length ?? 0})
             </TabsTrigger>
-            <TabsTrigger value="deductible" className="text-xs h-7 gap-1.5" data-testid="tab-vat-deductible">
-              <ArrowDownLeft className="h-3 w-3" />
-              TVA déductible ({data?.expenses.length ?? 0})
-            </TabsTrigger>
+            {data?.isVatDeductible && (
+              <TabsTrigger value="deductible" className="text-xs h-7 gap-1.5" data-testid="tab-vat-deductible">
+                <ArrowDownLeft className="h-3 w-3" />
+                TVA déductible ({data.expenses.length})
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="collected" className="mt-3">
@@ -3510,7 +3533,9 @@ function TvaTabView() {
                         <tr className="border-t bg-muted/20 font-semibold">
                           <td colSpan={3} className="px-3 py-2">Total</td>
                           <td className="px-3 py-2 text-right tabular-nums">{fmt((data?.payments ?? []).reduce((s, p) => s + parseFloat(p.amount) - p.effective_vat, 0))}</td>
-                          <td className="px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{fmt(data?.collectedVat ?? 0)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
+                            {data?.isBelowThreshold ? fmt(0) : fmt(data?.collectedVat ?? 0)}
+                          </td>
                           <td className="px-3 py-2 text-right tabular-nums">{fmt((data?.payments ?? []).reduce((s, p) => s + parseFloat(p.amount), 0))}</td>
                           <td />
                         </tr>

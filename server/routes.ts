@@ -15984,12 +15984,14 @@ app.get("/config/feature-flags", async (_req, res) => {
         LIMIT 1
       `);
 
-      // 4. Fetch account TVA settings (default rate + franchise threshold)
+      // 4. Fetch account TVA settings (default rate + franchise threshold + deductible toggle)
       const thresholdsSetting = await storage.getSetting('ACCOUNT', accountId, 'thresholds');
       const thresholdsValue = thresholdsSetting?.value as any;
       const defaultVatRate: number = thresholdsValue?.tva?.tauxTVA ?? 20;
       // seuilTVA: franchise threshold in € HT. 0 = always subject to VAT.
       const seuilTVA: number = thresholdsValue?.tva?.seuilTVA ?? 0;
+      // isVatDeductible: whether deductible VAT should be taken into account. Default false.
+      const isVatDeductible: boolean = thresholdsValue?.tva?.isVatDeductible ?? false;
 
       const rawPayments = (paidPayments as any[]) as Array<{
         id: string; date: string; amount: string; vat_rate: string | null;
@@ -16024,9 +16026,10 @@ app.get("/config/feature-flags", async (_req, res) => {
 
       // Compute totals using effective VAT
       const collectedVat = payments.reduce((sum, p) => sum + p.effective_vat, 0);
-      const deductibleVat = expenses
-        .filter(e => e.is_vat_deductible !== false)
-        .reduce((sum, e) => sum + parseFloat(e.vat_amount || "0"), 0);
+      // If isVatDeductible is false, don't subtract deductible VAT
+      const deductibleVat = isVatDeductible
+        ? expenses.filter(e => e.is_vat_deductible !== false).reduce((sum, e) => sum + parseFloat(e.vat_amount || "0"), 0)
+        : 0;
 
       // Revenue HT = TTC - effective VAT
       const revenueHt = payments.reduce((sum, p) => {
@@ -16048,6 +16051,7 @@ app.get("/config/feature-flags", async (_req, res) => {
         defaultVatRate,
         seuilTVA,
         isBelowThreshold,
+        isVatDeductible,
         collectedVat,
         deductibleVat,
         vatDue,
