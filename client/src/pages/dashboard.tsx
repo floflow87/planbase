@@ -2953,35 +2953,35 @@ export default function Dashboard() {
         <Dialog open={showTaskReminder} onOpenChange={setShowTaskReminder}>
         <DialogContent className="w-[92vw] max-w-md overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-amber-500" />
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
               {t.dashboard.taskReminder.title}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-[11px]">
               {t.dashboard.taskReminder.description}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 max-h-[300px] overflow-y-auto">
+          <div className="space-y-2 max-h-[300px] overflow-y-auto">
             {[...overdueTasks, ...todaysTasks].slice(0, 5).map((task) => {
               const project = projects?.find(p => p.id === task.projectId);
               const isOverdue = task.dueDate && normalizeToLocalDate(task.dueDate) < todayStr;
               return (
-                <div key={task.id} className={`p-3 rounded-md border ${isOverdue ? 'border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800' : 'border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800'}`}>
-                  <p className="text-sm font-medium">{task.title}</p>
-                  {project && <p className="text-xs text-muted-foreground mt-1">{project.name}</p>}
-                  <Badge variant="outline" className={`mt-2 text-xs ${isOverdue ? 'border-red-500 text-red-600' : 'border-amber-500 text-amber-600'}`}>
+                <div key={task.id} className={`p-2.5 rounded-md border ${isOverdue ? 'border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800' : 'border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800'}`}>
+                  <p className="text-xs font-medium">{task.title}</p>
+                  {project && <p className="text-[10px] text-muted-foreground mt-0.5">{project.name}</p>}
+                  <Badge variant="outline" className={`mt-1.5 text-[10px] ${isOverdue ? 'border-red-500 text-red-600' : 'border-amber-500 text-amber-600'}`}>
                     {isOverdue ? 'En retard' : "Aujourd'hui"}
                   </Badge>
                 </div>
               );
             })}
             {[...overdueTasks, ...todaysTasks].length > 5 && (
-              <p className="text-xs text-muted-foreground text-center">Et {[...overdueTasks, ...todaysTasks].length - 5} autre(s) tâche(s)...</p>
+              <p className="text-[10px] text-muted-foreground text-center">Et {[...overdueTasks, ...todaysTasks].length - 5} autre(s) tâche(s)...</p>
             )}
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setShowTaskReminder(false)}>{t.common.close}</Button>
-            <Button onClick={() => { setShowTaskReminder(false); setLocation("/tasks"); }}>{t.dashboard.taskReminder.viewTasks}</Button>
+            <Button size="sm" variant="outline" onClick={() => setShowTaskReminder(false)}>{t.common.close}</Button>
+            <Button size="sm" onClick={() => { setShowTaskReminder(false); setLocation("/tasks"); }}>{t.dashboard.taskReminder.viewTasks}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

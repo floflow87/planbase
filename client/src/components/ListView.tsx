@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useCelebration } from "@/hooks/useCelebration";
 import { Plus, Edit, Trash2, GripVertical, Check, CheckCircle2, AlertCircle, UserCheck, FolderInput, Star, ArrowUpDown, ArrowUp, ArrowDown, Settings2, MoreVertical } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -102,6 +103,7 @@ export function ListView({
   userId
 }: ListViewProps) {
   const { toast } = useToast();
+  const { celebrate } = useCelebration();
   const [columnOrder, setColumnOrder] = useState(() => {
     const saved = localStorage.getItem('taskListColumnOrder');
     if (saved) {
@@ -649,6 +651,12 @@ export function ListView({
                                   status: "done",
                                   ...(doneColumn && { columnId: doneColumn.id })
                                 } as any);
+                                celebrate("medium", { entityId: task.id });
+                                toast({
+                                  title: "Tâche terminée !",
+                                  description: task.title,
+                                  className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+                                });
                               }}
                               data-testid={`button-complete-task-mobile-${task.id}`}
                             >
@@ -1119,11 +1127,16 @@ export function ListView({
                                       c.name.toLowerCase().includes("done") || 
                                       c.name.toLowerCase().includes("complété")
                                     );
-                                    
                                     onUpdateTask(task.id, { 
                                       status: "done",
                                       ...(doneColumn && { columnId: doneColumn.id })
                                     } as any);
+                                    celebrate("medium", { entityId: task.id });
+                                    toast({
+                                      title: "Tâche terminée !",
+                                      description: task.title,
+                                      className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+                                    });
                                   }}
                                   data-testid={`button-complete-task-${task.id}`}
                                   title="Marquer comme terminée"
