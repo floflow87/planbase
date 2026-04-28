@@ -59,7 +59,7 @@ import { TrialBanner, TrialExpiredGate } from "@/components/billing/PremiumGate"
 import { AiAssistant } from "@/components/ai/AiAssistant";
 import { AppointmentPanel } from "@/components/appointment-panel";
 import { MobileSidebarSheet } from "@/components/MobileSidebarSheet";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -1507,6 +1507,30 @@ function AppLayout() {
     setActiveTabId(newTab.id);
     // Don't navigate - new tab starts at current location, user can then navigate elsewhere
   };
+
+  // Global "open in new in-app tab" mechanism — dispatched as CustomEvent from any page
+  const openInNewTabFnRef = useRef<(path: string) => void>();
+  openInNewTabFnRef.current = (path: string) => {
+    // If already open in another tab, just switch to it
+    const existing = tabs.find(t => t.path === path);
+    if (existing) {
+      setActiveTabId(existing.id);
+      setLocation(path);
+      return;
+    }
+    if (tabs.length >= 5) return;
+    const newTab: Tab = { id: Date.now().toString(), path, title: getPageTitle(path) };
+    const newTabs = [...tabs, newTab];
+    setTabs(newTabs);
+    if (tabsStorageKey) localStorage.setItem(tabsStorageKey, JSON.stringify(newTabs));
+    setActiveTabId(newTab.id);
+    setLocation(path);
+  };
+  useEffect(() => {
+    const handler = (e: Event) => openInNewTabFnRef.current?.((e as CustomEvent).detail.path);
+    window.addEventListener("planbase-open-tab", handler);
+    return () => window.removeEventListener("planbase-open-tab", handler);
+  }, []);
 
   const handleCloseTab = (e: React.MouseEvent, tabId: string) => {
     e.stopPropagation();

@@ -2016,35 +2016,38 @@ export default function Notes() {
                         {cellContent.actions}
                       </div>
                     </ContextMenuTrigger>
-                    <ContextMenuContent className="w-52">
+                    <ContextMenuContent className="w-48 text-[11px]">
                       <ContextMenuItem
+                        className="text-[11px] py-1"
                         onClick={() => navigate(`/notes/${note.id}`)}
                         data-testid={`ctx-open-note-${note.id}`}
                       >
-                        <FileText className="w-3.5 h-3.5 mr-2" />
+                        <FileText className="w-3 h-3 mr-2 shrink-0" />
                         Ouvrir
                       </ContextMenuItem>
                       <ContextMenuItem
-                        onClick={() => window.open(`${window.location.origin}/notes/${note.id}`, "_blank")}
+                        className="text-[11px] py-1"
+                        onClick={() => window.dispatchEvent(new CustomEvent("planbase-open-tab", { detail: { path: `/notes/${note.id}` } }))}
                         data-testid={`ctx-open-newtab-note-${note.id}`}
                       >
-                        <ExternalLink className="w-3.5 h-3.5 mr-2" />
+                        <ExternalLink className="w-3 h-3 mr-2 shrink-0" />
                         Ouvrir dans un nouvel onglet
                       </ContextMenuItem>
                       <ContextMenuItem
+                        className="text-[11px] py-1"
                         onClick={() => { setCtxLinkNoteId(note.id); setCtxProjectSearch(""); }}
                         data-testid={`ctx-link-project-note-${note.id}`}
                       >
-                        <FolderKanban className="w-3.5 h-3.5 mr-2" />
+                        <FolderKanban className="w-3 h-3 mr-2 shrink-0" />
                         Lier à un projet
                       </ContextMenuItem>
                       <ContextMenuSeparator />
                       <ContextMenuItem
-                        className="text-destructive focus:text-destructive"
+                        className="text-[11px] py-1 text-destructive focus:text-destructive"
                         onClick={() => handleDeleteNote(note.id)}
                         data-testid={`ctx-delete-note-${note.id}`}
                       >
-                        <Trash2 className="w-3.5 h-3.5 mr-2" />
+                        <Trash2 className="w-3 h-3 mr-2 shrink-0" />
                         Supprimer
                       </ContextMenuItem>
                     </ContextMenuContent>
