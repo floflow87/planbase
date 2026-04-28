@@ -2046,13 +2046,13 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
         {/* Chart toggle */}
         <Button
           variant="outline"
-          size="sm"
-          className={cn("h-7 gap-1 px-2 text-[11px] shrink-0", showPlanChart && "bg-muted text-foreground")}
+          size="icon"
+          className={cn("shrink-0", showPlanChart && "bg-muted text-foreground")}
           onClick={() => setShowPlanChart((v) => !v)}
           data-testid="btn-plan-chart-toggle"
+          title="Afficher / masquer le graphique"
         >
-          <BarChart2 className="h-3 w-3" />
-          Graphique
+          <BarChart2 className="h-3.5 w-3.5" />
         </Button>
 
         {/* Year horizon selector */}
@@ -3144,12 +3144,12 @@ function TvaTabView() {
 
   const { data, isLoading, isError, refetch } = useQuery<VatData>({
     queryKey: ["/api/treasury/vat", start, end],
-    queryFn: () => apiRequest("GET", `/api/treasury/vat?start=${start}&end=${end}`).then(r => r.json()),
+    queryFn: () => apiRequest(`/api/treasury/vat?start=${start}&end=${end}`, "GET").then(r => r.json()),
   });
 
   const saveStatusMutation = useMutation({
     mutationFn: (status: string) =>
-      apiRequest("POST", "/api/treasury/vat-periods", {
+      apiRequest("/api/treasury/vat-periods", "POST", {
         periodStart: start, periodEnd: end, status,
         collectedVat: data?.collectedVat ?? 0,
         deductibleVat: data?.deductibleVat ?? 0,
@@ -3164,7 +3164,7 @@ function TvaTabView() {
 
   const toggleDeductibleMutation = useMutation({
     mutationFn: ({ id, isVatDeductible }: { id: string; isVatDeductible: boolean }) =>
-      apiRequest("PATCH", `/api/treasury/transactions/${id}`, { isVatDeductible }).then(r => r.json()),
+      apiRequest(`/api/treasury/transactions/${id}`, "PATCH", { isVatDeductible }).then(r => r.json()),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/treasury/vat"] }),
     onError: () => toast({ title: "Erreur lors de la mise à jour", variant: "destructive" }),
   });
