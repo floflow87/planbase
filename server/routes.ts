@@ -15984,7 +15984,12 @@ app.get("/config/feature-flags", async (_req, res) => {
         LIMIT 1
       `);
 
-      const payments = (paidPayments as any[]) as Array<{
+      // 4. Fetch account default TVA rate from settings
+      const thresholdsSetting = await storage.getSetting('ACCOUNT', accountId, 'thresholds');
+      const thresholdsValue = thresholdsSetting?.value as any;
+      const defaultVatRate: number = thresholdsValue?.tva?.tauxTVA ?? 20;
+
+      const rawPayments = (paidPayments as any[]) as Array<{
         id: string; date: string; amount: string; vat_rate: string | null;
         vat_amount: string | null; description: string | null;
         project_name: string; billing_status: string | null; client_name: string | null;
@@ -15996,27 +16001,45 @@ app.get("/config/feature-flags", async (_req, res) => {
         category_name: string | null;
       }>;
 
-      // Compute totals
-      const collectedVat = payments.reduce((sum, p) => sum + parseFloat(p.vat_amount || "0"), 0);
+      // Compute effective VAT for each payment:
+      // - Use explicit vat_amount if set and > 0
+      // - Otherwise use payment's vat_rate or account default to estimate from TTC amount
+      // (amount is TTC → VAT = TTC × rate / (100 + rate))
+      const payments = rawPayments.map(p => {
+        const amount = parseFloat(p.amount || "0");
+        const explicitVat = parseFloat(p.vat_amount || "0");
+        const explicitRate = p.vat_rate ? parseFloat(p.vat_rate) : null;
+        const effectiveRate = explicitRate ?? defaultVatRate;
+        const estimatedVat = amount * effectiveRate / (100 + effectiveRate);
+        const effectiveVat = explicitVat > 0 ? explicitVat : estimatedVat;
+        return {
+          ...p,
+          effective_vat: effectiveVat,
+          effective_rate: effectiveRate,
+          is_vat_estimated: explicitVat <= 0,
+        };
+      });
+
+      // Compute totals using effective VAT
+      const collectedVat = payments.reduce((sum, p) => sum + p.effective_vat, 0);
       const deductibleVat = expenses
         .filter(e => e.is_vat_deductible !== false)
         .reduce((sum, e) => sum + parseFloat(e.vat_amount || "0"), 0);
       const vatDue = collectedVat - deductibleVat;
 
-      // Revenue HT = total payments - vat
+      // Revenue HT = TTC - effective VAT
       const revenueHt = payments.reduce((sum, p) => {
-        const total = parseFloat(p.amount || "0");
-        const vat = parseFloat(p.vat_amount || "0");
-        return sum + (total - vat);
+        return sum + (parseFloat(p.amount || "0") - p.effective_vat);
       }, 0);
 
-      // Alerts
-      const paymentsWithoutVat = payments.filter(p => !p.vat_amount || parseFloat(p.vat_amount) === 0);
+      // Alerts: flag payments with estimated VAT (no explicit amount)
+      const paymentsWithoutVat = payments.filter(p => p.is_vat_estimated);
       const expensesWithVatNotDeductible = expenses.filter(e => e.is_vat_deductible === false);
 
       res.json({
         periodStart: start,
         periodEnd: end,
+        defaultVatRate,
         collectedVat,
         deductibleVat,
         vatDue,

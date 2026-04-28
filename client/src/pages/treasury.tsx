@@ -3130,6 +3130,7 @@ type VatPayment = {
   id: string; date: string; amount: string; vat_rate: string | null;
   vat_amount: string | null; description: string | null;
   project_name: string; billing_status: string | null; client_name: string | null;
+  effective_vat: number; effective_rate: number; is_vat_estimated: boolean;
 };
 
 type VatExpense = {
@@ -3140,6 +3141,7 @@ type VatExpense = {
 
 type VatData = {
   periodStart: string; periodEnd: string;
+  defaultVatRate: number;
   collectedVat: number; deductibleVat: number; vatDue: number; revenueHt: number;
   payments: VatPayment[]; expenses: VatExpense[];
   periodStatus: { id: string; status: string; declared_at: string | null; paid_at: string | null } | null;
@@ -3213,12 +3215,12 @@ function TvaTabView() {
     rows.push(`TVA estimée à payer,${data.vatDue.toFixed(2)}`);
     rows.push("");
     rows.push("=== FACTURES ENCAISSÉES ===");
-    rows.push("Date,Client,Projet,Montant HT,TVA,Montant TTC,Taux TVA");
+    rows.push("Date,Client,Projet,Montant HT,TVA,Montant TTC,Taux TVA,TVA estimée");
     for (const p of data.payments) {
       const ttc = parseFloat(p.amount);
-      const vat = parseFloat(p.vat_amount || "0");
+      const vat = p.effective_vat;
       const ht = ttc - vat;
-      rows.push([fmtDate(p.date), p.client_name || "", p.project_name, ht.toFixed(2), vat.toFixed(2), ttc.toFixed(2), p.vat_rate ? `${p.vat_rate}%` : ""].join(","));
+      rows.push([fmtDate(p.date), p.client_name || "", p.project_name, ht.toFixed(2), vat.toFixed(2), ttc.toFixed(2), `${p.effective_rate}%`, p.is_vat_estimated ? "Oui" : "Non"].join(","));
     }
     rows.push("");
     rows.push("=== DÉPENSES ===");
@@ -3299,10 +3301,16 @@ function TvaTabView() {
       </div>
 
       {/* Alerts */}
+      {data?.defaultVatRate !== undefined && (
+        <div className="flex items-center gap-2 rounded-md border border-muted bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          <Info className="h-3.5 w-3.5 shrink-0" />
+          Taux TVA par défaut du compte : <span className="font-semibold text-foreground">{data.defaultVatRate}%</span>. Appliqué automatiquement aux factures sans taux explicite.
+        </div>
+      )}
       {data?.alerts.paymentsWithoutVat && (
         <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800/40 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
           <CircleAlert className="h-3.5 w-3.5 shrink-0" />
-          Certaines factures encaissées n'ont pas de montant TVA renseigné.
+          Certaines factures n'ont pas de TVA explicite — le taux par défaut ({data.defaultVatRate}%) a été appliqué pour l'estimation.
         </div>
       )}
       {data?.alerts.expensesWithVatNotDeductible && (
@@ -3406,25 +3414,26 @@ function TvaTabView() {
                     <tbody>
                       {(data?.payments ?? []).map((p) => {
                         const ttc = parseFloat(p.amount);
-                        const vat = parseFloat(p.vat_amount || "0");
+                        const vat = p.effective_vat;
                         const ht = ttc - vat;
-                        const missingVat = !p.vat_amount || vat === 0;
                         return (
                           <tr key={p.id} className="border-b last:border-0 hover-elevate">
                             <td className="px-3 py-2 tabular-nums whitespace-nowrap">{fmtDate(p.date)}</td>
                             <td className="px-3 py-2 text-muted-foreground">{p.client_name || "—"}</td>
                             <td className="px-3 py-2">{p.project_name}</td>
                             <td className="px-3 py-2 text-right tabular-nums">{fmt(ht)}</td>
-                            <td className={`px-3 py-2 text-right tabular-nums ${missingVat ? "text-amber-600 dark:text-amber-400" : ""}`}>
-                              {missingVat ? (
-                                <span className="flex items-center justify-end gap-1">
-                                  {fmt(0)}
-                                  <AlertTriangle className="h-2.5 w-2.5" />
+                            <td className="px-3 py-2 text-right tabular-nums">
+                              {p.is_vat_estimated ? (
+                                <span className="flex items-center justify-end gap-1 text-amber-600 dark:text-amber-400" title="TVA estimée à partir du taux par défaut">
+                                  {fmt(vat)}
+                                  <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
                                 </span>
                               ) : fmt(vat)}
                             </td>
                             <td className="px-3 py-2 text-right tabular-nums font-medium">{fmt(ttc)}</td>
-                            <td className="px-3 py-2 text-muted-foreground">{p.vat_rate ? `${p.vat_rate}%` : "—"}</td>
+                            <td className="px-3 py-2 text-muted-foreground">
+                              {p.effective_rate}%{p.is_vat_estimated && <span className="text-amber-500 ml-1" title="Taux par défaut">*</span>}
+                            </td>
                           </tr>
                         );
                       })}
@@ -3436,7 +3445,7 @@ function TvaTabView() {
                       <tfoot>
                         <tr className="border-t bg-muted/20 font-semibold">
                           <td colSpan={3} className="px-3 py-2">Total</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{fmt((data?.payments ?? []).reduce((s, p) => s + parseFloat(p.amount) - parseFloat(p.vat_amount || "0"), 0))}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{fmt((data?.payments ?? []).reduce((s, p) => s + parseFloat(p.amount) - p.effective_vat, 0))}</td>
                           <td className="px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{fmt(data?.collectedVat ?? 0)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{fmt((data?.payments ?? []).reduce((s, p) => s + parseFloat(p.amount), 0))}</td>
                           <td />
@@ -3533,7 +3542,9 @@ function TreasuryPageInner() {
   const [chartMode, setChartMode] = useState<"real" | "projected">(() =>
     (localStorage.getItem("treasury_chart_mode") as "real" | "projected") ?? "projected"
   );
-  const [viewMode, setViewMode] = useState<"chart" | "synthesis">("synthesis");
+  const [viewMode, setViewMode] = useState<"chart" | "synthesis">(() =>
+    (localStorage.getItem("treasury_view_mode") as "chart" | "synthesis") ?? "synthesis"
+  );
   const [filterType, setFilterType] = useState<"all" | "income" | "expense">("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterProjects, setFilterProjects] = useState<string[]>([]);
@@ -3556,6 +3567,7 @@ function TreasuryPageInner() {
   const [tagInput, setTagInput] = useState("");
 
   useEffect(() => { localStorage.setItem("treasury_chart_mode", chartMode); }, [chartMode]);
+  useEffect(() => { localStorage.setItem("treasury_view_mode", viewMode); }, [viewMode]);
 
   const { data, isLoading, error } = useQuery<TreasuryData>({
     queryKey: ["/api/treasury/flows"],
