@@ -3406,7 +3406,9 @@ function TvaTabView() {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">TVA collectée</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                {data?.isBelowThreshold ? "TVA collectée hypothétique" : "TVA collectée"}
+              </p>
               <p className="text-lg font-bold mt-1 tabular-nums text-emerald-600 dark:text-emerald-400">{fmt(data?.collectedVat ?? 0)}</p>
             </CardContent>
           </Card>
