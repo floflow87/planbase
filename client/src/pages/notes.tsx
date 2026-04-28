@@ -1,4 +1,4 @@
-import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, FileText, Trash2, MoreVertical, CheckCircle2, Copy, Globe, GripVertical, ArrowUp, ArrowDown, ArrowUpDown, Star, Settings2, FolderKanban, ChevronDown, ChevronRight, ChevronsUpDown, Check, ExternalLink } from "lucide-react";
+import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, FileText, Trash2, MoreVertical, CheckCircle2, Copy, Globe, GripVertical, ArrowUp, ArrowDown, ArrowUpDown, Star, Settings2, FolderKanban, ChevronDown, ChevronRight, ChevronsUpDown, Check, ExternalLink, Palette } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader } from "@/components/Loader";
@@ -133,6 +133,21 @@ function SortableNoteColumnHeader({
   );
 }
 
+const GROUP_COLORS = [
+  { id: 'violet',  hex: '#7C3AED' },
+  { id: 'indigo',  hex: '#4338CA' },
+  { id: 'blue',    hex: '#2563EB' },
+  { id: 'cyan',    hex: '#0891B2' },
+  { id: 'teal',    hex: '#0D9488' },
+  { id: 'green',   hex: '#16A34A' },
+  { id: 'lime',    hex: '#65A30D' },
+  { id: 'yellow',  hex: '#CA8A04' },
+  { id: 'orange',  hex: '#EA580C' },
+  { id: 'red',     hex: '#DC2626' },
+  { id: 'pink',    hex: '#DB2777' },
+  { id: 'slate',   hex: '#475569' },
+];
+
 export default function Notes() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -168,7 +183,11 @@ export default function Notes() {
     return (saved as "none" | "project" | "status" | "visibility" | "favorite" | "tag") || "none";
   });
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  
+  const [groupColors, setGroupColors] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem('noteGroupColors');
+    return saved ? JSON.parse(saved) : {};
+  });
+
   // Advanced filter panel state with localStorage persistence
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [filterByTag, setFilterByTag] = useState<string | null>(() => {
@@ -394,6 +413,23 @@ export default function Notes() {
     localStorage.setItem('noteListGroupBy', groupBy);
     setCollapsedGroups(new Set());
   }, [groupBy]);
+
+  // Save group colors to localStorage
+  useEffect(() => {
+    localStorage.setItem('noteGroupColors', JSON.stringify(groupColors));
+  }, [groupColors]);
+
+  const setGroupColor = (groupKey: string, hex: string | null) => {
+    setGroupColors(prev => {
+      const next = { ...prev };
+      if (hex === null) {
+        delete next[groupKey];
+      } else {
+        next[groupKey] = hex;
+      }
+      return next;
+    });
+  };
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -1572,24 +1608,86 @@ export default function Notes() {
               groupedNotes.map((group) => (
                 <div key={group.groupKey}>
                   {/* Group Header - only show when grouping is enabled */}
-                  {groupBy !== "none" && (
-                    <div 
-                      className="flex items-center gap-2 px-4 py-2 bg-muted/40 border-b border-border cursor-pointer hover:bg-muted/60"
-                      onClick={() => toggleGroupCollapse(group.groupKey)}
-                      data-testid={`group-header-${group.groupKey}`}
-                    >
-                      {collapsedGroups.has(group.groupKey) ? (
-                        <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                      )}
-                      <FolderKanban className="h-3 w-3 text-violet-500" />
-                      <span className="font-medium text-xs">{group.groupName}</span>
-                      <Badge variant="secondary" className="text-[10px]">
-                        {group.notes.length}
-                      </Badge>
-                    </div>
-                  )}
+                  {groupBy !== "none" && (() => {
+                    const activeHex = groupColors[group.groupKey] || null;
+                    const headerStyle = activeHex
+                      ? { backgroundColor: `${activeHex}18`, borderLeft: `3px solid ${activeHex}` }
+                      : { borderLeft: '3px solid transparent' };
+                    return (
+                      <div
+                        className="group/groupheader flex items-center gap-2 px-4 py-1.5 border-b border-border"
+                        style={headerStyle}
+                        data-testid={`group-header-${group.groupKey}`}
+                      >
+                        <div
+                          className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
+                          onClick={() => toggleGroupCollapse(group.groupKey)}
+                        >
+                          {collapsedGroups.has(group.groupKey) ? (
+                            <ChevronRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          ) : (
+                            <ChevronDown className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          )}
+                          <FolderKanban
+                            className="h-3 w-3 flex-shrink-0"
+                            style={{ color: activeHex || '#7C3AED' }}
+                          />
+                          <span className="font-medium text-xs truncate">{group.groupName}</span>
+                          <Badge variant="secondary" className="text-[10px] flex-shrink-0">
+                            {group.notes.length}
+                          </Badge>
+                        </div>
+                        {/* Color picker */}
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-5 w-5 opacity-0 group-hover/groupheader:opacity-100 transition-opacity flex-shrink-0"
+                              onClick={(e) => e.stopPropagation()}
+                              data-testid={`button-group-color-${group.groupKey}`}
+                            >
+                              <Palette className="h-3 w-3 text-muted-foreground" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            className="w-auto p-2"
+                            align="end"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <p className="text-[10px] text-muted-foreground mb-2 font-medium">Couleur du groupe</p>
+                            <div className="grid grid-cols-6 gap-1.5">
+                              {GROUP_COLORS.map((color) => (
+                                <button
+                                  key={color.id}
+                                  className="w-5 h-5 rounded-full ring-offset-1 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-1"
+                                  style={{
+                                    backgroundColor: color.hex,
+                                    ringColor: color.hex,
+                                    outline: activeHex === color.hex ? `2px solid ${color.hex}` : undefined,
+                                    outlineOffset: activeHex === color.hex ? '2px' : undefined,
+                                  }}
+                                  onClick={() => setGroupColor(group.groupKey, activeHex === color.hex ? null : color.hex)}
+                                  data-testid={`button-group-color-swatch-${color.id}`}
+                                  title={color.id}
+                                />
+                              ))}
+                            </div>
+                            {activeHex && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full mt-2 text-[10px] h-6 text-muted-foreground"
+                                onClick={() => setGroupColor(group.groupKey, null)}
+                              >
+                                Réinitialiser
+                              </Button>
+                            )}
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    );
+                  })()}
                   
                   {/* Group Notes - hide if collapsed */}
                   {!collapsedGroups.has(group.groupKey) && group.notes.map((note) => {
