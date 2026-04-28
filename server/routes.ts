@@ -119,6 +119,8 @@ import {
   clients,
   automations,
   insertAutomationSchema,
+  vatPeriods,
+  projectPayments,
 } from "@shared/schema";
 import { requireAuth, requireRole, optionalAuth, requireOrgMember, requireOrgAdmin, requirePermission, isPlatformAdmin } from "./middleware/auth";
 import { permissionService } from "./services/permissionService";
@@ -15917,6 +15919,173 @@ app.get("/config/feature-flags", async (_req, res) => {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // ─── TVA / VAT ROUTES ─────────────────────────────────────────────────────
+
+  // GET /api/treasury/vat?start=YYYY-MM-DD&end=YYYY-MM-DD
+  app.get("/api/treasury/vat", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { start, end } = req.query as { start?: string; end?: string };
+
+      if (!start || !end) {
+        return res.status(400).json({ error: "start and end query params are required" });
+      }
+
+      // 1. TVA collectée : project_payments where is_paid=true and payment_date in range
+      const paidPayments = await db.execute(sql`
+        SELECT
+          pp.id,
+          pp.payment_date AS date,
+          pp.amount,
+          pp.vat_rate,
+          pp.vat_amount,
+          pp.description,
+          p.name AS project_name,
+          p.billing_status,
+          c.name AS client_name
+        FROM project_payments pp
+        JOIN projects p ON p.id = pp.project_id
+        LEFT JOIN clients c ON c.id = p.client_id
+        WHERE pp.account_id = ${accountId}
+          AND pp.is_paid = true
+          AND pp.payment_date >= ${start}::date
+          AND pp.payment_date <= ${end}::date
+        ORDER BY pp.payment_date DESC
+      `);
+
+      // 2. TVA déductible : treasury_transactions where type=expense and vat_amount is not null in range
+      const expenseTransactions = await db.execute(sql`
+        SELECT
+          tt.id,
+          tt.date,
+          tt.amount,
+          tt.vat_amount,
+          tt.is_vat_deductible,
+          tt.label,
+          tt.description,
+          tc.name AS category_name
+        FROM treasury_transactions tt
+        LEFT JOIN treasury_categories tc ON tc.id = tt.category_id
+        WHERE tt.account_id = ${accountId}
+          AND tt.type = 'expense'
+          AND tt.vat_amount IS NOT NULL
+          AND tt.date >= ${start}::date
+          AND tt.date <= ${end}::date
+        ORDER BY tt.date DESC
+      `);
+
+      // 3. Load vatPeriod status for this range if it exists
+      const periodStatusResult = await db.execute(sql`
+        SELECT * FROM vat_periods
+        WHERE account_id = ${accountId}
+          AND period_start = ${start}::date
+          AND period_end = ${end}::date
+        LIMIT 1
+      `);
+
+      const payments = paidPayments.rows as Array<{
+        id: string; date: string; amount: string; vat_rate: string | null;
+        vat_amount: string | null; description: string | null;
+        project_name: string; billing_status: string | null; client_name: string | null;
+      }>;
+
+      const expenses = expenseTransactions.rows as Array<{
+        id: string; date: string; amount: string; vat_amount: string | null;
+        is_vat_deductible: boolean | null; label: string; description: string | null;
+        category_name: string | null;
+      }>;
+
+      // Compute totals
+      const collectedVat = payments.reduce((sum, p) => sum + parseFloat(p.vat_amount || "0"), 0);
+      const deductibleVat = expenses
+        .filter(e => e.is_vat_deductible !== false)
+        .reduce((sum, e) => sum + parseFloat(e.vat_amount || "0"), 0);
+      const vatDue = collectedVat - deductibleVat;
+
+      // Revenue HT = total payments - vat
+      const revenueHt = payments.reduce((sum, p) => {
+        const total = parseFloat(p.amount || "0");
+        const vat = parseFloat(p.vat_amount || "0");
+        return sum + (total - vat);
+      }, 0);
+
+      // Alerts
+      const paymentsWithoutVat = payments.filter(p => !p.vat_amount || parseFloat(p.vat_amount) === 0);
+      const expensesWithVatNotDeductible = expenses.filter(e => e.is_vat_deductible === false);
+
+      res.json({
+        periodStart: start,
+        periodEnd: end,
+        collectedVat,
+        deductibleVat,
+        vatDue,
+        revenueHt,
+        payments,
+        expenses,
+        periodStatus: periodStatusResult.rows[0] || null,
+        alerts: {
+          paymentsWithoutVat: paymentsWithoutVat.length > 0,
+          expensesWithVatNotDeductible: expensesWithVatNotDeductible.length > 0,
+        },
+      });
+    } catch (error: any) {
+      console.error("❌ GET /api/treasury/vat error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/treasury/vat-periods — upsert period status
+  app.post("/api/treasury/vat-periods", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { periodStart, periodEnd, status, collectedVat, deductibleVat, vatDue } = req.body;
+
+      if (!periodStart || !periodEnd || !status) {
+        return res.status(400).json({ error: "periodStart, periodEnd and status are required" });
+      }
+
+      const validStatuses = ["to_review", "verified", "declared", "paid"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+
+      const declaredAt = status === "declared" || status === "paid" ? new Date() : null;
+      const paidAt = status === "paid" ? new Date() : null;
+
+      const result = await db.execute(sql`
+        INSERT INTO vat_periods (account_id, period_start, period_end, collected_vat, deductible_vat, vat_due, status, declared_at, paid_at, updated_at)
+        VALUES (
+          ${accountId},
+          ${periodStart}::date,
+          ${periodEnd}::date,
+          ${collectedVat || 0},
+          ${deductibleVat || 0},
+          ${vatDue || 0},
+          ${status},
+          ${declaredAt},
+          ${paidAt},
+          now()
+        )
+        ON CONFLICT (account_id, period_start, period_end) DO UPDATE SET
+          status = EXCLUDED.status,
+          collected_vat = EXCLUDED.collected_vat,
+          deductible_vat = EXCLUDED.deductible_vat,
+          vat_due = EXCLUDED.vat_due,
+          declared_at = COALESCE(vat_periods.declared_at, EXCLUDED.declared_at),
+          paid_at = COALESCE(vat_periods.paid_at, EXCLUDED.paid_at),
+          updated_at = now()
+        RETURNING *
+      `);
+
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      console.error("❌ POST /api/treasury/vat-periods error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────────
 
   app.post("/api/seed", async (req, res) => {
     try {

@@ -514,6 +514,8 @@ export const projectPayments = pgTable("project_payments", {
   paymentDate: date("payment_date").notNull(),
   description: text("description"),
   isPaid: boolean("is_paid").notNull().default(false),
+  vatRate: numeric("vat_rate", { precision: 5, scale: 2 }),
+  vatAmount: numeric("vat_amount", { precision: 14, scale: 2 }),
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -2465,6 +2467,8 @@ export const treasuryTransactions = pgTable("treasury_transactions", {
   status: text("status").notNull().default("planned"), // 'planned' | 'confirmed' | 'received' | 'paid' | 'cancelled'
   recurrence: text("recurrence").default("none"), // 'none' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
   tags: text("tags").array().default([]),
+  vatAmount: numeric("vat_amount", { precision: 14, scale: 2 }),
+  isVatDeductible: boolean("is_vat_deductible").default(false),
   createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -2554,6 +2558,32 @@ export const aiFallbackEvents = pgTable("ai_fallback_events", {
 export const insertAiFallbackEventSchema = createInsertSchema(aiFallbackEvents).omit({ id: true, createdAt: true });
 export type InsertAiFallbackEvent = z.infer<typeof insertAiFallbackEventSchema>;
 export type AiFallbackEvent = typeof aiFallbackEvents.$inferSelect;
+
+// ============================================
+// VAT PERIODS (TVA summaries per period)
+// ============================================
+
+export const vatPeriods = pgTable("vat_periods", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  periodStart: date("period_start").notNull(),
+  periodEnd: date("period_end").notNull(),
+  collectedVat: numeric("collected_vat", { precision: 14, scale: 2 }).notNull().default("0"),
+  deductibleVat: numeric("deductible_vat", { precision: 14, scale: 2 }).notNull().default("0"),
+  vatDue: numeric("vat_due", { precision: 14, scale: 2 }).notNull().default("0"),
+  status: text("status").notNull().default("to_review"), // 'to_review' | 'verified' | 'declared' | 'paid'
+  declaredAt: timestamp("declared_at", { withTimezone: true }),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index("vat_periods_account_idx").on(table.accountId),
+  accountPeriodIdx: uniqueIndex("vat_periods_account_period_idx").on(table.accountId, table.periodStart, table.periodEnd),
+}));
+
+export const insertVatPeriodSchema = createInsertSchema(vatPeriods).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertVatPeriod = z.infer<typeof insertVatPeriodSchema>;
+export type VatPeriod = typeof vatPeriods.$inferSelect;
 
 // Billing Status Options - Re-exported from centralized config for backwards compatibility
 export { 

@@ -3038,6 +3038,55 @@ export async function runStartupMigrations() {
       console.warn("⚠️  AI fallback events table migration (non-blocking):", e.message);
     }
 
+    // ── VAT fields on project_payments ──
+    try {
+      await db.execute(sql`ALTER TABLE project_payments ADD COLUMN IF NOT EXISTS vat_rate numeric(5, 2)`);
+      await db.execute(sql`ALTER TABLE project_payments ADD COLUMN IF NOT EXISTS vat_amount numeric(14, 2)`);
+      console.log("✅ VAT columns added to project_payments");
+    } catch (e: any) {
+      console.warn("⚠️  project_payments VAT columns (non-blocking):", e.message);
+    }
+
+    // ── VAT fields on treasury_transactions ──
+    try {
+      await db.execute(sql`ALTER TABLE treasury_transactions ADD COLUMN IF NOT EXISTS vat_amount numeric(14, 2)`);
+      await db.execute(sql`ALTER TABLE treasury_transactions ADD COLUMN IF NOT EXISTS is_vat_deductible boolean DEFAULT false`);
+      console.log("✅ VAT columns added to treasury_transactions");
+    } catch (e: any) {
+      console.warn("⚠️  treasury_transactions VAT columns (non-blocking):", e.message);
+    }
+
+    // ── VAT periods table ──
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS vat_periods (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+          period_start date NOT NULL,
+          period_end date NOT NULL,
+          collected_vat numeric(14, 2) NOT NULL DEFAULT 0,
+          deductible_vat numeric(14, 2) NOT NULL DEFAULT 0,
+          vat_due numeric(14, 2) NOT NULL DEFAULT 0,
+          status text NOT NULL DEFAULT 'to_review',
+          declared_at timestamptz,
+          paid_at timestamptz,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `);
+      await db.execute(sql`
+        CREATE INDEX IF NOT EXISTS vat_periods_account_idx ON vat_periods(account_id)
+      `);
+      await db.execute(sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS vat_periods_account_period_idx
+        ON vat_periods(account_id, period_start, period_end)
+      `);
+      console.log("✅ vat_periods table created");
+    } catch (e: any) {
+      console.warn("⚠️  vat_periods table migration (non-blocking):", e.message);
+    }
+    // ─────────────────────────────────────────────────────────────
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

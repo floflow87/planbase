@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -60,6 +61,11 @@ import {
   CheckCircle2,
   Zap,
   CornerDownRight,
+  Receipt,
+  Download,
+  BadgePercent,
+  CircleAlert,
+  CheckCheck,
 } from "lucide-react";
 import {
   Dialog,
@@ -2991,6 +2997,402 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   );
 }
 
+// ── TVA Tab ────────────────────────────────────────────────────────────────────
+
+type VatPayment = {
+  id: string; date: string; amount: string; vat_rate: string | null;
+  vat_amount: string | null; description: string | null;
+  project_name: string; billing_status: string | null; client_name: string | null;
+};
+
+type VatExpense = {
+  id: string; date: string; amount: string; vat_amount: string | null;
+  is_vat_deductible: boolean | null; label: string; description: string | null;
+  category_name: string | null;
+};
+
+type VatData = {
+  periodStart: string; periodEnd: string;
+  collectedVat: number; deductibleVat: number; vatDue: number; revenueHt: number;
+  payments: VatPayment[]; expenses: VatExpense[];
+  periodStatus: { id: string; status: string; declared_at: string | null; paid_at: string | null } | null;
+  alerts: { paymentsWithoutVat: boolean; expensesWithVatNotDeductible: boolean };
+};
+
+const VAT_PERIOD_STATUSES = [
+  { value: "to_review", label: "À vérifier", color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" },
+  { value: "verified", label: "Vérifiée", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
+  { value: "declared", label: "Déclarée", color: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300" },
+  { value: "paid", label: "Payée", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" },
+];
+
+function fmtDate(d: string) {
+  return new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function TvaTabView() {
+  const { toast } = useToast();
+
+  const now = new Date();
+  const currentStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const currentEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+
+  const prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
+  const prevEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
+
+  const [periodPreset, setPeriodPreset] = useState<"current" | "previous" | "custom">("current");
+  const [customStart, setCustomStart] = useState(currentStart);
+  const [customEnd, setCustomEnd] = useState(currentEnd);
+  const [vatTab, setVatTab] = useState<"collected" | "deductible">("collected");
+
+  const start = periodPreset === "current" ? currentStart : periodPreset === "previous" ? prevStart : customStart;
+  const end = periodPreset === "current" ? currentEnd : periodPreset === "previous" ? prevEnd : customEnd;
+
+  const { data, isLoading, isError, refetch } = useQuery<VatData>({
+    queryKey: ["/api/treasury/vat", start, end],
+    queryFn: () => apiRequest("GET", `/api/treasury/vat?start=${start}&end=${end}`).then(r => r.json()),
+  });
+
+  const saveStatusMutation = useMutation({
+    mutationFn: (status: string) =>
+      apiRequest("POST", "/api/treasury/vat-periods", {
+        periodStart: start, periodEnd: end, status,
+        collectedVat: data?.collectedVat ?? 0,
+        deductibleVat: data?.deductibleVat ?? 0,
+        vatDue: data?.vatDue ?? 0,
+      }).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/treasury/vat"] });
+      toast({ title: "Statut de la période mis à jour" });
+    },
+    onError: () => toast({ title: "Erreur lors de la mise à jour", variant: "destructive" }),
+  });
+
+  const toggleDeductibleMutation = useMutation({
+    mutationFn: ({ id, isVatDeductible }: { id: string; isVatDeductible: boolean }) =>
+      apiRequest("PATCH", `/api/treasury/transactions/${id}`, { isVatDeductible }).then(r => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/treasury/vat"] }),
+    onError: () => toast({ title: "Erreur lors de la mise à jour", variant: "destructive" }),
+  });
+
+  function exportCsv() {
+    if (!data) return;
+    const rows: string[] = [];
+    rows.push("=== RÉCAPITULATIF TVA ===");
+    rows.push(`Période,${fmtDate(start)} - ${fmtDate(end)}`);
+    rows.push(`CA HT encaissé,${data.revenueHt.toFixed(2)}`);
+    rows.push(`TVA collectée,${data.collectedVat.toFixed(2)}`);
+    rows.push(`TVA déductible,${data.deductibleVat.toFixed(2)}`);
+    rows.push(`TVA estimée à payer,${data.vatDue.toFixed(2)}`);
+    rows.push("");
+    rows.push("=== FACTURES ENCAISSÉES ===");
+    rows.push("Date,Client,Projet,Montant HT,TVA,Montant TTC,Taux TVA");
+    for (const p of data.payments) {
+      const ttc = parseFloat(p.amount);
+      const vat = parseFloat(p.vat_amount || "0");
+      const ht = ttc - vat;
+      rows.push([fmtDate(p.date), p.client_name || "", p.project_name, ht.toFixed(2), vat.toFixed(2), ttc.toFixed(2), p.vat_rate ? `${p.vat_rate}%` : ""].join(","));
+    }
+    rows.push("");
+    rows.push("=== DÉPENSES ===");
+    rows.push("Date,Fournisseur,Catégorie,Montant HT,TVA,Montant TTC,Déductible");
+    for (const e of data.expenses) {
+      const ttc = parseFloat(e.amount);
+      const vat = parseFloat(e.vat_amount || "0");
+      const ht = ttc - vat;
+      rows.push([fmtDate(e.date), e.label, e.category_name || "", ht.toFixed(2), vat.toFixed(2), ttc.toFixed(2), e.is_vat_deductible !== false ? "Oui" : "Non"].join(","));
+    }
+    const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `recap-tva-${start}-${end}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const currentPeriodStatus = data?.periodStatus;
+  const statusInfo = VAT_PERIOD_STATUSES.find(s => s.value === (currentPeriodStatus?.status ?? "to_review")) ?? VAT_PERIOD_STATUSES[0];
+  const vatDue = data?.vatDue ?? 0;
+  const isEmpty = !isLoading && !isError && data && data.payments.length === 0 && data.expenses.length === 0;
+
+  return (
+    <div className="flex-1 overflow-y-auto p-5 space-y-5">
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-semibold text-sm flex items-center gap-2">
+            <BadgePercent className="h-4 w-4 text-primary" />
+            TVA
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Récapitulatif estimatif de la TVA à déclarer à partir de vos factures encaissées et dépenses.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Period selector */}
+          <Select value={periodPreset} onValueChange={(v) => setPeriodPreset(v as typeof periodPreset)}>
+            <SelectTrigger className="h-8 text-xs w-44" data-testid="select-vat-period">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="current" className="text-xs">Mois courant</SelectItem>
+              <SelectItem value="previous" className="text-xs">Mois précédent</SelectItem>
+              <SelectItem value="custom" className="text-xs">Période personnalisée</SelectItem>
+            </SelectContent>
+          </Select>
+          {periodPreset === "custom" && (
+            <>
+              <Input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="h-8 text-xs w-36" />
+              <span className="text-xs text-muted-foreground">→</span>
+              <Input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="h-8 text-xs w-36" />
+            </>
+          )}
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={!data} data-testid="button-export-vat-csv" className="h-8 gap-1.5 text-xs">
+            <Download className="h-3 w-3" />
+            Exporter CSV
+          </Button>
+        </div>
+      </div>
+
+      {/* Period status */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground">Statut de la période :</span>
+        {VAT_PERIOD_STATUSES.map(s => (
+          <button
+            key={s.value}
+            onClick={() => saveStatusMutation.mutate(s.value)}
+            disabled={saveStatusMutation.isPending}
+            className={`text-xs px-2 py-0.5 rounded-md border transition-opacity ${s.color} ${(currentPeriodStatus?.status ?? "to_review") === s.value ? "ring-2 ring-primary ring-offset-1 opacity-100" : "opacity-60 hover:opacity-100"}`}
+            data-testid={`button-vat-status-${s.value}`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Alerts */}
+      {data?.alerts.paymentsWithoutVat && (
+        <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800/40 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+          <CircleAlert className="h-3.5 w-3.5 shrink-0" />
+          Certaines factures encaissées n'ont pas de montant TVA renseigné.
+        </div>
+      )}
+      {data?.alerts.expensesWithVatNotDeductible && (
+        <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800/40 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+          <CircleAlert className="h-3.5 w-3.5 shrink-0" />
+          Certaines dépenses ont une TVA renseignée mais ne sont pas marquées comme déductibles.
+        </div>
+      )}
+      <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 dark:border-blue-800/40 dark:bg-blue-900/20 px-3 py-2 text-xs text-blue-800 dark:text-blue-300">
+        <Info className="h-3.5 w-3.5 shrink-0" />
+        Ce récap est indicatif et doit être vérifié avant déclaration officielle.
+      </div>
+
+      {/* KPI cards */}
+      {isLoading ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 rounded-lg" />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">CA HT encaissé</p>
+              <p className="text-lg font-bold mt-1 tabular-nums">{fmt(data?.revenueHt ?? 0)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">TVA collectée</p>
+              <p className="text-lg font-bold mt-1 tabular-nums text-emerald-600 dark:text-emerald-400">{fmt(data?.collectedVat ?? 0)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">TVA déductible</p>
+              <p className="text-lg font-bold mt-1 tabular-nums text-blue-600 dark:text-blue-400">{fmt(data?.deductibleVat ?? 0)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                {vatDue >= 0 ? "TVA estimée à payer" : "Crédit de TVA estimé"}
+              </p>
+              <p className={`text-lg font-bold mt-1 tabular-nums ${vatDue >= 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                {fmt(Math.abs(vatDue))}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {isEmpty ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+            <BadgePercent className="h-8 w-8 text-muted-foreground/40" />
+            <p className="font-medium text-sm">Aucune TVA à afficher pour cette période</p>
+            <p className="text-xs text-muted-foreground max-w-xs">
+              Les factures encaissées et dépenses avec TVA apparaîtront ici automatiquement.
+            </p>
+          </CardContent>
+        </Card>
+      ) : isError ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-10 gap-2 text-center">
+            <AlertTriangle className="h-6 w-6 text-destructive" />
+            <p className="text-sm text-destructive">Erreur lors du chargement des données TVA.</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>Réessayer</Button>
+          </CardContent>
+        </Card>
+      ) : (
+        /* Detail tabs */
+        <Tabs value={vatTab} onValueChange={(v) => setVatTab(v as typeof vatTab)}>
+          <TabsList className="h-8">
+            <TabsTrigger value="collected" className="text-xs h-7 gap-1.5" data-testid="tab-vat-collected">
+              <ArrowUpRight className="h-3 w-3" />
+              TVA collectée ({data?.payments.length ?? 0})
+            </TabsTrigger>
+            <TabsTrigger value="deductible" className="text-xs h-7 gap-1.5" data-testid="tab-vat-deductible">
+              <ArrowDownLeft className="h-3 w-3" />
+              TVA déductible ({data?.expenses.length ?? 0})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="collected" className="mt-3">
+            <Card>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/30">
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Date</th>
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Client</th>
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Projet</th>
+                        <th className="px-3 py-2 text-right font-medium text-muted-foreground">Montant HT</th>
+                        <th className="px-3 py-2 text-right font-medium text-muted-foreground">TVA</th>
+                        <th className="px-3 py-2 text-right font-medium text-muted-foreground">Montant TTC</th>
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Taux</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(data?.payments ?? []).map((p) => {
+                        const ttc = parseFloat(p.amount);
+                        const vat = parseFloat(p.vat_amount || "0");
+                        const ht = ttc - vat;
+                        const missingVat = !p.vat_amount || vat === 0;
+                        return (
+                          <tr key={p.id} className="border-b last:border-0 hover-elevate">
+                            <td className="px-3 py-2 tabular-nums whitespace-nowrap">{fmtDate(p.date)}</td>
+                            <td className="px-3 py-2 text-muted-foreground">{p.client_name || "—"}</td>
+                            <td className="px-3 py-2">{p.project_name}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{fmt(ht)}</td>
+                            <td className={`px-3 py-2 text-right tabular-nums ${missingVat ? "text-amber-600 dark:text-amber-400" : ""}`}>
+                              {missingVat ? (
+                                <span className="flex items-center justify-end gap-1">
+                                  {fmt(0)}
+                                  <AlertTriangle className="h-2.5 w-2.5" />
+                                </span>
+                              ) : fmt(vat)}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums font-medium">{fmt(ttc)}</td>
+                            <td className="px-3 py-2 text-muted-foreground">{p.vat_rate ? `${p.vat_rate}%` : "—"}</td>
+                          </tr>
+                        );
+                      })}
+                      {data && data.payments.length === 0 && (
+                        <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">Aucune facture encaissée sur cette période.</td></tr>
+                      )}
+                    </tbody>
+                    {(data?.payments.length ?? 0) > 0 && (
+                      <tfoot>
+                        <tr className="border-t bg-muted/20 font-semibold">
+                          <td colSpan={3} className="px-3 py-2">Total</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{fmt((data?.payments ?? []).reduce((s, p) => s + parseFloat(p.amount) - parseFloat(p.vat_amount || "0"), 0))}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{fmt(data?.collectedVat ?? 0)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{fmt((data?.payments ?? []).reduce((s, p) => s + parseFloat(p.amount), 0))}</td>
+                          <td />
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="deductible" className="mt-3">
+            <Card>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/30">
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Date</th>
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Fournisseur / Libellé</th>
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Catégorie</th>
+                        <th className="px-3 py-2 text-right font-medium text-muted-foreground">Montant HT</th>
+                        <th className="px-3 py-2 text-right font-medium text-muted-foreground">TVA</th>
+                        <th className="px-3 py-2 text-right font-medium text-muted-foreground">Montant TTC</th>
+                        <th className="px-3 py-2 text-center font-medium text-muted-foreground">Déductible</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(data?.expenses ?? []).map((e) => {
+                        const ttc = parseFloat(e.amount);
+                        const vat = parseFloat(e.vat_amount || "0");
+                        const ht = ttc - vat;
+                        const isDeductible = e.is_vat_deductible !== false;
+                        return (
+                          <tr key={e.id} className="border-b last:border-0 hover-elevate">
+                            <td className="px-3 py-2 tabular-nums whitespace-nowrap">{fmtDate(e.date)}</td>
+                            <td className="px-3 py-2">{e.label}</td>
+                            <td className="px-3 py-2 text-muted-foreground">{e.category_name || "—"}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{fmt(ht)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{fmt(vat)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums font-medium">{fmt(ttc)}</td>
+                            <td className="px-3 py-2 text-center">
+                              <Switch
+                                checked={isDeductible}
+                                onCheckedChange={(v) => toggleDeductibleMutation.mutate({ id: e.id, isVatDeductible: v })}
+                                data-testid={`switch-vat-deductible-${e.id}`}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {data && data.expenses.length === 0 && (
+                        <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">Aucune dépense avec TVA sur cette période.</td></tr>
+                      )}
+                    </tbody>
+                    {(data?.expenses.length ?? 0) > 0 && (
+                      <tfoot>
+                        <tr className="border-t bg-muted/20 font-semibold">
+                          <td colSpan={3} className="px-3 py-2">Total déductible</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{fmt((data?.expenses ?? []).filter(e => e.is_vat_deductible !== false).reduce((s, e) => s + parseFloat(e.amount) - parseFloat(e.vat_amount || "0"), 0))}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-blue-600 dark:text-blue-400">{fmt(data?.deductibleVat ?? 0)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{fmt((data?.expenses ?? []).filter(e => e.is_vat_deductible !== false).reduce((s, e) => s + parseFloat(e.amount), 0))}</td>
+                          <td />
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      )}
+
+      {/* Footer disclaimer */}
+      <p className="text-[10px] text-muted-foreground text-center pt-2 pb-4">
+        Ce récapitulatif est fourni à titre indicatif. La déclaration officielle doit être vérifiée et effectuée depuis votre espace professionnel impots.gouv.fr ou avec votre comptable.
+      </p>
+    </div>
+  );
+}
+
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 import { PremiumGate } from "@/components/billing/PremiumGate";
@@ -2999,7 +3401,7 @@ function TreasuryPageInner() {
   const { toast } = useToast();
   const { t } = useLanguage();
 
-  const [mainTab, setMainTab] = useState<"flux" | "plan">("flux");
+  const [mainTab, setMainTab] = useState<"flux" | "plan" | "tva">("flux");
   const [periodTab, setPeriodTab] = useState<"3m" | "6m" | "12m" | "all">("6m");
   const [chartMode, setChartMode] = useState<"real" | "projected">("projected");
   const [viewMode, setViewMode] = useState<"chart" | "synthesis">("synthesis");
@@ -3349,7 +3751,7 @@ function TreasuryPageInner() {
 
       {/* ── Tab bar ── */}
       <div className="px-5 py-2 border-b shrink-0 bg-background overflow-x-auto">
-        <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as "flux" | "plan")}>
+        <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as "flux" | "plan" | "tva")}>
           <TabsList className="w-max justify-start flex-nowrap h-[42px]">
             <TabsTrigger value="flux" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-treasury-flux">
               <BarChart2 className="h-3.5 w-3.5" />
@@ -3359,12 +3761,18 @@ function TreasuryPageInner() {
               <Table2 className="h-3.5 w-3.5" />
               Plan de trésorerie
             </TabsTrigger>
+            <TabsTrigger value="tva" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-treasury-tva">
+              <BadgePercent className="h-3.5 w-3.5" />
+              TVA
+            </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
       {/* ── Body: conditional on tab ── */}
-      {mainTab === "plan" ? (
+      {mainTab === "tva" ? (
+        <TvaTabView />
+      ) : mainTab === "plan" ? (
         <TreasuryPlanView projects={projects ?? []} flows={data?.flows ?? []} />
       ) : (
       <div className="flex flex-1 overflow-hidden">
