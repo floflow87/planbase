@@ -22,6 +22,7 @@ import {
   Tooltip as ReTooltip,
   Legend,
   ResponsiveContainer,
+  ReferenceLine,
 } from "recharts";
 import {
   TrendingUp,
@@ -982,6 +983,58 @@ function PlanChartTooltip({ active, payload, label }: any) {
         </p>
       ))}
     </div>
+  );
+}
+
+function PlanChartView({
+  planChartData,
+  activePlanScenarioId,
+  planScenarios,
+}: {
+  planChartData: Array<{ label: string; income: number; expense: number; balance: number }>;
+  activePlanScenarioId: string | null;
+  planScenarios?: Array<{ id: string; name: string }>;
+}) {
+  const currentMonthLabel = new Date().toLocaleDateString("fr-FR", { month: "short", year: "2-digit" });
+  const scenarioName = activePlanScenarioId
+    ? (planScenarios?.find((s) => s.id === activePlanScenarioId)?.name ?? "Scénario")
+    : "Plan de base";
+
+  return (
+    <Card className="p-4 pb-2">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+          Vue graphique — {scenarioName}
+        </span>
+        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: PASTEL_GREEN }} />Entrées</span>
+          <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: PASTEL_RED }} />Sorties</span>
+          <span className="flex items-center gap-1"><span className="inline-block w-5 h-0.5" style={{ background: PASTEL_VIOLET }} />Solde cumulé</span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-0.5 h-3" style={{ background: "hsl(var(--primary))" }} />
+            Mois actuel
+          </span>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={180}>
+        <ComposedChart data={planChartData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+          <XAxis dataKey="label" tick={{ fontSize: 9 }} />
+          <YAxis tick={{ fontSize: 9 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} width={32} />
+          <ReTooltip content={<PlanChartTooltip />} />
+          <Bar dataKey="income" fill={PASTEL_GREEN} radius={[3, 3, 0, 0]} />
+          <Bar dataKey="expense" fill={PASTEL_RED} radius={[3, 3, 0, 0]} />
+          <Line type="monotone" dataKey="balance" stroke={PASTEL_VIOLET} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
+          <ReferenceLine
+            x={currentMonthLabel}
+            stroke="hsl(var(--primary))"
+            strokeWidth={2}
+            strokeDasharray="4 3"
+            label={{ value: "Auj.", position: "insideTopLeft", fontSize: 9, fill: "hsl(var(--primary))" }}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </Card>
   );
 }
 
@@ -2232,31 +2285,11 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
 
       {/* Plan chart */}
       {showPlanChart && planChartData.length > 0 && (
-        <Card className="p-4 pb-2">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-              Vue graphique — {activePlanScenarioId
-                ? (planData?.planScenarios?.find((s) => s.id === activePlanScenarioId)?.name ?? "Scénario")
-                : "Plan de base"}
-            </span>
-            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-              <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: PASTEL_GREEN }} />Entrées</span>
-              <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: PASTEL_RED }} />Sorties</span>
-              <span className="flex items-center gap-1"><span className="inline-block w-5 h-0.5" style={{ background: PASTEL_VIOLET }} />Solde cumulé</span>
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <ComposedChart data={planChartData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="label" tick={{ fontSize: 9 }} />
-              <YAxis tick={{ fontSize: 9 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} width={32} />
-              <ReTooltip content={<PlanChartTooltip />} />
-              <Bar dataKey="income" fill={PASTEL_GREEN} radius={[3, 3, 0, 0]} />
-              <Bar dataKey="expense" fill={PASTEL_RED} radius={[3, 3, 0, 0]} />
-              <Line type="monotone" dataKey="balance" stroke={PASTEL_VIOLET} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </Card>
+        <PlanChartView
+          planChartData={planChartData}
+          activePlanScenarioId={activePlanScenarioId}
+          planScenarios={planData?.planScenarios}
+        />
       )}
 
       {/* Plan table */}

@@ -991,6 +991,10 @@ function TopPriorityCard({ recommendation, projectName, onMarkTreated, onMarkIgn
 function LoadingState() {
   return (
     <div className="space-y-6">
+      <div className="flex items-center gap-3 px-1">
+        <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin flex-shrink-0" />
+        <p className="text-xs text-muted-foreground">Analyse de la rentabilité en cours…</p>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (
           <Card key={i}>
@@ -1076,6 +1080,8 @@ function FinanceInner() {
 
   const { data: summary, isLoading, error } = useQuery<ProfitabilitySummary>({
     queryKey: ['/api/profitability/summary'],
+    refetchOnMount: true,
+    staleTime: 0,
   });
   
   // Fetch recommendation actions

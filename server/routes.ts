@@ -15984,13 +15984,13 @@ app.get("/config/feature-flags", async (_req, res) => {
         LIMIT 1
       `);
 
-      const payments = paidPayments.rows as Array<{
+      const payments = (paidPayments as any[]) as Array<{
         id: string; date: string; amount: string; vat_rate: string | null;
         vat_amount: string | null; description: string | null;
         project_name: string; billing_status: string | null; client_name: string | null;
       }>;
 
-      const expenses = expenseTransactions.rows as Array<{
+      const expenses = (expenseTransactions as any[]) as Array<{
         id: string; date: string; amount: string; vat_amount: string | null;
         is_vat_deductible: boolean | null; label: string; description: string | null;
         category_name: string | null;
@@ -16023,7 +16023,7 @@ app.get("/config/feature-flags", async (_req, res) => {
         revenueHt,
         payments,
         expenses,
-        periodStatus: periodStatusResult.rows[0] || null,
+        periodStatus: (periodStatusResult as any[])[0] || null,
         alerts: {
           paymentsWithoutVat: paymentsWithoutVat.length > 0,
           expensesWithVatNotDeductible: expensesWithVatNotDeductible.length > 0,
@@ -16078,7 +16078,7 @@ app.get("/config/feature-flags", async (_req, res) => {
         RETURNING *
       `);
 
-      res.json(result.rows[0]);
+      res.json((result as any[])[0]);
     } catch (error: any) {
       console.error("❌ POST /api/treasury/vat-periods error:", error.message);
       res.status(500).json({ error: error.message });
