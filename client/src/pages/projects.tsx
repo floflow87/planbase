@@ -1607,7 +1607,7 @@ function DraggableProjectCard({
                 <MoreVertical className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-card">
+            <DropdownMenuContent align="end" className="bg-card text-xs">
               {canUpdate && (
                 <DropdownMenuItem onClick={onEdit}>
                   <Edit className="h-3 w-3 mr-2" />
@@ -3442,10 +3442,10 @@ export default function Projects() {
                                   <MoreVertical className="w-4 h-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
+                              <DropdownMenuContent align="end" className="text-xs">
                                 <DropdownMenuItem asChild>
                                   <Link href={`/projects/${project.id}`}>
-                                    <Eye className="w-4 h-4 mr-2" />
+                                    <Eye className="w-3 h-3 mr-2" />
                                     Ouvrir
                                   </Link>
                                 </DropdownMenuItem>
@@ -3466,7 +3466,7 @@ export default function Projects() {
                                       setIsEditProjectDialogOpen(true);
                                     }}
                                   >
-                                    <Edit className="w-4 h-4 mr-2" />
+                                    <Edit className="w-3 h-3 mr-2" />
                                     Modifier
                                   </DropdownMenuItem>
                                 )}
@@ -3474,7 +3474,7 @@ export default function Projects() {
                                   <DropdownMenuItem
                                     onClick={() => updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } })}
                                   >
-                                    <Check className="w-4 h-4 mr-2" />
+                                    <Check className="w-3 h-3 mr-2" />
                                     Terminer
                                   </DropdownMenuItem>
                                 )}
@@ -3487,7 +3487,7 @@ export default function Projects() {
                                       setIsDeleteProjectDialogOpen(true);
                                     }}
                                   >
-                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    <Trash2 className="w-3 h-3 mr-2" />
                                     Supprimer
                                   </DropdownMenuItem>
                                 )}
@@ -3714,7 +3714,7 @@ export default function Projects() {
                                   <MoreVertical className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="bg-card">
+                              <DropdownMenuContent align="end" className="bg-card text-xs">
                                 {canUpdate && (
                                   <DropdownMenuItem 
                                     data-testid={`button-edit-project-${project.id}`}
@@ -3733,7 +3733,7 @@ export default function Projects() {
                                       setIsEditProjectDialogOpen(true);
                                     }}
                                   >
-                                    <Edit className="h-4 w-4 mr-2" />
+                                    <Edit className="h-3 w-3 mr-2" />
                                     Modifier
                                   </DropdownMenuItem>
                                 )}
@@ -3742,7 +3742,7 @@ export default function Projects() {
                                     data-testid={`button-complete-project-${project.id}`}
                                     onClick={() => updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } })}
                                   >
-                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    <CheckCircle className="h-3 w-3 mr-2" />
                                     Marquer comme terminé
                                   </DropdownMenuItem>
                                 )}
@@ -3751,7 +3751,7 @@ export default function Projects() {
                                     data-testid={`button-duplicate-project-grid-${project.id}`}
                                     onClick={() => duplicateProjectMutation.mutate(project.id)}
                                   >
-                                    <Copy className="h-4 w-4 mr-2" />
+                                    <Copy className="h-3 w-3 mr-2" />
                                     Dupliquer
                                   </DropdownMenuItem>
                                 )}
@@ -3765,7 +3765,7 @@ export default function Projects() {
                                       setIsDeleteProjectDialogOpen(true);
                                     }}
                                   >
-                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    <Trash2 className="h-3 w-3 mr-2" />
                                     Supprimer
                                   </DropdownMenuItem>
                                 )}
@@ -4368,7 +4368,7 @@ export default function Projects() {
                                         <MoreVertical className="h-4 w-4" />
                                       </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="bg-card">
+                                    <DropdownMenuContent align="end" className="bg-card text-xs">
                                       {canUpdate && (
                                         <DropdownMenuItem 
                                           data-testid={`button-edit-project-${project.id}`}
@@ -4387,7 +4387,7 @@ export default function Projects() {
                                             setIsEditProjectDialogOpen(true);
                                           }}
                                         >
-                                          <Edit className="h-4 w-4 mr-2" />
+                                          <Edit className="h-3 w-3 mr-2" />
                                           Modifier
                                         </DropdownMenuItem>
                                       )}
@@ -4396,7 +4396,7 @@ export default function Projects() {
                                           data-testid={`button-complete-project-${project.id}`}
                                           onClick={() => updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } })}
                                         >
-                                          <CheckCircle className="h-4 w-4 mr-2" />
+                                          <CheckCircle className="h-3 w-3 mr-2" />
                                           Marquer comme terminé
                                         </DropdownMenuItem>
                                       )}
@@ -4405,7 +4405,7 @@ export default function Projects() {
                                           data-testid={`button-duplicate-project-${project.id}`}
                                           onClick={() => duplicateProjectMutation.mutate(project.id)}
                                         >
-                                          <Copy className="h-4 w-4 mr-2" />
+                                          <Copy className="h-3 w-3 mr-2" />
                                           Dupliquer
                                         </DropdownMenuItem>
                                       )}
@@ -4415,7 +4415,7 @@ export default function Projects() {
                                           data-testid={`button-mark-invoiced-${project.id}`}
                                           onClick={() => updateProjectMutation.mutate({ id: project.id, data: { billingStatus: "facture" } })}
                                         >
-                                          <FileText className="h-4 w-4 mr-2" />
+                                          <FileText className="h-3 w-3 mr-2" />
                                           Marquer comme facturé
                                         </DropdownMenuItem>
                                       )}
@@ -4424,7 +4424,7 @@ export default function Projects() {
                                           data-testid={`button-mark-paid-${project.id}`}
                                           onClick={() => updateProjectMutation.mutate({ id: project.id, data: { billingStatus: "paye" } })}
                                         >
-                                          <Banknote className="h-4 w-4 mr-2" />
+                                          <Banknote className="h-3 w-3 mr-2" />
                                           Marquer comme payé
                                         </DropdownMenuItem>
                                       )}
@@ -4438,7 +4438,7 @@ export default function Projects() {
                                             setIsDeleteProjectDialogOpen(true);
                                           }}
                                         >
-                                          <Trash2 className="h-4 w-4 mr-2" />
+                                          <Trash2 className="h-3 w-3 mr-2" />
                                           Supprimer
                                         </DropdownMenuItem>
                                       )}

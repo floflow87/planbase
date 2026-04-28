@@ -1,0 +1,202 @@
+Tu es développeur senior fullstack sur PlanBase.
+
+Contexte :
+PlanBase est une web app SaaS pour freelances et indépendants, avec des modules CRM, Projets, Facturation/Finance, Trésorerie, Backlog et pilotage de rentabilité. 
+Je souhaite ajouter une fonctionnalité simple de récapitulatif TVA dans le module Trésorerie.
+
+Objectif :
+Créer un nouvel onglet “TVA” dans le menu / module Trésorerie.
+Cet onglet doit permettre à un freelance de visualiser simplement ce qu’il doit potentiellement déclarer en TVA sur une période donnée.
+
+Attention :
+Il ne s’agit pas de faire une déclaration officielle à impots.gouv.
+Il s’agit uniquement d’un récap estimatif et pratique basé sur les factures encaissées et les dépenses renseignées dans PlanBase.
+La fonctionnalité doit rester simple pour une V1.
+
+Périmètre V1 — Fonctionnalité simple :
+
+1. Ajouter un onglet “TVA” dans la section Trésorerie
+- L’onglet doit être accessible depuis l’interface Trésorerie existante.
+- Il doit respecter le design system actuel de PlanBase.
+- Il ne faut pas créer un nouveau module principal dans la sidebar.
+
+2. Créer une page “Récap TVA”
+La page doit afficher :
+- Une sélection de période : mois courant par défaut
+- Un filtre simple : mois précédent / mois courant / période personnalisée si déjà simple à intégrer
+- Une carte “TVA collectée”
+- Une carte “TVA déductible”
+- Une carte “TVA estimée à payer”
+- Une carte “CA HT encaissé sur la période”
+
+Formule :
+TVA estimée à payer = TVA collectée - TVA déductible
+
+3. TVA collectée
+La TVA collectée doit être calculée à partir des factures clients payées sur la période.
+Important :
+- Pour la V1, utiliser uniquement les factures avec statut “paid” ou équivalent.
+- Utiliser la date de paiement si elle existe.
+- Si la date de paiement n’existe pas, utiliser la date de facture avec une mention visuelle “à vérifier”.
+- Additionner les montants de TVA des factures concernées.
+- Afficher la liste des factures incluses dans le calcul.
+
+Colonnes du tableau “TVA collectée” :
+- Date
+- Client
+- Numéro de facture
+- Montant HT
+- TVA
+- Montant TTC
+- Statut
+
+4. TVA déductible
+La TVA déductible doit être calculée à partir des dépenses professionnelles renseignées dans l’application.
+Pour la V1 :
+- Inclure uniquement les dépenses ayant un montant de TVA renseigné.
+- Ajouter un champ ou utiliser un champ existant permettant de savoir si la TVA est déductible.
+- Si ce champ n’existe pas encore, créer un champ simple : is_vat_deductible boolean, true par défaut uniquement si le montant TVA est présent, mais permettre de le décocher dans l’interface.
+- Additionner les montants de TVA déductibles sur la période.
+
+Colonnes du tableau “TVA déductible” :
+- Date
+- Fournisseur
+- Catégorie
+- Montant HT
+- TVA
+- Montant TTC
+- Déductible : oui / non
+
+5. Résultat TVA
+Afficher clairement :
+- Si TVA collectée > TVA déductible : “TVA estimée à payer”
+- Si TVA déductible > TVA collectée : “Crédit de TVA estimé”
+- Ajouter une mention : “Montant indicatif à vérifier avant déclaration officielle.”
+
+6. Statut de la période
+Permettre à l’utilisateur de marquer une période comme :
+- À vérifier
+- Vérifiée
+- Déclarée
+- Payée
+
+Pour la V1, ces statuts peuvent être stockés dans une table simple dédiée aux périodes TVA.
+
+Créer si nécessaire une table :
+vat_periods
+- id
+- organization_id
+- period_start
+- period_end
+- collected_vat
+- deductible_vat
+- vat_due
+- status
+- declared_at nullable
+- paid_at nullable
+- created_at
+- updated_at
+
+Statuts possibles :
+- to_review
+- verified
+- declared
+- paid
+
+7. Export simple
+Ajouter un bouton “Exporter le récap”.
+Pour la V1, un export CSV suffit.
+Le CSV doit contenir :
+- Le résumé de la période
+- La liste des factures incluses
+- La liste des dépenses incluses
+
+8. Alertes simples
+Afficher uniquement trois alertes basiques :
+- “Certaines factures payées n’ont pas de montant TVA renseigné.”
+- “Certaines dépenses ont une TVA renseignée mais ne sont pas marquées comme déductibles.”
+- “Ce récap est indicatif et doit être vérifié avant déclaration officielle.”
+
+Ne pas intégrer d’API impots.gouv.
+Ne pas créer de logique fiscale avancée.
+Ne pas gérer les cas complexes de TVA intracommunautaire, autoliquidation, franchise en base, TVA sur marge, prorata ou régimes particuliers en V1.
+Ne pas ajouter trop d’options.
+L’objectif est d’avoir un module simple, utile et fiable pour un freelance classique.
+
+UX attendue :
+La page doit être claire, sobre et rassurante.
+Le freelance doit comprendre en moins de 10 secondes :
+- combien il a collecté de TVA
+- combien il peut potentiellement déduire
+- combien il doit probablement payer
+- quelles lignes composent le calcul
+
+Structure UX recommandée :
+
+Header :
+Titre : TVA
+Sous-titre : “Récapitulatif estimatif de la TVA à déclarer à partir de vos factures encaissées et dépenses.”
+
+Bloc filtres :
+- Période sélectionnée
+- Bouton exporter CSV
+
+Cards KPI :
+- CA HT encaissé
+- TVA collectée
+- TVA déductible
+- TVA estimée à payer / Crédit de TVA estimé
+
+Bloc alertes :
+- Alertes simples si données manquantes ou incohérentes
+
+Tabs internes :
+- TVA collectée
+- TVA déductible
+
+Tableaux :
+- Liste des factures
+- Liste des dépenses
+
+Footer de page :
+Mention discrète :
+“Ce récapitulatif est fourni à titre indicatif. La déclaration officielle doit être vérifiée et effectuée depuis votre espace professionnel impots.gouv.fr ou avec votre comptable.”
+
+Contraintes techniques :
+- Respecter l’architecture existante de PlanBase.
+- Réutiliser les composants UI existants.
+- Réutiliser les données existantes de factures et dépenses si elles existent déjà.
+- Ne pas casser les modules Finance, Facturation ou Trésorerie existants.
+- Ajouter les migrations nécessaires proprement.
+- Ajouter les endpoints backend nécessaires si les données ne sont pas déjà exposées.
+- Prévoir une logique multi-tenant via organization_id.
+- Ne jamais mélanger les données entre organisations.
+- Ajouter des états loading, empty state et error state.
+
+Empty state :
+Si aucune donnée n’existe sur la période :
+Titre : “Aucune TVA à afficher pour cette période”
+Texte : “Les factures payées et dépenses avec TVA apparaîtront ici automatiquement.”
+
+Critères d’acceptation :
+- Je vois un onglet TVA dans Trésorerie.
+- Je peux sélectionner une période.
+- Je vois le CA HT encaissé sur la période.
+- Je vois la TVA collectée à partir des factures payées.
+- Je vois la TVA déductible à partir des dépenses éligibles.
+- Je vois le montant estimé à payer ou le crédit de TVA estimé.
+- Je peux consulter les lignes de calcul.
+- Je peux exporter un CSV.
+- Je peux marquer une période comme à vérifier, vérifiée, déclarée ou payée.
+- Les données sont filtrées par organisation.
+- La page reste simple, lisible et cohérente avec le design de PlanBase.
+
+Commence par analyser l’existant :
+- Où se trouve le module Trésorerie ?
+- Quels modèles de données existent déjà pour les factures ?
+- Quels modèles de données existent déjà pour les dépenses ?
+- Quels champs TVA existent déjà ?
+- Quels endpoints sont déjà disponibles ?
+- Quels composants UI peuvent être réutilisés ?
+
+Ensuite, propose brièvement ton plan d’implémentation, puis implémente la V1.
