@@ -1,6 +1,6 @@
 // Projects page with task management
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star, Columns3, FileText, Banknote, Settings2, Copy } from "lucide-react";
+import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star, Columns3, FileText, Banknote, Settings2, Copy, Palette } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -1932,6 +1932,21 @@ function CategoryCombobox({ value, onChange, categories, coreProjectTypes = [] }
   );
 }
 
+const PROJECT_CARD_COLORS = [
+  { id: 'violet',  hex: '#7C3AED' },
+  { id: 'indigo',  hex: '#4338CA' },
+  { id: 'blue',    hex: '#2563EB' },
+  { id: 'cyan',    hex: '#0891B2' },
+  { id: 'teal',    hex: '#0D9488' },
+  { id: 'green',   hex: '#16A34A' },
+  { id: 'lime',    hex: '#65A30D' },
+  { id: 'yellow',  hex: '#CA8A04' },
+  { id: 'orange',  hex: '#EA580C' },
+  { id: 'red',     hex: '#DC2626' },
+  { id: 'pink',    hex: '#DB2777' },
+  { id: 'slate',   hex: '#475569' },
+];
+
 export default function Projects() {
   const [, setLocation] = useLocation();
   const { accountId, user } = useAuth();
@@ -2061,6 +2076,22 @@ export default function Projects() {
   useEffect(() => {
     localStorage.setItem('projectKanbanColumnVisibility', JSON.stringify(projectKanbanColumnVisibility));
   }, [projectKanbanColumnVisibility]);
+
+  // Project card colors with localStorage persistence
+  const [projectCardColors, setProjectCardColors] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem('projectCardColors');
+    return saved ? JSON.parse(saved) : {};
+  });
+  useEffect(() => {
+    localStorage.setItem('projectCardColors', JSON.stringify(projectCardColors));
+  }, [projectCardColors]);
+  const setProjectCardColor = (projectId: string, hex: string | null) => {
+    setProjectCardColors(prev => {
+      const next = { ...prev };
+      if (hex === null) { delete next[projectId]; } else { next[projectId] = hex; }
+      return next;
+    });
+  };
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -3589,10 +3620,16 @@ export default function Projects() {
                     const timeConsumedPct = project.stage === "termine" ? 100 : (stats?.timeConsumedPct ?? null);
                     const taskPct = calculateProjectProgress(project.id);
 
+                    const activeCardHex = projectCardColors[project.id] || null;
+                    const cardStyle = activeCardHex
+                      ? { backgroundColor: `${activeCardHex}12`, borderTop: `3px solid ${activeCardHex}` }
+                      : {};
+
                     return (
                       <Card
                         key={project.id}
-                        className="hover-elevate active-elevate-2"
+                        className="group/projectcard hover-elevate active-elevate-2"
+                        style={cardStyle}
                         data-testid={`project-card-${project.id}`}
                       >
                         <CardContent className="p-4">
@@ -3622,6 +3659,50 @@ export default function Projects() {
                                 </p>
                               </div>
                             </div>
+                            <div className="flex items-center gap-1">
+                              {/* Color picker */}
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 opacity-0 group-hover/projectcard:opacity-100 transition-opacity"
+                                    onClick={(e) => e.stopPropagation()}
+                                    data-testid={`button-card-color-${project.id}`}
+                                  >
+                                    <Palette className="h-3.5 w-3.5 text-muted-foreground" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-2" align="end" onClick={(e) => e.stopPropagation()}>
+                                  <p className="text-[10px] text-muted-foreground mb-2 font-medium">Couleur de la carte</p>
+                                  <div className="grid grid-cols-6 gap-1.5">
+                                    {PROJECT_CARD_COLORS.map((color) => (
+                                      <button
+                                        key={color.id}
+                                        className="w-5 h-5 rounded-full transition-transform hover:scale-110 focus:outline-none"
+                                        style={{
+                                          backgroundColor: color.hex,
+                                          outline: activeCardHex === color.hex ? `2px solid ${color.hex}` : undefined,
+                                          outlineOffset: activeCardHex === color.hex ? '2px' : undefined,
+                                        }}
+                                        onClick={() => setProjectCardColor(project.id, activeCardHex === color.hex ? null : color.hex)}
+                                        data-testid={`button-card-color-swatch-${color.id}-${project.id}`}
+                                        title={color.id}
+                                      />
+                                    ))}
+                                  </div>
+                                  {activeCardHex && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="w-full mt-2 text-[10px] h-6 text-muted-foreground"
+                                      onClick={() => setProjectCardColor(project.id, null)}
+                                    >
+                                      Réinitialiser
+                                    </Button>
+                                  )}
+                                </PopoverContent>
+                              </Popover>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button
@@ -3690,6 +3771,7 @@ export default function Projects() {
                                 )}
                               </DropdownMenuContent>
                             </DropdownMenu>
+                            </div>
                           </div>
 
                           <div className="space-y-2">
