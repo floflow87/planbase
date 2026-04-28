@@ -1579,12 +1579,12 @@ export default function Notes() {
                       data-testid={`group-header-${group.groupKey}`}
                     >
                       {collapsedGroups.has(group.groupKey) ? (
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        <ChevronRight className="h-3 w-3 text-muted-foreground" />
                       ) : (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        <ChevronDown className="h-3 w-3 text-muted-foreground" />
                       )}
-                      <FolderKanban className="h-4 w-4 text-violet-500" />
-                      <span className="font-medium text-sm">{group.groupName}</span>
+                      <FolderKanban className="h-3 w-3 text-violet-500" />
+                      <span className="font-medium text-xs">{group.groupName}</span>
                       <Badge variant="secondary" className="text-[10px]">
                         {group.notes.length}
                       </Badge>

@@ -1462,8 +1462,8 @@ function KanbanStageColumn({
     >
       <div className={`px-3 py-2 rounded-t-lg ${stage.headerBg}`}>
         <div className="flex items-center justify-between">
-          <h3 className={`font-medium text-sm ${stage.textColor}`}>{stage.label}</h3>
-          <Badge variant="secondary" className="text-xs">
+          <h3 className={`font-medium text-xs ${stage.textColor}`}>{stage.label}</h3>
+          <Badge variant="secondary" className="text-[10px]">
             {projects.length}
           </Badge>
         </div>
@@ -3111,7 +3111,7 @@ export default function Projects() {
                               onClick={(e) => e.stopPropagation()}
                               data-testid={`checkbox-billing-filter-${status.value}`}
                             />
-                            <span className="text-sm">{status.label}</span>
+                            <span className="text-xs">{status.label}</span>
                           </div>
                         );
                       })}
@@ -3206,7 +3206,7 @@ export default function Projects() {
                               onCheckedChange={(checked) => setProjectKanbanColumnVisibility(prev => ({...prev, [stage.key]: !!checked}))}
                               data-testid={`checkbox-project-kanban-column-${stage.key}`}
                             />
-                            <Label htmlFor={`project-kanban-col-${stage.key}`} className="text-sm cursor-pointer">{stage.label}</Label>
+                            <Label htmlFor={`project-kanban-col-${stage.key}`} className="text-xs cursor-pointer">{stage.label}</Label>
                           </div>
                         ))}
                       </div>
@@ -4588,7 +4588,7 @@ export default function Projects() {
                       checked={projectStageFilters.includes(stage.key)}
                       data-testid={`checkbox-filter-stage-${stage.key}`}
                     />
-                    <span className="text-sm">{stage.label}</span>
+                    <span className="text-xs">{stage.label}</span>
                   </div>
                 ))}
               </div>
@@ -4624,7 +4624,7 @@ export default function Projects() {
                       checked={projectBillingFilters.includes(status.value)}
                       data-testid={`checkbox-filter-billing-${status.value}`}
                     />
-                    <span className="text-sm">{status.label}</span>
+                    <span className="text-xs">{status.label}</span>
                   </div>
                 ))}
               </div>
@@ -4648,7 +4648,7 @@ export default function Projects() {
                       checked={projectTypeFilter === opt.value}
                       data-testid={`checkbox-filter-type-${opt.value}`}
                     />
-                    <span className="text-sm">{opt.label}</span>
+                    <span className="text-xs">{opt.label}</span>
                   </div>
                 ))}
               </div>
