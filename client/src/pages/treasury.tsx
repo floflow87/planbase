@@ -3176,12 +3176,29 @@ function TvaTabView() {
   const q1Start = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
   const q1End = new Date(now.getFullYear(), 2, 31).toISOString().slice(0, 10);
 
-  const [periodPreset, setPeriodPreset] = useState<"current" | "previous" | "ytd" | "q1" | "custom">("current");
-  const [customStart, setCustomStart] = useState<Date | undefined>(new Date(currentStart));
-  const [customEnd, setCustomEnd] = useState<Date | undefined>(new Date(currentEnd));
+  const LS_KEY = "treasury_vat_period";
+  const [periodPreset, setPeriodPreset] = useState<"current" | "previous" | "ytd" | "q1" | "custom">(() => {
+    try { return (JSON.parse(localStorage.getItem(LS_KEY) ?? "{}").preset ?? "current"); } catch { return "current"; }
+  });
+  const [customStart, setCustomStart] = useState<Date | undefined>(() => {
+    try { const s = JSON.parse(localStorage.getItem(LS_KEY) ?? "{}").customStart; return s ? new Date(s) : new Date(currentStart); } catch { return new Date(currentStart); }
+  });
+  const [customEnd, setCustomEnd] = useState<Date | undefined>(() => {
+    try { const s = JSON.parse(localStorage.getItem(LS_KEY) ?? "{}").customEnd; return s ? new Date(s) : new Date(currentEnd); } catch { return new Date(currentEnd); }
+  });
   const [customStartOpen, setCustomStartOpen] = useState(false);
   const [customEndOpen, setCustomEndOpen] = useState(false);
   const [vatTab, setVatTab] = useState<"collected" | "deductible">("collected");
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        preset: periodPreset,
+        customStart: customStart?.toISOString(),
+        customEnd: customEnd?.toISOString(),
+      }));
+    } catch {}
+  }, [periodPreset, customStart, customEnd]);
 
   const start = periodPreset === "current" ? currentStart
     : periodPreset === "previous" ? prevStart
