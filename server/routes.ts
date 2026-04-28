@@ -15984,10 +15984,12 @@ app.get("/config/feature-flags", async (_req, res) => {
         LIMIT 1
       `);
 
-      // 4. Fetch account default TVA rate from settings
+      // 4. Fetch account TVA settings (default rate + franchise threshold)
       const thresholdsSetting = await storage.getSetting('ACCOUNT', accountId, 'thresholds');
       const thresholdsValue = thresholdsSetting?.value as any;
       const defaultVatRate: number = thresholdsValue?.tva?.tauxTVA ?? 20;
+      // seuilTVA: franchise threshold in € HT. 0 = always subject to VAT.
+      const seuilTVA: number = thresholdsValue?.tva?.seuilTVA ?? 0;
 
       const rawPayments = (paidPayments as any[]) as Array<{
         id: string; date: string; amount: string; vat_rate: string | null;
@@ -16025,12 +16027,16 @@ app.get("/config/feature-flags", async (_req, res) => {
       const deductibleVat = expenses
         .filter(e => e.is_vat_deductible !== false)
         .reduce((sum, e) => sum + parseFloat(e.vat_amount || "0"), 0);
-      const vatDue = collectedVat - deductibleVat;
 
       // Revenue HT = TTC - effective VAT
       const revenueHt = payments.reduce((sum, p) => {
         return sum + (parseFloat(p.amount || "0") - p.effective_vat);
       }, 0);
+
+      // Apply franchise threshold: if seuilTVA > 0 and CA HT < seuilTVA, vatDue = 0
+      // If seuilTVA = 0 → always subject to VAT (no franchise)
+      const isBelowThreshold = seuilTVA > 0 && revenueHt < seuilTVA;
+      const vatDue = isBelowThreshold ? 0 : Math.max(0, collectedVat - deductibleVat);
 
       // Alerts: flag payments with estimated VAT (no explicit amount)
       const paymentsWithoutVat = payments.filter(p => p.is_vat_estimated);
@@ -16040,6 +16046,8 @@ app.get("/config/feature-flags", async (_req, res) => {
         periodStart: start,
         periodEnd: end,
         defaultVatRate,
+        seuilTVA,
+        isBelowThreshold,
         collectedVat,
         deductibleVat,
         vatDue,

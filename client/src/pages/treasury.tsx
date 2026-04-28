@@ -3142,6 +3142,8 @@ type VatExpense = {
 type VatData = {
   periodStart: string; periodEnd: string;
   defaultVatRate: number;
+  seuilTVA: number;
+  isBelowThreshold: boolean;
   collectedVat: number; deductibleVat: number; vatDue: number; revenueHt: number;
   payments: VatPayment[]; expenses: VatExpense[];
   periodStatus: { id: string; status: string; declared_at: string | null; paid_at: string | null } | null;
@@ -3165,17 +3167,30 @@ function TvaTabView() {
   const now = new Date();
   const currentStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
   const currentEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
-
   const prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
   const prevEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
+  const ytdStart = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
+  const ytdEnd = now.toISOString().slice(0, 10);
+  const q1Start = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
+  const q1End = new Date(now.getFullYear(), 2, 31).toISOString().slice(0, 10);
 
-  const [periodPreset, setPeriodPreset] = useState<"current" | "previous" | "custom">("current");
-  const [customStart, setCustomStart] = useState(currentStart);
-  const [customEnd, setCustomEnd] = useState(currentEnd);
+  const [periodPreset, setPeriodPreset] = useState<"current" | "previous" | "ytd" | "q1" | "custom">("current");
+  const [customStart, setCustomStart] = useState<Date | undefined>(new Date(currentStart));
+  const [customEnd, setCustomEnd] = useState<Date | undefined>(new Date(currentEnd));
+  const [customStartOpen, setCustomStartOpen] = useState(false);
+  const [customEndOpen, setCustomEndOpen] = useState(false);
   const [vatTab, setVatTab] = useState<"collected" | "deductible">("collected");
 
-  const start = periodPreset === "current" ? currentStart : periodPreset === "previous" ? prevStart : customStart;
-  const end = periodPreset === "current" ? currentEnd : periodPreset === "previous" ? prevEnd : customEnd;
+  const start = periodPreset === "current" ? currentStart
+    : periodPreset === "previous" ? prevStart
+    : periodPreset === "ytd" ? ytdStart
+    : periodPreset === "q1" ? q1Start
+    : (customStart ? format(customStart, "yyyy-MM-dd") : currentStart);
+  const end = periodPreset === "current" ? currentEnd
+    : periodPreset === "previous" ? prevEnd
+    : periodPreset === "ytd" ? ytdEnd
+    : periodPreset === "q1" ? q1End
+    : (customEnd ? format(customEnd, "yyyy-MM-dd") : currentEnd);
 
   const { data, isLoading, isError, refetch } = useQuery<VatData>({
     queryKey: ["/api/treasury/vat", start, end],
@@ -3261,20 +3276,42 @@ function TvaTabView() {
         <div className="flex flex-wrap items-center gap-2">
           {/* Period selector */}
           <Select value={periodPreset} onValueChange={(v) => setPeriodPreset(v as typeof periodPreset)}>
-            <SelectTrigger className="h-8 text-xs w-44" data-testid="select-vat-period">
+            <SelectTrigger className="h-8 text-xs w-52" data-testid="select-vat-period">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="current" className="text-xs">Mois courant</SelectItem>
               <SelectItem value="previous" className="text-xs">Mois précédent</SelectItem>
+              <SelectItem value="ytd" className="text-xs">Depuis le 1er janv. {now.getFullYear()}</SelectItem>
+              <SelectItem value="q1" className="text-xs">1er trimestre {now.getFullYear()}</SelectItem>
               <SelectItem value="custom" className="text-xs">Période personnalisée</SelectItem>
             </SelectContent>
           </Select>
           {periodPreset === "custom" && (
             <>
-              <Input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="h-8 text-xs w-36" />
+              <Popover open={customStartOpen} onOpenChange={setCustomStartOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-8 text-xs w-36 justify-start font-normal gap-1.5" type="button">
+                    <CalendarIcon className="h-3 w-3" />
+                    {customStart ? format(customStart, "d MMM yyyy", { locale: fr }) : <span className="text-muted-foreground">Début</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customStart} onSelect={(d) => { setCustomStart(d); setCustomStartOpen(false); }} initialFocus locale={fr} />
+                </PopoverContent>
+              </Popover>
               <span className="text-xs text-muted-foreground">→</span>
-              <Input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="h-8 text-xs w-36" />
+              <Popover open={customEndOpen} onOpenChange={setCustomEndOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-8 text-xs w-36 justify-start font-normal gap-1.5" type="button">
+                    <CalendarIcon className="h-3 w-3" />
+                    {customEnd ? format(customEnd, "d MMM yyyy", { locale: fr }) : <span className="text-muted-foreground">Fin</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={customEnd} onSelect={(d) => { setCustomEnd(d); setCustomEndOpen(false); }} initialFocus locale={fr} />
+                </PopoverContent>
+              </Popover>
             </>
           )}
           <Button variant="outline" size="sm" onClick={exportCsv} disabled={!data} data-testid="button-export-vat-csv" className="h-8 gap-1.5 text-xs">
@@ -3301,10 +3338,21 @@ function TvaTabView() {
       </div>
 
       {/* Alerts */}
-      {data?.defaultVatRate !== undefined && (
+      {data && (
         <div className="flex items-center gap-2 rounded-md border border-muted bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           <Info className="h-3.5 w-3.5 shrink-0" />
-          Taux TVA par défaut du compte : <span className="font-semibold text-foreground">{data.defaultVatRate}%</span>. Appliqué automatiquement aux factures sans taux explicite.
+          <span>
+            Taux TVA par défaut : <span className="font-semibold text-foreground">{data.defaultVatRate}%</span>
+            {data.seuilTVA > 0
+              ? <> · Seuil franchise : <span className="font-semibold text-foreground">{fmt(data.seuilTVA)}</span> HT</>
+              : <> · Pas de franchise (TVA dès le 1er euro)</>}
+          </span>
+        </div>
+      )}
+      {data?.isBelowThreshold && (
+        <div className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800/40 dark:bg-emerald-900/20 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-300">
+          <Info className="h-3.5 w-3.5 shrink-0" />
+          CA HT ({fmt(data.revenueHt)}) sous le seuil de franchise ({fmt(data.seuilTVA)}) — TVA à payer : 0 €.
         </div>
       )}
       {data?.alerts.paymentsWithoutVat && (
@@ -3352,9 +3400,9 @@ function TvaTabView() {
           <Card>
             <CardContent className="p-4">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                {vatDue >= 0 ? "TVA estimée à payer" : "Crédit de TVA estimé"}
+                {data?.isBelowThreshold ? "Franchise — TVA non due" : vatDue >= 0 ? "TVA estimée à payer" : "Crédit de TVA estimé"}
               </p>
-              <p className={`text-lg font-bold mt-1 tabular-nums ${vatDue >= 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+              <p className={`text-lg font-bold mt-1 tabular-nums ${data?.isBelowThreshold ? "text-muted-foreground" : vatDue >= 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                 {fmt(Math.abs(vatDue))}
               </p>
             </CardContent>
@@ -3424,15 +3472,31 @@ function TvaTabView() {
                             <td className="px-3 py-2 text-right tabular-nums">{fmt(ht)}</td>
                             <td className="px-3 py-2 text-right tabular-nums">
                               {p.is_vat_estimated ? (
-                                <span className="flex items-center justify-end gap-1 text-amber-600 dark:text-amber-400" title="TVA estimée à partir du taux par défaut">
-                                  {fmt(vat)}
-                                  <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
-                                </span>
-                              ) : fmt(vat)}
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="flex items-center justify-end gap-1 text-amber-600 dark:text-amber-400 cursor-default">
+                                      {fmt(vat)}
+                                      <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left" className="text-xs max-w-48">
+                                    TVA estimée — taux par défaut ({p.effective_rate}%) appliqué faute de taux explicite
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-default">{fmt(vat)}</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left" className="text-xs">
+                                    TVA explicite au taux de {p.effective_rate}%
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
                             </td>
                             <td className="px-3 py-2 text-right tabular-nums font-medium">{fmt(ttc)}</td>
                             <td className="px-3 py-2 text-muted-foreground">
-                              {p.effective_rate}%{p.is_vat_estimated && <span className="text-amber-500 ml-1" title="Taux par défaut">*</span>}
+                              {p.effective_rate}%{p.is_vat_estimated && <span className="text-amber-500 ml-1">*</span>}
                             </td>
                           </tr>
                         );
