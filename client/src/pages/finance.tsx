@@ -451,25 +451,25 @@ function SummaryCard({
 
   return (
     <Card data-testid={`card-summary-${title.toLowerCase().replace(/\s/g, '-')}`}>
-      <CardContent className="p-6">
+      <CardContent className="p-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`p-3 rounded-lg ${colorClasses[color as keyof typeof colorClasses] || colorClasses.violet}`}>
-              <Icon className="w-5 h-5" />
+          <div className="flex items-center gap-2.5">
+            <div className={`p-2 rounded-lg ${colorClasses[color as keyof typeof colorClasses] || colorClasses.violet}`}>
+              <Icon className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-sm text-gray-500 font-medium">{title}</p>
-              <p className="text-2xl font-bold text-gray-900">{value}</p>
-              {subtitle && <p className="text-xs text-gray-400">{subtitle}</p>}
+              <p className="text-xs text-muted-foreground font-medium">{title}</p>
+              <p className="text-base font-bold text-foreground">{value}</p>
+              {subtitle && <p className="text-[10px] text-muted-foreground">{subtitle}</p>}
             </div>
           </div>
           {trend && trendValue && (
             <div className={`flex items-center gap-1 ${
-              trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-gray-500'
+              trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-muted-foreground'
             }`}>
-              {trend === 'up' ? <TrendingUp className="w-4 h-4" /> : 
-               trend === 'down' ? <TrendingDown className="w-4 h-4" /> : null}
-              <span className="text-sm font-medium">{trendValue}</span>
+              {trend === 'up' ? <TrendingUp className="w-3 h-3" /> : 
+               trend === 'down' ? <TrendingDown className="w-3 h-3" /> : null}
+              <span className="text-xs font-medium">{trendValue}</span>
             </div>
           )}
         </div>
@@ -484,12 +484,12 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
   return (
     <Card className="transition-colors hover:border-violet-200 flex flex-col" data-testid={`card-project-${projectId}`}>
       {/* ZONE HAUTE: Nom + Badges statut */}
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-gray-900 truncate mb-2">{projectName}</h3>
+            <h3 className="text-xs font-semibold text-foreground truncate mb-1.5">{projectName}</h3>
             <div className="flex items-center gap-1.5 flex-wrap">
-              <Badge className={`text-xs shrink-0 ${getStatusColor(metrics.status)}`}>
+              <Badge className={`text-[10px] shrink-0 ${getStatusColor(metrics.status)}`}>
                 {getStatusIcon(metrics.status)}
                 <span className="ml-1">{metrics.statusLabel}</span>
               </Badge>
@@ -499,29 +499,29 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
       </CardHeader>
       
       {/* ZONE CENTRALE: KPIs essentiels + barre paiement */}
-      <CardContent className="space-y-3 flex-1">
-        <div className="space-y-2 text-sm">
+      <CardContent className="space-y-2 flex-1 px-4">
+        <div className="space-y-1.5 text-xs">
           <div className="flex justify-between">
-            <span className="text-gray-500">Facturé</span>
-            <span className="font-medium">{formatCurrency(metrics.totalBilled)}</span>
+            <span className="text-muted-foreground">Facturé</span>
+            <span className="font-medium text-foreground">{formatCurrency(metrics.totalBilled)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Encaissé</span>
+            <span className="text-muted-foreground">Encaissé</span>
             <span className="font-medium text-emerald-600">{formatCurrency(metrics.totalPaid)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Marge</span>
+            <span className="text-muted-foreground">Marge</span>
             <span className={`font-medium ${metrics.margin >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               {formatCurrency(metrics.margin)} ({formatNumber(metrics.marginPercent)}%)
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">TJM réel</span>
-            <span className="font-medium">{metrics.actualTJM ? formatCurrency(metrics.actualTJM) : '-'}</span>
+            <span className="text-muted-foreground">TJM réel</span>
+            <span className="font-medium text-foreground">{metrics.actualTJM ? formatCurrency(metrics.actualTJM) : '-'}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Jours passés</span>
-            <span className="font-medium">{metrics.actualDaysWorked ? `${formatNumber(metrics.actualDaysWorked, 1)} j` : '-'}</span>
+            <span className="text-muted-foreground">Jours passés</span>
+            <span className="font-medium text-foreground">{metrics.actualDaysWorked ? `${formatNumber(metrics.actualDaysWorked, 1)} j` : '-'}</span>
           </div>
         </div>
 
@@ -530,11 +530,11 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="space-y-1 cursor-help">
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Paiement</span>
-                  <span className="font-medium">{formatNumber(metrics.paymentProgress, 0)}%</span>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-muted-foreground">Paiement</span>
+                  <span className="font-medium text-foreground">{formatNumber(metrics.paymentProgress, 0)}%</span>
                 </div>
-                <Progress value={metrics.paymentProgress} className="h-1.5" />
+                <Progress value={metrics.paymentProgress} className="h-1" />
               </div>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-xs">
@@ -546,7 +546,7 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
       </CardContent>
       
       {/* ZONE BASSE (fixe, alignée): Health Score + Badge recommandations + Bouton */}
-      <div className="px-6 pb-4 pt-2 border-t mt-auto space-y-3">
+      <div className="px-4 pb-3 pt-2 border-t mt-auto space-y-2">
         {/* Health Score visuel + Badge recommandations */}
         <div className="flex items-center justify-between gap-2">
           {/* Health Score avec ScoreRing */}
@@ -567,11 +567,11 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
                   {recommendations.length}
                 </Badge>
               </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs p-2 bg-white dark:bg-gray-900 border shadow-lg">
+              <TooltipContent side="top" className="max-w-xs p-2 border shadow-lg">
                 <ul className="space-y-1 text-xs">
                   {recommendations.slice(0, 3).map((rec) => (
-                    <li key={rec.id} className="flex items-center gap-2 text-gray-700">
-                      <span className="text-gray-400">•</span>
+                    <li key={rec.id} className="flex items-center gap-2 text-foreground">
+                      <span className="text-muted-foreground">•</span>
                       <span className="line-clamp-1">
                         {generatePriorityAction(rec)}
                         {rec.impactValue && rec.impactValue > 0 && (
@@ -581,7 +581,7 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
                     </li>
                   ))}
                   {recommendations.length > 3 && (
-                    <li className="text-gray-400 text-[10px]">+{recommendations.length - 3} autres</li>
+                    <li className="text-muted-foreground text-[10px]">+{recommendations.length - 3} autres</li>
                   )}
                 </ul>
               </TooltipContent>
@@ -652,8 +652,8 @@ function RecommendationCard({
   const recommendationKey = recommendation.id;
   
   return (
-    <Card className={`border-l-4 ${scoreColor.border} bg-gradient-to-r from-white to-gray-50/30 ${actionStatus ? 'opacity-60' : ''}`} data-testid={`card-recommendation-${recommendation.id}`}>
-      <CardContent className="p-5 space-y-4">
+    <Card className={`border-l-4 ${scoreColor.border} bg-gradient-to-r from-background to-muted/20 ${actionStatus ? 'opacity-60' : ''}`} data-testid={`card-recommendation-${recommendation.id}`}>
+      <CardContent className="p-4 space-y-3">
         {/* HEADER: Badge priorité + Score + Tag type */}
         <div className="flex items-center gap-2 flex-wrap">
           <Badge className={`${scoreColor.bg} ${scoreColor.text} border-0`}>
@@ -674,7 +674,7 @@ function RecommendationCard({
           {recommendation.projectName && (
             <Link 
               href={`/projects/${recommendation.projectId}`}
-              className="ml-auto text-sm text-violet-600 hover:underline"
+              className="ml-auto text-xs text-violet-600 hover:underline"
             >
               {recommendation.projectName}
             </Link>
@@ -683,10 +683,10 @@ function RecommendationCard({
         
         {/* Status badge if already treated/ignored */}
         {actionStatus && (
-          <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium ${
+          <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium ${
             actionStatus.action === 'treated'
-              ? 'bg-emerald-100 text-emerald-700'
-              : 'bg-gray-100 text-gray-600'
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+              : 'bg-muted text-muted-foreground'
           }`}>
             {actionStatus.action === 'treated' ? (
               <><Check className="w-3 h-3" /> Traité</>
@@ -697,7 +697,7 @@ function RecommendationCard({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-5 px-1.5 ml-1.5 text-xs hover:bg-white/50 gap-1"
+                className="h-5 px-1.5 ml-1.5 text-[10px] gap-1"
                 onClick={() => onUndoAction(actionStatus.id)}
                 data-testid={`button-undo-action-${recommendation.id}`}
               >
@@ -709,47 +709,47 @@ function RecommendationCard({
         )}
         
         {/* CORPS: 3 blocs fixes */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           {recommendation.blocks ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
               {/* Bloc 1: Constat passé */}
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <p className="text-slate-500 text-xs font-medium mb-1.5 flex items-center gap-1">
+              <div className="p-2.5 rounded-lg bg-muted/50 border border-border">
+                <p className="text-muted-foreground text-[10px] font-medium mb-1 flex items-center gap-1">
                   <span className="text-amber-500">1.</span> Constat passé
                 </p>
-                <p className="text-emerald-600 font-medium">
+                <p className="text-emerald-600 font-medium text-xs">
                   {recommendation.impactValue && recommendation.impactValue > 0 
                     ? `+${formatCurrency(recommendation.impactValue)} potentiel`
                     : formatCurrency(recommendation.blocks.pastImpact.amount)
                   }
                 </p>
-                <p className="text-slate-500 text-xs mt-1">{recommendation.blocks.pastImpact.condition}</p>
+                <p className="text-muted-foreground text-[10px] mt-0.5">{recommendation.blocks.pastImpact.condition}</p>
               </div>
               
               {/* Bloc 2: Implication actuelle */}
-              <div className={`p-3 rounded-lg border ${
+              <div className={`p-2.5 rounded-lg border ${
                 recommendation.blocks.currentImplication.isPast 
-                  ? 'bg-slate-100 border-slate-300' 
-                  : 'bg-emerald-50 border-emerald-200'
+                  ? 'bg-muted border-border' 
+                  : 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800'
               }`}>
-                <p className="text-slate-500 text-xs font-medium mb-1.5 flex items-center gap-1">
+                <p className="text-muted-foreground text-[10px] font-medium mb-1 flex items-center gap-1">
                   <span className="text-amber-500">2.</span> Implication actuelle
                 </p>
-                <p className={`font-medium ${recommendation.blocks.currentImplication.isPast ? 'text-slate-500' : 'text-emerald-700'}`}>
+                <p className={`font-medium text-xs ${recommendation.blocks.currentImplication.isPast ? 'text-muted-foreground' : 'text-emerald-700 dark:text-emerald-400'}`}>
                   {recommendation.blocks.currentImplication.message}
                 </p>
               </div>
               
               {/* Bloc 3: Action concrète */}
-              <div className="p-3 rounded-lg bg-violet-50 border border-violet-200">
-                <p className="text-violet-600 text-xs font-medium mb-1.5 flex items-center gap-1">
+              <div className="p-2.5 rounded-lg bg-violet-50 border border-violet-200 dark:bg-violet-950/20 dark:border-violet-800">
+                <p className="text-violet-600 text-[10px] font-medium mb-1 flex items-center gap-1">
                   <Zap className="w-3 h-3" /> Action concrète
                 </p>
-                <p className="font-semibold text-violet-800">
+                <p className="font-semibold text-xs text-violet-800 dark:text-violet-300">
                   {recommendation.blocks.concreteAction.primary}
                 </p>
                 {recommendation.blocks.concreteAction.alternatives.length > 0 && (
-                  <p className="text-violet-500 text-xs mt-1">
+                  <p className="text-violet-500 text-[10px] mt-0.5">
                     Alternatives : {recommendation.blocks.concreteAction.alternatives.join(', ')}
                   </p>
                 )}
@@ -757,25 +757,25 @@ function RecommendationCard({
             </div>
           ) : (
             /* Fallback: Simple action display */
-            <div className="p-3 rounded-lg bg-violet-50 border border-violet-200">
-              <p className="font-semibold text-violet-800">{priorityAction}</p>
+            <div className="p-2.5 rounded-lg bg-violet-50 border border-violet-200 dark:bg-violet-950/20 dark:border-violet-800">
+              <p className="font-semibold text-xs text-violet-800 dark:text-violet-300">{priorityAction}</p>
               {recommendation.issue && (
-                <p className="text-slate-600 text-sm mt-1">{recommendation.issue}</p>
+                <p className="text-muted-foreground text-xs mt-0.5">{recommendation.issue}</p>
               )}
             </div>
           )}
         </div>
         
         {/* FOOTER: Impact chiffré + Boutons */}
-        <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100 flex-wrap">
+        <div className="flex items-center justify-between gap-3 pt-2 border-t border-border flex-wrap">
           {/* Impact financier - Wording adapté selon l'horizon */}
           {recommendation.impactValue ? (
-            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium ${
+            <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${
               recommendation.impactValue > 0 
-                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                : 'bg-rose-50 text-rose-700 border border-rose-200'
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-400'
+                : 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/20 dark:border-rose-800 dark:text-rose-400'
             }`}>
-              {recommendation.impactValue > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              {recommendation.impactValue > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
               <span>
                 {recommendation.horizon === 'immediate' 
                   ? `Impact potentiel : ${recommendation.impactValue > 0 ? '+' : ''}${formatCurrency(recommendation.impactValue)} sur ce projet`
@@ -804,7 +804,7 @@ function RecommendationCard({
               <Button
                 variant="ghost"
                 size="sm"
-                className="gap-1.5 text-gray-500"
+                className="gap-1.5 text-xs text-muted-foreground"
                 onClick={() => onMarkIgnored(recommendationKey)}
                 disabled={isPending}
                 data-testid={`button-mark-ignored-${recommendation.id}`}
@@ -863,8 +863,8 @@ function TopPriorityCard({ recommendation, projectName, onMarkTreated, onMarkIgn
   };
   
   return (
-    <Card className={`border-l-4 ${scoreColor.border} bg-gradient-to-r from-white to-gray-50/50`} data-testid="card-top-priority">
-      <CardContent className="p-5 space-y-4">
+    <Card className={`border-l-4 ${scoreColor.border} bg-gradient-to-r from-background to-muted/20`} data-testid="card-top-priority">
+      <CardContent className="p-4 space-y-3">
         {/* HEADER: Badge priorité + Score visuel */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">
@@ -884,12 +884,12 @@ function TopPriorityCard({ recommendation, projectName, onMarkTreated, onMarkIgn
               <div className="flex flex-col items-end gap-1 cursor-help">
                 <Progress 
                   value={100 - recommendation.priorityScore} 
-                  className="w-24 h-2"
+                  className="w-20 h-1.5"
                 />
-                <span className="text-[10px] text-gray-500">Niveau d'urgence</span>
+                <span className="text-[10px] text-muted-foreground">Niveau d'urgence</span>
               </div>
             </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs max-w-xs bg-white dark:bg-gray-900 border shadow-lg">
+            <TooltipContent side="top" className="text-xs max-w-xs border shadow-lg">
               <p className="font-medium mb-1">Urgence : {100 - recommendation.priorityScore}%</p>
               <p className="text-muted-foreground">
                 Plus la barre est remplie, plus l'action est urgente.
@@ -900,20 +900,20 @@ function TopPriorityCard({ recommendation, projectName, onMarkTreated, onMarkIgn
         </div>
         
         {/* CORPS: Action principale + Impact + Délai */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           {/* Action principale (1 phrase claire, très visible) */}
-          <h3 className="text-lg font-bold text-gray-900">
+          <h3 className="text-sm font-semibold text-foreground">
             {recommendation.blocks?.concreteAction?.primary || priorityAction}
           </h3>
           
           {/* Impact financier clair - Wording adapté selon l'horizon */}
           {recommendation.impactValue !== undefined && recommendation.impactValue !== 0 && (
-            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium ${
+            <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${
               recommendation.impactValue > 0 
-                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                : 'bg-rose-50 text-rose-700 border border-rose-200'
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-400'
+                : 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/20 dark:border-rose-800 dark:text-rose-400'
             }`}>
-              {recommendation.impactValue > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              {recommendation.impactValue > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
               <span>
                 {recommendation.horizon === 'immediate' 
                   ? `Impact potentiel : ${recommendation.impactValue > 0 ? '+' : ''}${formatCurrency(recommendation.impactValue)} sur ce projet`
@@ -925,8 +925,8 @@ function TopPriorityCard({ recommendation, projectName, onMarkTreated, onMarkIgn
           
           {/* Délai recommandé - Only for immediate horizon */}
           {recommendation.horizon === 'immediate' && (
-            <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-gray-400" />
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Clock className="w-3 h-3" />
               Délai recommandé : <span className="font-medium">{getRecommendedDelay()}</span>
             </p>
           )}
@@ -947,18 +947,18 @@ function TopPriorityCard({ recommendation, projectName, onMarkTreated, onMarkIgn
         </div>
         
         {/* FOOTER: Boutons + Lien projet */}
-        <div className="flex items-center justify-between gap-3 pt-2 border-t border-gray-100 flex-wrap">
+        <div className="flex items-center justify-between gap-3 pt-2 border-t border-border flex-wrap">
           <div className="flex items-center gap-2">
             {/* Boutons Traité/Ignorer - Only for immediate horizon */}
             {recommendation.horizon === 'immediate' && onMarkTreated && (
               <Button
                 variant="default"
                 size="sm"
-                className="gap-2"
+                className="gap-1.5 text-xs"
                 onClick={onMarkTreated}
                 data-testid="button-overview-mark-treated"
               >
-                <Check className="w-4 h-4" />
+                <Check className="w-3 h-3" />
                 Traité
               </Button>
             )}
@@ -966,21 +966,21 @@ function TopPriorityCard({ recommendation, projectName, onMarkTreated, onMarkIgn
               <Button
                 variant="ghost"
                 size="sm"
-                className="gap-2 text-gray-500"
+                className="gap-1.5 text-xs text-muted-foreground"
                 onClick={onMarkIgnored}
                 data-testid="button-overview-mark-ignored"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3 h-3" />
                 Ignorer
               </Button>
             )}
           </div>
           <Link 
             href={`/projects/${recommendation.projectId}`} 
-            className="text-sm text-violet-600 hover:underline flex items-center gap-1"
+            className="text-xs text-violet-600 hover:underline flex items-center gap-1"
           >
             {projectName}
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-3 h-3" />
           </Link>
         </div>
       </CardContent>
@@ -1023,19 +1023,19 @@ function LoadingState() {
 
 function EmptyState() {
   return (
-    <Card className="p-12 text-center">
-      <div className="flex flex-col items-center gap-4">
-        <div className="p-4 bg-violet-100 rounded-full">
-          <PieChart className="w-8 h-8 text-violet-600" />
+    <Card className="p-10 text-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="p-3 bg-violet-100 dark:bg-violet-900/30 rounded-full">
+          <PieChart className="w-6 h-6 text-violet-600" />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Aucune donnée de rentabilité</h3>
-          <p className="text-sm text-gray-500 mt-1">
+          <h3 className="text-sm font-semibold text-foreground">Aucune donnée de rentabilité</h3>
+          <p className="text-xs text-muted-foreground mt-1">
             Créez des projets et enregistrez du temps pour voir l'analyse de rentabilité.
           </p>
         </div>
         <Link href="/projects">
-          <Button className="mt-2" data-testid="button-go-to-projects">
+          <Button size="sm" className="mt-1" data-testid="button-go-to-projects">
             Voir les projets
           </Button>
         </Link>
@@ -1177,8 +1177,8 @@ function FinanceInner() {
       <div className="p-6">
         <Card className="p-12 text-center border-red-200 bg-red-50">
           <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900">Erreur de chargement</h3>
-          <p className="text-sm text-gray-500 mt-1">
+          <h3 className="text-sm font-semibold text-foreground">Erreur de chargement</h3>
+          <p className="text-xs text-muted-foreground mt-1">
             Impossible de charger les données de rentabilité.
           </p>
         </Card>
@@ -1319,11 +1319,11 @@ function FinanceInner() {
                 {/* Header */}
                 <div className="flex items-center justify-between flex-wrap gap-4">
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                      <CalendarCheck className="w-5 h-5 text-violet-600" />
+                    <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <CalendarCheck className="w-4 h-4 text-violet-600" />
                       Vos 3 décisions du jour
                     </h2>
-                    <p className="text-sm text-gray-500 mt-1 capitalize">
+                    <p className="text-xs text-muted-foreground mt-0.5 capitalize">
                       {getTodayDate()} - Concentrez-vous sur ces actions prioritaires
                     </p>
                   </div>
@@ -1340,45 +1340,45 @@ function FinanceInner() {
                 </div>
 
                 {/* KPIs synthèse en haut - expliquent pourquoi ces décisions existent */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card className="p-4 bg-gradient-to-br from-emerald-50 to-white border-emerald-200">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-emerald-100 rounded-full">
-                        <Euro className="w-5 h-5 text-emerald-600" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Card className="p-3 bg-gradient-to-br from-emerald-50 to-white border-emerald-200 dark:from-emerald-950/20 dark:to-background dark:border-emerald-800">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/40 rounded-full">
+                        <Euro className="w-4 h-4 text-emerald-600" />
                       </div>
                       <div>
-                        <p className="text-2xl font-bold text-emerald-700">
+                        <p className="text-base font-bold text-emerald-700 dark:text-emerald-400">
                           {formatCurrency(totalPotentialGains)}
                         </p>
-                        <p className="text-xs text-emerald-600">Gains potentiels activables</p>
+                        <p className="text-[10px] text-emerald-600 dark:text-emerald-500">Gains potentiels activables</p>
                         <p className="text-[10px] text-emerald-500">sur les décisions non traitées</p>
                       </div>
                     </div>
                   </Card>
-                  <Card className="p-4 bg-gradient-to-br from-amber-50 to-white border-amber-200">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-amber-100 rounded-full">
-                        <AlertTriangle className="w-5 h-5 text-amber-600" />
+                  <Card className="p-3 bg-gradient-to-br from-amber-50 to-white border-amber-200 dark:from-amber-950/20 dark:to-background dark:border-amber-800">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 bg-amber-100 dark:bg-amber-900/40 rounded-full">
+                        <AlertTriangle className="w-4 h-4 text-amber-600" />
                       </div>
                       <div>
-                        <p className="text-2xl font-bold text-amber-700">
+                        <p className="text-base font-bold text-amber-700 dark:text-amber-400">
                           {formatCurrency(amountAtRisk)}
                         </p>
-                        <p className="text-xs text-amber-600">Montant à risque</p>
+                        <p className="text-[10px] text-amber-600 dark:text-amber-500">Montant à risque</p>
                         <p className="text-[10px] text-amber-500">facturé non encaissé + déficits</p>
                       </div>
                     </div>
                   </Card>
-                  <Card className="p-4 bg-gradient-to-br from-violet-50 to-white border-violet-200">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-violet-100 rounded-full">
-                        <Lightbulb className="w-5 h-5 text-violet-600" />
+                  <Card className="p-3 bg-gradient-to-br from-violet-50 to-white border-violet-200 dark:from-violet-950/20 dark:to-background dark:border-violet-800">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 bg-violet-100 dark:bg-violet-900/40 rounded-full">
+                        <Lightbulb className="w-4 h-4 text-violet-600" />
                       </div>
                       <div>
-                        <p className="text-2xl font-bold text-violet-700">
+                        <p className="text-base font-bold text-violet-700 dark:text-violet-400">
                           {activeRecommendationsCount}
                         </p>
-                        <p className="text-xs text-violet-600">Décisions actives</p>
+                        <p className="text-[10px] text-violet-600 dark:text-violet-500">Décisions actives</p>
                         <p className="text-[10px] text-violet-500">{treatedThisMonth} traitées ce mois</p>
                       </div>
                     </div>
@@ -1386,14 +1386,14 @@ function FinanceInner() {
                 </div>
 
                 {top3Recommendations.length === 0 ? (
-                  <Card className="p-8 text-center bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="p-4 bg-green-200 rounded-full">
-                        <CheckCircle className="w-8 h-8 text-green-600" />
+                  <Card className="p-6 text-center bg-gradient-to-br from-green-50 to-green-100 border-green-200 dark:from-green-950/20 dark:to-background dark:border-green-800">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="p-3 bg-green-200 dark:bg-green-900/40 rounded-full">
+                        <CheckCircle className="w-6 h-6 text-green-600" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-green-800">Tout est sous contrôle !</h3>
-                        <p className="text-sm text-green-600 mt-1">
+                        <h3 className="text-sm font-semibold text-green-800 dark:text-green-400">Tout est sous contrôle !</h3>
+                        <p className="text-xs text-green-600 dark:text-green-500 mt-0.5">
                           Aucune décision urgente à prendre aujourd'hui. Tous vos projets sont en bonne santé.
                         </p>
                       </div>
@@ -1405,9 +1405,9 @@ function FinanceInner() {
                       const actionStatus = getActionStatus(rec.projectId || '', rec.id);
                       // Palette douce : violet/indigo/slate au lieu de rouge/orange/jaune
                       const cardStyles = [
-                        { border: 'border-l-violet-500', bg: 'bg-gradient-to-r from-violet-50/60 to-white', badge: 'bg-violet-100 text-violet-700' },
-                        { border: 'border-l-indigo-400', bg: 'bg-gradient-to-r from-indigo-50/50 to-white', badge: 'bg-indigo-100 text-indigo-700' },
-                        { border: 'border-l-slate-400', bg: 'bg-gradient-to-r from-slate-50/50 to-white', badge: 'bg-slate-100 text-slate-700' }
+                        { border: 'border-l-violet-500', bg: 'bg-gradient-to-r from-violet-50/60 to-background dark:from-violet-950/20', badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300' },
+                        { border: 'border-l-indigo-400', bg: 'bg-gradient-to-r from-indigo-50/50 to-background dark:from-indigo-950/20', badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' },
+                        { border: 'border-l-slate-400', bg: 'bg-gradient-to-r from-slate-50/50 to-background dark:from-slate-800/30', badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' }
                       ];
                       const style = cardStyles[index] || cardStyles[2];
                       
@@ -1420,21 +1420,21 @@ function FinanceInner() {
                           <CardContent className="p-3 md:p-5">
                             <div className="flex flex-col gap-3 md:gap-4">
                               <div className="flex items-start gap-3">
-                                <div className={`flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-base md:text-xl font-bold ${style.badge}`}>
+                                <div className={`flex-shrink-0 w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm md:text-base font-bold ${style.badge}`}>
                                   {index + 1}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <h3 className="text-sm md:text-base font-bold text-gray-900 mb-1 line-clamp-2">
+                                  <h3 className="text-xs md:text-sm font-semibold text-foreground mb-0.5 line-clamp-2">
                                     {rec.threeBlockFormat?.concreteAction || rec.actionSuggested || rec.action}
                                   </h3>
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <Link 
                                       href={`/projects/${rec.projectId}`} 
-                                      className="text-xs md:text-sm text-violet-600 hover:underline"
+                                      className="text-[10px] md:text-xs text-violet-600 hover:underline"
                                     >
                                       {rec.projectName}
                                     </Link>
-                                    <Badge variant="outline" className="text-xs">
+                                    <Badge variant="outline" className="text-[10px]">
                                       {rec.decisionInfo?.emoji} {rec.decisionInfo?.label}
                                     </Badge>
                                   </div>
@@ -1442,14 +1442,14 @@ function FinanceInner() {
                               </div>
                               
                               {/* Format 3 blocs - masqué sur mobile */}
-                              <div className="hidden md:block space-y-3 text-sm pl-11 md:pl-14">
+                              <div className="hidden md:block space-y-2 text-xs pl-10 md:pl-11">
                                 {rec.threeBlockFormat ? (
                                   <>
-                                    <div className="flex items-start gap-2">
+                                    <div className="flex items-start gap-1.5">
                                       <span className="text-amber-500 mt-0.5">1.</span>
                                       <div>
-                                        <span className="font-medium text-gray-700">Constat passé : </span>
-                                        <span className="text-gray-600">
+                                        <span className="font-medium text-foreground">Constat passé : </span>
+                                        <span className="text-muted-foreground">
                                           {rec.threeBlockFormat.pastObservation}
                                           {rec.impactValue && rec.impactValue > 0 && (
                                             <span className="text-emerald-600 font-medium ml-1">(+{formatCurrency(rec.impactValue)} potentiel)</span>
@@ -1457,22 +1457,22 @@ function FinanceInner() {
                                         </span>
                                       </div>
                                     </div>
-                                    <div className="flex items-start gap-2">
+                                    <div className="flex items-start gap-1.5">
                                       <span className="text-amber-500 mt-0.5">2.</span>
                                       <div>
-                                        <span className="font-medium text-gray-700">Ce que ça implique : </span>
-                                        <span className="text-gray-600">{rec.threeBlockFormat.currentImplication}</span>
+                                        <span className="font-medium text-foreground">Ce que ça implique : </span>
+                                        <span className="text-muted-foreground">{rec.threeBlockFormat.currentImplication}</span>
                                       </div>
                                     </div>
-                                    <div className="bg-violet-50 p-3 rounded-lg border border-violet-200">
-                                      <div className="flex items-start gap-2">
-                                        <Zap className="w-4 h-4 text-violet-600 mt-0.5 flex-shrink-0" />
+                                    <div className="bg-violet-50 p-2.5 rounded-lg border border-violet-200 dark:bg-violet-950/20 dark:border-violet-800">
+                                      <div className="flex items-start gap-1.5">
+                                        <Zap className="w-3 h-3 text-violet-600 mt-0.5 flex-shrink-0" />
                                         <div>
-                                          <p className="font-semibold text-violet-800">
+                                          <p className="font-semibold text-violet-800 dark:text-violet-300 text-xs">
                                             Action recommandée : {rec.threeBlockFormat.concreteAction}
                                           </p>
                                           {rec.threeBlockFormat.alternatives && rec.threeBlockFormat.alternatives.length > 0 && (
-                                            <p className="text-xs text-violet-600 mt-1">
+                                            <p className="text-[10px] text-violet-600 dark:text-violet-400 mt-0.5">
                                               Alternatives : {rec.threeBlockFormat.alternatives.join(', ')}
                                             </p>
                                           )}
@@ -1481,10 +1481,10 @@ function FinanceInner() {
                                     </div>
                                   </>
                                 ) : (
-                                  <div className="bg-violet-50 p-3 rounded-lg border border-violet-200">
-                                    <div className="flex items-start gap-2">
-                                      <Zap className="w-4 h-4 text-violet-600 mt-0.5 flex-shrink-0" />
-                                      <p className="font-semibold text-violet-800">{rec.actionSuggested || rec.action}</p>
+                                  <div className="bg-violet-50 p-2.5 rounded-lg border border-violet-200 dark:bg-violet-950/20 dark:border-violet-800">
+                                    <div className="flex items-start gap-1.5">
+                                      <Zap className="w-3 h-3 text-violet-600 mt-0.5 flex-shrink-0" />
+                                      <p className="font-semibold text-xs text-violet-800 dark:text-violet-300">{rec.actionSuggested || rec.action}</p>
                                     </div>
                                   </div>
                                 )}
@@ -1514,7 +1514,7 @@ function FinanceInner() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="gap-1.5 flex-1 md:flex-none text-xs md:text-sm text-gray-500"
+                                    className="gap-1.5 flex-1 md:flex-none text-xs text-muted-foreground"
                                     onClick={() => handleMarkIgnored(rec.projectId || '', rec.id)}
                                     disabled={createActionMutation.isPending}
                                     data-testid={`button-today-mark-ignored-${index + 1}`}
@@ -1595,90 +1595,90 @@ function FinanceInner() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-4 p-4 rounded-lg bg-gradient-to-br from-green-50 to-green-100 border border-green-200 cursor-help transition-all hover:from-green-100 hover:to-green-200 hover:shadow-md" data-testid="status-profitable">
-                  <div className="p-3 bg-green-200 rounded-full">
-                    <CheckCircle className="w-6 h-6 text-green-600" />
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-green-50 to-green-100 border border-green-200 cursor-help transition-all hover:from-green-100 hover:to-green-200 dark:from-green-950/20 dark:to-background dark:border-green-800 dark:hover:from-green-900/30" data-testid="status-profitable">
+                  <div className="p-2 bg-green-200 dark:bg-green-900/40 rounded-full">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-green-700">{aggregate.profitableCount}</p>
-                    <p className="text-sm text-green-600">Projets rentables</p>
-                    <p className="text-xs text-green-500">Marge &gt; 15%</p>
+                    <p className="text-base font-bold text-green-700 dark:text-green-400">{aggregate.profitableCount}</p>
+                    <p className="text-xs text-green-600 dark:text-green-500">Projets rentables</p>
+                    <p className="text-[10px] text-green-500">Marge &gt; 15%</p>
                   </div>
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="w-64 p-3 bg-white dark:bg-gray-900 border shadow-lg">
-                <p className="text-sm font-semibold text-green-700 mb-2">Projets rentables</p>
+              <TooltipContent side="bottom" className="w-64 p-3 border shadow-lg">
+                <p className="text-xs font-semibold text-green-700 mb-1.5">Projets rentables</p>
                 {projects.filter(p => p.metrics.status === 'profitable').length > 0 ? (
                   <ul className="space-y-1">
                     {projects.filter(p => p.metrics.status === 'profitable').map(p => (
-                      <li key={p.projectId} className="text-xs text-gray-700 flex justify-between">
+                      <li key={p.projectId} className="text-xs text-foreground flex justify-between">
                         <span className="truncate">{p.projectName}</span>
                         <span className="text-green-600 font-medium">{formatNumber(p.metrics.marginPercent)}%</span>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-xs text-gray-500">Aucun projet rentable</p>
+                  <p className="text-xs text-muted-foreground">Aucun projet rentable</p>
                 )}
               </TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-4 p-4 rounded-lg bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 cursor-help transition-all hover:from-orange-100 hover:to-orange-200 hover:shadow-md" data-testid="status-at-risk">
-                  <div className="p-3 bg-orange-200 rounded-full">
-                    <AlertTriangle className="w-6 h-6 text-orange-600" />
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 cursor-help transition-all hover:from-orange-100 hover:to-orange-200 dark:from-orange-950/20 dark:to-background dark:border-orange-800 dark:hover:from-orange-900/30" data-testid="status-at-risk">
+                  <div className="p-2 bg-orange-200 dark:bg-orange-900/40 rounded-full">
+                    <AlertTriangle className="w-4 h-4 text-orange-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-orange-700">{aggregate.atRiskCount}</p>
-                    <p className="text-sm text-orange-600">Projets à risque</p>
-                    <p className="text-xs text-orange-500">Marge 0-15%</p>
+                    <p className="text-base font-bold text-orange-700 dark:text-orange-400">{aggregate.atRiskCount}</p>
+                    <p className="text-xs text-orange-600 dark:text-orange-500">Projets à risque</p>
+                    <p className="text-[10px] text-orange-500">Marge 0-15%</p>
                   </div>
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="w-64 p-3 bg-white dark:bg-gray-900 border shadow-lg">
-                <p className="text-sm font-semibold text-orange-700 mb-2">Projets à risque</p>
+              <TooltipContent side="bottom" className="w-64 p-3 border shadow-lg">
+                <p className="text-xs font-semibold text-orange-700 mb-1.5">Projets à risque</p>
                 {projects.filter(p => p.metrics.status === 'at_risk').length > 0 ? (
                   <ul className="space-y-1">
                     {projects.filter(p => p.metrics.status === 'at_risk').map(p => (
-                      <li key={p.projectId} className="text-xs text-gray-700 flex justify-between">
+                      <li key={p.projectId} className="text-xs text-foreground flex justify-between">
                         <span className="truncate">{p.projectName}</span>
                         <span className="text-orange-600 font-medium">{formatNumber(p.metrics.marginPercent)}%</span>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-xs text-gray-500">Aucun projet à risque</p>
+                  <p className="text-xs text-muted-foreground">Aucun projet à risque</p>
                 )}
               </TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-4 p-4 rounded-lg bg-gradient-to-br from-red-50 to-red-100 border border-red-200 cursor-help transition-all hover:from-red-100 hover:to-red-200 hover:shadow-md" data-testid="status-deficit">
-                  <div className="p-3 bg-red-200 rounded-full">
-                    <AlertTriangle className="w-6 h-6 text-red-600" />
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-red-50 to-red-100 border border-red-200 cursor-help transition-all hover:from-red-100 hover:to-red-200 dark:from-red-950/20 dark:to-background dark:border-red-800 dark:hover:from-red-900/30" data-testid="status-deficit">
+                  <div className="p-2 bg-red-200 dark:bg-red-900/40 rounded-full">
+                    <AlertTriangle className="w-4 h-4 text-red-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-red-700">{aggregate.deficitCount}</p>
-                    <p className="text-sm text-red-600">Projets déficitaires</p>
-                    <p className="text-xs text-red-500">Marge &lt; 0%</p>
+                    <p className="text-base font-bold text-red-700 dark:text-red-400">{aggregate.deficitCount}</p>
+                    <p className="text-xs text-red-600 dark:text-red-500">Projets déficitaires</p>
+                    <p className="text-[10px] text-red-500">Marge &lt; 0%</p>
                   </div>
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="w-64 p-3 bg-white dark:bg-gray-900 border shadow-lg">
-                <p className="text-sm font-semibold text-red-700 mb-2">Projets déficitaires</p>
+              <TooltipContent side="bottom" className="w-64 p-3 border shadow-lg">
+                <p className="text-xs font-semibold text-red-700 mb-1.5">Projets déficitaires</p>
                 {projects.filter(p => p.metrics.status === 'deficit').length > 0 ? (
                   <ul className="space-y-1">
                     {projects.filter(p => p.metrics.status === 'deficit').map(p => (
-                      <li key={p.projectId} className="text-xs text-gray-700 flex justify-between">
+                      <li key={p.projectId} className="text-xs text-foreground flex justify-between">
                         <span className="truncate">{p.projectName}</span>
                         <span className="text-red-600 font-medium">{formatNumber(p.metrics.marginPercent)}%</span>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-xs text-gray-500">Aucun projet déficitaire</p>
+                  <p className="text-xs text-muted-foreground">Aucun projet déficitaire</p>
                 )}
               </TooltipContent>
             </Tooltip>
@@ -1688,7 +1688,7 @@ function FinanceInner() {
           {topPriorityRec && (
             <div className="space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <h3 className="text-lg font-semibold text-gray-900">Action prioritaire</h3>
+                <h3 className="text-sm font-semibold text-foreground">Action prioritaire</h3>
                 <Button 
                   variant="link" 
                   className="text-violet-600 p-0 h-auto"
@@ -1708,27 +1708,28 @@ function FinanceInner() {
           )}
 
           {highPriorityCount > 1 && (
-            <Card className="border-orange-200 bg-orange-50">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <div className="flex items-center gap-3">
-                    <AlertTriangle className="w-5 h-5 text-orange-500" />
+            <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-800">
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-orange-500" />
                     <div>
-                      <p className="font-medium text-orange-700">
+                      <p className="text-xs font-medium text-orange-700 dark:text-orange-400">
                         {highPriorityCount - 1} autre{highPriorityCount > 2 ? 's' : ''} action{highPriorityCount > 2 ? 's' : ''} critique{highPriorityCount > 2 ? 's' : ''}
                       </p>
-                      <p className="text-sm text-orange-600">
+                      <p className="text-[10px] text-orange-600 dark:text-orange-500">
                         Requiert une attention immédiate
                       </p>
                     </div>
                   </div>
                   <Button 
                     variant="outline" 
-                    className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                    size="sm"
+                    className="border-orange-300 text-orange-700 text-xs"
                     onClick={() => setActiveTab('recommendations')}
                     data-testid="button-view-recommendations"
                   >
-                    Voir les details
+                    Voir les détails
                   </Button>
                 </div>
               </CardContent>
@@ -1768,14 +1769,14 @@ function FinanceInner() {
                   else if (sortOrder === 'desc') setSortOrder('asc');
                   else setSortOrder('none');
                 }}
-                className="gap-2 bg-white hover:bg-gray-50 border border-gray-200"
+                className="gap-2 bg-background border border-border"
                 data-testid="button-sort-margin"
               >
                 {sortOrder === 'none' ? <ArrowUpDown className="w-4 h-4 text-gray-400" /> : 
                  sortOrder === 'desc' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
                 <span className="hidden sm:inline">{sortOrder === 'none' ? 'Tri: Date' : `Marge ${sortOrder === 'desc' ? '↓' : '↑'}`}</span>
               </Button>
-              <p className="text-xs sm:text-sm text-gray-500 ml-auto">
+              <p className="text-xs text-muted-foreground ml-auto">
                 {filteredProjects.length} projet{filteredProjects.length > 1 ? 's' : ''}
               </p>
             </div>
@@ -1783,7 +1784,7 @@ function FinanceInner() {
 
           {filteredProjects.length === 0 ? (
             <Card className="p-8 text-center">
-              <p className="text-gray-500">Aucun projet correspondant au filtre sélectionné</p>
+              <p className="text-xs text-muted-foreground">Aucun projet correspondant au filtre sélectionné</p>
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1797,9 +1798,9 @@ function FinanceInner() {
         <TabsContent value="recommendations" className="space-y-6">
           {allRecommendations.length === 0 ? (
             <Card className="p-8 text-center">
-              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-              <p className="text-lg font-medium text-gray-900">Excellent travail !</p>
-              <p className="text-sm text-gray-500 mt-1">
+              <CheckCircle className="w-10 h-10 text-green-500 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-foreground">Excellent travail !</p>
+              <p className="text-xs text-muted-foreground mt-1">
                 Tous vos projets sont bien optimisés. Continuez ainsi.
               </p>
             </Card>
@@ -1819,7 +1820,7 @@ function FinanceInner() {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Select value={recoFilterType} onValueChange={(v) => setRecoFilterType(v as typeof recoFilterType)}>
-                    <SelectTrigger className="w-[100px] sm:w-[130px] bg-white text-xs sm:text-sm" data-testid="select-reco-filter-type">
+                    <SelectTrigger className="w-[100px] sm:w-[130px] text-xs" data-testid="select-reco-filter-type">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1832,7 +1833,7 @@ function FinanceInner() {
                     </SelectContent>
                   </Select>
                   <Select value={recoSortBy} onValueChange={(v) => setRecoSortBy(v as 'score' | 'gain')}>
-                    <SelectTrigger className="w-[90px] sm:w-[140px] bg-white text-xs sm:text-sm" data-testid="select-reco-sort-by">
+                    <SelectTrigger className="w-[90px] sm:w-[140px] text-xs" data-testid="select-reco-sort-by">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1844,24 +1845,24 @@ function FinanceInner() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setRecoSortOrder(recoSortOrder === 'desc' ? 'asc' : 'desc')}
-                    className="gap-1 bg-white hover:bg-gray-50 border border-gray-200 px-2 sm:px-3"
+                    className="gap-1 bg-background border border-border px-2 sm:px-3"
                     data-testid="button-reco-sort-order"
                   >
-                    {recoSortOrder === 'desc' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
-                    <span className="hidden sm:inline">{recoSortOrder === 'desc' ? 'Décrois.' : 'Crois.'}</span>
+                    {recoSortOrder === 'desc' ? <ArrowDown className="w-3.5 h-3.5" /> : <ArrowUp className="w-3.5 h-3.5" />}
+                    <span className="hidden sm:inline text-xs">{recoSortOrder === 'desc' ? 'Décrois.' : 'Crois.'}</span>
                   </Button>
                   <Button
                     variant={showTreatedIgnored ? "secondary" : "ghost"}
                     size="sm"
                     onClick={() => setShowTreatedIgnored(!showTreatedIgnored)}
-                    className="gap-1 bg-white hover:bg-gray-50 border border-gray-200 px-2 sm:px-3"
+                    className="gap-1 bg-background border border-border px-2 sm:px-3"
                     data-testid="button-toggle-treated-ignored"
                   >
-                    {showTreatedIgnored ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                    <span className="hidden sm:inline">{showTreatedIgnored ? 'Tout' : 'Masquer'}</span>
+                    {showTreatedIgnored ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                    <span className="hidden sm:inline text-xs">{showTreatedIgnored ? 'Tout' : 'Masquer'}</span>
                   </Button>
                 </div>
-                <p className="text-xs sm:text-sm text-gray-500 sm:ml-auto">
+                <p className="text-xs text-muted-foreground sm:ml-auto">
                   {(() => {
                     const filtered = allRecommendations
                       .filter(r => !hiddenRecommendations.has(`${r.projectId}-${r.id}`))
@@ -1920,7 +1921,7 @@ function FinanceInner() {
                             onClick={() => toggleRecommendation(recKey)}
                             data-testid={`button-toggle-recommendation-${rec.id}`}
                           >
-                            <Eye className="w-4 h-4 text-gray-500" />
+                            <Eye className="w-3.5 h-3.5 text-muted-foreground" />
                           </Button>
                         </div>
                         <RecommendationCard 
