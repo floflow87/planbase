@@ -949,6 +949,42 @@ function PlanCell({
   );
 }
 
+// ── Shared recharts tooltip components (dark-mode aware) ──────────────────────
+
+function FluxTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  const nameMap: Record<string, string> = { income: "Entrées", expense: "Sorties", cumulativeCash: "Trésorerie cumulée" };
+  return (
+    <div className="bg-popover text-popover-foreground border border-border rounded-md shadow-md px-3 py-2 text-xs">
+      <p className="font-semibold mb-1.5">{label}</p>
+      {payload.map((p: any) => (
+        <p key={p.dataKey} className="flex items-center gap-2">
+          <span className="inline-block w-2 h-2 rounded-sm flex-shrink-0" style={{ background: p.color }} />
+          <span className="text-muted-foreground">{nameMap[p.dataKey] ?? p.dataKey} :</span>
+          <span className="font-medium tabular-nums">{fmt(p.value)}</span>
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function PlanChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  const nameMap: Record<string, string> = { income: "Entrées", expense: "Sorties", balance: "Solde cumulé" };
+  return (
+    <div className="bg-popover text-popover-foreground border border-border rounded-md shadow-md px-3 py-2 text-xs">
+      <p className="font-semibold mb-1.5">{label}</p>
+      {payload.map((p: any) => (
+        <p key={p.dataKey} className="flex items-center gap-2">
+          <span className="inline-block w-2 h-2 rounded-sm flex-shrink-0" style={{ background: p.color }} />
+          <span className="text-muted-foreground">{nameMap[p.dataKey] ?? p.dataKey} :</span>
+          <span className="font-medium tabular-nums">{fmt(p.value)}</span>
+        </p>
+      ))}
+    </div>
+  );
+}
+
 // ── Plan de trésorerie View ────────────────────────────────────────────────────
 
 function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; name: string }>; flows: TreasuryFlow[] }) {
@@ -1015,7 +1051,12 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   const [colContextMenu, setColContextMenu] = useState<{ x: number; y: number; periodKey: string } | null>(null);
 
   // ── Dynamic mode ──────────────────────────────────────────────────────────
-  const [planMode, setPlanMode] = useState<"static" | "dynamic">("static");
+  const [planMode, setPlanMode] = useState<"static" | "dynamic">(() =>
+    (localStorage.getItem("treasury_plan_mode") as "static" | "dynamic") ?? "static"
+  );
+  const [showPlanChart, setShowPlanChart] = useState(() =>
+    localStorage.getItem("treasury_plan_chart") !== "false"
+  );
   type DynamicStatus = "paid" | "deferred";
   const [dynamicStatuses, setDynamicStatuses] = useState<Record<string, Record<string, DynamicStatus>>>({});
 
@@ -1033,6 +1074,8 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     try { localStorage.setItem(dynamicStorageKey, JSON.stringify(dynamicStatuses)); }
     catch { /* ignore */ }
   }, [dynamicStatuses, dynamicStorageKey]);
+  useEffect(() => { localStorage.setItem("treasury_plan_mode", planMode); }, [planMode]);
+  useEffect(() => { localStorage.setItem("treasury_plan_chart", String(showPlanChart)); }, [showPlanChart]);
 
   const setDynamicStatus = (lineId: string, periodKey: string, status: DynamicStatus | null) => {
     setDynamicStatuses((prev) => {
@@ -1711,6 +1754,16 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     return result;
   }, [periods, localCells, localSettings.initialBalance, planData?.lines, dynamicStatuses, planMode]);
 
+  const planChartData = useMemo(() =>
+    periods.map((p) => ({
+      label: p.label,
+      income: getTotalEntrees(p.key),
+      expense: getTotalSorties(p.key),
+      balance: balances[p.key]?.balance ?? 0,
+    })),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [periods, balances]);
+
   const evalFormula = (raw: string): number => {
     const trimmed = raw.trim();
     if (!trimmed.startsWith("=")) return parseFloat(trimmed) || 0;
@@ -1990,6 +2043,18 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
           </button>
         </div>
 
+        {/* Chart toggle */}
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn("h-7 gap-1 px-2 text-[11px] shrink-0", showPlanChart && "bg-muted text-foreground")}
+          onClick={() => setShowPlanChart((v) => !v)}
+          data-testid="btn-plan-chart-toggle"
+        >
+          <BarChart2 className="h-3 w-3" />
+          Graphique
+        </Button>
+
         {/* Year horizon selector */}
         <div className="flex items-center gap-1 shrink-0">
           <span className="text-[10px] text-muted-foreground font-medium">Horizon à fin</span>
@@ -2164,6 +2229,35 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
           )}
         </div>
       </div>
+
+      {/* Plan chart */}
+      {showPlanChart && planChartData.length > 0 && (
+        <Card className="p-4 pb-2">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+              Vue graphique — {activePlanScenarioId
+                ? (planData?.planScenarios?.find((s) => s.id === activePlanScenarioId)?.name ?? "Scénario")
+                : "Plan de base"}
+            </span>
+            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: PASTEL_GREEN }} />Entrées</span>
+              <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: PASTEL_RED }} />Sorties</span>
+              <span className="flex items-center gap-1"><span className="inline-block w-5 h-0.5" style={{ background: PASTEL_VIOLET }} />Solde cumulé</span>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={180}>
+            <ComposedChart data={planChartData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="label" tick={{ fontSize: 9 }} />
+              <YAxis tick={{ fontSize: 9 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} width={32} />
+              <ReTooltip content={<PlanChartTooltip />} />
+              <Bar dataKey="income" fill={PASTEL_GREEN} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="expense" fill={PASTEL_RED} radius={[3, 3, 0, 0]} />
+              <Line type="monotone" dataKey="balance" stroke={PASTEL_VIOLET} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
 
       {/* Plan table */}
       <Card>
@@ -3403,7 +3497,9 @@ function TreasuryPageInner() {
 
   const [mainTab, setMainTab] = useState<"flux" | "plan" | "tva">("flux");
   const [periodTab, setPeriodTab] = useState<"3m" | "6m" | "12m" | "all">("6m");
-  const [chartMode, setChartMode] = useState<"real" | "projected">("projected");
+  const [chartMode, setChartMode] = useState<"real" | "projected">(() =>
+    (localStorage.getItem("treasury_chart_mode") as "real" | "projected") ?? "projected"
+  );
   const [viewMode, setViewMode] = useState<"chart" | "synthesis">("synthesis");
   const [filterType, setFilterType] = useState<"all" | "income" | "expense">("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -3425,6 +3521,8 @@ function TreasuryPageInner() {
   const [editFlow, setEditFlow] = useState<TreasuryFlow | null>(null);
   const [tagPopoverOpen, setTagPopoverOpen] = useState<Record<string, boolean>>({});
   const [tagInput, setTagInput] = useState("");
+
+  useEffect(() => { localStorage.setItem("treasury_chart_mode", chartMode); }, [chartMode]);
 
   const { data, isLoading, error } = useQuery<TreasuryData>({
     queryKey: ["/api/treasury/flows"],
@@ -3978,13 +4076,7 @@ function TreasuryPageInner() {
                       tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
                       width={32}
                     />
-                    <ReTooltip
-                      formatter={(value: number, name: string) => [
-                        fmt(value),
-                        name === "income" ? "Entrées" : name === "expense" ? "Sorties" : "Trésorerie cumulée",
-                      ]}
-                      contentStyle={{ fontSize: 11 }}
-                    />
+                    <ReTooltip content={<FluxTooltip />} />
                     <Legend
                       formatter={(v) => v === "income" ? "Entrées" : v === "expense" ? "Sorties" : "Trésorerie cumulée"}
                       wrapperStyle={{ fontSize: 10 }}

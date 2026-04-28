@@ -1609,13 +1609,13 @@ function DraggableProjectCard({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-card text-xs">
               {canUpdate && (
-                <DropdownMenuItem onClick={onEdit}>
+                <DropdownMenuItem className="text-xs" onClick={onEdit}>
                   <Edit className="h-3 w-3 mr-2" />
                   Modifier
                 </DropdownMenuItem>
               )}
               {canUpdate && (
-                <DropdownMenuItem onClick={onComplete}>
+                <DropdownMenuItem className="text-xs" onClick={onComplete}>
                   <CheckCircle className="h-3 w-3 mr-2" />
                   Terminé
                 </DropdownMenuItem>
@@ -1623,7 +1623,7 @@ function DraggableProjectCard({
               {(canUpdate || canDelete) && <DropdownMenuSeparator />}
               {canDelete && (
                 <DropdownMenuItem
-                  className="text-destructive"
+                  className="text-xs text-destructive"
                   onClick={onDelete}
                 >
                   <Trash2 className="h-3 w-3 mr-2" />
@@ -3443,7 +3443,7 @@ export default function Projects() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="text-xs">
-                                <DropdownMenuItem asChild>
+                                <DropdownMenuItem className="text-xs" asChild>
                                   <Link href={`/projects/${project.id}`}>
                                     <Eye className="w-3 h-3 mr-2" />
                                     Ouvrir
@@ -3451,6 +3451,7 @@ export default function Projects() {
                                 </DropdownMenuItem>
                                 {canUpdate && (
                                   <DropdownMenuItem
+                                    className="text-xs"
                                     onClick={() => {
                                       setEditingProject(project);
                                       setProjectFormData({
@@ -3472,6 +3473,7 @@ export default function Projects() {
                                 )}
                                 {canUpdate && (
                                   <DropdownMenuItem
+                                    className="text-xs"
                                     onClick={() => updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } })}
                                   >
                                     <Check className="w-3 h-3 mr-2" />
@@ -3481,7 +3483,7 @@ export default function Projects() {
                                 {(canUpdate || canDelete) && <DropdownMenuSeparator />}
                                 {canDelete && (
                                   <DropdownMenuItem
-                                    className="text-destructive"
+                                    className="text-xs text-destructive"
                                     onClick={() => {
                                       setEditingProject(project);
                                       setIsDeleteProjectDialogOpen(true);
@@ -3717,6 +3719,7 @@ export default function Projects() {
                               <DropdownMenuContent align="end" className="bg-card text-xs">
                                 {canUpdate && (
                                   <DropdownMenuItem 
+                                    className="text-xs"
                                     data-testid={`button-edit-project-${project.id}`}
                                     onClick={() => {
                                       setEditingProject(project);
@@ -3739,6 +3742,7 @@ export default function Projects() {
                                 )}
                                 {canUpdate && (
                                   <DropdownMenuItem 
+                                    className="text-xs"
                                     data-testid={`button-complete-project-${project.id}`}
                                     onClick={() => updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } })}
                                   >
@@ -3748,6 +3752,7 @@ export default function Projects() {
                                 )}
                                 {canUpdate && (
                                   <DropdownMenuItem
+                                    className="text-xs"
                                     data-testid={`button-duplicate-project-grid-${project.id}`}
                                     onClick={() => duplicateProjectMutation.mutate(project.id)}
                                   >
@@ -3758,7 +3763,7 @@ export default function Projects() {
                                 {(canUpdate || canDelete) && <DropdownMenuSeparator />}
                                 {canDelete && (
                                   <DropdownMenuItem
-                                    className="text-destructive"
+                                    className="text-xs text-destructive"
                                     data-testid={`button-delete-project-${project.id}`}
                                     onClick={() => {
                                       setEditingProject(project);
@@ -4371,6 +4376,7 @@ export default function Projects() {
                                     <DropdownMenuContent align="end" className="bg-card text-xs">
                                       {canUpdate && (
                                         <DropdownMenuItem 
+                                          className="text-xs"
                                           data-testid={`button-edit-project-${project.id}`}
                                           onClick={() => {
                                             setEditingProject(project);
@@ -4393,6 +4399,7 @@ export default function Projects() {
                                       )}
                                       {canUpdate && (
                                         <DropdownMenuItem 
+                                          className="text-xs"
                                           data-testid={`button-complete-project-${project.id}`}
                                           onClick={() => updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } })}
                                         >
@@ -4402,6 +4409,7 @@ export default function Projects() {
                                       )}
                                       {canUpdate && (
                                         <DropdownMenuItem
+                                          className="text-xs"
                                           data-testid={`button-duplicate-project-${project.id}`}
                                           onClick={() => duplicateProjectMutation.mutate(project.id)}
                                         >
@@ -4412,6 +4420,7 @@ export default function Projects() {
                                       {canUpdate && <DropdownMenuSeparator />}
                                       {canUpdate && (
                                         <DropdownMenuItem 
+                                          className="text-xs"
                                           data-testid={`button-mark-invoiced-${project.id}`}
                                           onClick={() => updateProjectMutation.mutate({ id: project.id, data: { billingStatus: "facture" } })}
                                         >
@@ -4421,6 +4430,7 @@ export default function Projects() {
                                       )}
                                       {canUpdate && (
                                         <DropdownMenuItem 
+                                          className="text-xs"
                                           data-testid={`button-mark-paid-${project.id}`}
                                           onClick={() => updateProjectMutation.mutate({ id: project.id, data: { billingStatus: "paye" } })}
                                         >
@@ -4431,7 +4441,7 @@ export default function Projects() {
                                       {(canUpdate || canDelete) && <DropdownMenuSeparator />}
                                       {canDelete && (
                                         <DropdownMenuItem
-                                          className="text-destructive"
+                                          className="text-xs text-destructive"
                                           data-testid={`button-delete-project-${project.id}`}
                                           onClick={() => {
                                             setEditingProject(project);
