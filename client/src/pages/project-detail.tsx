@@ -3906,7 +3906,7 @@ export default function ProjectDetail() {
                             }
                           }}
                           className={cn(
-                            "flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded-sm hover-elevate transition-colors",
+                            "flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded-sm hover-elevate transition-colors",
                             project.billingStatus === option.value && "bg-muted"
                           )}
                           data-testid={`option-header-billing-${option.value}`}
@@ -5434,15 +5434,6 @@ export default function ProjectDetail() {
                     </span>
                   )}
                 </div>
-                {vatYtdData.isBelowThreshold && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] opacity-80">
-                      <span>{vatYtdData.revenueHt.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}</span>
-                      <span>{Math.min(100, Math.round(vatYtdData.revenueHt / vatYtdData.seuilTVA * 100))}% du seuil ({vatYtdData.seuilTVA.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })})</span>
-                    </div>
-                    <Progress value={Math.min(100, vatYtdData.revenueHt / vatYtdData.seuilTVA * 100)} className="h-1.5" />
-                  </div>
-                )}
               </div>
             )}
 
