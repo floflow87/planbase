@@ -585,6 +585,7 @@ const fr = {
       devis_envoye: "Devis envoyé",
       devis_accepte: "Devis accepté",
       bon_commande: "BDC émis",
+      a_facturer: "À facturer",
       facture: "Facturé",
       partiel: "Partiel",
       paye: "Payé",

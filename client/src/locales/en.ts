@@ -587,6 +587,7 @@ const en: TranslationKeys = {
       devis_envoye: "Quote sent",
       devis_accepte: "Quote accepted",
       bon_commande: "PO issued",
+      a_facturer: "To invoice",
       facture: "Invoiced",
       partiel: "Partial",
       paye: "Paid",

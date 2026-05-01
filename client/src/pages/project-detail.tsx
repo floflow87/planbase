@@ -3084,6 +3084,19 @@ export default function ProjectDetail() {
   const totalPaid = paymentsData?.totalPaid || 0;
   const remainingAmount = paymentsData?.remainingAmount || 0;
 
+  // Fetch TVA year-to-date data for franchise threshold reminder in billing tab
+  const now_ytd = new Date();
+  const ytdStart = `${now_ytd.getFullYear()}-01-01`;
+  const ytdEnd = now_ytd.toISOString().slice(0, 10);
+  const { data: vatYtdData } = useQuery<{
+    revenueHt: number; seuilTVA: number; isBelowThreshold: boolean;
+    collectedVat: number; vatDue: number; isVatDeductible: boolean;
+  }>({
+    queryKey: ["/api/treasury/vat", ytdStart, ytdEnd],
+    queryFn: () => apiRequest(`/api/treasury/vat?start=${ytdStart}&end=${ytdEnd}`, "GET").then(r => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Fetch activities for this project
   const { data: projectActivities = [] } = useQuery<Activity[]>({
     queryKey: ['/api/projects', id, 'activities'],
@@ -5403,6 +5416,33 @@ export default function ProjectDetail() {
                   Voir temps
                   <ExternalLink className="h-3 w-3" />
                 </Button>
+              </div>
+            )}
+
+            {/* TVA franchise reminder */}
+            {vatYtdData && vatYtdData.seuilTVA > 0 && (
+              <div className={`flex flex-col gap-1.5 p-3 mb-4 rounded-md border text-xs ${vatYtdData.isBelowThreshold ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800/40 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300" : "border-orange-200 bg-orange-50 dark:border-orange-800/40 dark:bg-orange-900/20 text-orange-800 dark:text-orange-300"}`}>
+                <div className="flex items-center gap-2">
+                  <Info className="h-3.5 w-3.5 shrink-0" />
+                  {vatYtdData.isBelowThreshold ? (
+                    <span>
+                      Franchise de TVA active — CA encaissé cette année : <span className="font-semibold">{vatYtdData.revenueHt.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}</span> · Il vous reste <span className="font-semibold">{Math.max(0, vatYtdData.seuilTVA - vatYtdData.revenueHt).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}</span> à facturer avant d'être assujetti à la TVA. Facturez sans TVA.
+                    </span>
+                  ) : (
+                    <span>
+                      Seuil de franchise TVA dépassé — CA encaissé : <span className="font-semibold">{vatYtdData.revenueHt.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}</span> · Vous devez désormais facturer avec TVA.
+                    </span>
+                  )}
+                </div>
+                {vatYtdData.isBelowThreshold && (
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[10px] opacity-80">
+                      <span>{vatYtdData.revenueHt.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}</span>
+                      <span>{Math.min(100, Math.round(vatYtdData.revenueHt / vatYtdData.seuilTVA * 100))}% du seuil ({vatYtdData.seuilTVA.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })})</span>
+                    </div>
+                    <Progress value={Math.min(100, vatYtdData.revenueHt / vatYtdData.seuilTVA * 100)} className="h-1.5" />
+                  </div>
+                )}
               </div>
             )}
 
