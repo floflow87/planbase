@@ -3417,7 +3417,9 @@ function TvaTabView() {
         <div className={`grid gap-3 ${data?.isVatDeductible ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2 lg:grid-cols-3"}`}>
           <Card>
             <CardContent className="p-4">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">CA HT encaissé</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                {data?.isBelowThreshold ? "CA encaissé" : "CA HT encaissé"}
+              </p>
               <p className="text-lg font-bold mt-1 tabular-nums">{fmt(data?.revenueHt ?? 0)}</p>
             </CardContent>
           </Card>
@@ -3475,7 +3477,7 @@ function TvaTabView() {
           <TabsList className="h-8">
             <TabsTrigger value="collected" className="text-xs h-7 gap-1.5" data-testid="tab-vat-collected">
               <ArrowUpRight className="h-3 w-3" />
-              TVA collectée ({data?.payments.length ?? 0})
+              {data?.isBelowThreshold ? "Factures encaissées" : "TVA collectée"} ({data?.payments.length ?? 0})
             </TabsTrigger>
             {data?.isVatDeductible && (
               <TabsTrigger value="deductible" className="text-xs h-7 gap-1.5" data-testid="tab-vat-deductible">
@@ -3495,9 +3497,13 @@ function TvaTabView() {
                         <th className="px-3 py-2 text-left font-medium text-muted-foreground">Date</th>
                         <th className="px-3 py-2 text-left font-medium text-muted-foreground">Client</th>
                         <th className="px-3 py-2 text-left font-medium text-muted-foreground">Projet</th>
-                        <th className="px-3 py-2 text-right font-medium text-muted-foreground">Montant HT</th>
+                        <th className="px-3 py-2 text-right font-medium text-muted-foreground">
+                          {data?.isBelowThreshold ? "Montant" : "Montant HT"}
+                        </th>
                         <th className="px-3 py-2 text-right font-medium text-muted-foreground">TVA</th>
-                        <th className="px-3 py-2 text-right font-medium text-muted-foreground">Montant TTC</th>
+                        {!data?.isBelowThreshold && (
+                          <th className="px-3 py-2 text-right font-medium text-muted-foreground">Montant TTC</th>
+                        )}
                         <th className="px-3 py-2 text-left font-medium text-muted-foreground">Taux</th>
                       </tr>
                     </thead>
@@ -3511,9 +3517,20 @@ function TvaTabView() {
                             <td className="px-3 py-2 tabular-nums whitespace-nowrap">{fmtDate(p.date)}</td>
                             <td className="px-3 py-2 text-muted-foreground">{p.client_name || "—"}</td>
                             <td className="px-3 py-2">{p.project_name}</td>
-                            <td className="px-3 py-2 text-right tabular-nums">{fmt(ht)}</td>
                             <td className="px-3 py-2 text-right tabular-nums">
-                              {p.is_vat_estimated ? (
+                              {data?.isBelowThreshold ? fmt(ttc) : fmt(ht)}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums">
+                              {data?.isBelowThreshold ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="text-muted-foreground cursor-default">—</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left" className="text-xs max-w-52">
+                                    TVA non facturée — vous êtes en franchise de TVA (CA HT &lt; {fmt(data.seuilTVA)})
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : p.is_vat_estimated ? (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <span className="flex items-center justify-end gap-1 text-amber-600 dark:text-amber-400 cursor-default">
@@ -3536,9 +3553,14 @@ function TvaTabView() {
                                 </Tooltip>
                               )}
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums font-medium">{fmt(ttc)}</td>
+                            {!data?.isBelowThreshold && (
+                              <td className="px-3 py-2 text-right tabular-nums font-medium">{fmt(ttc)}</td>
+                            )}
                             <td className="px-3 py-2 text-muted-foreground">
-                              {p.effective_rate}%{p.is_vat_estimated && <span className="text-amber-500 ml-1">*</span>}
+                              {data?.isBelowThreshold
+                                ? <span className="text-muted-foreground/60">–</span>
+                                : <>{p.effective_rate}%{p.is_vat_estimated && <span className="text-amber-500 ml-1">*</span>}</>
+                              }
                             </td>
                           </tr>
                         );
@@ -3551,11 +3573,17 @@ function TvaTabView() {
                       <tfoot>
                         <tr className="border-t bg-muted/20 font-semibold">
                           <td colSpan={3} className="px-3 py-2">Total</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{fmt((data?.payments ?? []).reduce((s, p) => s + parseFloat(p.amount) - p.effective_vat, 0))}</td>
-                          <td className="px-3 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">
-                            {data?.isBelowThreshold ? fmt(0) : fmt(data?.collectedVat ?? 0)}
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {data?.isBelowThreshold
+                              ? fmt((data?.payments ?? []).reduce((s, p) => s + parseFloat(p.amount), 0))
+                              : fmt((data?.payments ?? []).reduce((s, p) => s + parseFloat(p.amount) - p.effective_vat, 0))}
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums">{fmt((data?.payments ?? []).reduce((s, p) => s + parseFloat(p.amount), 0))}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                            {data?.isBelowThreshold ? "—" : <span className="text-emerald-600 dark:text-emerald-400">{fmt(data?.collectedVat ?? 0)}</span>}
+                          </td>
+                          {!data?.isBelowThreshold && (
+                            <td className="px-3 py-2 text-right tabular-nums">{fmt((data?.payments ?? []).reduce((s, p) => s + parseFloat(p.amount), 0))}</td>
+                          )}
                           <td />
                         </tr>
                       </tfoot>
