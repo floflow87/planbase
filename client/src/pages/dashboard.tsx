@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon, Check, CreditCard, AlertTriangle, Zap, ArrowRight, Clock, DollarSign, CheckCircle2, ExternalLink, X, Settings, GripVertical, Eye, EyeOff, Play } from "lucide-react";
+import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon, Check, CreditCard, AlertTriangle, Zap, ArrowRight, Clock, DollarSign, CheckCircle2, ExternalLink, X, Settings, GripVertical, Eye, EyeOff, Play, BookOpen, RefreshCw, Banknote, Flag, Lightbulb, MapPin, CheckCheck, CalendarClock } from "lucide-react";
 import { clsx } from "clsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,137 @@ import astronautAvatar from "@assets/E2C9617D-45A3-4B6C-AAFC-BE05B63ADC44_176488
 import { getStatusFromColumnName as getStatusFromColumnNameConfig } from "@shared/config";
 import { useProjectStagesUI } from "@/hooks/useProjectStagesUI";
 import { DASHBOARD_CONFIG_BY_PROFILE, type UserProfileType, type DashboardBlockId as ProfileBlockId } from "@shared/userProfiles";
+
+// ── Daily Digest compact card ─────────────────────────────────────
+interface DigestSummaryMini {
+  topTasks: { id: string }[];
+  billingProjects: { id: string }[];
+  recommendations: { id: string }[];
+  roadmap: { completedLast7Days: { id: string }[]; upcomingNext7Days: { id: string }[] };
+  metadata: { generatedAt: string };
+}
+
+function DailyDigestCard({ colSpan, order }: { colSpan: string; order: number }) {
+  const { data: digest, isLoading } = useQuery<DigestSummaryMini>({
+    queryKey: ["/api/daily-digest/today"],
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const openDigest = () => {
+    window.dispatchEvent(new CustomEvent("open_daily_digest"));
+  };
+
+  const generatedAt = digest?.metadata?.generatedAt
+    ? new Date(digest.metadata.generatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+    : null;
+
+  const taskCount = digest?.topTasks?.length ?? 0;
+  const billingCount = digest?.billingProjects?.length ?? 0;
+  const recoCount = digest?.recommendations?.length ?? 0;
+  const milestoneCount = (digest?.roadmap?.upcomingNext7Days?.length ?? 0);
+  const totalSignals = taskCount + billingCount + recoCount + milestoneCount;
+
+  return (
+    <Card className={colSpan} style={{ order }} data-testid="card-daily-digest">
+      <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-primary" />
+          <CardTitle className="text-base font-heading font-semibold">Brief du jour</CardTitle>
+        </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={openDigest}
+          data-testid="button-open-digest"
+          className="text-xs gap-1"
+        >
+          Voir le brief
+          <ChevronRight className="w-3.5 h-3.5" />
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-2 py-1">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-4 bg-muted animate-pulse rounded" />
+            ))}
+          </div>
+        ) : !digest ? (
+          <p className="text-xs text-muted-foreground py-2">Chargement du brief…</p>
+        ) : totalSignals === 0 ? (
+          <p className="text-xs text-muted-foreground italic py-2">
+            Votre journée semble calme côté urgences.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {taskCount > 0 && (
+              <button
+                type="button"
+                onClick={openDigest}
+                className="flex items-center justify-between w-full gap-2 p-2 rounded-md hover-elevate active-elevate-2 border border-border text-left"
+                data-testid="digest-card-tasks"
+              >
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                  <span className="text-xs">{taskCount} tâche{taskCount > 1 ? "s" : ""} prioritaire{taskCount > 1 ? "s" : ""}</span>
+                </div>
+                <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
+              </button>
+            )}
+            {milestoneCount > 0 && (
+              <button
+                type="button"
+                onClick={openDigest}
+                className="flex items-center justify-between w-full gap-2 p-2 rounded-md hover-elevate active-elevate-2 border border-border text-left"
+                data-testid="digest-card-milestones"
+              >
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
+                  <span className="text-xs">{milestoneCount} jalon{milestoneCount > 1 ? "s" : ""} à préparer</span>
+                </div>
+                <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
+              </button>
+            )}
+            {billingCount > 0 && (
+              <button
+                type="button"
+                onClick={openDigest}
+                className="flex items-center justify-between w-full gap-2 p-2 rounded-md hover-elevate active-elevate-2 border border-border text-left"
+                data-testid="digest-card-billing"
+              >
+                <div className="flex items-center gap-2">
+                  <Banknote className="w-3.5 h-3.5 text-violet-500 shrink-0" />
+                  <span className="text-xs">{billingCount} projet{billingCount > 1 ? "s" : ""} à facturer</span>
+                </div>
+                <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
+              </button>
+            )}
+            {recoCount > 0 && (
+              <button
+                type="button"
+                onClick={openDigest}
+                className="flex items-center justify-between w-full gap-2 p-2 rounded-md hover-elevate active-elevate-2 border border-border text-left"
+                data-testid="digest-card-recos"
+              >
+                <div className="flex items-center gap-2">
+                  <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span className="text-xs">{recoCount} recommandation{recoCount > 1 ? "s" : ""}</span>
+                </div>
+                <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
+              </button>
+            )}
+          </div>
+        )}
+        {generatedAt && (
+          <p className="text-[10px] text-muted-foreground mt-3">
+            Mis à jour aujourd'hui à {generatedAt}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // Fonction pour traduire les types d'activités
 const translateActivityKind = (kind: string) => {
@@ -172,7 +303,7 @@ interface ProfitabilitySummary {
 }
 
 // Dashboard block configuration
-type DashboardBlockId = 'kpis' | 'priorityAction' | 'revenueChart' | 'activityFeed' | 'recentProjects' | 'myDay' | 'recentNotes' | 'recentBacklog';
+type DashboardBlockId = 'kpis' | 'priorityAction' | 'revenueChart' | 'activityFeed' | 'recentProjects' | 'myDay' | 'recentNotes' | 'recentBacklog' | 'dailyDigest';
 
 type BlockSizeOption = 'full' | 'half' | 'two-thirds' | 'one-third';
 
@@ -191,6 +322,7 @@ const BLOCK_SIZE_OPTIONS: Record<DashboardBlockId, BlockSizeConfig> = {
   myDay: { allowedSizes: ['half', 'full'], defaultSize: 'half' },
   recentNotes: { allowedSizes: ['half', 'full'], defaultSize: 'half' },
   recentBacklog: { allowedSizes: ['half', 'full'], defaultSize: 'half' },
+  dailyDigest: { allowedSizes: ['half', 'full'], defaultSize: 'half' },
 };
 
 // Convert size option to col-span class
@@ -224,6 +356,7 @@ const DEFAULT_DASHBOARD_BLOCKS: DashboardBlockConfig[] = [
   { id: 'myDay', label: 'Ma Journée', visible: true, size: 'half' },
   { id: 'recentNotes', label: 'Notes Récentes', visible: true, size: 'half' },
   { id: 'recentBacklog', label: 'Backlog Récent', visible: true, size: 'half' },
+  { id: 'dailyDigest', label: 'Brief du jour', visible: true, size: 'half' },
 ];
 
 const STORAGE_KEY = 'planbase_dashboard_config_v2';
@@ -2845,7 +2978,14 @@ export default function Dashboard() {
           </Card>
         )}
 
-        {/* Recent Backlog */}
+        {/* ── Brief du jour ─────────────────────────────── */}
+        {isBlockVisible('dailyDigest') && (
+          <DailyDigestCard
+            colSpan={getBlockColSpanById('dailyDigest')}
+            order={getBlockOrder('dailyDigest')}
+          />
+        )}
+
         {isBlockVisible('recentBacklog') && (
           <Card className={getBlockColSpanById('recentBacklog')} style={{ order: getBlockOrder('recentBacklog') }}>
             <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">

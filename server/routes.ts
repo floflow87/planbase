@@ -16121,6 +16121,29 @@ app.get("/config/feature-flags", async (_req, res) => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // Daily Digest
+  app.get("/api/daily-digest/today", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { getOrCreateTodayDigest } = await import("./daily-digest");
+      const accountId = req.accountId!;
+      const digest = await getOrCreateTodayDigest(accountId);
+      res.json(digest);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/daily-digest/refresh", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { refreshDigest } = await import("./daily-digest");
+      const accountId = req.accountId!;
+      const digest = await refreshDigest(accountId);
+      res.json(digest);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  // ─────────────────────────────────────────────────────────────────────────────
 
   app.post("/api/seed", async (req, res) => {
     try {

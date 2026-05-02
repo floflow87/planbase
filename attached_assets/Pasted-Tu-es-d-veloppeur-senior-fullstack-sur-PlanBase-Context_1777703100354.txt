@@ -1,0 +1,434 @@
+Tu es développeur senior fullstack sur PlanBase.
+
+Contexte :
+PlanBase est une web app SaaS pour freelances et indépendants.
+Elle contient plusieurs modules : Dashboard, Projets, Backlog, Roadmap, CRM, Trésorerie, tâches/actions prioritaires et potentiellement des sprints.
+Je souhaite ajouter une card “Daily Digest” sur le dashboard principal.
+
+Objectif :
+Créer une card de synthèse quotidienne qui se met à jour automatiquement chaque jour à 07h00.
+Cette card doit aider l’utilisateur à savoir rapidement :
+- quelles tâches traiter en priorité aujourd’hui ;
+- quels jalons roadmap ont été atteints récemment ou arrivent bientôt ;
+- quels projets doivent être facturés ou nécessitent une réflexion sur la facturation ;
+- quelles recommandations simples PlanBase peut faire à partir des données existantes.
+
+Nom de la fonctionnalité :
+Daily Digest
+
+Nom affiché dans l’interface :
+Brief du jour
+
+Emplacement :
+Dashboard principal de PlanBase.
+La card doit être visible rapidement après l’arrivée sur le dashboard.
+Elle doit respecter le design system existant de PlanBase.
+
+Principe important :
+La V1 doit être basée sur des règles simples et déterministes.
+Ne pas utiliser d’IA en V1 sauf si une infrastructure IA existe déjà et peut être utilisée sans complexifier.
+Le Daily Digest doit d’abord être fiable, lisible et actionnable.
+
+Fréquence d’actualisation :
+- Le digest doit être généré automatiquement tous les jours à 07h00.
+- Utiliser le fuseau horaire de l’organisation ou de l’utilisateur si disponible.
+- Si aucun fuseau horaire n’existe, utiliser Europe/Paris par défaut.
+- Ajouter aussi une action manuelle “Rafraîchir le brief” pour recalculer le digest à la demande.
+
+Structure de la card :
+
+Titre :
+Brief du jour
+
+Sous-titre :
+“Vos priorités, échéances et signaux à surveiller aujourd’hui.”
+
+Afficher la date de génération :
+“Mis à jour aujourd’hui à 07:00”
+
+La card doit contenir les sections suivantes :
+
+1. Top 5 tâches prioritaires du jour
+
+Objectif :
+Afficher les 5 tâches les plus importantes à traiter aujourd’hui.
+
+Sources possibles :
+- tâches
+- actions prioritaires
+- tickets backlog
+- tâches projet
+- todo si existant
+
+Règles de priorisation V1 :
+Une tâche doit remonter si :
+- elle est en retard ;
+- elle est due aujourd’hui ;
+- elle est marquée priorité haute ;
+- elle est liée à un projet actif ;
+- elle est bloquante ou critique si ce champ existe ;
+- elle n’est pas terminée.
+
+Ordre de priorité recommandé :
+1. Tâches en retard avec priorité haute
+2. Tâches dues aujourd’hui avec priorité haute
+3. Tâches en retard toutes priorités
+4. Tâches dues aujourd’hui toutes priorités
+5. Tâches priorité haute sans date mais liées à un projet actif
+6. Tâches récemment créées ou mises à jour avec priorité haute
+
+Afficher maximum 5 éléments.
+
+Pour chaque élément afficher :
+- titre
+- priorité
+- date d’échéance
+- retard éventuel : “en retard de X jours”
+- projet ou backlog lié si disponible
+- lien vers l’objet
+- action rapide : “Voir”
+
+Si aucune tâche prioritaire :
+Afficher un empty state :
+“Aucune tâche critique aujourd’hui. Vous pouvez avancer sur vos projets de fond.”
+
+2. Roadmap & milestones
+
+Objectif :
+Afficher les points roadmap et milestones importants.
+
+Deux types d’informations :
+
+A. Milestones atteints ces 7 derniers jours
+Afficher les milestones ou items roadmap passés en statut done/completed ces 7 derniers jours.
+
+B. Milestones à préparer dans les 7 prochains jours
+Afficher les milestones avec une date cible dans les 7 prochains jours et non terminés.
+
+Afficher maximum :
+- 3 milestones atteints récemment
+- 3 milestones à venir
+
+Pour chaque milestone afficher :
+- titre
+- projet lié si disponible
+- date atteinte ou date cible
+- statut
+- lien vers roadmap/projet
+
+Messages possibles :
+- “2 jalons ont été atteints ces 7 derniers jours.”
+- “3 jalons arrivent dans les 7 prochains jours.”
+
+Si aucun milestone :
+Afficher :
+“Aucun jalon critique sur les 7 prochains jours.”
+
+3. Projets à facturer ou facturation à repenser
+
+Objectif :
+Faire remonter les projets qui nécessitent une action liée à la facturation.
+
+Sources possibles :
+- projets finalisés
+- projets avec statut completed/done/finalisé
+- projets avec actions prioritaires liées à la facturation
+- projets avec budget consommé élevé
+- projets avec marge faible
+- projets avec dépassement de temps
+- projets terminés mais non facturés si l’information existe
+
+Règles V1 :
+Un projet doit remonter si :
+- il est finalisé mais pas marqué comme facturé ;
+- il a une action prioritaire de type facturation ;
+- il est actif mais dépasse le budget ou le temps prévu ;
+- sa marge estimée est faible ou négative si cette donnée existe ;
+- il a une recommandation existante de type “facturation”, “rentabilité”, “budget”, “marge” ou “devis”.
+
+Afficher maximum 3 projets.
+
+Pour chaque projet afficher :
+- nom du projet
+- client
+- raison de la recommandation
+- montant ou budget si disponible
+- statut facturation si disponible
+- lien vers projet
+- action rapide : “Voir le projet”
+
+Exemples de recommandations :
+- “Projet finalisé : pensez à facturer.”
+- “Temps consommé élevé : vérifiez si une facturation complémentaire est nécessaire.”
+- “Marge faible : repensez le cadrage ou la facturation.”
+- “Action prioritaire liée à la facturation détectée.”
+
+Si aucune alerte :
+Afficher :
+“Aucun projet à facturer ou à risque détecté aujourd’hui.”
+
+4. Recommandations intelligentes simples
+
+Objectif :
+Afficher des recos opérationnelles courtes basées sur les données existantes.
+
+Recommandations V1 attendues :
+
+A. Sprint / backlog
+Si un sprint contient peu de tickets restants :
+Message :
+“Plus que X tickets dans le sprint [nom du sprint] du backlog [nom du backlog]. Pensez à le clôturer ou préparer le suivant.”
+
+Règle :
+- sprint actif
+- tickets restants <= seuil configurable, par défaut 3
+- sprint non clôturé
+
+B. Prospect CRM sans relance
+Si un prospect n’a pas eu d’activité depuis au moins 3 mois :
+Message :
+“Le prospect [nom] n’a pas été relancé depuis X mois.”
+
+Règle :
+- prospect ou opportunité en statut actif/ouvert
+- last_activity_at inférieur à 90 jours
+- pas de relance récente
+- exclure les prospects perdus, archivés ou clos
+
+C. Projet sans activité récente
+Si un projet actif n’a pas été mis à jour depuis X jours :
+Message :
+“Le projet [nom] n’a pas eu d’activité récente. Vérifiez s’il doit être relancé, clôturé ou archivé.”
+
+Règle :
+- projet actif
+- updated_at ou last_activity_at supérieur à 14 jours
+- projet non terminé
+
+D. Actions prioritaires ouvertes
+Si plusieurs actions prioritaires sont ouvertes sur un même projet :
+Message :
+“Le projet [nom] contient X actions prioritaires ouvertes.”
+
+Règle :
+- actions prioritaires ouvertes >= 3
+
+E. Roadmap à préparer
+Si un milestone arrive bientôt mais n’a pas de tickets ou tâches liés :
+Message :
+“Le milestone [nom] arrive bientôt mais semble peu préparé.”
+
+Règle :
+- milestone dans les 7 prochains jours
+- aucun ticket lié ou aucune tâche liée si la relation existe
+
+Afficher maximum 5 recommandations.
+Classer les recommandations par impact :
+1. Facturation / cash
+2. Retard / échéance
+3. Roadmap imminente
+4. Sprint à clôturer
+5. Prospect sans activité
+6. Projet sans activité
+
+Chaque recommandation doit être courte, actionnable et reliée à un objet PlanBase si possible.
+
+Format d’une recommandation :
+- titre court
+- description courte
+- type : cash | task | roadmap | sprint | crm | project
+- priorité : high | medium | low
+- lien vers objet
+- action rapide : “Voir”
+
+5. Modèle de données
+
+Créer une table dédiée si nécessaire :
+
+daily_digests :
+- id
+- organization_id
+- user_id nullable
+- digest_date
+- generated_at
+- timezone
+- summary_json
+- status : generated | refreshed | failed
+- created_at
+- updated_at
+
+Le champ summary_json peut contenir :
+{
+  "top_tasks": [],
+  "roadmap": {
+    "completed_last_7_days": [],
+    "upcoming_next_7_days": []
+  },
+  "billing_projects": [],
+  "recommendations": [],
+  "metadata": {
+    "source": "rules_v1",
+    "generated_at": "...",
+    "timezone": "Europe/Paris"
+  }
+}
+
+Important :
+- Le digest doit être filtré par organization_id.
+- Ne jamais mélanger les données entre organisations.
+- Si le digest est personnalisé par utilisateur, utiliser user_id.
+- Sinon, générer un digest par organisation.
+
+6. Backend
+
+Créer les endpoints nécessaires :
+
+GET /api/daily-digest/today
+Retourne le digest du jour.
+Si aucun digest n’existe pour aujourd’hui, le générer à la demande.
+
+POST /api/daily-digest/refresh
+Force la régénération du digest du jour.
+
+GET /api/daily-digest/history
+Retourne les anciens digests si utile, mais optionnel en V1.
+
+Créer un service backend :
+DailyDigestService
+
+Méthodes recommandées :
+- generateDailyDigest(organizationId, userId?)
+- getTopTasks(organizationId, userId?)
+- getRoadmapSignals(organizationId)
+- getBillingProjectSignals(organizationId)
+- getRecommendations(organizationId)
+- scoreTasks(tasks)
+- saveDigest(digest)
+
+7. Job automatique à 07h00
+
+Ajouter un mécanisme de génération quotidienne.
+
+Options possibles :
+- cron côté backend si déjà disponible ;
+- Render cron job si hébergé sur Render ;
+- Supabase scheduled function si déjà utilisé ;
+- fallback : génération lazy au premier chargement du dashboard si aucun digest du jour n’existe.
+
+Pour la V1, prévoir au minimum :
+- génération lazy au chargement du dashboard ;
+- bouton refresh manuel.
+
+Si un vrai cron est simple à intégrer :
+- générer chaque jour à 07h00 dans le timezone de l’organisation ou Europe/Paris par défaut.
+
+8. Frontend
+
+Ajouter la card “Brief du jour” sur le Dashboard.
+
+Structure UI :
+
+Header :
+- “Brief du jour”
+- date de génération
+- bouton “Rafraîchir”
+
+Section 1 :
+“Priorités du jour”
+Liste de 5 tâches maximum.
+
+Section 2 :
+“Roadmap”
+Deux sous-blocs :
+- “Atteints récemment”
+- “À préparer cette semaine”
+
+Section 3 :
+“Facturation”
+Liste de projets à facturer ou à surveiller.
+
+Section 4 :
+“Recommandations”
+Liste de recommandations courtes.
+
+Prévoir :
+- loading state
+- error state
+- empty state
+- skeleton loader
+- liens vers les objets concernés
+- responsive design
+
+9. États vides
+
+Si aucune donnée prioritaire :
+Afficher :
+“Votre journée semble calme côté urgences. C’est peut-être le bon moment pour avancer sur vos sujets de fond.”
+
+Si aucune roadmap :
+“Pas de jalon roadmap récent ou imminent.”
+
+Si aucun projet à facturer :
+“Aucun signal de facturation détecté aujourd’hui.”
+
+Si aucune recommandation :
+“Aucune recommandation particulière aujourd’hui.”
+
+10. Garde-fous
+
+Ne pas afficher trop d’informations.
+Limiter la card à une synthèse courte.
+Ne pas dépasser :
+- 5 tâches prioritaires
+- 6 signaux roadmap
+- 3 projets facturation
+- 5 recommandations
+
+Ne pas créer d’IA complexe en V1.
+Ne pas créer de notifications email en V1.
+Ne pas créer de push notifications en V1.
+Ne pas modifier automatiquement les tâches, projets, prospects ou sprints.
+Le Daily Digest lit les données et recommande, mais n’agit pas automatiquement.
+
+11. Critères d’acceptation
+
+- Je vois une card “Brief du jour” sur le Dashboard.
+- Le digest se génère pour la journée courante.
+- Le digest peut être rafraîchi manuellement.
+- Les 5 tâches les plus prioritaires remontent correctement.
+- Les tâches en retard et priorité haute passent devant les autres.
+- Les milestones atteints ces 7 derniers jours sont affichés.
+- Les milestones à préparer dans les 7 prochains jours sont affichés.
+- Les projets finalisés à facturer remontent.
+- Les projets avec signal de facturation ou rentabilité remontent.
+- Les recommandations de sprint presque terminé remontent.
+- Les prospects sans relance depuis au moins 3 mois remontent.
+- Les données sont filtrées par organization_id.
+- La card reste lisible, courte et actionnable.
+- Aucun objet PlanBase n’est modifié automatiquement.
+- Les états loading, empty et error sont gérés.
+
+12. À analyser avant implémentation
+
+Avant de coder, analyser l’existant :
+- structure du Dashboard ;
+- modèles de tâches/actions prioritaires ;
+- modèles backlog/tickets/sprints ;
+- modèles roadmap/milestones ;
+- modèles projets ;
+- champs de facturation/rentabilité ;
+- modèles CRM/prospects/opportunités ;
+- notion de last_activity_at ou équivalent ;
+- système multi-tenant organization_id ;
+- possibilités de cron ou job planifié ;
+- composants UI existants.
+
+Ensuite :
+1. proposer brièvement le plan d’implémentation ;
+2. créer la logique backend de génération ;
+3. créer l’endpoint today ;
+4. créer l’endpoint refresh ;
+5. créer la card frontend ;
+6. ajouter les états loading/empty/error ;
+7. tester avec données existantes ;
+8. vérifier le filtrage organization_id.

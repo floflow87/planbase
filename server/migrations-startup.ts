@@ -3087,6 +3087,31 @@ export async function runStartupMigrations() {
     }
     // ─────────────────────────────────────────────────────────────
 
+    // daily_digests table
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS daily_digests (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+          digest_date date NOT NULL,
+          generated_at timestamptz NOT NULL DEFAULT now(),
+          timezone text NOT NULL DEFAULT 'Europe/Paris',
+          summary_json jsonb NOT NULL DEFAULT '{}',
+          status text NOT NULL DEFAULT 'generated',
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `);
+      await db.execute(sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS daily_digests_account_date_idx
+        ON daily_digests(account_id, digest_date)
+      `);
+      console.log("✅ daily_digests table created");
+    } catch (e: any) {
+      console.warn("⚠️  daily_digests table migration (non-blocking):", e.message);
+    }
+    // ─────────────────────────────────────────────────────────────
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

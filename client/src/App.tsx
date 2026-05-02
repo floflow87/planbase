@@ -54,7 +54,8 @@ import Emails from "@/pages/emails";
 import EmailTemplates from "@/pages/email-templates";
 import NotFound from "@/pages/not-found";
 import { EmailComposeModal } from "@/components/EmailComposeModal";
-import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote, CalendarPlus, MoreVertical, Timer } from "lucide-react";
+import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote, CalendarPlus, MoreVertical, Timer, BookOpen } from "lucide-react";
+import { DailyDigestDrawer } from "@/components/DailyDigestDrawer";
 import { TrialBanner, TrialExpiredGate } from "@/components/billing/PremiumGate";
 import { AiAssistant } from "@/components/ai/AiAssistant";
 import { AppointmentPanel } from "@/components/appointment-panel";
@@ -1199,6 +1200,13 @@ function AppLayout() {
   const { t } = useLanguage();
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isDailyDigestOpen, setIsDailyDigestOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setIsDailyDigestOpen(true);
+    window.addEventListener("open_daily_digest", handler);
+    return () => window.removeEventListener("open_daily_digest", handler);
+  }, []);
   
   // Fetch data for dynamic tab titles
   const { data: projects } = useQuery<{ id: string; name: string }[]>({
@@ -1721,6 +1729,15 @@ function AppLayout() {
                   </div>
                 </SheetContent>
               </Sheet>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden sm:flex"
+                onClick={() => setIsDailyDigestOpen(true)}
+                data-testid="button-daily-digest"
+              >
+                <BookOpen className="w-4 h-4 text-primary dark:text-white" />
+              </Button>
               <UserMenu />
             </div>
           </header>
@@ -1734,6 +1751,9 @@ function AppLayout() {
           </main>
         </div>
       </div>
+      {/* Daily Digest Drawer */}
+      <DailyDigestDrawer open={isDailyDigestOpen} onOpenChange={setIsDailyDigestOpen} />
+
       {/* Mobile sidebar — bottom sheet with two-step animation */}
       <MobileSidebarSheet
         open={isMobileSidebarOpen}
