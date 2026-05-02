@@ -320,6 +320,11 @@ export async function generateDailyDigest(accountId: string, maxTasks = 5): Prom
   };
 }
 
+function hasStaleUrls(summary: DigestSummary): boolean {
+  const json = JSON.stringify(summary);
+  return json.includes('"/backlogs/');
+}
+
 export async function getOrCreateTodayDigest(accountId: string, maxTasks = 5): Promise<DigestSummary> {
   const today = new Date().toISOString().slice(0, 10);
   try {
@@ -331,7 +336,8 @@ export async function getOrCreateTodayDigest(accountId: string, maxTasks = 5): P
     `)) as any[];
     if (rows.length > 0 && rows[0].summary_json) {
       const val = rows[0].summary_json;
-      return typeof val === "string" ? JSON.parse(val) : val;
+      const cached: DigestSummary = typeof val === "string" ? JSON.parse(val) : val;
+      if (!hasStaleUrls(cached)) return cached;
     }
   } catch {}
 

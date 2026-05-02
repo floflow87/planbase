@@ -118,7 +118,11 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
     ? new Date(digest.metadata.generatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
     : null;
 
-  const navigate = (url: string) => { onOpenChange(false); setLocation(url); };
+  const normalizeUrl = (url: string) => {
+    if (url.startsWith("/backlogs/")) return url.replace("/backlogs/", "/product/backlog/");
+    return url;
+  };
+  const navigate = (url: string) => { onOpenChange(false); setLocation(normalizeUrl(url)); };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
