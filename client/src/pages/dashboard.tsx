@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon, Check, CreditCard, AlertTriangle, Zap, ArrowRight, Clock, DollarSign, CheckCircle2, ExternalLink, X, Settings, GripVertical, Eye, EyeOff, Play, BookOpen, RefreshCw, Banknote, Flag, Lightbulb, MapPin, CheckCheck, CalendarClock } from "lucide-react";
+import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, ChevronDown, ChevronUp, Calendar as CalendarIcon, Check, CreditCard, AlertTriangle, Zap, ArrowRight, Clock, DollarSign, CheckCircle2, ExternalLink, X, Settings, GripVertical, Eye, EyeOff, Play, BookOpen, RefreshCw, Banknote, Flag, Lightbulb, MapPin, CheckCheck, CalendarClock } from "lucide-react";
 import { clsx } from "clsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,134 +41,17 @@ import { getStatusFromColumnName as getStatusFromColumnNameConfig } from "@share
 import { useProjectStagesUI } from "@/hooks/useProjectStagesUI";
 import { DASHBOARD_CONFIG_BY_PROFILE, type UserProfileType, type DashboardBlockId as ProfileBlockId } from "@shared/userProfiles";
 
-// ── Daily Digest compact card ─────────────────────────────────────
-interface DigestSummaryMini {
-  topTasks: { id: string }[];
-  billingProjects: { id: string }[];
-  recommendations: { id: string }[];
-  roadmap: { completedLast7Days: { id: string }[]; upcomingNext7Days: { id: string }[] };
-  metadata: { generatedAt: string };
-}
-
-function DailyDigestCard({ colSpan, order }: { colSpan: string; order: number }) {
-  const { data: digest, isLoading } = useQuery<DigestSummaryMini>({
-    queryKey: ["/api/daily-digest/today"],
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const openDigest = () => {
-    window.dispatchEvent(new CustomEvent("open_daily_digest"));
-  };
-
-  const generatedAt = digest?.metadata?.generatedAt
-    ? new Date(digest.metadata.generatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
-    : null;
-
-  const taskCount = digest?.topTasks?.length ?? 0;
-  const billingCount = digest?.billingProjects?.length ?? 0;
-  const recoCount = digest?.recommendations?.length ?? 0;
-  const milestoneCount = (digest?.roadmap?.upcomingNext7Days?.length ?? 0);
-  const totalSignals = taskCount + billingCount + recoCount + milestoneCount;
-
-  return (
-    <Card className={colSpan} style={{ order }} data-testid="card-daily-digest">
-      <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
-        <div className="flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-primary" />
-          <CardTitle className="text-base font-heading font-semibold">Brief du jour</CardTitle>
-        </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={openDigest}
-          data-testid="button-open-digest"
-          className="text-xs gap-1"
-        >
-          Voir le brief
-          <ChevronRight className="w-3.5 h-3.5" />
-        </Button>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="space-y-2 py-1">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-4 bg-muted animate-pulse rounded" />
-            ))}
-          </div>
-        ) : !digest ? (
-          <p className="text-xs text-muted-foreground py-2">Chargement du brief…</p>
-        ) : totalSignals === 0 ? (
-          <p className="text-xs text-muted-foreground italic py-2">
-            Votre journée semble calme côté urgences.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {taskCount > 0 && (
-              <button
-                type="button"
-                onClick={openDigest}
-                className="flex items-center justify-between w-full gap-2 p-2 rounded-md hover-elevate active-elevate-2 border border-border text-left"
-                data-testid="digest-card-tasks"
-              >
-                <div className="flex items-center gap-2">
-                  <CheckSquare className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                  <span className="text-xs">{taskCount} tâche{taskCount > 1 ? "s" : ""} prioritaire{taskCount > 1 ? "s" : ""}</span>
-                </div>
-                <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
-              </button>
-            )}
-            {milestoneCount > 0 && (
-              <button
-                type="button"
-                onClick={openDigest}
-                className="flex items-center justify-between w-full gap-2 p-2 rounded-md hover-elevate active-elevate-2 border border-border text-left"
-                data-testid="digest-card-milestones"
-              >
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
-                  <span className="text-xs">{milestoneCount} jalon{milestoneCount > 1 ? "s" : ""} à préparer</span>
-                </div>
-                <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
-              </button>
-            )}
-            {billingCount > 0 && (
-              <button
-                type="button"
-                onClick={openDigest}
-                className="flex items-center justify-between w-full gap-2 p-2 rounded-md hover-elevate active-elevate-2 border border-border text-left"
-                data-testid="digest-card-billing"
-              >
-                <div className="flex items-center gap-2">
-                  <Banknote className="w-3.5 h-3.5 text-violet-500 shrink-0" />
-                  <span className="text-xs">{billingCount} projet{billingCount > 1 ? "s" : ""} à facturer</span>
-                </div>
-                <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
-              </button>
-            )}
-            {recoCount > 0 && (
-              <button
-                type="button"
-                onClick={openDigest}
-                className="flex items-center justify-between w-full gap-2 p-2 rounded-md hover-elevate active-elevate-2 border border-border text-left"
-                data-testid="digest-card-recos"
-              >
-                <div className="flex items-center gap-2">
-                  <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span className="text-xs">{recoCount} recommandation{recoCount > 1 ? "s" : ""}</span>
-                </div>
-                <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
-              </button>
-            )}
-          </div>
-        )}
-        {generatedAt && (
-          <p className="text-[10px] text-muted-foreground mt-3">
-            Mis à jour aujourd'hui à {generatedAt}
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  );
+// ── Digest interfaces ─────────────────────────────────────────────
+interface DigestTask { id: string; title: string; priority: string; dueDate: string | null; daysOverdue: number; projectName: string | null; projectId: string | null; url: string; }
+interface DigestMilestone { id: string; title: string; projectName: string | null; date: string; status: string; type: "completed" | "upcoming"; url: string; }
+interface DigestBillingProject { id: string; name: string; clientName: string | null; reason: string; billingStatus: string | null; url: string; }
+interface DigestRecommendation { id: string; title: string; description: string; type: string; priority: string; url: string; }
+interface DigestSummary {
+  topTasks: DigestTask[];
+  roadmap: { completedLast7Days: DigestMilestone[]; upcomingNext7Days: DigestMilestone[] };
+  billingProjects: DigestBillingProject[];
+  recommendations: DigestRecommendation[];
+  metadata: { generatedAt: string; timezone: string };
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -303,7 +186,7 @@ interface ProfitabilitySummary {
 }
 
 // Dashboard block configuration
-type DashboardBlockId = 'kpis' | 'priorityAction' | 'revenueChart' | 'activityFeed' | 'recentProjects' | 'myDay' | 'recentNotes' | 'recentBacklog' | 'dailyDigest';
+type DashboardBlockId = 'kpis' | 'priorityAction' | 'revenueChart' | 'activityFeed' | 'recentProjects' | 'recentNotes' | 'recentBacklog' | 'dailyDigest';
 
 type BlockSizeOption = 'full' | 'half' | 'two-thirds' | 'one-third';
 
@@ -319,10 +202,9 @@ const BLOCK_SIZE_OPTIONS: Record<DashboardBlockId, BlockSizeConfig> = {
   revenueChart: { allowedSizes: ['two-thirds', 'full'], defaultSize: 'two-thirds' },
   activityFeed: { allowedSizes: ['one-third', 'two-thirds'], defaultSize: 'one-third' },
   recentProjects: { allowedSizes: ['half', 'full'], defaultSize: 'half' },
-  myDay: { allowedSizes: ['half', 'full'], defaultSize: 'half' },
   recentNotes: { allowedSizes: ['half', 'full'], defaultSize: 'half' },
   recentBacklog: { allowedSizes: ['half', 'full'], defaultSize: 'half' },
-  dailyDigest: { allowedSizes: ['half', 'full'], defaultSize: 'half' },
+  dailyDigest: { allowedSizes: ['half', 'full'], defaultSize: 'full' },
 };
 
 // Convert size option to col-span class
@@ -353,10 +235,9 @@ const DEFAULT_DASHBOARD_BLOCKS: DashboardBlockConfig[] = [
   { id: 'revenueChart', label: 'Revenus Mensuels', visible: true, size: 'two-thirds' },
   { id: 'activityFeed', label: 'Activités Récentes', visible: true, size: 'one-third' },
   { id: 'recentProjects', label: 'Projets Récents', visible: true, size: 'half' },
-  { id: 'myDay', label: 'Ma Journée', visible: true, size: 'half' },
+  { id: 'dailyDigest', label: 'Brief du jour', visible: true, size: 'full' },
   { id: 'recentNotes', label: 'Notes Récentes', visible: true, size: 'half' },
   { id: 'recentBacklog', label: 'Backlog Récent', visible: true, size: 'half' },
-  { id: 'dailyDigest', label: 'Brief du jour', visible: true, size: 'half' },
 ];
 
 const STORAGE_KEY = 'planbase_dashboard_config_v2';
@@ -433,14 +314,14 @@ const migrateLegacyConfig = (): DashboardBlockConfig[] | null => {
 
 // Helper to get readable column span label
 const getColumnSpanLabel = (block: DashboardBlockConfig): string => {
-  const size = block.size || BLOCK_SIZE_OPTIONS[block.id].defaultSize;
-  return SIZE_LABELS[size];
+  const size = block.size || (BLOCK_SIZE_OPTIONS[block.id as DashboardBlockId]?.defaultSize ?? 'half');
+  return SIZE_LABELS[size as BlockSizeOption] ?? SIZE_LABELS['half'];
 };
 
 // Helper to get col-span class for a block
 const getBlockColSpan = (block: DashboardBlockConfig): string => {
-  const size = block.size || BLOCK_SIZE_OPTIONS[block.id].defaultSize;
-  return SIZE_TO_COLSPAN[size];
+  const size = block.size || (BLOCK_SIZE_OPTIONS[block.id as DashboardBlockId]?.defaultSize ?? 'half');
+  return SIZE_TO_COLSPAN[size as BlockSizeOption] ?? SIZE_TO_COLSPAN['half'];
 };
 
 // Sortable item component for settings dialog
@@ -469,9 +350,9 @@ function SortableBlockItem({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const sizeOptions = BLOCK_SIZE_OPTIONS[block.id];
-  const currentSize = block.size || sizeOptions.defaultSize;
-  const hasMultipleSizes = sizeOptions.allowedSizes.length > 1;
+  const sizeOptions = BLOCK_SIZE_OPTIONS[block.id as DashboardBlockId];
+  const currentSize = block.size || sizeOptions?.defaultSize || 'half';
+  const hasMultipleSizes = (sizeOptions?.allowedSizes?.length ?? 1) > 1;
 
   return (
     <div
@@ -730,6 +611,8 @@ export default function Dashboard() {
     }
     return "today";
   });
+  const [digestTasksExpanded, setDigestTasksExpanded] = useState(true);
+  const [digestDetailsExpanded, setDigestDetailsExpanded] = useState(false);
   const [revenuePeriod, setRevenuePeriod] = useState<"full_year" | "last_year" | "until_this_month" | "projection" | "6months" | "quarter">(() => {
     const saved = localStorage.getItem("dashboard_revenue_period");
     if (saved === "full_year" || saved === "last_year" || saved === "until_this_month" || saved === "projection" || saved === "6months" || saved === "quarter") {
@@ -746,6 +629,16 @@ export default function Dashboard() {
   });
 
   const { thresholds } = useConfig();
+
+  // ── Daily Digest (hooks at component level, not inside IIFE) ─────
+  const { data: digest, isLoading: digestLoading } = useQuery<DigestSummary>({
+    queryKey: ["/api/daily-digest/today"],
+    staleTime: 5 * 60 * 1000,
+  });
+  const digestRefreshMutation = useMutation({
+    mutationFn: async () => { const r = await apiRequest("/api/daily-digest/refresh", "POST"); return r.json(); },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/daily-digest/today"] }),
+  });
   
   useEffect(() => {
     localStorage.setItem("dashboard_revenue_period", revenuePeriod);
@@ -790,8 +683,11 @@ export default function Dashboard() {
           return existing ? { ...defaultBlock, ...existing } : defaultBlock;
         });
         // Preserve order from saved config, add new blocks at end
+        // Filter out removed blocks (e.g. 'myDay' which was merged into 'dailyDigest')
+        const REMOVED_BLOCK_IDS = ['myDay'];
         const ordered: DashboardBlockConfig[] = [];
         parsed.forEach((savedBlock: DashboardBlockConfig) => {
+          if (REMOVED_BLOCK_IDS.includes(savedBlock.id)) return;
           const found = allBlocks.find(b => b.id === savedBlock.id);
           if (found) ordered.push(found);
         });
@@ -892,7 +788,7 @@ export default function Dashboard() {
     if (block) {
       return getBlockColSpan(block);
     }
-    return SIZE_TO_COLSPAN[BLOCK_SIZE_OPTIONS[id].defaultSize];
+    return SIZE_TO_COLSPAN[BLOCK_SIZE_OPTIONS[id]?.defaultSize ?? 'half'];
   }, [dashboardBlocks]);
 
   // Fetch current user to get accountId
@@ -2612,9 +2508,9 @@ export default function Dashboard() {
           </Card>
           )}
 
-        {/* Ma Journée Widget - Today's Tasks + Overdue */}
-        {isBlockVisible('myDay') && (
-          <Card className={getBlockColSpanById('myDay')} style={{ order: getBlockOrder('myDay') }}>
+        {/* (myDay block removed — fusionné dans dailyDigest) */}
+        {false && (
+          <Card className={getBlockColSpanById('recentProjects')} style={{ order: 0 }}>
             <CardHeader className="pb-2">
               <div className="flex flex-row items-center justify-between gap-2">
                 <CardTitle className="text-base font-heading font-semibold">
@@ -2627,14 +2523,14 @@ export default function Dashboard() {
                       variant="default"
                       className="text-xs gap-1.5"
                       onClick={() => setLocation("/tasks?queue=1")}
-                      data-testid="button-dashboard-start-queue"
+                      data-testid="button-dashboard-start-queue-legacy"
                     >
                       <Play className="w-3 h-3" />
                       Démarrer la file
                     </Button>
                   )}
                   <Select value={myDayFilter} onValueChange={(value: any) => setMyDayFilter(value)}>
-                    <SelectTrigger className="w-40 h-8 text-xs bg-card" data-testid="select-my-day-filter">
+                    <SelectTrigger className="w-40 h-8 text-xs bg-card" data-testid="select-my-day-filter-legacy">
                       <SelectValue className="text-xs" />
                     </SelectTrigger>
                     <SelectContent>
@@ -2978,13 +2874,380 @@ export default function Dashboard() {
           </Card>
         )}
 
-        {/* ── Brief du jour ─────────────────────────────── */}
-        {isBlockVisible('dailyDigest') && (
-          <DailyDigestCard
-            colSpan={getBlockColSpanById('dailyDigest')}
-            order={getBlockOrder('dailyDigest')}
-          />
-        )}
+        {/* ── Brief du jour (fusionné avec Ma Journée) ─── */}
+        {isBlockVisible('dailyDigest') && (() => {
+          const getColorVariants = (colorStr: string) => {
+            let r = 0, g = 0, b = 0;
+            if (colorStr.startsWith('rgba') || colorStr.startsWith('rgb')) {
+              const match = colorStr.match(/\d+/g);
+              if (match) { r = parseInt(match[0]) / 255; g = parseInt(match[1]) / 255; b = parseInt(match[2]) / 255; }
+            } else {
+              const hex = colorStr.replace('#', '');
+              r = parseInt(hex.substring(0, 2), 16) / 255;
+              g = parseInt(hex.substring(2, 4), 16) / 255;
+              b = parseInt(hex.substring(4, 6), 16) / 255;
+            }
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h = 0, s = 0, l = (max + min) / 2;
+            if (max !== min) {
+              const d = max - min;
+              s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+              switch (max) {
+                case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                case g: h = ((b - r) / d + 2) / 6; break;
+                case b: h = ((r - g) / d + 4) / 6; break;
+              }
+            }
+            const hslToRgb = (hh: number, ss: number, ll: number) => {
+              const hue2rgb = (p: number, q: number, t: number) => {
+                if (t < 0) t += 1; if (t > 1) t -= 1;
+                if (t < 1/6) return p + (q - p) * 6 * t;
+                if (t < 1/2) return q;
+                if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                return p;
+              };
+              const q = ll < 0.5 ? ll * (1 + ss) : ll + ss - ll * ss;
+              const p = 2 * ll - q;
+              return `#${((1 << 24) + (Math.round(hue2rgb(p, q, hh + 1/3) * 255) << 16) + (Math.round(hue2rgb(p, q, hh) * 255) << 8) + Math.round(hue2rgb(p, q, hh - 1/3) * 255)).toString(16).slice(1)}`;
+            };
+            return { bgColor: hslToRgb(h, Math.max(s, 0.4), 0.88), textColor: hslToRgb(h, Math.max(s, 0.6), 0.30) };
+          };
+
+          const refreshMutation = digestRefreshMutation;
+
+          const digestGeneratedAt = digest?.metadata?.generatedAt
+            ? new Date(digest.metadata.generatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+            : null;
+          const digestTaskCount = digest?.topTasks?.length ?? 0;
+          const milestoneCount = digest?.roadmap?.upcomingNext7Days?.length ?? 0;
+          const completedMilestoneCount = digest?.roadmap?.completedLast7Days?.length ?? 0;
+          const billingCount = digest?.billingProjects?.length ?? 0;
+          const recoCount = digest?.recommendations?.length ?? 0;
+          const hasDetails = milestoneCount > 0 || completedMilestoneCount > 0 || billingCount > 0 || recoCount > 0;
+
+          const priorityColors: Record<string, string> = {
+            low: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+            medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+            high: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+          };
+          const priorityBorderColors: Record<string, string> = { low: "#10b981", medium: "#f59e0b", high: "#ef4444" };
+          const priorityLabels: Record<string, string> = { low: "Basse", medium: "Moyenne", high: "Haute" };
+
+          return (
+            <Card
+              className={getBlockColSpanById('dailyDigest')}
+              style={{ order: getBlockOrder('dailyDigest') }}
+              data-testid="card-daily-digest"
+            >
+              <CardHeader className="pb-2">
+                <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-primary" />
+                    <CardTitle className="text-base font-heading font-semibold">Brief du jour</CardTitle>
+                    {digestGeneratedAt && (
+                      <span className="text-[10px] text-muted-foreground">· {digestGeneratedAt}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {filteredMyDayTasks.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="text-xs gap-1.5"
+                        onClick={() => setLocation("/tasks?queue=1")}
+                        data-testid="button-dashboard-start-queue"
+                      >
+                        <Play className="w-3 h-3" />
+                        Démarrer la file
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-xs gap-1"
+                      onClick={() => refreshMutation.mutate()}
+                      disabled={refreshMutation.isPending}
+                      data-testid="button-digest-refresh"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${refreshMutation.isPending ? "animate-spin" : ""}`} />
+                    </Button>
+                    <Select value={myDayFilter} onValueChange={(value: any) => setMyDayFilter(value)}>
+                      <SelectTrigger className="w-40 h-8 text-xs bg-card" data-testid="select-my-day-filter">
+                        <SelectValue className="text-xs" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="today" className="text-xs">Aujourd'hui</SelectItem>
+                        <SelectItem value="overdue" className="text-xs">Retard</SelectItem>
+                        <SelectItem value="next3days" className="text-xs">Les 3 prochains jours</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {filteredOverdueCount > 0 && myDayFilter === "today" && (
+                      <Badge variant="destructive" data-testid="badge-overdue-tasks-count">
+                        {filteredOverdueCount} en retard
+                      </Badge>
+                    )}
+                    <Badge variant="secondary" data-testid="badge-today-tasks-count">
+                      {filteredMyDayTasks.length} tâche{filteredMyDayTasks.length > 1 ? "s" : ""}
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardContent>
+                <div className="space-y-3">
+                  {/* ── Section tâches (Ma Journée) ─────────────── */}
+                  <button
+                    type="button"
+                    className="flex items-center justify-between w-full gap-2 py-1 text-left"
+                    onClick={() => setDigestTasksExpanded(!digestTasksExpanded)}
+                    data-testid="button-digest-tasks-toggle"
+                  >
+                    <div className="flex items-center gap-2">
+                      <CheckSquare className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                      <span className="text-xs font-medium">
+                        {filteredMyDayTasks.length > 0
+                          ? `${filteredMyDayTasks.length} tâche${filteredMyDayTasks.length > 1 ? "s" : ""} prioritaire${filteredMyDayTasks.length > 1 ? "s" : ""}`
+                          : "Tâches prioritaires"}
+                      </span>
+                      {digestTaskCount > 0 && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{digestTaskCount} dans le brief</Badge>
+                      )}
+                    </div>
+                    {digestTasksExpanded
+                      ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+                  </button>
+
+                  {digestTasksExpanded && (
+                    <div className="space-y-2 pl-1">
+                      {/* Calendar events */}
+                      {upcomingCalendarItems.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                            <CalendarIcon className="w-3 h-3" />
+                            À venir
+                          </p>
+                          {upcomingCalendarItems.map((item) => {
+                            const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0);
+                            const itemDate = new Date(item.start); itemDate.setHours(0, 0, 0, 0);
+                            const isToday = itemDate.getTime() === todayDate.getTime();
+                            const fmt = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+                            const dateLabel = !isToday ? item.start.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" }) : null;
+                            const timeLabel = `${fmt(item.start)}${item.end ? ` – ${fmt(item.end)}` : ""}`;
+                            const isGoogle = item.kind === "google";
+                            const borderColor = isGoogle ? "#06B6D4" : ((item as any).color || "#7C3AED");
+                            const bgColor = isGoogle ? "#E0F2FE44" : (((item as any).color || "") + "22");
+                            const aptClient = !isGoogle && (item as any).clientId ? clients.find(c => c.id === (item as any).clientId) : null;
+                            return (
+                              <div key={item.id} className="flex items-center gap-2 p-2 rounded-md border text-xs" style={{ borderLeftWidth: 3, borderLeftColor: borderColor, backgroundColor: bgColor }} data-testid={`calitem-myDay-${item.id}`}>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="font-medium text-foreground truncate">{item.title}</p>
+                                    {isGoogle && <span className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">Google</span>}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-muted-foreground mt-0.5">
+                                    {dateLabel && <span className="flex items-center gap-0.5 font-medium text-foreground/70"><CalendarIcon className="w-3 h-3" />{dateLabel}</span>}
+                                    <span className="flex items-center gap-0.5"><Clock className="w-3 h-3" />{timeLabel}</span>
+                                    {aptClient && <span className="truncate">{aptClient.name}</span>}
+                                    {(item as any).location && <span className="truncate">{(item as any).location}</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {myDayFilter === "today" && filteredMyDayTasks.length > 0 && (
+                            <div className="border-t border-border pt-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                                <CheckSquare className="w-3 h-3" />
+                                Tâches
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Task list */}
+                      {filteredMyDayTasks.length === 0 && upcomingCalendarItems.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center py-4">{t.dashboard.noEventsToday}</p>
+                      ) : filteredMyDayTasks.length === 0 ? null : (
+                        <div className="space-y-2">
+                          {filteredMyDayTasks.map((task) => {
+                            const client = clients.find(c => c.id === task.clientId);
+                            const project = projects.find(p => p.id === task.projectId);
+                            const isOverdue = task.dueDate && normalizeToLocalDate(task.dueDate) < todayStr;
+                            const currentColumn = allTaskColumns.find(col => col.id === task.columnId);
+                            const taskColumnsForTask = task.projectId
+                              ? allTaskColumns.filter(col => col.projectId === task.projectId)
+                              : allTaskColumns.filter(col => !col.projectId);
+                            return (
+                              <div
+                                key={task.id}
+                                className="flex items-start gap-3 p-3 rounded-r-md border hover-elevate cursor-pointer border-l-4"
+                                style={{ borderLeftColor: priorityBorderColors[task.priority] ?? "#94a3b8" }}
+                                data-testid={`today-task-${task.id}`}
+                                onClick={() => handleTaskClick(task)}
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="text-xs font-heading font-medium text-foreground">{task.title}</h4>
+                                    {isOverdue && (
+                                      <Badge variant="destructive" className="text-[10px]" data-testid={`badge-overdue-${task.id}`}>En retard</Badge>
+                                    )}
+                                  </div>
+                                  {task.description && (
+                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
+                                  )}
+                                  <div className="flex flex-wrap gap-1.5 mt-2">
+                                    <Badge className={`${priorityColors[task.priority]} text-[10px] px-1.5 py-0`} data-testid={`badge-priority-${task.id}`}>
+                                      {priorityLabels[task.priority]}
+                                    </Badge>
+                                    {client && <Badge variant="outline" className="text-[10px] px-1.5 py-0" data-testid={`badge-client-${task.id}`}>{client.name}</Badge>}
+                                    {project && <Badge variant="outline" className="text-[10px] px-1.5 py-0" data-testid={`badge-project-${task.id}`}>{project.name}</Badge>}
+                                  </div>
+                                </div>
+                                <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                                  <Popover open={openStatusPopover === task.id} onOpenChange={(open) => setOpenStatusPopover(open ? task.id : null)}>
+                                    <PopoverTrigger asChild>
+                                      {currentColumn?.color ? (() => {
+                                        const { bgColor, textColor } = getColorVariants(currentColumn.color);
+                                        return (
+                                          <Badge className="cursor-pointer hover-elevate text-[10px] px-1.5 py-0 border-0" style={{ backgroundColor: bgColor, color: textColor }} data-testid={`badge-status-${task.id}`}>
+                                            {currentColumn.name}
+                                          </Badge>
+                                        );
+                                      })() : (
+                                        <Badge className="cursor-pointer hover-elevate text-[10px] px-1.5 py-0 border-0" data-testid={`badge-status-${task.id}`}>Aucun</Badge>
+                                      )}
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-2" align="end" data-testid={`popover-status-options-${task.id}`}>
+                                      <div className="flex flex-col gap-1">
+                                        {taskColumnsForTask.map((column) => {
+                                          const { bgColor, textColor } = getColorVariants(column.color);
+                                          return (
+                                            <Badge key={column.id} className="cursor-pointer hover-elevate justify-start text-xs border-0" style={{ backgroundColor: bgColor, color: textColor }}
+                                              onClick={() => { updateTaskStatusMutation.mutate({ taskId: task.id, columnId: column.id, columnName: column.name }); setOpenStatusPopover(null); }}
+                                              data-testid={`option-status-${column.name}-${task.id}`}
+                                            >
+                                              {column.name}
+                                            </Badge>
+                                          );
+                                        })}
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Section "Voir plus" (roadmap + billing + recos) ─── */}
+                  {hasDetails && (
+                    <div className="border-t border-border pt-3">
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        onClick={() => setDigestDetailsExpanded(!digestDetailsExpanded)}
+                        data-testid="button-digest-details-toggle"
+                      >
+                        {digestDetailsExpanded
+                          ? <><ChevronUp className="w-3.5 h-3.5" /> Réduire le brief</>
+                          : <><ChevronDown className="w-3.5 h-3.5" /> Voir plus du brief
+                            {milestoneCount + billingCount + recoCount > 0 && (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">
+                                {milestoneCount + billingCount + recoCount} signaux
+                              </Badge>
+                            )}
+                          </>}
+                      </button>
+
+                      {digestDetailsExpanded && (
+                        <div className="mt-3 space-y-4">
+                          {/* Roadmap */}
+                          {(milestoneCount > 0 || completedMilestoneCount > 0) && (
+                            <div className="space-y-1.5">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                                <MapPin className="w-3 h-3 text-cyan-500" />
+                                Roadmap & jalons
+                              </p>
+                              {(digest?.roadmap?.completedLast7Days ?? []).map((m) => (
+                                <div key={m.id} className="flex items-center gap-2 p-2 rounded-md border border-border text-xs" data-testid={`digest-milestone-done-${m.id}`}>
+                                  <CheckCheck className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium truncate">{m.title}</p>
+                                    {m.projectName && <p className="text-muted-foreground text-[10px] truncate">{m.projectName}</p>}
+                                  </div>
+                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">Terminé</Badge>
+                                </div>
+                              ))}
+                              {(digest?.roadmap?.upcomingNext7Days ?? []).map((m) => (
+                                <div key={m.id} className="flex items-center gap-2 p-2 rounded-md border border-border text-xs" data-testid={`digest-milestone-upcoming-${m.id}`}>
+                                  <CalendarClock className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium truncate">{m.title}</p>
+                                    {m.projectName && <p className="text-muted-foreground text-[10px] truncate">{m.projectName}</p>}
+                                  </div>
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">{m.date}</Badge>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Billing */}
+                          {billingCount > 0 && (
+                            <div className="space-y-1.5">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                                <Banknote className="w-3 h-3 text-violet-500" />
+                                Facturation
+                              </p>
+                              {(digest?.billingProjects ?? []).map((p) => (
+                                <div key={p.id} className="flex items-center gap-2 p-2 rounded-md border border-border text-xs cursor-pointer hover-elevate" onClick={() => setLocation(p.url)} data-testid={`digest-billing-${p.id}`}>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium truncate">{p.name}</p>
+                                    <p className="text-muted-foreground text-[10px] truncate">{p.reason}{p.clientName ? ` · ${p.clientName}` : ""}</p>
+                                  </div>
+                                  <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Recommandations */}
+                          {recoCount > 0 && (
+                            <div className="space-y-1.5">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                                <Lightbulb className="w-3 h-3 text-amber-500" />
+                                Recommandations
+                              </p>
+                              {(digest?.recommendations ?? []).map((r) => (
+                                <div key={r.id} className="flex items-start gap-2 p-2 rounded-md border border-border text-xs cursor-pointer hover-elevate" onClick={() => setLocation(r.url)} data-testid={`digest-reco-${r.id}`}>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium truncate">{r.title}</p>
+                                    <p className="text-muted-foreground text-[10px] line-clamp-2">{r.description}</p>
+                                  </div>
+                                  <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {digestLoading && (
+                    <div className="space-y-2 py-1">
+                      {[...Array(3)].map((_, i) => <div key={i} className="h-4 bg-muted animate-pulse rounded" />)}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {isBlockVisible('recentBacklog') && (
           <Card className={getBlockColSpanById('recentBacklog')} style={{ order: getBlockOrder('recentBacklog') }}>

@@ -58,13 +58,14 @@ export interface DigestSummary {
   };
 }
 
-export async function generateDailyDigest(accountId: string): Promise<DigestSummary> {
+export async function generateDailyDigest(accountId: string, maxTasks = 5): Promise<DigestSummary> {
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
   const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10);
   const sevenDaysAhead = new Date(now.getTime() + 7 * 86400000).toISOString().slice(0, 10);
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 86400000).toISOString().slice(0, 10);
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 86400000).toISOString().slice(0, 10);
+  const clampedMaxTasks = Math.min(Math.max(1, maxTasks), 20);
 
   // ── 1. Top Tasks ──────────────────────────────────────────────────
   let topTasks: DigestTask[] = [];
@@ -87,7 +88,7 @@ export async function generateDailyDigest(accountId: string): Promise<DigestSumm
           ELSE 6
         END,
         t.due_date ASC NULLS LAST
-      LIMIT 5
+      LIMIT ${clampedMaxTasks}
     `)) as any[];
     topTasks = rows.map((t) => {
       const dueDate = t.due_date ? String(t.due_date).slice(0, 10) : null;
@@ -319,7 +320,7 @@ export async function generateDailyDigest(accountId: string): Promise<DigestSumm
   };
 }
 
-export async function getOrCreateTodayDigest(accountId: string): Promise<DigestSummary> {
+export async function getOrCreateTodayDigest(accountId: string, maxTasks = 5): Promise<DigestSummary> {
   const today = new Date().toISOString().slice(0, 10);
   try {
     const rows = (await db.execute(sql`
@@ -334,7 +335,7 @@ export async function getOrCreateTodayDigest(accountId: string): Promise<DigestS
     }
   } catch {}
 
-  const summary = await generateDailyDigest(accountId);
+  const summary = await generateDailyDigest(accountId, maxTasks);
   try {
     await db.execute(sql`
       INSERT INTO daily_digests (account_id, digest_date, generated_at, timezone, summary_json, status)
@@ -346,9 +347,9 @@ export async function getOrCreateTodayDigest(accountId: string): Promise<DigestS
   return summary;
 }
 
-export async function refreshDigest(accountId: string): Promise<DigestSummary> {
+export async function refreshDigest(accountId: string, maxTasks = 5): Promise<DigestSummary> {
   const today = new Date().toISOString().slice(0, 10);
-  const summary = await generateDailyDigest(accountId);
+  const summary = await generateDailyDigest(accountId, maxTasks);
   try {
     await db.execute(sql`
       INSERT INTO daily_digests (account_id, digest_date, generated_at, timezone, summary_json, status)

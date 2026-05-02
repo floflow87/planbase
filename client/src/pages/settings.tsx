@@ -22,7 +22,7 @@ import {
   Loader2, User, Mail, Briefcase, UserCircle, Phone, Building2, Lock, Eye, EyeOff, 
   Settings as SettingsIcon, Puzzle, Shield, Clock, AlertTriangle, Save, RotateCcw, 
   DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check, Users, Trash2, CreditCard, Camera, LayoutTemplate,
-  SunMedium, Moon, Monitor, Languages, Bell, Zap, Plus
+  SunMedium, Moon, Monitor, Languages, Bell, Zap, Plus, BookOpen
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useLanguage, type Language } from "@/contexts/LanguageContext";
@@ -2097,7 +2097,96 @@ function PreferencesTabContent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Daily Digest */}
+      <DigestPreferencesCard />
     </div>
+  );
+}
+
+function DigestPreferencesCard() {
+  const { toast } = useToast();
+
+  const { data: allSettings = {} } = useQuery<Record<string, any>>({
+    queryKey: ["/api/settings"],
+    queryFn: async () => {
+      const res = await apiRequest("/api/settings", "GET");
+      const list: Array<{ key: string; value: any }> = await res.json();
+      return Array.isArray(list) ? Object.fromEntries(list.map((s) => [s.key, s.value])) : {};
+    },
+  });
+
+  const digestHour = String(allSettings["digest.updateHour"] ?? "7");
+  const digestMaxTasks = String(allSettings["digest.maxTasks"] ?? "5");
+
+  const saveSetting = useMutation({
+    mutationFn: async ({ key, value }: { key: string; value: string }) => {
+      await apiRequest(`/api/settings/${key}`, "PUT", { value });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+      toast({ title: "Préférence enregistrée" });
+    },
+    onError: () => toast({ title: "Erreur", description: "Impossible d'enregistrer la préférence", variant: "destructive" }),
+  });
+
+  return (
+    <Card data-testid="card-digest-preferences">
+      <CardHeader className="pb-3 flex flex-row items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-muted-foreground" />
+          <CardTitle className="text-sm font-semibold">Résumé quotidien</CardTitle>
+        </div>
+        <CardDescription className="text-xs mt-0">Personnalisez votre brief du jour</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="space-y-2">
+          <Label className="text-xs font-medium">Heure de mise à jour automatique</Label>
+          <Select
+            value={digestHour}
+            onValueChange={(val) => saveSetting.mutate({ key: "digest.updateHour", value: val })}
+          >
+            <SelectTrigger className="w-40" data-testid="select-digest-hour">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 24 }, (_, i) => (
+                <SelectItem key={i} value={String(i)} data-testid={`option-digest-hour-${i}`}>
+                  {String(i).padStart(2, "0")}:00
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Le brief sera actualisé à cette heure chaque jour (heure locale).
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-xs font-medium">
+            Nombre de tâches prioritaires affichées <span className="text-muted-foreground">(max. 20)</span>
+          </Label>
+          <Select
+            value={digestMaxTasks}
+            onValueChange={(val) => saveSetting.mutate({ key: "digest.maxTasks", value: val })}
+          >
+            <SelectTrigger className="w-40" data-testid="select-digest-max-tasks">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[3, 5, 8, 10, 15, 20].map((n) => (
+                <SelectItem key={n} value={String(n)} data-testid={`option-digest-max-tasks-${n}`}>
+                  {n} tâches
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Nombre de tâches remontées dans le brief du jour (défaut : 5).
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

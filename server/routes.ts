@@ -16126,7 +16126,9 @@ app.get("/config/feature-flags", async (_req, res) => {
     try {
       const { getOrCreateTodayDigest } = await import("./daily-digest");
       const accountId = req.accountId!;
-      const digest = await getOrCreateTodayDigest(accountId);
+      const maxTasksSetting = await storage.getSetting('ACCOUNT', accountId, 'digest.maxTasks');
+      const maxTasks = maxTasksSetting ? Math.min(Math.max(1, parseInt(String(maxTasksSetting), 10) || 5), 20) : 5;
+      const digest = await getOrCreateTodayDigest(accountId, maxTasks);
       res.json(digest);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -16137,7 +16139,9 @@ app.get("/config/feature-flags", async (_req, res) => {
     try {
       const { refreshDigest } = await import("./daily-digest");
       const accountId = req.accountId!;
-      const digest = await refreshDigest(accountId);
+      const maxTasksSetting = await storage.getSetting('ACCOUNT', accountId, 'digest.maxTasks');
+      const maxTasks = maxTasksSetting ? Math.min(Math.max(1, parseInt(String(maxTasksSetting), 10) || 5), 20) : 5;
+      const digest = await refreshDigest(accountId, maxTasks);
       res.json(digest);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
