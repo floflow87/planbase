@@ -229,7 +229,7 @@ export async function generateDailyDigest(accountId: string, maxTasks = 5): Prom
         description: `Plus que ${s.remaining} ticket(s) dans « ${s.sprint_name} » (${s.backlog_name}). Pensez à le clôturer ou préparer le suivant.`,
         type: "sprint",
         priority: "medium",
-        url: `/backlogs/${s.backlog_id}`,
+        url: `/product/backlog/${s.backlog_id}`,
       });
     }
   } catch {}

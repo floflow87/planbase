@@ -204,7 +204,7 @@ const BLOCK_SIZE_OPTIONS: Record<DashboardBlockId, BlockSizeConfig> = {
   recentProjects: { allowedSizes: ['half', 'full'], defaultSize: 'half' },
   recentNotes: { allowedSizes: ['half', 'full'], defaultSize: 'half' },
   recentBacklog: { allowedSizes: ['half', 'full'], defaultSize: 'half' },
-  dailyDigest: { allowedSizes: ['half', 'full'], defaultSize: 'full' },
+  dailyDigest: { allowedSizes: ['one-third', 'half', 'full'], defaultSize: 'full' },
 };
 
 // Convert size option to col-span class
@@ -235,7 +235,7 @@ const DEFAULT_DASHBOARD_BLOCKS: DashboardBlockConfig[] = [
   { id: 'revenueChart', label: 'Revenus Mensuels', visible: true, size: 'two-thirds' },
   { id: 'activityFeed', label: 'Activités Récentes', visible: true, size: 'one-third' },
   { id: 'recentProjects', label: 'Projets Récents', visible: true, size: 'half' },
-  { id: 'dailyDigest', label: 'Brief du jour', visible: true, size: 'full' },
+  { id: 'dailyDigest', label: 'Ma journée', visible: true, size: 'full' },
   { id: 'recentNotes', label: 'Notes Récentes', visible: true, size: 'half' },
   { id: 'recentBacklog', label: 'Backlog Récent', visible: true, size: 'half' },
 ];
@@ -611,8 +611,8 @@ export default function Dashboard() {
     }
     return "today";
   });
-  const [digestTasksExpanded, setDigestTasksExpanded] = useState(true);
-  const [digestDetailsExpanded, setDigestDetailsExpanded] = useState(false);
+  const [digestTasksExpanded, setDigestTasksExpanded] = useState(false);
+  const [digestDetailsExpanded, setDigestDetailsExpanded] = useState(true);
   const [revenuePeriod, setRevenuePeriod] = useState<"full_year" | "last_year" | "until_this_month" | "projection" | "6months" | "quarter">(() => {
     const saved = localStorage.getItem("dashboard_revenue_period");
     if (saved === "full_year" || saved === "last_year" || saved === "until_this_month" || saved === "projection" || saved === "6months" || saved === "quarter") {
@@ -2526,7 +2526,7 @@ export default function Dashboard() {
                       data-testid="button-dashboard-start-queue-legacy"
                     >
                       <Play className="w-3 h-3" />
-                      Démarrer la file
+                      Démarrer les tâches
                     </Button>
                   )}
                   <Select value={myDayFilter} onValueChange={(value: any) => setMyDayFilter(value)}>
@@ -2943,7 +2943,7 @@ export default function Dashboard() {
                 <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
                     <BookOpen className="w-4 h-4 text-primary" />
-                    <CardTitle className="text-base font-heading font-semibold">Brief du jour</CardTitle>
+                    <CardTitle className="text-base font-heading font-semibold">Ma journée</CardTitle>
                     {digestGeneratedAt && (
                       <span className="text-[10px] text-muted-foreground">· {digestGeneratedAt}</span>
                     )}
@@ -2958,7 +2958,7 @@ export default function Dashboard() {
                         data-testid="button-dashboard-start-queue"
                       >
                         <Play className="w-3 h-3" />
-                        Démarrer la file
+                        Démarrer les tâches
                       </Button>
                     )}
                     <Button
@@ -3154,8 +3154,8 @@ export default function Dashboard() {
                         data-testid="button-digest-details-toggle"
                       >
                         {digestDetailsExpanded
-                          ? <><ChevronUp className="w-3.5 h-3.5" /> Réduire le brief</>
-                          : <><ChevronDown className="w-3.5 h-3.5" /> Voir plus du brief
+                          ? <><ChevronUp className="w-3.5 h-3.5" /> Réduire</>
+                          : <><ChevronDown className="w-3.5 h-3.5" /> Voir plus
                             {milestoneCount + billingCount + recoCount > 0 && (
                               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">
                                 {milestoneCount + billingCount + recoCount} signaux

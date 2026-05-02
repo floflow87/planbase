@@ -7,7 +7,7 @@ import { useLocation } from "wouter";
 import {
   RefreshCw, CheckSquare, Flag, MapPin, Banknote, Lightbulb,
   ChevronRight, CalendarClock, AlertCircle, Clock, CheckCheck,
-  ArrowUpRight, BookOpen,
+  ArrowUpRight, Sun,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -127,8 +127,8 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
         <SheetHeader className="px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-primary" />
-              <SheetTitle className="text-base font-heading font-semibold">Brief du jour</SheetTitle>
+              <Sun className="w-4 h-4 text-primary" />
+              <SheetTitle className="text-base font-heading font-semibold">Ma journée</SheetTitle>
             </div>
             <Button
               size="sm"
@@ -220,6 +220,36 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
                   <EmptyState message="Pas de jalon roadmap récent ou imminent." />
                 ) : (
                   <div className="space-y-3">
+                    {digest.roadmap.upcomingNext7Days.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1 mb-1.5">
+                          <CalendarClock className="w-3 h-3" />
+                          Prochain milestone
+                        </p>
+                        <div className="space-y-1.5">
+                          {digest.roadmap.upcomingNext7Days.map((m) => (
+                            <div
+                              key={m.id}
+                              className="flex items-center gap-2 p-2 rounded-md border border-border hover-elevate active-elevate-2 cursor-pointer"
+                              onClick={() => navigate(m.url)}
+                              data-testid={`digest-milestone-upcoming-${m.id}`}
+                            >
+                              <CalendarClock className="w-3 h-3 text-amber-500 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                {m.projectName && (
+                                  <p className="text-[10px] font-medium text-primary truncate">{m.projectName}</p>
+                                )}
+                                <p className="text-xs font-medium truncate">{m.title}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {new Date(m.date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                                </p>
+                              </div>
+                              <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {digest.roadmap.completedLast7Days.length > 0 && (
                       <div>
                         <p className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mb-1.5">
@@ -236,36 +266,12 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
                             >
                               <CheckCheck className="w-3 h-3 text-emerald-500 shrink-0" />
                               <div className="flex-1 min-w-0">
+                                {m.projectName && (
+                                  <p className="text-[10px] font-medium text-primary truncate">{m.projectName}</p>
+                                )}
                                 <p className="text-xs font-medium truncate">{m.title}</p>
-                                {m.projectName && <p className="text-[10px] text-muted-foreground">{m.projectName}</p>}
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {digest.roadmap.upcomingNext7Days.length > 0 && (
-                      <div>
-                        <p className="text-[10px] font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1 mb-1.5">
-                          <CalendarClock className="w-3 h-3" />
-                          À préparer cette semaine
-                        </p>
-                        <div className="space-y-1.5">
-                          {digest.roadmap.upcomingNext7Days.map((m) => (
-                            <div
-                              key={m.id}
-                              className="flex items-center gap-2 p-2 rounded-md border border-border hover-elevate active-elevate-2 cursor-pointer"
-                              onClick={() => navigate(m.url)}
-                              data-testid={`digest-milestone-upcoming-${m.id}`}
-                            >
-                              <CalendarClock className="w-3 h-3 text-amber-500 shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium truncate">{m.title}</p>
-                                <p className="text-[10px] text-muted-foreground">
-                                  {new Date(m.date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
-                                  {m.projectName ? ` · ${m.projectName}` : ""}
-                                </p>
-                              </div>
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">Terminé</Badge>
                             </div>
                           ))}
                         </div>

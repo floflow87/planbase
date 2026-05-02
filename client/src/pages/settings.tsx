@@ -2135,9 +2135,9 @@ function DigestPreferencesCard() {
       <CardHeader className="pb-3 flex flex-row items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <BookOpen className="w-4 h-4 text-muted-foreground" />
-          <CardTitle className="text-sm font-semibold">Résumé quotidien</CardTitle>
+          <CardTitle className="text-sm font-semibold">Ma journée</CardTitle>
         </div>
-        <CardDescription className="text-xs mt-0">Personnalisez votre brief du jour</CardDescription>
+        <CardDescription className="text-xs mt-0">Personnalisez votre résumé quotidien</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="space-y-2">
