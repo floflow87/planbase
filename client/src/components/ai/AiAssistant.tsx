@@ -160,8 +160,9 @@ function AiAssistantPanel({ onClose, projectId, projectName }: { onClose: () => 
       });
     }
     if (tasksData) {
+      const now = new Date();
       const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      sevenDaysAgo.setDate(now.getDate() - 7);
       const overdueCount = tasksData.filter((t) => {
         if (!t.dueDate || t.status === "done") return false;
         return new Date(t.dueDate) < sevenDaysAgo;
@@ -173,6 +174,20 @@ function AiAssistantPanel({ onClose, projectId, projectName }: { onClose: () => 
           label: `${overdueCount} tâche${overdueCount > 1 ? "s" : ""} en retard — Que faire ?`,
           prompt: `Il y a ${overdueCount} tâche${overdueCount > 1 ? "s" : ""} en retard de plus de 7 jours dans le projet ${projectName ?? ""}. Quelles actions prioritaires me conseilles-tu pour rattraper ce retard ?`,
           variant: "warning",
+        });
+      }
+      const recentlyOverdueCount = tasksData.filter((t) => {
+        if (!t.dueDate || t.status === "done") return false;
+        const due = new Date(t.dueDate);
+        return due >= sevenDaysAgo && due < now;
+      }).length;
+      if (recentlyOverdueCount > 0) {
+        proactiveSuggestions.push({
+          id: "overdue-tasks-recent",
+          icon: Clock,
+          label: `${recentlyOverdueCount} tâche${recentlyOverdueCount > 1 ? "s" : ""} dépassée${recentlyOverdueCount > 1 ? "s" : ""} depuis peu — Prioriser ?`,
+          prompt: `Il y a ${recentlyOverdueCount} tâche${recentlyOverdueCount > 1 ? "s" : ""} dépassée${recentlyOverdueCount > 1 ? "s" : ""} depuis 1 à 6 jours dans le projet ${projectName ?? ""}. Comment prioriser leur traitement avant que le retard ne s'aggrave ?`,
+          variant: "info",
         });
       }
     }
@@ -295,6 +310,8 @@ function AiAssistantPanel({ onClose, projectId, projectName }: { onClose: () => 
                   "flex items-center gap-2 w-full text-left rounded-md px-2.5 py-1.5 text-xs border transition-colors hover-elevate",
                   suggestion.variant === "danger"
                     ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"
+                    : suggestion.variant === "info"
+                    ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-400"
                     : "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-orange-400"
                 )}
                 onClick={() => handleSuggestionClick(suggestion)}
