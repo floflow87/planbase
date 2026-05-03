@@ -2102,6 +2102,10 @@ export default function BacklogDetail() {
             <TabsTrigger value="done" className="text-[12px]" data-testid="tab-done">
               Tickets terminés
             </TabsTrigger>
+            <TabsTrigger value="feedback" className="text-[12px] gap-1" data-testid="tab-feedback">
+              <ThumbsUp className="w-3.5 h-3.5" />
+              Feedback
+            </TabsTrigger>
             <TabsTrigger value="recette" className="text-[12px]" data-testid="tab-recette">
               Recette
             </TabsTrigger>
@@ -2110,10 +2114,6 @@ export default function BacklogDetail() {
             </TabsTrigger>
             <TabsTrigger value="statistiques" className="text-[12px]" data-testid="tab-statistiques">
               Statistiques
-            </TabsTrigger>
-            <TabsTrigger value="feedback" className="text-[12px] gap-1" data-testid="tab-feedback">
-              <ThumbsUp className="w-3.5 h-3.5" />
-              Feedback
             </TabsTrigger>
           </TabsList>
         </div>
@@ -3110,6 +3110,11 @@ export default function BacklogDetail() {
           </div>
         </TabsContent>
 
+        {/* Feedback tab */}
+        <TabsContent value="feedback" className="flex-1 min-h-0 overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
+          {id && <FeedbackTab backlogId={id} />}
+        </TabsContent>
+
         {/* Recette tab */}
         <TabsContent value="recette" className="flex-1 min-h-0 overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
           <RecetteView backlogId={id!} sprints={backlog.sprints} />
@@ -3129,11 +3134,6 @@ export default function BacklogDetail() {
             onNavigateToBacklog={() => setActiveTab("backlog")}
             onCloseSprint={handleSprintCloseAttempt}
           />
-        </TabsContent>
-
-        {/* Feedback tab */}
-        <TabsContent value="feedback" className="flex-1 min-h-0 overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
-          {id && <FeedbackTab backlogId={id} />}
         </TabsContent>
       </Tabs>
 
