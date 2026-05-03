@@ -7,42 +7,79 @@ interface ProviderAlertParams {
   errorMessage?: string;
 }
 
-interface AlertWithDedup extends ProviderAlertParams {
-  suppressedCount: number;
-}
-
-// ── Deduplication state ──────────────────────────────────────────────────────
-// Only one alert fires per DEDUP_WINDOW_MS regardless of how many concurrent
-// fallback events occur.  Suppressed events are counted and reported in the
-// next outgoing alert so the ops team knows the scale of the incident.
+// ── Deduplication / aggregation state ───────────────────────────────────────
+// All fallback events within a window are buffered.  One consolidated alert
+// fires when the window closes, reporting the total number of affected requests.
 const DEDUP_WINDOW_MS = (() => {
   const secs = parseInt(process.env.ALERT_DEDUP_WINDOW_SECONDS ?? "300", 10);
   return (isNaN(secs) || secs < 0 ? 300 : secs) * 1000;
 })();
 
-let lastAlertSentAt: number | null = null;
-let suppressedCount = 0;
+interface BufferedEvent {
+  promptType: string;
+  timestamp: Date;
+  errorMessage?: string;
+}
+
+let windowTimer: ReturnType<typeof setTimeout> | null = null;
+let bufferedEvents: BufferedEvent[] = [];
+
+// Drain the buffer and dispatch one consolidated alert
+async function flushWindow(): Promise<void> {
+  const events = bufferedEvents;
+  bufferedEvents = [];
+  windowTimer = null;
+
+  if (events.length === 0) return;
+
+  const hasEmail = !!process.env.ALERT_EMAIL;
+  const hasWebhook = !!process.env.ALERT_WEBHOOK_URL;
+
+  if (!hasEmail && !hasWebhook) return;
+
+  // Use the first event as the representative (earliest in the window)
+  const first = events[0];
+  const totalAffected = events.length;
+
+  console.log(
+    `[Alert] Flushing dedup window — dispatching 1 alert for ${totalAffected} event(s).`
+  );
+
+  await Promise.allSettled([
+    sendEmailAlert({ ...first, totalAffected }),
+    sendWebhookAlert({ ...first, totalAffected }),
+  ]);
+}
 
 // ── Email ────────────────────────────────────────────────────────────────────
-async function sendEmailAlert(params: AlertWithDedup): Promise<void> {
+interface AlertDispatchParams extends BufferedEvent {
+  totalAffected: number;
+}
+
+async function sendEmailAlert(params: AlertDispatchParams): Promise<void> {
   const alertEmail = process.env.ALERT_EMAIL;
   if (!alertEmail) return;
 
   try {
     const { client, fromEmail } = await getResendClient();
     const timestampStr = params.timestamp.toISOString();
-    const suppressedNote =
-      params.suppressedCount > 0
-        ? `<tr><td style="padding:0 20px 16px;">
-             <p style="margin:0 0 8px;font-size:13px;color:#71717a;text-transform:uppercase;letter-spacing:0.05em;">Requests suppressed during window</p>
-             <p style="margin:0;font-size:15px;font-weight:600;color:#ef4444;">${params.suppressedCount} additional request${params.suppressedCount > 1 ? "s" : ""} triggered the same alert and were deduplicated</p>
-           </td></tr>`
+    const affectedRow =
+      params.totalAffected > 1
+        ? `<tr>
+             <td style="padding:0 20px 16px;">
+               <p style="margin:0 0 8px;font-size:13px;color:#71717a;text-transform:uppercase;letter-spacing:0.05em;">Requests affected</p>
+               <p style="margin:0;font-size:15px;font-weight:600;color:#ef4444;">${params.totalAffected} requests triggered this alert during the ${DEDUP_WINDOW_MS / 1000}s deduplication window</p>
+             </td>
+           </tr>`
         : "";
+
+    const subjectSuffix =
+      params.totalAffected > 1 ? ` [${params.totalAffected} requests]` : "";
 
     const { error } = await client.emails.send({
       from: fromEmail,
       to: alertEmail,
-      subject: `[Planbase Alert] Ollama unavailable — fallback to OpenAI (${params.promptType})${params.suppressedCount > 0 ? ` [+${params.suppressedCount} suppressed]` : ""}`,
+      subject: `[Planbase Alert] Ollama unavailable — fallback to OpenAI (${params.promptType})${subjectSuffix}`,
       html: `
         <!DOCTYPE html>
         <html lang="en">
@@ -67,7 +104,7 @@ async function sendEmailAlert(params: AlertWithDedup): Promise<void> {
                         </tr>
                         <tr>
                           <td style="padding:0 20px 16px;">
-                            <p style="margin:0 0 8px;font-size:13px;color:#71717a;text-transform:uppercase;letter-spacing:0.05em;">Timestamp (UTC)</p>
+                            <p style="margin:0 0 8px;font-size:13px;color:#71717a;text-transform:uppercase;letter-spacing:0.05em;">First occurrence (UTC)</p>
                             <p style="margin:0;font-size:15px;font-weight:600;color:#18181b;">${timestampStr}</p>
                           </td>
                         </tr>
@@ -78,7 +115,7 @@ async function sendEmailAlert(params: AlertWithDedup): Promise<void> {
                             <p style="margin:0;font-size:14px;color:#ef4444;font-family:monospace;">${params.errorMessage}</p>
                           </td>
                         </tr>` : ""}
-                        ${suppressedNote}
+                        ${affectedRow}
                       </table>
                       <p style="margin:0;font-size:14px;color:#71717a;">
                         Please check the Ollama service and restore it as soon as possible. OpenAI usage may incur additional costs.
@@ -123,7 +160,7 @@ function maskUrl(url: string): string {
   }
 }
 
-async function sendWebhookAlert(params: AlertWithDedup): Promise<void> {
+async function sendWebhookAlert(params: AlertDispatchParams): Promise<void> {
   const webhookUrl = process.env.ALERT_WEBHOOK_URL;
   if (!webhookUrl) return;
 
@@ -133,7 +170,8 @@ async function sendWebhookAlert(params: AlertWithDedup): Promise<void> {
     fallback_provider: "openai",
     prompt_type: params.promptType,
     timestamp: params.timestamp.toISOString(),
-    suppressed_count: params.suppressedCount,
+    total_affected: params.totalAffected,
+    dedup_window_seconds: DEDUP_WINDOW_MS / 1000,
     ...(params.errorMessage ? { error: params.errorMessage } : {}),
   };
 
@@ -158,7 +196,7 @@ async function sendWebhookAlert(params: AlertWithDedup): Promise<void> {
 export async function alertOllamaFallback(
   params: ProviderAlertParams & { fallbackSucceeded?: boolean }
 ): Promise<void> {
-  // Always persist the event regardless of alert channel configuration
+  // Always persist the event regardless of alert channel configuration or dedup
   storage.logAiFallbackEvent({
     promptType: params.promptType,
     errorMessage: params.errorMessage ?? null,
@@ -179,26 +217,28 @@ export async function alertOllamaFallback(
     return;
   }
 
-  const now = Date.now();
+  // Buffer this event into the current window
+  bufferedEvents.push({
+    promptType: params.promptType,
+    timestamp: params.timestamp,
+    errorMessage: params.errorMessage,
+  });
 
-  // Within the deduplication window — count the event but do not fire an alert
-  if (lastAlertSentAt !== null && now - lastAlertSentAt < DEDUP_WINDOW_MS) {
-    suppressedCount += 1;
+  // Start the window timer only once per window
+  if (windowTimer === null) {
     console.log(
-      `[Alert] Fallback event suppressed (dedup window ${DEDUP_WINDOW_MS / 1000}s, ` +
-      `${suppressedCount} suppressed so far since last alert).`
+      `[Alert] Dedup window started (${DEDUP_WINDOW_MS / 1000}s). ` +
+      "One consolidated alert will fire at the end of the window."
     );
-    return;
+    windowTimer = setTimeout(() => {
+      flushWindow().catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[Alert] Exception during alert window flush:", msg);
+      });
+    }, DEDUP_WINDOW_MS);
+  } else {
+    console.log(
+      `[Alert] Fallback event buffered (${bufferedEvents.length} in window so far).`
+    );
   }
-
-  // Window expired (or first ever event) — fire and reset counters
-  const alertParams: AlertWithDedup = { ...params, suppressedCount };
-
-  lastAlertSentAt = now;
-  suppressedCount = 0;
-
-  await Promise.allSettled([
-    sendEmailAlert(alertParams),
-    sendWebhookAlert(alertParams),
-  ]);
 }
