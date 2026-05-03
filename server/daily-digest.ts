@@ -308,6 +308,74 @@ export async function generateDailyDigest(accountId: string, maxTasks = 5): Prom
     }
   } catch {}
 
+  // ── Feedback Intelligence signals ────────────────────────────────────────────
+  try {
+    // Strong unlinked clusters
+    const strongClusters = (await db.execute(sql`
+      SELECT fc.id, fc.title, fc.frequency_count, fc.backlog_id
+      FROM feedback_clusters fc
+      WHERE fc.account_id = ${accountId}
+        AND fc.linked_ticket_id IS NULL
+        AND fc.status IN ('suggested', 'validated')
+        AND fc.archived_at IS NULL
+        AND fc.frequency_count >= 3
+      ORDER BY fc.frequency_count DESC
+      LIMIT 1
+    `)) as any[];
+    for (const c of strongClusters) {
+      recommendations.push({
+        id: `cluster-${c.id}`,
+        title: "Signal fort non traité",
+        description: `Le cluster « ${c.title} » regroupe ${c.frequency_count} feedbacks et n'est lié à aucun ticket.`,
+        type: "task" as any,
+        priority: "high",
+        url: c.backlog_id ? `/backlogs/${c.backlog_id}?tab=feedback` : `/feedback`,
+      });
+    }
+    // Critical unlinked feedbacks older than 7 days
+    const criticalFeedbacks = (await db.execute(sql`
+      SELECT pf.id, pf.title, pf.backlog_id, pf.created_at
+      FROM project_feedbacks pf
+      WHERE pf.account_id = ${accountId}
+        AND pf.importance = 'critical'
+        AND pf.linked_ticket_id IS NULL
+        AND pf.internal_status NOT IN ('archived','rejected')
+        AND pf.created_at < now() - interval '7 days'
+      LIMIT 1
+    `)) as any[];
+    for (const fb of criticalFeedbacks) {
+      recommendations.push({
+        id: `feedback-critical-${fb.id}`,
+        title: "Feedback critique sans ticket",
+        description: `« ${fb.title} » est critique et n'est toujours lié à aucun ticket.`,
+        type: "task" as any,
+        priority: "high",
+        url: fb.backlog_id ? `/backlogs/${fb.backlog_id}?tab=feedback` : `/feedback`,
+      });
+    }
+    // Ticket supported by many feedbacks
+    const popularTickets = (await db.execute(sql`
+      SELECT us.id, us.title, us.backlog_id, COUNT(pf.id) as feedback_count
+      FROM user_stories us
+      JOIN project_feedbacks pf ON pf.linked_ticket_id = us.id
+      WHERE us.account_id = ${accountId} AND us.state != 'termine'
+      GROUP BY us.id, us.title, us.backlog_id
+      HAVING COUNT(pf.id) >= 3
+      ORDER BY COUNT(pf.id) DESC
+      LIMIT 1
+    `)) as any[];
+    for (const t of popularTickets) {
+      recommendations.push({
+        id: `ticket-supported-${t.id}`,
+        title: "Ticket très soutenu par des feedbacks",
+        description: `Le ticket « ${t.title} » est soutenu par ${t.feedback_count} feedbacks utilisateurs.`,
+        type: "task" as any,
+        priority: "medium",
+        url: t.backlog_id ? `/backlogs/${t.backlog_id}` : `/feedback`,
+      });
+    }
+  } catch {}
+
   const typeOrder: Record<string, number> = { cash: 1, task: 2, roadmap: 3, sprint: 4, crm: 5, project: 6 };
   const sorted = recommendations.sort((a, b) => (typeOrder[a.type] || 9) - (typeOrder[b.type] || 9)).slice(0, 5);
 

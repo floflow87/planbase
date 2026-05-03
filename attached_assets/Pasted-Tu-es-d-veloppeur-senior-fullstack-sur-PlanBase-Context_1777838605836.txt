@@ -1,0 +1,765 @@
+Tu es développeur senior fullstack sur PlanBase.
+
+Contexte :
+PlanBase est une web app SaaS pour freelances, CPO, product managers et indépendants.
+L’application contient des modules Dashboard, Projets, Backlog, Roadmap, CRM, Trésorerie.
+Le module Feedback est désormais rattaché à la partie Backlog, et non à la partie Projet.
+
+La V2 du module Feedback permet de :
+- centraliser les feedbacks dans Backlog > Feedbacks ;
+- qualifier les retours ;
+- les lier à des tickets existants ;
+- créer des tickets depuis des feedbacks ;
+- afficher les feedbacks liés dans les tickets backlog ;
+- voir des premiers insights simples.
+
+Objectif V3 :
+Créer une couche “Feedback Intelligence” dans Backlog > Feedbacks.
+
+La V3 doit permettre à PlanBase de ne plus seulement stocker et qualifier les feedbacks, mais de :
+- analyser les retours ;
+- détecter les feedbacks similaires ;
+- regrouper les signaux récurrents ;
+- suggérer des tickets, user stories ou epics ;
+- aider à prioriser le backlog ;
+- alimenter la roadmap avec des signaux terrain ;
+- faire remonter les insights importants dans le Daily Digest.
+
+La V3 doit rester maîtrisée :
+- l’IA peut suggérer ;
+- l’utilisateur décide toujours ;
+- aucune modification automatique du backlog ou de la roadmap sans action explicite de l’utilisateur.
+
+Nom de la fonctionnalité :
+Feedback Intelligence
+
+Emplacement :
+Backlog > Feedbacks
+
+Ajouter idéalement trois vues ou onglets internes :
+- Inbox
+- Clusters
+- Insights
+
+---
+
+## 1. Analyse intelligente des feedbacks
+
+À chaque nouveau feedback créé ou reçu, PlanBase doit pouvoir lancer une analyse automatique ou semi-automatique.
+
+L’analyse doit extraire :
+
+- problème utilisateur principal ;
+- besoin sous-jacent ;
+- sentiment ;
+- urgence perçue ;
+- zone produit concernée ;
+- mots-clés ;
+- résumé court ;
+- suggestion de qualification ;
+- tickets potentiellement liés ;
+- feedbacks similaires.
+
+Champs IA proposés :
+
+ai_summary
+ai_detected_problem
+ai_detected_need
+ai_sentiment : positive | neutral | frustrated | angry | confused
+ai_urgency : low | medium | high
+ai_product_area
+ai_keywords
+ai_suggested_tags
+ai_confidence_score
+
+Important :
+L’analyse IA doit être affichée comme une suggestion.
+Elle ne doit pas écraser les champs manuels sans validation utilisateur.
+
+Dans le drawer feedback, ajouter une section :
+“Analyse suggérée”
+
+Contenu :
+- résumé IA ;
+- problème détecté ;
+- besoin utilisateur ;
+- sentiment ;
+- urgence ;
+- tags suggérés ;
+- zone produit suggérée ;
+- bouton “Appliquer les suggestions”.
+
+---
+
+## 2. Détection de feedbacks similaires
+
+PlanBase doit détecter les feedbacks proches ou récurrents.
+
+Méthodes possibles :
+- similarité par titre ;
+- similarité par description ;
+- tags communs ;
+- zone produit commune ;
+- mots-clés communs ;
+- plus tard embeddings/vector search si disponible.
+
+Pour la V3, si une infrastructure vectorielle existe déjà, l’utiliser.
+Sinon, commencer avec une similarité simple par mots-clés et tags, mais structurer le code pour permettre une recherche vectorielle plus tard.
+
+Dans le drawer d’un feedback, afficher :
+“Feedbacks similaires”
+
+Pour chaque feedback similaire :
+- titre ;
+- score de similarité ;
+- type ;
+- importance ;
+- statut ;
+- ticket lié si disponible ;
+- action “Voir” ;
+- action “Lier au même ticket” si pertinent.
+
+Ne pas fusionner automatiquement les feedbacks.
+
+---
+
+## 3. Clusters de feedbacks
+
+Créer une vue “Clusters” dans Backlog > Feedbacks.
+
+Objectif :
+Regrouper les feedbacks qui parlent du même problème ou du même besoin.
+
+Un cluster représente un signal produit consolidé.
+
+Exemple :
+Cluster : “Compréhension de la rentabilité projet”
+Contient :
+- 12 feedbacks ;
+- 4 clients concernés ;
+- 2 prospects concernés ;
+- sentiment majoritaire : frustration ;
+- impact : élevé ;
+- ticket recommandé : “Améliorer la visualisation de la marge projet”.
+
+Créer ou adapter une table :
+
+feedback_clusters :
+- id
+- organization_id
+- title
+- description
+- detected_problem
+- detected_need
+- product_area
+- sentiment
+- impact_level
+- frequency_count
+- linked_ticket_id nullable
+- linked_epic_id nullable
+- linked_roadmap_item_id nullable
+- status : suggested | validated | linked | dismissed | archived
+- confidence_score nullable
+- created_at
+- updated_at
+- archived_at nullable
+
+Table de relation :
+
+feedback_cluster_items :
+- id
+- organization_id
+- cluster_id
+- feedback_id
+- similarity_score nullable
+- created_at
+
+Statuts cluster :
+- suggested = Suggéré
+- validated = Validé
+- linked = Relié
+- dismissed = Ignoré
+- archived = Archivé
+
+---
+
+## 4. Création de cluster
+
+PlanBase doit pouvoir :
+- suggérer automatiquement des clusters ;
+- permettre à l’utilisateur de créer un cluster manuellement ;
+- permettre d’ajouter ou retirer des feedbacks d’un cluster ;
+- permettre de valider ou ignorer un cluster suggéré.
+
+Dans la vue Clusters, afficher :
+- titre ;
+- nombre de feedbacks ;
+- zone produit ;
+- sentiment dominant ;
+- impact ;
+- statut ;
+- ticket ou epic lié ;
+- action “Ouvrir”.
+
+Dans le détail du cluster, afficher :
+- résumé du signal ;
+- problème détecté ;
+- besoin utilisateur ;
+- feedbacks inclus ;
+- clients ou contributeurs concernés si disponibles ;
+- tickets liés ;
+- roadmap item lié si disponible ;
+- actions recommandées.
+
+Actions cluster :
+- Valider le cluster
+- Ignorer le cluster
+- Créer un ticket depuis ce cluster
+- Créer une epic depuis ce cluster
+- Lier à un ticket existant
+- Lier à un item roadmap
+- Archiver
+
+---
+
+## 5. Génération de ticket depuis un cluster
+
+Ajouter l’action :
+“Créer un ticket depuis ce cluster”
+
+Le ticket doit être prérempli avec les informations consolidées.
+
+Format recommandé :
+
+Titre :
+reprendre ou reformuler le titre du cluster.
+
+Description :
+Inclure :
+- problème utilisateur consolidé ;
+- besoin détecté ;
+- nombre de feedbacks concernés ;
+- exemples de verbatims ;
+- zone produit ;
+- impact estimé ;
+- source des feedbacks ;
+- hypothèse produit.
+
+Template :
+
+En tant que [segment utilisateur principal],
+je souhaite [besoin consolidé],
+afin de [bénéfice attendu].
+
+Contexte :
+Ce ticket est issu d’un cluster de [X] feedbacks utilisateurs.
+
+Problème observé :
+[problème détecté]
+
+Verbatims représentatifs :
+- “[verbatim 1]”
+- “[verbatim 2]”
+- “[verbatim 3]”
+
+Critères d’acceptation :
+- À compléter
+
+Métriques de succès suggérées :
+- À compléter
+
+Après création :
+- lier le cluster au ticket ;
+- lier les feedbacks du cluster au ticket ;
+- passer le cluster en statut linked ;
+- afficher le ticket lié.
+
+---
+
+## 6. Génération d’epic depuis un cluster
+
+Ajouter l’action :
+“Créer une epic depuis ce cluster”
+
+L’epic doit être préremplie avec :
+
+- titre ;
+- contexte ;
+- problème ;
+- objectif ;
+- user stories suggérées ;
+- métriques de succès ;
+- risques ;
+- dépendances ;
+- feedbacks sources.
+
+Exemple de structure :
+
+Epic :
+[Nom de l’initiative]
+
+Problème :
+[Problème consolidé]
+
+Objectif :
+[Ce que l’on cherche à améliorer]
+
+User stories suggérées :
+1. En tant que...
+2. En tant que...
+3. En tant que...
+
+Critères de succès :
+- réduction du nombre de feedbacks similaires ;
+- amélioration d’un taux d’usage ;
+- réduction du temps de compréhension ;
+- augmentation de satisfaction.
+
+Sources :
+Cluster basé sur [X] feedbacks.
+
+Après création :
+- lier l’epic au cluster ;
+- lier les feedbacks à l’epic si le modèle le permet ;
+- proposer de créer ou lier un item roadmap.
+
+---
+
+## 7. Priorisation intelligente
+
+Ajouter un score de priorisation V3.
+
+Le score doit prendre en compte :
+
+- volume de feedbacks ;
+- importance moyenne ;
+- urgence moyenne ;
+- sentiment ;
+- clients ou segments concernés ;
+- prospects concernés si CRM lié ;
+- impact business potentiel ;
+- alignement roadmap ;
+- effort estimé si disponible ;
+- ancienneté du signal.
+
+Créer un score indicatif, par exemple :
+
+priority_score = 
+volume_score
++ impact_score
++ urgency_score
++ sentiment_score
++ business_score
++ roadmap_alignment_score
+- effort_score
+
+Le score doit être affiché de manière compréhensible :
+- Signal faible
+- Signal moyen
+- Signal fort
+- Signal critique
+
+Important :
+Le score ne doit pas décider à la place de l’utilisateur.
+Afficher une mention :
+“Score indicatif basé sur les signaux disponibles.”
+
+Dans la vue Clusters et Insights, afficher :
+- score ;
+- raison du score ;
+- facteurs principaux.
+
+Exemple :
+“Signal fort : 12 feedbacks, 4 clients actifs concernés, sentiment majoritairement frustré.”
+
+---
+
+## 8. Connexion CRM
+
+Si le CRM existe avec prospects, clients ou opportunités, enrichir les insights feedbacks.
+
+Objectif :
+Savoir si un feedback est lié à :
+- un client actif ;
+- un prospect chaud ;
+- une opportunité en cours ;
+- un client à risque ;
+- un compte important.
+
+Exemples de recommandations :
+- “3 prospects ont demandé cette fonctionnalité ces 90 derniers jours.”
+- “2 clients actifs remontent le même problème.”
+- “Ce feedback est lié à une opportunité commerciale ouverte.”
+- “Ce cluster peut avoir un impact sur la conversion ou la rétention.”
+
+Ne pas bloquer si les relations CRM n’existent pas.
+Implémenter uniquement si les données sont disponibles.
+
+---
+
+## 9. Connexion Roadmap
+
+Dans un cluster, permettre de :
+- lier le cluster à un item roadmap existant ;
+- créer un item roadmap depuis le cluster ;
+- afficher combien de feedbacks soutiennent un item roadmap.
+
+Dans Roadmap, afficher sur un item :
+- feedbacks liés ;
+- clusters liés ;
+- nombre de signaux ;
+- sentiment général ;
+- clients/prospects concernés si disponible.
+
+Objectif :
+Créer une boucle :
+Feedback → Cluster → Ticket/Epic → Roadmap
+
+---
+
+## 10. Vue Insights avancée
+
+Dans Backlog > Feedbacks > Insights, créer une vue synthèse.
+
+Cards KPI :
+- Nouveaux feedbacks cette semaine
+- Feedbacks non qualifiés
+- Clusters suggérés
+- Signaux forts
+- Tickets les plus soutenus
+- Roadmap items les plus soutenus
+
+Sections :
+
+1. Signaux forts à traiter
+Afficher les clusters avec score élevé non liés à un ticket.
+
+2. Tickets les plus soutenus
+Afficher les tickets avec le plus de feedbacks liés.
+
+3. Zones produit les plus remontées
+Afficher les product areas avec le plus de feedbacks.
+
+4. Feedbacks critiques sans ticket
+Afficher les feedbacks importance critical ou urgence high non liés.
+
+5. Opportunités CRM liées à des feedbacks
+Afficher les prospects ou clients associés à des demandes récurrentes si disponible.
+
+6. Tendances récentes
+Comparer les 7 ou 30 derniers jours avec la période précédente.
+
+Exemple :
+“Les feedbacks sur la trésorerie ont augmenté de 40 % ces 30 derniers jours.”
+
+---
+
+## 11. Intégration Daily Digest
+
+Faire remonter certains signaux dans le Daily Digest du dashboard.
+
+Règles :
+Ajouter dans le Daily Digest des recommandations de type feedback si :
+
+- un cluster critique n’est lié à aucun ticket ;
+- un feedback critique est non traité depuis plus de X jours ;
+- un ticket est soutenu par plusieurs feedbacks ;
+- un nouveau signal fort est détecté ;
+- une zone produit reçoit beaucoup de feedbacks cette semaine ;
+- un prospect CRM important est associé à une demande produit.
+
+Exemples de messages :
+- “Nouveau signal fort : 8 feedbacks sur la facturation projet.”
+- “Un feedback critique n’est toujours lié à aucun ticket.”
+- “Le ticket ‘Export PDF’ est soutenu par 12 feedbacks.”
+- “3 prospects ont demandé une intégration Slack ces 90 derniers jours.”
+
+Chaque recommandation doit renvoyer vers :
+- le cluster ;
+- le feedback ;
+- le ticket ;
+- ou l’insight concerné.
+
+---
+
+## 12. Page externe avancée optionnelle
+
+Améliorer légèrement la page externe sans la transformer en portail communautaire complet.
+
+Ajouter éventuellement :
+- zone produit optionnelle ;
+- possibilité de joindre une capture si déjà disponible ;
+- message si une demande similaire existe ;
+- statut public simplifié du feedback.
+
+Ne pas ajouter en V3 :
+- votes publics ;
+- commentaires publics ;
+- roadmap publique complète ;
+- compte utilisateur externe ;
+- portail communautaire complet.
+
+Cela pourra être une V4.
+
+---
+
+## 13. Modèle de données complémentaire
+
+Adapter les tables existantes ou ajouter les champs suivants.
+
+Dans backlog_feedbacks :
+
+- ai_summary nullable
+- ai_detected_problem nullable
+- ai_detected_need nullable
+- ai_sentiment nullable
+- ai_urgency nullable
+- ai_product_area nullable
+- ai_keywords text[] nullable
+- ai_suggested_tags text[] nullable
+- ai_confidence_score numeric nullable
+- analyzed_at nullable
+
+Ajouter tables :
+
+feedback_clusters
+- id
+- organization_id
+- title
+- description
+- detected_problem
+- detected_need
+- product_area
+- sentiment
+- impact_level
+- frequency_count
+- priority_score nullable
+- score_label nullable
+- score_reason nullable
+- linked_ticket_id nullable
+- linked_epic_id nullable
+- linked_roadmap_item_id nullable
+- status
+- confidence_score nullable
+- created_at
+- updated_at
+- archived_at nullable
+
+feedback_cluster_items
+- id
+- organization_id
+- cluster_id
+- feedback_id
+- similarity_score nullable
+- created_at
+
+Optionnel si embeddings disponibles :
+
+feedback_embeddings
+- id
+- organization_id
+- feedback_id
+- embedding
+- model
+- created_at
+
+Ne pas implémenter les embeddings si l’infrastructure n’est pas prête.
+Préparer seulement la structure si c’est simple et cohérent avec l’existant.
+
+---
+
+## 14. API backend
+
+Créer ou adapter les endpoints suivants.
+
+Analyse IA :
+
+POST /api/backlog/feedbacks/:feedbackId/analyze
+Analyse un feedback et propose des champs IA.
+
+POST /api/backlog/feedbacks/:feedbackId/apply-ai-suggestions
+Applique les suggestions IA validées par l’utilisateur.
+
+Similarité :
+
+GET /api/backlog/feedbacks/:feedbackId/similar
+Retourne les feedbacks similaires.
+
+Clusters :
+
+GET /api/backlog/feedback-clusters
+Liste les clusters.
+
+POST /api/backlog/feedback-clusters/generate
+Génère ou suggère des clusters.
+
+POST /api/backlog/feedback-clusters
+Crée un cluster manuel.
+
+GET /api/backlog/feedback-clusters/:clusterId
+Retourne le détail d’un cluster.
+
+PATCH /api/backlog/feedback-clusters/:clusterId
+Met à jour un cluster.
+
+POST /api/backlog/feedback-clusters/:clusterId/add-feedback
+Ajoute un feedback au cluster.
+
+POST /api/backlog/feedback-clusters/:clusterId/remove-feedback
+Retire un feedback du cluster.
+
+POST /api/backlog/feedback-clusters/:clusterId/create-ticket
+Crée un ticket depuis un cluster.
+
+POST /api/backlog/feedback-clusters/:clusterId/create-epic
+Crée une epic depuis un cluster.
+
+POST /api/backlog/feedback-clusters/:clusterId/link-ticket
+Lie le cluster à un ticket existant.
+
+POST /api/backlog/feedback-clusters/:clusterId/link-roadmap-item
+Lie le cluster à un item roadmap.
+
+Insights :
+
+GET /api/backlog/feedbacks/insights
+Retourne les insights avancés.
+
+GET /api/backlog/feedbacks/trends
+Retourne les tendances sur 7 ou 30 jours.
+
+Sécurité :
+- tous les endpoints internes doivent être authentifiés ;
+- toutes les requêtes doivent être filtrées par organization_id ;
+- ne jamais exposer les données d’une autre organisation ;
+- journaliser les actions importantes ;
+- ne jamais déclencher une écriture sans action utilisateur explicite.
+
+---
+
+## 15. UI attendue
+
+Dans Backlog > Feedbacks, ajouter :
+
+Onglets internes :
+- Inbox
+- Clusters
+- Insights
+
+### Inbox
+
+Ajouter dans le drawer feedback :
+- section “Analyse suggérée”
+- bouton “Analyser”
+- bouton “Appliquer les suggestions”
+- section “Feedbacks similaires”
+
+### Clusters
+
+Vue liste :
+- titre cluster ;
+- nombre de feedbacks ;
+- score ;
+- zone produit ;
+- sentiment ;
+- statut ;
+- ticket/epic/roadmap lié ;
+- actions.
+
+Drawer cluster :
+- résumé ;
+- problème ;
+- besoin ;
+- feedbacks inclus ;
+- score et raison du score ;
+- actions : créer ticket, créer epic, lier roadmap, ignorer, archiver.
+
+### Insights
+
+Afficher :
+- cards KPI ;
+- signaux forts ;
+- tickets les plus soutenus ;
+- zones produit les plus remontées ;
+- feedbacks critiques sans ticket ;
+- tendances récentes ;
+- opportunités CRM liées si disponibles.
+
+---
+
+## 16. Garde-fous V3
+
+L’IA ne doit jamais :
+- créer automatiquement un ticket sans validation ;
+- modifier automatiquement un feedback sans validation ;
+- créer automatiquement une roadmap sans validation ;
+- supprimer ou fusionner des feedbacks ;
+- envoyer des notifications externes ;
+- exposer des données internes côté public.
+
+L’IA doit :
+- suggérer ;
+- résumer ;
+- regrouper ;
+- prioriser indicativement ;
+- laisser l’utilisateur décider.
+
+Tous les textes IA doivent pouvoir être modifiés avant validation.
+
+---
+
+## 17. Critères d’acceptation
+
+- Je vois les onglets Inbox, Clusters et Insights dans Backlog > Feedbacks.
+- Je peux analyser un feedback avec l’IA ou une logique de suggestion.
+- Je vois un résumé, un problème détecté, un besoin, un sentiment et des tags suggérés.
+- Je peux appliquer ou ignorer les suggestions IA.
+- Je vois les feedbacks similaires à un feedback donné.
+- Je peux créer ou valider un cluster de feedbacks.
+- Je peux ajouter ou retirer des feedbacks d’un cluster.
+- Je peux créer un ticket depuis un cluster.
+- Je peux créer une epic depuis un cluster si le modèle backlog le permet.
+- Les feedbacks du cluster sont liés au ticket ou à l’epic créée.
+- Je vois un score de priorité indicatif avec une explication.
+- Je vois les tickets les plus soutenus par des feedbacks.
+- Je vois les zones produit les plus remontées.
+- Je vois les feedbacks critiques non liés à un ticket.
+- Je peux lier un cluster à un item roadmap.
+- Les signaux forts peuvent remonter dans le Daily Digest.
+- Aucune action d’écriture importante n’est faite sans validation utilisateur.
+- Les données sont filtrées par organization_id.
+- L’interface respecte le design system existant de PlanBase.
+- Les états loading, empty, error et success sont gérés.
+
+---
+
+## 18. À analyser avant implémentation
+
+Avant de coder, analyser l’existant :
+- module Backlog ;
+- module Feedback V2 ;
+- modèle de tickets ;
+- modèle d’epics si existant ;
+- modèle Roadmap ;
+- modèle CRM ;
+- Daily Digest ;
+- éventuelle infrastructure IA déjà présente ;
+- éventuelle base vectorielle ou extension pgvector ;
+- gestion organization_id ;
+- composants UI existants ;
+- endpoints disponibles ;
+- patterns de drawers, tables, badges et cards.
+
+Ensuite :
+1. proposer le plan d’implémentation ;
+2. ajouter les champs IA sur les feedbacks ;
+3. créer la logique d’analyse ;
+4. créer la détection de similarité simple ;
+5. créer les clusters ;
+6. créer la vue Clusters ;
+7. créer la création de ticket depuis cluster ;
+8. créer la création d’epic depuis cluster si possible ;
+9. créer les insights avancés ;
+10. connecter certains signaux au Daily Digest ;
+11. tester le filtrage organization_id ;
+12. vérifier que toutes les actions critiques nécessitent une validation utilisateur.

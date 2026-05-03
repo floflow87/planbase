@@ -202,7 +202,7 @@ export async function runStartupMigrations() {
   // Creates a lightweight tracking table on first boot, records a version
   // marker after all migrations complete. Subsequent boots skip everything
   // in ~1 query instead of running 150+ sequential SQL statements.
-  const MIGRATION_VERSION = "planbase_v2_feedback_v2_r1";
+  const MIGRATION_VERSION = "planbase_v3_feedback_intelligence_r1";
   try {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS schema_migrations_tracking (
@@ -3223,6 +3223,76 @@ export async function runStartupMigrations() {
       console.log("✅ project_feedbacks V2 qualification columns added");
     } catch (e: any) {
       console.warn("⚠️  project_feedbacks V2 qualification migration (non-blocking):", e.message);
+    }
+    // ── project_feedbacks V3 AI analysis columns ──
+    try {
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS ai_summary text`);
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS ai_detected_problem text`);
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS ai_detected_need text`);
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS ai_sentiment text`);
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS ai_urgency text`);
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS ai_product_area text`);
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS ai_keywords text[]`);
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS ai_suggested_tags text[]`);
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS ai_confidence_score numeric`);
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS analyzed_at timestamptz`);
+      console.log("✅ project_feedbacks V3 AI columns added");
+    } catch (e: any) {
+      console.warn("⚠️  project_feedbacks V3 AI migration (non-blocking):", e.message);
+    }
+
+    // ── feedback_clusters table ──
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS feedback_clusters (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+          backlog_id uuid REFERENCES backlogs(id) ON DELETE CASCADE,
+          title text NOT NULL,
+          description text,
+          detected_problem text,
+          detected_need text,
+          product_area text,
+          sentiment text,
+          impact_level text,
+          frequency_count integer DEFAULT 0,
+          priority_score numeric,
+          score_label text,
+          score_reason text,
+          linked_ticket_id uuid,
+          linked_epic_id uuid,
+          linked_roadmap_item_id uuid,
+          status text NOT NULL DEFAULT 'suggested',
+          confidence_score numeric,
+          archived_at timestamptz,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS fc_account_idx ON feedback_clusters(account_id)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS fc_backlog_idx ON feedback_clusters(backlog_id)`);
+      console.log("✅ feedback_clusters table created");
+    } catch (e: any) {
+      console.warn("⚠️  feedback_clusters migration (non-blocking):", e.message);
+    }
+
+    // ── feedback_cluster_items table ──
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS feedback_cluster_items (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+          cluster_id uuid NOT NULL REFERENCES feedback_clusters(id) ON DELETE CASCADE,
+          feedback_id uuid NOT NULL REFERENCES project_feedbacks(id) ON DELETE CASCADE,
+          similarity_score numeric,
+          created_at timestamptz NOT NULL DEFAULT now()
+        )
+      `);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS fci_cluster_idx ON feedback_cluster_items(cluster_id)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS fci_feedback_idx ON feedback_cluster_items(feedback_id)`);
+      console.log("✅ feedback_cluster_items table created");
+    } catch (e: any) {
+      console.warn("⚠️  feedback_cluster_items migration (non-blocking):", e.message);
     }
     // ─────────────────────────────────────────────────────────────
 

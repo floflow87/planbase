@@ -2633,6 +2633,17 @@ export const projectFeedbacks = pgTable("project_feedbacks", {
   qualificationNotes: text("qualification_notes"),
   score: integer("score"),
   linkedTicketId: uuid("linked_ticket_id"),
+  // V3 AI analysis fields
+  aiSummary: text("ai_summary"),
+  aiDetectedProblem: text("ai_detected_problem"),
+  aiDetectedNeed: text("ai_detected_need"),
+  aiSentiment: text("ai_sentiment"),
+  aiUrgency: text("ai_urgency"),
+  aiProductArea: text("ai_product_area"),
+  aiKeywords: text("ai_keywords").array(),
+  aiSuggestedTags: text("ai_suggested_tags").array(),
+  aiConfidenceScore: numeric("ai_confidence_score"),
+  analyzedAt: timestamp("analyzed_at", { withTimezone: true }),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -2640,9 +2651,57 @@ export const projectFeedbacks = pgTable("project_feedbacks", {
   accountIdx: index("pfb_account_idx").on(table.accountId),
   projectIdx: index("pfb_project_idx").on(table.projectId),
 }));
-export const insertProjectFeedbackSchema = createInsertSchema(projectFeedbacks).omit({ id: true, createdAt: true, updatedAt: true, archivedAt: true });
+export const insertProjectFeedbackSchema = createInsertSchema(projectFeedbacks).omit({ id: true, createdAt: true, updatedAt: true, archivedAt: true, analyzedAt: true });
 export type InsertProjectFeedback = z.infer<typeof insertProjectFeedbackSchema>;
 export type ProjectFeedback = typeof projectFeedbacks.$inferSelect;
+
+// ── Feedback Clusters ─────────────────────────────────────────────────────
+export const feedbackClusters = pgTable("feedback_clusters", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  backlogId: uuid("backlog_id").references(() => backlogs.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  detectedProblem: text("detected_problem"),
+  detectedNeed: text("detected_need"),
+  productArea: text("product_area"),
+  sentiment: text("sentiment"),
+  impactLevel: text("impact_level"),
+  frequencyCount: integer("frequency_count").default(0),
+  priorityScore: numeric("priority_score"),
+  scoreLabel: text("score_label"),
+  scoreReason: text("score_reason"),
+  linkedTicketId: uuid("linked_ticket_id"),
+  linkedEpicId: uuid("linked_epic_id"),
+  linkedRoadmapItemId: uuid("linked_roadmap_item_id"),
+  status: text("status").notNull().default("suggested"),
+  confidenceScore: numeric("confidence_score"),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index("fc_account_idx").on(table.accountId),
+  backlogIdx: index("fc_backlog_idx").on(table.backlogId),
+}));
+export const insertFeedbackClusterSchema = createInsertSchema(feedbackClusters).omit({ id: true, createdAt: true, updatedAt: true, archivedAt: true });
+export type InsertFeedbackCluster = z.infer<typeof insertFeedbackClusterSchema>;
+export type FeedbackCluster = typeof feedbackClusters.$inferSelect;
+
+// ── Feedback Cluster Items ─────────────────────────────────────────────────
+export const feedbackClusterItems = pgTable("feedback_cluster_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  clusterId: uuid("cluster_id").notNull().references(() => feedbackClusters.id, { onDelete: "cascade" }),
+  feedbackId: uuid("feedback_id").notNull().references(() => projectFeedbacks.id, { onDelete: "cascade" }),
+  similarityScore: numeric("similarity_score"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  clusterIdx: index("fci_cluster_idx").on(table.clusterId),
+  feedbackIdx: index("fci_feedback_idx").on(table.feedbackId),
+}));
+export const insertFeedbackClusterItemSchema = createInsertSchema(feedbackClusterItems).omit({ id: true, createdAt: true });
+export type InsertFeedbackClusterItem = z.infer<typeof insertFeedbackClusterItemSchema>;
+export type FeedbackClusterItem = typeof feedbackClusterItems.$inferSelect;
 
 // Billing Status Options - Re-exported from centralized config for backwards compatibility
 export { 

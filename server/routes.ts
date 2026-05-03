@@ -16340,7 +16340,7 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
-  // ── Helper: map DB row → V2 feedback object ──
+  // ── Helper: map DB row → V3 feedback object ──
   function mapFeedbackRow(r: any) {
     return {
       id: r.id,
@@ -16365,6 +16365,17 @@ app.get("/config/feature-flags", async (_req, res) => {
       linkedTicketTitle: r.linked_ticket_title ?? null,
       linkedTicketState: r.linked_ticket_state ?? null,
       attachmentUrl: r.attachment_url ?? null,
+      // V3 AI fields
+      aiSummary: r.ai_summary ?? null,
+      aiDetectedProblem: r.ai_detected_problem ?? null,
+      aiDetectedNeed: r.ai_detected_need ?? null,
+      aiSentiment: r.ai_sentiment ?? null,
+      aiUrgency: r.ai_urgency ?? null,
+      aiProductArea: r.ai_product_area ?? null,
+      aiKeywords: r.ai_keywords ?? null,
+      aiSuggestedTags: r.ai_suggested_tags ?? null,
+      aiConfidenceScore: r.ai_confidence_score ? Number(r.ai_confidence_score) : null,
+      analyzedAt: r.analyzed_at ?? null,
       createdAt: r.created_at,
       archivedAt: r.archived_at ?? null,
     };
@@ -16560,6 +16571,463 @@ app.get("/config/feature-flags", async (_req, res) => {
         importance: r.importance, internalStatus: r.internal_status,
         contributorName: r.contributor_name, createdAt: r.created_at,
       })));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ── V3: Feedback Intelligence ────────────────────────────────────────────────
+
+  // Helper: map cluster DB row → object
+  function mapClusterRow(r: any, items: any[] = []) {
+    return {
+      id: r.id,
+      backlogId: r.backlog_id,
+      title: r.title,
+      description: r.description ?? null,
+      detectedProblem: r.detected_problem ?? null,
+      detectedNeed: r.detected_need ?? null,
+      productArea: r.product_area ?? null,
+      sentiment: r.sentiment ?? null,
+      impactLevel: r.impact_level ?? null,
+      frequencyCount: r.frequency_count ?? 0,
+      priorityScore: r.priority_score ? Number(r.priority_score) : null,
+      scoreLabel: r.score_label ?? null,
+      scoreReason: r.score_reason ?? null,
+      linkedTicketId: r.linked_ticket_id ?? null,
+      linkedTicketTitle: r.linked_ticket_title ?? null,
+      linkedEpicId: r.linked_epic_id ?? null,
+      linkedEpicTitle: r.linked_epic_title ?? null,
+      linkedRoadmapItemId: r.linked_roadmap_item_id ?? null,
+      status: r.status,
+      confidenceScore: r.confidence_score ? Number(r.confidence_score) : null,
+      archivedAt: r.archived_at ?? null,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+      items,
+    };
+  }
+
+  // POST /api/backlogs/:backlogId/feedbacks/:feedbackId/analyze — V3 AI
+  app.post("/api/backlogs/:backlogId/feedbacks/:feedbackId/analyze", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId, feedbackId } = req.params;
+      const rows = (await db.execute(sql`
+        SELECT id, title, description, product_area, tags, importance
+        FROM project_feedbacks
+        WHERE id = ${feedbackId} AND backlog_id = ${backlogId} AND account_id = ${accountId}
+        LIMIT 1
+      `)) as any[];
+      if (!rows.length) return res.status(404).json({ error: "Feedback not found" });
+      const fb = rows[0];
+      const { analyzeFeedback } = await import("./lib/openai");
+      const analysis = await analyzeFeedback(fb.title, fb.description, {
+        productArea: fb.product_area,
+        tags: fb.tags,
+        importance: fb.importance,
+      });
+      res.json(analysis);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/backlogs/:backlogId/feedbacks/:feedbackId/apply-ai-suggestions — V3
+  app.post("/api/backlogs/:backlogId/feedbacks/:feedbackId/apply-ai-suggestions", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId, feedbackId } = req.params;
+      const { summary, detectedProblem, detectedNeed, sentiment, urgency, productArea, keywords, suggestedTags, confidenceScore } = req.body;
+      await db.execute(sql`
+        UPDATE project_feedbacks SET
+          ai_summary = ${summary ?? null},
+          ai_detected_problem = ${detectedProblem ?? null},
+          ai_detected_need = ${detectedNeed ?? null},
+          ai_sentiment = ${sentiment ?? null},
+          ai_urgency = ${urgency ?? null},
+          ai_product_area = ${productArea ?? null},
+          ai_keywords = ${Array.isArray(keywords) ? keywords : []},
+          ai_suggested_tags = ${Array.isArray(suggestedTags) ? suggestedTags : []},
+          ai_confidence_score = ${confidenceScore ?? null},
+          analyzed_at = now(),
+          updated_at = now()
+        WHERE id = ${feedbackId} AND backlog_id = ${backlogId} AND account_id = ${accountId}
+      `);
+      const updated = (await db.execute(sql`
+        SELECT pf.*, us.title as linked_ticket_title, us.state as linked_ticket_state
+        FROM project_feedbacks pf
+        LEFT JOIN user_stories us ON us.id = pf.linked_ticket_id
+        WHERE pf.id = ${feedbackId} LIMIT 1
+      `)) as any[];
+      if (!updated.length) return res.status(404).json({ error: "Not found" });
+      res.json(mapFeedbackRow(updated[0]));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/backlogs/:backlogId/feedbacks/:feedbackId/similar — V3
+  app.get("/api/backlogs/:backlogId/feedbacks/:feedbackId/similar", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId, feedbackId } = req.params;
+      const fbRows = (await db.execute(sql`
+        SELECT id, title, description, type, product_area, tags, ai_keywords
+        FROM project_feedbacks
+        WHERE id = ${feedbackId} AND backlog_id = ${backlogId} AND account_id = ${accountId}
+        LIMIT 1
+      `)) as any[];
+      if (!fbRows.length) return res.status(404).json({ error: "Feedback not found" });
+      const target = fbRows[0];
+      // Fetch candidates
+      const candidates = (await db.execute(sql`
+        SELECT pf.*, us.title as linked_ticket_title, us.state as linked_ticket_state
+        FROM project_feedbacks pf
+        LEFT JOIN user_stories us ON us.id = pf.linked_ticket_id
+        WHERE pf.backlog_id = ${backlogId} AND pf.account_id = ${accountId}
+          AND pf.id != ${feedbackId}
+          AND pf.internal_status != 'archived'
+        LIMIT 50
+      `)) as any[];
+      // Keyword-based similarity scoring
+      const targetKeywords = new Set([
+        ...(target.ai_keywords ?? []).map((k: string) => k.toLowerCase()),
+        ...(target.tags ?? []).map((t: string) => t.toLowerCase()),
+        ...(target.title ?? "").toLowerCase().split(/\s+/).filter((w: string) => w.length > 3),
+      ]);
+      const targetProductArea = (target.product_area ?? "").toLowerCase();
+      const targetType = target.type;
+      const scored = candidates.map((c: any) => {
+        let score = 0;
+        if (c.type === targetType) score += 2;
+        if (targetProductArea && c.product_area?.toLowerCase() === targetProductArea) score += 3;
+        const cKeywords = [
+          ...(c.ai_keywords ?? []).map((k: string) => k.toLowerCase()),
+          ...(c.tags ?? []).map((t: string) => t.toLowerCase()),
+          ...(c.title ?? "").toLowerCase().split(/\s+/).filter((w: string) => w.length > 3),
+        ];
+        for (const kw of cKeywords) {
+          if (targetKeywords.has(kw)) score += 1;
+        }
+        return { ...c, _simScore: score };
+      }).filter((c: any) => c._simScore >= 2).sort((a: any, b: any) => b._simScore - a._simScore).slice(0, 5);
+      res.json(scored.map((r: any) => ({ ...mapFeedbackRow(r), similarityScore: r._simScore })));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/backlogs/:backlogId/feedback-clusters — V3
+  app.get("/api/backlogs/:backlogId/feedback-clusters", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId } = req.params;
+      const clusters = (await db.execute(sql`
+        SELECT fc.*,
+          us.title as linked_ticket_title,
+          e.title as linked_epic_title
+        FROM feedback_clusters fc
+        LEFT JOIN user_stories us ON us.id = fc.linked_ticket_id
+        LEFT JOIN epics e ON e.id = fc.linked_epic_id
+        WHERE fc.backlog_id = ${backlogId} AND fc.account_id = ${accountId}
+          AND fc.archived_at IS NULL
+        ORDER BY fc.created_at DESC
+      `)) as any[];
+      // fetch items counts
+      const clusterIds = clusters.map((c: any) => c.id);
+      let itemsByCluster: Record<string, any[]> = {};
+      if (clusterIds.length > 0) {
+        const items = (await db.execute(sql`
+          SELECT fci.cluster_id, fci.feedback_id, fci.similarity_score,
+                 pf.title as feedback_title, pf.type, pf.importance, pf.internal_status, pf.contributor_name
+          FROM feedback_cluster_items fci
+          JOIN project_feedbacks pf ON pf.id = fci.feedback_id
+          WHERE fci.cluster_id = ANY(${clusterIds}::uuid[]) AND fci.account_id = ${accountId}
+        `)) as any[];
+        for (const item of items) {
+          if (!itemsByCluster[item.cluster_id]) itemsByCluster[item.cluster_id] = [];
+          itemsByCluster[item.cluster_id].push({
+            feedbackId: item.feedback_id,
+            feedbackTitle: item.feedback_title,
+            type: item.type,
+            importance: item.importance,
+            internalStatus: item.internal_status,
+            contributorName: item.contributor_name,
+            similarityScore: item.similarity_score ? Number(item.similarity_score) : null,
+          });
+        }
+      }
+      res.json(clusters.map((c: any) => ({
+        ...mapClusterRow(c, itemsByCluster[c.id] ?? []),
+        feedbackCount: (itemsByCluster[c.id] ?? []).length,
+      })));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/backlogs/:backlogId/feedback-clusters/generate — V3 AI generate
+  app.post("/api/backlogs/:backlogId/feedback-clusters/generate", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId } = req.params;
+      // Fetch unarchived, unqualified feedbacks
+      const feedbacks = (await db.execute(sql`
+        SELECT id, title, description, type, importance, product_area, tags, ai_keywords
+        FROM project_feedbacks
+        WHERE backlog_id = ${backlogId} AND account_id = ${accountId}
+          AND internal_status NOT IN ('archived', 'rejected')
+        LIMIT 80
+      `)) as any[];
+      if (feedbacks.length < 2) return res.json({ clusters: [], message: "Pas assez de feedbacks pour générer des clusters." });
+      const { generateFeedbackClusters } = await import("./lib/openai");
+      const suggestions = await generateFeedbackClusters(feedbacks.map((f: any) => ({
+        id: f.id, title: f.title, description: f.description, type: f.type,
+        importance: f.importance, productArea: f.product_area, tags: f.tags ?? [],
+      })));
+      // Persist suggested clusters
+      const created = [];
+      for (const s of suggestions) {
+        if (s.feedbackIds.length < 2) continue;
+        const clusterRows = (await db.execute(sql`
+          INSERT INTO feedback_clusters (account_id, backlog_id, title, description, detected_problem, detected_need,
+            product_area, sentiment, impact_level, frequency_count, status, confidence_score)
+          VALUES (${accountId}, ${backlogId}, ${s.title}, ${s.description}, ${s.detectedProblem}, ${s.detectedNeed},
+            ${s.productArea}, ${s.sentiment}, ${s.impactLevel}, ${s.feedbackIds.length}, 'suggested', ${s.confidenceScore})
+          RETURNING id
+        `)) as any[];
+        if (!clusterRows.length) continue;
+        const clusterId = clusterRows[0].id;
+        for (const fbId of s.feedbackIds) {
+          await db.execute(sql`
+            INSERT INTO feedback_cluster_items (account_id, cluster_id, feedback_id)
+            VALUES (${accountId}, ${clusterId}, ${fbId})
+            ON CONFLICT DO NOTHING
+          `);
+        }
+        created.push({ clusterId, title: s.title, feedbackCount: s.feedbackIds.length });
+      }
+      res.json({ clusters: created, generated: created.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/backlogs/:backlogId/feedback-clusters — manual create
+  app.post("/api/backlogs/:backlogId/feedback-clusters", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId } = req.params;
+      const { title, description, detectedProblem, detectedNeed, productArea, sentiment, impactLevel, feedbackIds } = req.body;
+      if (!title?.trim()) return res.status(400).json({ error: "Le titre est requis" });
+      const clusterRows = (await db.execute(sql`
+        INSERT INTO feedback_clusters (account_id, backlog_id, title, description, detected_problem, detected_need,
+          product_area, sentiment, impact_level, frequency_count, status)
+        VALUES (${accountId}, ${backlogId}, ${title.trim()}, ${description ?? null}, ${detectedProblem ?? null},
+          ${detectedNeed ?? null}, ${productArea ?? null}, ${sentiment ?? null}, ${impactLevel ?? null},
+          ${Array.isArray(feedbackIds) ? feedbackIds.length : 0}, 'suggested')
+        RETURNING *
+      `)) as any[];
+      const cluster = clusterRows[0];
+      if (Array.isArray(feedbackIds)) {
+        for (const fbId of feedbackIds) {
+          try {
+            await db.execute(sql`
+              INSERT INTO feedback_cluster_items (account_id, cluster_id, feedback_id)
+              VALUES (${accountId}, ${cluster.id}, ${fbId})
+              ON CONFLICT DO NOTHING
+            `);
+          } catch {}
+        }
+      }
+      res.status(201).json(mapClusterRow(cluster, []));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/backlogs/:backlogId/feedback-clusters/:clusterId — cluster detail
+  app.get("/api/backlogs/:backlogId/feedback-clusters/:clusterId", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId, clusterId } = req.params;
+      const rows = (await db.execute(sql`
+        SELECT fc.*, us.title as linked_ticket_title, e.title as linked_epic_title
+        FROM feedback_clusters fc
+        LEFT JOIN user_stories us ON us.id = fc.linked_ticket_id
+        LEFT JOIN epics e ON e.id = fc.linked_epic_id
+        WHERE fc.id = ${clusterId} AND fc.backlog_id = ${backlogId} AND fc.account_id = ${accountId}
+        LIMIT 1
+      `)) as any[];
+      if (!rows.length) return res.status(404).json({ error: "Cluster not found" });
+      const items = (await db.execute(sql`
+        SELECT fci.*, pf.title as feedback_title, pf.type, pf.importance, pf.internal_status,
+               pf.contributor_name, pf.description, pf.created_at as feedback_created_at
+        FROM feedback_cluster_items fci
+        JOIN project_feedbacks pf ON pf.id = fci.feedback_id
+        WHERE fci.cluster_id = ${clusterId} AND fci.account_id = ${accountId}
+        ORDER BY fci.created_at ASC
+      `)) as any[];
+      const mapped = items.map((i: any) => ({
+        feedbackId: i.feedback_id, feedbackTitle: i.feedback_title, type: i.type,
+        importance: i.importance, internalStatus: i.internal_status,
+        contributorName: i.contributor_name, description: i.description,
+        feedbackCreatedAt: i.feedback_created_at, similarityScore: i.similarity_score ? Number(i.similarity_score) : null,
+      }));
+      res.json({ ...mapClusterRow(rows[0], mapped), feedbackCount: mapped.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PATCH /api/backlogs/:backlogId/feedback-clusters/:clusterId
+  app.patch("/api/backlogs/:backlogId/feedback-clusters/:clusterId", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId, clusterId } = req.params;
+      const { title, description, detectedProblem, detectedNeed, productArea, sentiment, impactLevel, status } = req.body;
+      const validStatuses = ["suggested","validated","linked","dismissed","archived"];
+      if (status && !validStatuses.includes(status)) return res.status(400).json({ error: "Invalid status" });
+      await db.execute(sql`
+        UPDATE feedback_clusters SET
+          title = COALESCE(${title ?? null}, title),
+          description = COALESCE(${description ?? null}, description),
+          detected_problem = COALESCE(${detectedProblem ?? null}, detected_problem),
+          detected_need = COALESCE(${detectedNeed ?? null}, detected_need),
+          product_area = COALESCE(${productArea ?? null}, product_area),
+          sentiment = COALESCE(${sentiment ?? null}, sentiment),
+          impact_level = COALESCE(${impactLevel ?? null}, impact_level),
+          status = COALESCE(${status ?? null}, status),
+          archived_at = CASE WHEN ${status ?? ''} = 'archived' AND archived_at IS NULL THEN now() ELSE archived_at END,
+          updated_at = now()
+        WHERE id = ${clusterId} AND backlog_id = ${backlogId} AND account_id = ${accountId}
+      `);
+      const rows = (await db.execute(sql`
+        SELECT fc.*, us.title as linked_ticket_title, e.title as linked_epic_title
+        FROM feedback_clusters fc
+        LEFT JOIN user_stories us ON us.id = fc.linked_ticket_id
+        LEFT JOIN epics e ON e.id = fc.linked_epic_id
+        WHERE fc.id = ${clusterId} LIMIT 1
+      `)) as any[];
+      if (!rows.length) return res.status(404).json({ error: "Not found" });
+      res.json(mapClusterRow(rows[0]));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/backlogs/:backlogId/feedback-clusters/:clusterId/add-feedback
+  app.post("/api/backlogs/:backlogId/feedback-clusters/:clusterId/add-feedback", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId, clusterId } = req.params;
+      const { feedbackId } = req.body;
+      if (!feedbackId) return res.status(400).json({ error: "feedbackId requis" });
+      await db.execute(sql`
+        INSERT INTO feedback_cluster_items (account_id, cluster_id, feedback_id)
+        VALUES (${accountId}, ${clusterId}, ${feedbackId})
+        ON CONFLICT DO NOTHING
+      `);
+      const count = (await db.execute(sql`SELECT COUNT(*) as c FROM feedback_cluster_items WHERE cluster_id = ${clusterId}`)) as any[];
+      await db.execute(sql`UPDATE feedback_clusters SET frequency_count = ${Number(count[0]?.c ?? 0)}, updated_at = now() WHERE id = ${clusterId} AND account_id = ${accountId}`);
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/backlogs/:backlogId/feedback-clusters/:clusterId/remove-feedback
+  app.post("/api/backlogs/:backlogId/feedback-clusters/:clusterId/remove-feedback", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId, clusterId } = req.params;
+      const { feedbackId } = req.body;
+      if (!feedbackId) return res.status(400).json({ error: "feedbackId requis" });
+      await db.execute(sql`
+        DELETE FROM feedback_cluster_items
+        WHERE cluster_id = ${clusterId} AND feedback_id = ${feedbackId} AND account_id = ${accountId}
+      `);
+      const count = (await db.execute(sql`SELECT COUNT(*) as c FROM feedback_cluster_items WHERE cluster_id = ${clusterId}`)) as any[];
+      await db.execute(sql`UPDATE feedback_clusters SET frequency_count = ${Number(count[0]?.c ?? 0)}, updated_at = now() WHERE id = ${clusterId} AND account_id = ${accountId}`);
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/backlogs/:backlogId/feedback-clusters/:clusterId/create-ticket
+  app.post("/api/backlogs/:backlogId/feedback-clusters/:clusterId/create-ticket", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const { backlogId, clusterId } = req.params;
+      const { title, description, priority } = req.body;
+      if (!title?.trim()) return res.status(400).json({ error: "Le titre est requis" });
+      const validPriorities = ["low","medium","high","critical"];
+      const safePriority = validPriorities.includes(priority) ? priority : "medium";
+      const clusterRows = (await db.execute(sql`SELECT id FROM feedback_clusters WHERE id = ${clusterId} AND backlog_id = ${backlogId} AND account_id = ${accountId} LIMIT 1`)) as any[];
+      if (!clusterRows.length) return res.status(404).json({ error: "Cluster not found" });
+      const storyRows = (await db.execute(sql`
+        INSERT INTO user_stories (account_id, backlog_id, title, description, priority, state, "order", created_by, created_at, updated_at)
+        VALUES (${accountId}, ${backlogId}, ${title.trim()}, ${description ?? null}, ${safePriority}, 'a_faire', 0, ${userId}, now(), now())
+        RETURNING id, title
+      `)) as any[];
+      if (!storyRows.length) return res.status(500).json({ error: "Failed to create ticket" });
+      const story = storyRows[0];
+      // Link cluster to ticket + update status
+      await db.execute(sql`UPDATE feedback_clusters SET linked_ticket_id = ${story.id}, status = 'linked', updated_at = now() WHERE id = ${clusterId} AND account_id = ${accountId}`);
+      // Link all feedbacks in cluster to ticket
+      const items = (await db.execute(sql`SELECT feedback_id FROM feedback_cluster_items WHERE cluster_id = ${clusterId} AND account_id = ${accountId}`)) as any[];
+      for (const item of items) {
+        await db.execute(sql`
+          UPDATE project_feedbacks SET linked_ticket_id = ${story.id}, internal_status = 'linked_to_ticket', updated_at = now()
+          WHERE id = ${item.feedback_id} AND account_id = ${accountId} AND linked_ticket_id IS NULL
+        `);
+      }
+      res.status(201).json({ ticketId: story.id, ticketTitle: story.title });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/backlogs/:backlogId/feedback-clusters/:clusterId/create-epic
+  app.post("/api/backlogs/:backlogId/feedback-clusters/:clusterId/create-epic", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const { backlogId, clusterId } = req.params;
+      const { title, description, priority } = req.body;
+      if (!title?.trim()) return res.status(400).json({ error: "Le titre est requis" });
+      const clusterRows = (await db.execute(sql`SELECT id FROM feedback_clusters WHERE id = ${clusterId} AND backlog_id = ${backlogId} AND account_id = ${accountId} LIMIT 1`)) as any[];
+      if (!clusterRows.length) return res.status(404).json({ error: "Cluster not found" });
+      const validPriorities = ["low","medium","high","critical"];
+      const safePriority = validPriorities.includes(priority) ? priority : "medium";
+      const epicRows = (await db.execute(sql`
+        INSERT INTO epics (account_id, backlog_id, title, description, priority, state, "order", created_by, created_at, updated_at)
+        VALUES (${accountId}, ${backlogId}, ${title.trim()}, ${description ?? null}, ${safePriority}, 'a_faire', 0, ${userId}, now(), now())
+        RETURNING id, title
+      `)) as any[];
+      if (!epicRows.length) return res.status(500).json({ error: "Failed to create epic" });
+      const epic = epicRows[0];
+      await db.execute(sql`UPDATE feedback_clusters SET linked_epic_id = ${epic.id}, status = 'linked', updated_at = now() WHERE id = ${clusterId} AND account_id = ${accountId}`);
+      res.status(201).json({ epicId: epic.id, epicTitle: epic.title });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/backlogs/:backlogId/feedback-clusters/:clusterId/link-ticket
+  app.post("/api/backlogs/:backlogId/feedback-clusters/:clusterId/link-ticket", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId, clusterId } = req.params;
+      const { ticketId } = req.body;
+      if (!ticketId) return res.status(400).json({ error: "ticketId requis" });
+      const ticketRows = (await db.execute(sql`SELECT id, title FROM user_stories WHERE id = ${ticketId} AND backlog_id = ${backlogId} AND account_id = ${accountId} LIMIT 1`)) as any[];
+      if (!ticketRows.length) return res.status(404).json({ error: "Ticket not found" });
+      await db.execute(sql`UPDATE feedback_clusters SET linked_ticket_id = ${ticketId}, status = 'linked', updated_at = now() WHERE id = ${clusterId} AND account_id = ${accountId}`);
+      res.json({ ticketId: ticketRows[0].id, ticketTitle: ticketRows[0].title });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

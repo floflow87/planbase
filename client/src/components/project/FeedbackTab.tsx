@@ -16,12 +16,15 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
   MessageSquare, Copy, ExternalLink, Link2, Plus, Check, Trash2,
   MoreHorizontal, Zap, BarChart2, Search, Archive, ThumbsDown,
   Ticket, Tag, RefreshCw, ChevronRight, TrendingUp, Filter, X,
+  Sparkles, Brain, Layers, AlertTriangle, CheckCircle2,
+  GitMerge, ChevronDown, ChevronUp, Minus,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
@@ -30,45 +33,55 @@ import {
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface FeedbackSettings {
-  id: string;
-  backlogId: string;
-  shareToken: string;
-  isEnabled: boolean;
-  showExistingFeedbacks: boolean;
-  allowAttachments: boolean;
+  id: string; backlogId: string; shareToken: string;
+  isEnabled: boolean; showExistingFeedbacks: boolean; allowAttachments: boolean;
 }
 
-interface FeedbackV2 {
+interface FeedbackV3 {
   id: string;
-  contributorName: string;
-  contributorEmail: string | null;
-  type: string;
-  title: string;
-  description: string;
-  importance: string;
-  internalStatus: string;
-  publicStatus: string;
-  source: string;
-  impactUser: string | null;
-  frequency: string | null;
-  urgency: string | null;
-  segment: string | null;
-  productArea: string | null;
-  tags: string[] | null;
-  qualificationNotes: string | null;
-  score: number | null;
-  linkedTicketId: string | null;
-  linkedTicketTitle: string | null;
-  linkedTicketState: string | null;
-  createdAt: string;
-  archivedAt: string | null;
+  contributorName: string; contributorEmail: string | null;
+  type: string; title: string; description: string;
+  importance: string; internalStatus: string; publicStatus: string; source: string;
+  impactUser: string | null; frequency: string | null; urgency: string | null;
+  segment: string | null; productArea: string | null; tags: string[] | null;
+  qualificationNotes: string | null; score: number | null;
+  linkedTicketId: string | null; linkedTicketTitle: string | null; linkedTicketState: string | null;
+  // V3 AI fields
+  aiSummary: string | null; aiDetectedProblem: string | null; aiDetectedNeed: string | null;
+  aiSentiment: string | null; aiUrgency: string | null; aiProductArea: string | null;
+  aiKeywords: string[] | null; aiSuggestedTags: string[] | null;
+  aiConfidenceScore: number | null; analyzedAt: string | null;
+  createdAt: string; archivedAt: string | null;
+}
+
+interface FeedbackCluster {
+  id: string; backlogId: string; title: string; description: string | null;
+  detectedProblem: string | null; detectedNeed: string | null;
+  productArea: string | null; sentiment: string | null; impactLevel: string | null;
+  frequencyCount: number; priorityScore: number | null;
+  scoreLabel: string | null; scoreReason: string | null;
+  linkedTicketId: string | null; linkedTicketTitle: string | null;
+  linkedEpicId: string | null; linkedEpicTitle: string | null;
+  linkedRoadmapItemId: string | null; status: string;
+  confidenceScore: number | null; feedbackCount: number;
+  items: ClusterItem[];
+  archivedAt: string | null; createdAt: string; updatedAt: string;
+}
+
+interface ClusterItem {
+  feedbackId: string; feedbackTitle: string; type: string; importance: string;
+  internalStatus: string; contributorName: string; description?: string;
+  feedbackCreatedAt?: string; similarityScore: number | null;
 }
 
 interface UserStoryItem {
-  id: string;
-  title: string;
-  state: string;
-  priority: string;
+  id: string; title: string; state: string; priority: string;
+}
+
+interface AiAnalysis {
+  summary: string; detectedProblem: string; detectedNeed: string;
+  sentiment: string; urgency: string; productArea: string;
+  keywords: string[]; suggestedTags: string[]; confidenceScore: number;
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -108,6 +121,26 @@ const SOURCE_LABELS: Record<string, string> = {
   manual: "Manuel", external_feedback_page: "Lien public",
   client_call: "Appel client", support: "Support", sales: "Commercial", other: "Autre",
 };
+const CLUSTER_STATUS_LABELS: Record<string, string> = {
+  suggested: "Suggéré", validated: "Validé", linked: "Relié", dismissed: "Ignoré", archived: "Archivé",
+};
+const CLUSTER_STATUS_BADGE: Record<string, string> = {
+  suggested: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800",
+  validated: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800",
+  linked: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-800",
+  dismissed: "bg-muted text-muted-foreground border-border",
+  archived: "bg-muted text-muted-foreground border-border",
+};
+const SENTIMENT_LABELS: Record<string, string> = {
+  positive: "Positif", neutral: "Neutre", frustrated: "Frustré", angry: "Mécontent", confused: "Confus",
+};
+const SENTIMENT_COLORS: Record<string, string> = {
+  positive: "text-emerald-600 dark:text-emerald-400",
+  neutral: "text-muted-foreground",
+  frustrated: "text-orange-600 dark:text-orange-400",
+  angry: "text-red-600 dark:text-red-400",
+  confused: "text-amber-600 dark:text-amber-400",
+};
 
 // ── Score utils ───────────────────────────────────────────────────────────────
 
@@ -116,7 +149,7 @@ const FREQ_SCORE: Record<string, number> = { isolated: 1, recurring: 3 };
 const URGENCY_SCORE: Record<string, number> = { low: 1, medium: 2, high: 3 };
 const IMPORTANCE_SCORE: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
 
-function calcScore(fb: FeedbackV2): number {
+function calcScore(fb: FeedbackV3): number {
   if (!fb.impactUser && !fb.frequency && !fb.urgency) return 0;
   return (IMPACT_SCORE[fb.impactUser ?? ""] ?? 0)
     + (FREQ_SCORE[fb.frequency ?? ""] ?? 0)
@@ -128,6 +161,15 @@ function getScoreInfo(score: number): { label: string; cls: string } | null {
   if (score <= 0) return null;
   if (score >= 9) return { label: "Signal fort", cls: "text-violet-700 border-violet-500 dark:text-violet-400" };
   if (score >= 5) return { label: "Signal moyen", cls: "text-amber-700 border-amber-500 dark:text-amber-400" };
+  return { label: "Signal faible", cls: "text-muted-foreground" };
+}
+
+function calcClusterPriorityLabel(count: number, impactLevel: string | null): { label: string; cls: string } {
+  const impact = { critical: 4, high: 3, medium: 2, low: 1 }[impactLevel ?? ""] ?? 1;
+  const score = count * impact;
+  if (score >= 12 || (count >= 5 && impact >= 3)) return { label: "Signal critique", cls: "text-red-700 border-red-400 dark:text-red-400" };
+  if (score >= 6 || count >= 3) return { label: "Signal fort", cls: "text-violet-700 border-violet-500 dark:text-violet-400" };
+  if (score >= 3) return { label: "Signal moyen", cls: "text-amber-700 border-amber-500 dark:text-amber-400" };
   return { label: "Signal faible", cls: "text-muted-foreground" };
 }
 
@@ -144,17 +186,29 @@ const addFeedbackSchema = z.object({
 });
 
 const qualifSchema = z.object({
-  impactUser: z.string().optional(),
-  frequency: z.string().optional(),
-  urgency: z.string().optional(),
-  segment: z.string().optional(),
-  productArea: z.string().optional(),
-  tagsRaw: z.string().optional(),
-  qualificationNotes: z.string().optional(),
-  internalStatus: z.string(),
+  impactUser: z.string().optional(), frequency: z.string().optional(),
+  urgency: z.string().optional(), segment: z.string().optional(),
+  productArea: z.string().optional(), tagsRaw: z.string().optional(),
+  qualificationNotes: z.string().optional(), internalStatus: z.string(),
 });
 
 const createTicketSchema = z.object({
+  title: z.string().min(1, "Le titre est requis"),
+  description: z.string().optional(),
+  priority: z.enum(["low", "medium", "high", "critical"]),
+});
+
+const createClusterSchema = z.object({
+  title: z.string().min(1, "Le titre est requis"),
+  description: z.string().optional(),
+  detectedProblem: z.string().optional(),
+  detectedNeed: z.string().optional(),
+  productArea: z.string().optional(),
+  sentiment: z.string().optional(),
+  impactLevel: z.string().optional(),
+});
+
+const createFromClusterSchema = z.object({
   title: z.string().min(1, "Le titre est requis"),
   description: z.string().optional(),
   priority: z.enum(["low", "medium", "high", "critical"]),
@@ -170,7 +224,15 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function ScoreBadge({ feedback }: { feedback: FeedbackV2 }) {
+function ClusterStatusBadge({ status }: { status: string }) {
+  return (
+    <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded border ${CLUSTER_STATUS_BADGE[status] ?? "bg-muted text-muted-foreground border-border"}`}>
+      {CLUSTER_STATUS_LABELS[status] ?? status}
+    </span>
+  );
+}
+
+function ScoreBadge({ feedback }: { feedback: FeedbackV3 }) {
   const score = calcScore(feedback);
   const info = getScoreInfo(score);
   if (!info) return <span className="text-[10px] text-muted-foreground italic">Non qualifié</span>;
@@ -189,11 +251,29 @@ export function FeedbackTab({ backlogId }: Props) {
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  const [activeView, setActiveView] = useState<"inbox" | "insights">("inbox");
-  const [selectedFeedback, setSelectedFeedback] = useState<FeedbackV2 | null>(null);
+  // View state
+  const [activeView, setActiveView] = useState<"inbox" | "clusters" | "insights">("inbox");
+
+  // Feedback drawer state
+  const [selectedFeedback, setSelectedFeedback] = useState<FeedbackV3 | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<AiAnalysis | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showAiSection, setShowAiSection] = useState(false);
+
+  // Cluster state
+  const [selectedCluster, setSelectedCluster] = useState<FeedbackCluster | null>(null);
+  const [isGeneratingClusters, setIsGeneratingClusters] = useState(false);
+
+  // Dialog/sheet state
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
   const [isLinkTicketOpen, setIsLinkTicketOpen] = useState(false);
+  const [isCreateClusterOpen, setIsCreateClusterOpen] = useState(false);
+  const [isCreateFromClusterOpen, setIsCreateFromClusterOpen] = useState(false);
+  const [createFromClusterMode, setCreateFromClusterMode] = useState<"ticket" | "epic">("ticket");
+  const [isLinkTicketToClusterOpen, setIsLinkTicketToClusterOpen] = useState(false);
+
+  // Filters
   const [showArchived, setShowArchived] = useState(false);
   const [filterType, setFilterType] = useState("all");
   const [filterImportance, setFilterImportance] = useState("all");
@@ -202,9 +282,11 @@ export function FeedbackTab({ backlogId }: Props) {
   const [searchText, setSearchText] = useState("");
   const [ticketSearch, setTicketSearch] = useState("");
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [clusterTicketSearch, setClusterTicketSearch] = useState("");
+  const [selectedClusterTicketId, setSelectedClusterTicketId] = useState<string | null>(null);
 
   // ── Queries ──
-  const { data: feedbacks = [], isLoading: feedbacksLoading } = useQuery<FeedbackV2[]>({
+  const { data: feedbacks = [], isLoading: feedbacksLoading } = useQuery<FeedbackV3[]>({
     queryKey: [`/api/backlogs/${backlogId}/feedbacks`],
   });
   const { data: settings, isLoading: settingsLoading } = useQuery<FeedbackSettings>({
@@ -212,7 +294,15 @@ export function FeedbackTab({ backlogId }: Props) {
   });
   const { data: userStories = [], isLoading: storiesLoading } = useQuery<UserStoryItem[]>({
     queryKey: [`/api/backlogs/${backlogId}/user-stories`],
-    enabled: isLinkTicketOpen,
+    enabled: isLinkTicketOpen || isLinkTicketToClusterOpen,
+  });
+  const { data: clusters = [], isLoading: clustersLoading, refetch: refetchClusters } = useQuery<FeedbackCluster[]>({
+    queryKey: [`/api/backlogs/${backlogId}/feedback-clusters`],
+    enabled: activeView === "clusters" || activeView === "insights",
+  });
+  const { data: similarFeedbacks = [] } = useQuery<(FeedbackV3 & { similarityScore: number })[]>({
+    queryKey: [`/api/backlogs/${backlogId}/feedbacks/${selectedFeedback?.id}/similar`],
+    enabled: !!selectedFeedback?.id && showAiSection,
   });
 
   // ── Forms ──
@@ -226,6 +316,14 @@ export function FeedbackTab({ backlogId }: Props) {
   });
   const createTicketForm = useForm<z.infer<typeof createTicketSchema>>({
     resolver: zodResolver(createTicketSchema),
+    defaultValues: { title: "", description: "", priority: "medium" },
+  });
+  const createClusterForm = useForm<z.infer<typeof createClusterSchema>>({
+    resolver: zodResolver(createClusterSchema),
+    defaultValues: { title: "", description: "", detectedProblem: "", detectedNeed: "", productArea: "", sentiment: "", impactLevel: "" },
+  });
+  const createFromClusterForm = useForm<z.infer<typeof createFromClusterSchema>>({
+    resolver: zodResolver(createFromClusterSchema),
     defaultValues: { title: "", description: "", priority: "medium" },
   });
 
@@ -242,8 +340,7 @@ export function FeedbackTab({ backlogId }: Props) {
       apiRequest(`/api/backlogs/${backlogId}/feedbacks`, "POST", data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedbacks`] });
-      setIsAddOpen(false);
-      addForm.reset();
+      setIsAddOpen(false); addForm.reset();
       toast({ title: "Feedback ajouté" });
     },
     onError: () => toast({ title: "Erreur", description: "Impossible d'ajouter le feedback", variant: "destructive" }),
@@ -253,12 +350,9 @@ export function FeedbackTab({ backlogId }: Props) {
     mutationFn: ({ id, data }: { id: string; data: z.infer<typeof qualifSchema> }) => {
       const tags = data.tagsRaw ? data.tagsRaw.split(",").map((t) => t.trim()).filter(Boolean) : [];
       return apiRequest(`/api/backlogs/${backlogId}/feedbacks/${id}`, "PATCH", {
-        impactUser: data.impactUser || null,
-        frequency: data.frequency || null,
-        urgency: data.urgency || null,
-        segment: data.segment || null,
-        productArea: data.productArea || null,
-        tags,
+        impactUser: data.impactUser || null, frequency: data.frequency || null,
+        urgency: data.urgency || null, segment: data.segment || null,
+        productArea: data.productArea || null, tags,
         qualificationNotes: data.qualificationNotes || null,
         internalStatus: data.internalStatus || undefined,
       });
@@ -269,6 +363,22 @@ export function FeedbackTab({ backlogId }: Props) {
       toast({ title: "Qualification sauvegardée" });
     },
     onError: () => toast({ title: "Erreur", description: "Impossible de sauvegarder", variant: "destructive" }),
+  });
+
+  const applyAiSuggestionsMutation = useMutation({
+    mutationFn: ({ id, analysis }: { id: string; analysis: AiAnalysis }) =>
+      apiRequest(`/api/backlogs/${backlogId}/feedbacks/${id}/apply-ai-suggestions`, "POST", analysis),
+    onSuccess: (updated: any) => {
+      qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedbacks`] });
+      setSelectedFeedback((prev) => prev ? { ...prev, ...updated } : null);
+      // Prefill qualification form with AI suggestions
+      qualifForm.setValue("productArea", updated.aiProductArea ?? qualifForm.getValues("productArea"));
+      if (updated.aiSuggestedTags?.length) {
+        qualifForm.setValue("tagsRaw", updated.aiSuggestedTags.join(", "));
+      }
+      toast({ title: "Suggestions IA appliquées", description: "La zone produit et les tags ont été mis à jour." });
+    },
+    onError: () => toast({ title: "Erreur", variant: "destructive" }),
   });
 
   const updateStatusMutation = useMutation({
@@ -287,8 +397,7 @@ export function FeedbackTab({ backlogId }: Props) {
     onSuccess: (result: any) => {
       qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedbacks`] });
       qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/user-stories`] });
-      setIsCreateTicketOpen(false);
-      createTicketForm.reset();
+      setIsCreateTicketOpen(false); createTicketForm.reset();
       setSelectedFeedback((prev) => prev ? { ...prev, internalStatus: "linked_to_ticket", linkedTicketId: result.ticketId, linkedTicketTitle: result.ticketTitle } : null);
       toast({ title: "Ticket créé", description: `"${result.ticketTitle}" créé depuis ce feedback` });
     },
@@ -300,9 +409,7 @@ export function FeedbackTab({ backlogId }: Props) {
       apiRequest(`/api/backlogs/${backlogId}/feedbacks/${feedbackId}/link-ticket`, "POST", { ticketId }),
     onSuccess: (result: any) => {
       qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedbacks`] });
-      setIsLinkTicketOpen(false);
-      setSelectedTicketId(null);
-      setTicketSearch("");
+      setIsLinkTicketOpen(false); setSelectedTicketId(null); setTicketSearch("");
       setSelectedFeedback((prev) => prev ? { ...prev, internalStatus: "linked_to_ticket", linkedTicketId: result.ticketId, linkedTicketTitle: result.ticketTitle } : null);
       toast({ title: "Ticket lié avec succès" });
     },
@@ -313,15 +420,81 @@ export function FeedbackTab({ backlogId }: Props) {
     mutationFn: (id: string) => apiRequest(`/api/backlogs/${backlogId}/feedbacks/${id}`, "DELETE"),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedbacks`] });
-      setSelectedFeedback(null);
-      toast({ title: "Feedback supprimé" });
+      setSelectedFeedback(null); toast({ title: "Feedback supprimé" });
     },
     onError: () => toast({ title: "Erreur", variant: "destructive" }),
   });
 
-  // ── Computed ──
-  const openFeedback = (fb: FeedbackV2) => {
+  // Cluster mutations
+  const createClusterMutation = useMutation({
+    mutationFn: (data: z.infer<typeof createClusterSchema>) =>
+      apiRequest(`/api/backlogs/${backlogId}/feedback-clusters`, "POST", data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedback-clusters`] });
+      setIsCreateClusterOpen(false); createClusterForm.reset();
+      toast({ title: "Cluster créé" });
+    },
+    onError: () => toast({ title: "Erreur", description: "Impossible de créer le cluster", variant: "destructive" }),
+  });
+
+  const updateClusterMutation = useMutation({
+    mutationFn: ({ clusterId, patch }: { clusterId: string; patch: any }) =>
+      apiRequest(`/api/backlogs/${backlogId}/feedback-clusters/${clusterId}`, "PATCH", patch),
+    onSuccess: (updated: any) => {
+      qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedback-clusters`] });
+      setSelectedCluster((prev) => prev ? { ...prev, ...updated } : null);
+    },
+    onError: () => toast({ title: "Erreur", variant: "destructive" }),
+  });
+
+  const removeFeedbackFromClusterMutation = useMutation({
+    mutationFn: ({ clusterId, feedbackId }: { clusterId: string; feedbackId: string }) =>
+      apiRequest(`/api/backlogs/${backlogId}/feedback-clusters/${clusterId}/remove-feedback`, "POST", { feedbackId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedback-clusters`] });
+      if (selectedCluster) {
+        setSelectedCluster((prev) => prev ? { ...prev, items: prev.items.filter((i) => i.feedbackId !== removeFeedbackFromClusterMutation.variables?.feedbackId), feedbackCount: prev.feedbackCount - 1 } : null);
+      }
+    },
+    onError: () => toast({ title: "Erreur", variant: "destructive" }),
+  });
+
+  const createFromClusterMutation = useMutation({
+    mutationFn: ({ clusterId, mode, data }: { clusterId: string; mode: "ticket" | "epic"; data: z.infer<typeof createFromClusterSchema> }) => {
+      const endpoint = mode === "ticket"
+        ? `/api/backlogs/${backlogId}/feedback-clusters/${clusterId}/create-ticket`
+        : `/api/backlogs/${backlogId}/feedback-clusters/${clusterId}/create-epic`;
+      return apiRequest(endpoint, "POST", data);
+    },
+    onSuccess: (result: any, vars) => {
+      qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedback-clusters`] });
+      qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedbacks`] });
+      if (vars.mode === "ticket") qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/user-stories`] });
+      setIsCreateFromClusterOpen(false); createFromClusterForm.reset();
+      setSelectedCluster((prev) => prev ? { ...prev, status: "linked" } : null);
+      toast({ title: vars.mode === "ticket" ? "Ticket créé depuis le cluster" : "Epic créée depuis le cluster" });
+    },
+    onError: () => toast({ title: "Erreur", variant: "destructive" }),
+  });
+
+  const linkTicketToClusterMutation = useMutation({
+    mutationFn: ({ clusterId, ticketId }: { clusterId: string; ticketId: string }) =>
+      apiRequest(`/api/backlogs/${backlogId}/feedback-clusters/${clusterId}/link-ticket`, "POST", { ticketId }),
+    onSuccess: (result: any) => {
+      qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedback-clusters`] });
+      setIsLinkTicketToClusterOpen(false); setSelectedClusterTicketId(null); setClusterTicketSearch("");
+      setSelectedCluster((prev) => prev ? { ...prev, linkedTicketId: result.ticketId, linkedTicketTitle: result.ticketTitle, status: "linked" } : null);
+      toast({ title: "Ticket lié au cluster" });
+    },
+    onError: () => toast({ title: "Erreur", variant: "destructive" }),
+  });
+
+  // ── Handlers ──
+
+  const openFeedback = (fb: FeedbackV3) => {
     setSelectedFeedback(fb);
+    setAiAnalysis(null);
+    setShowAiSection(!!fb.analyzedAt);
     qualifForm.reset({
       impactUser: fb.impactUser ?? "",
       frequency: fb.frequency ?? "",
@@ -334,7 +507,53 @@ export function FeedbackTab({ backlogId }: Props) {
     });
   };
 
-  const openCreateTicket = () => {
+  const handleAnalyzeFeedback = async () => {
+    if (!selectedFeedback) return;
+    setIsAnalyzing(true);
+    setShowAiSection(true);
+    try {
+      const result = await apiRequest(`/api/backlogs/${backlogId}/feedbacks/${selectedFeedback.id}/analyze`, "POST", {}) as AiAnalysis;
+      setAiAnalysis(result);
+    } catch {
+      toast({ title: "Erreur d'analyse", description: "Impossible d'analyser ce feedback avec l'IA.", variant: "destructive" });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const openCreateTicket = (fromCluster?: FeedbackCluster) => {
+    if (fromCluster) {
+      const priorityMap: Record<string, "low" | "medium" | "high" | "critical"> = { critical: "critical", high: "high", medium: "medium", low: "low" };
+      const feedbackVerbatims = fromCluster.items.slice(0, 3).map((i) => `- "${i.feedbackTitle}"`).join("\n");
+      const desc = [
+        `En tant qu'utilisateur,`,
+        `je souhaite ${fromCluster.detectedNeed ?? fromCluster.title.toLowerCase()},`,
+        `afin d'améliorer mon expérience.`,
+        ``,
+        `**Contexte :**`,
+        `Ce ticket est issu d'un cluster de ${fromCluster.feedbackCount} feedbacks utilisateurs.`,
+        ``,
+        `**Problème observé :**`,
+        fromCluster.detectedProblem ?? "(à compléter)",
+        ``,
+        `**Verbatims représentatifs :**`,
+        feedbackVerbatims || "(aucun verbatim disponible)",
+        ``,
+        `**Zone produit :** ${fromCluster.productArea ?? "non renseignée"}`,
+        `**Impact estimé :** ${fromCluster.impactLevel ? IMPORTANCE_LABELS[fromCluster.impactLevel] ?? fromCluster.impactLevel : "non renseigné"}`,
+        ``,
+        `**Critères d'acceptation :**`,
+        `- [ ] À compléter`,
+      ].join("\n");
+      createFromClusterForm.reset({
+        title: fromCluster.title,
+        description: desc,
+        priority: priorityMap[fromCluster.impactLevel ?? ""] ?? "medium",
+      });
+      setCreateFromClusterMode("ticket");
+      setIsCreateFromClusterOpen(true);
+      return;
+    }
     if (!selectedFeedback) return;
     const seg = selectedFeedback.segment
       ? ({ freelance: "freelance", agency: "une agence", client: "un client", internal: "un membre de l'équipe", other: "utilisateur" }[selectedFeedback.segment] ?? "utilisateur")
@@ -347,27 +566,66 @@ export function FeedbackTab({ backlogId }: Props) {
       `**Contexte :**`,
       selectedFeedback.description,
       ``,
-      `**Source :**`,
-      `Feedback reçu de ${selectedFeedback.contributorName} le ${new Date(selectedFeedback.createdAt).toLocaleDateString("fr-FR")}`,
+      `**Source :** Feedback reçu de ${selectedFeedback.contributorName} le ${new Date(selectedFeedback.createdAt).toLocaleDateString("fr-FR")}`,
       ``,
       `**Qualification :**`,
       `- Impact utilisateur : ${selectedFeedback.impactUser ? ({ low: "Faible", medium: "Moyen", high: "Élevé" }[selectedFeedback.impactUser] ?? selectedFeedback.impactUser) : "Non renseigné"}`,
       `- Fréquence : ${selectedFeedback.frequency ? ({ isolated: "Isolé", recurring: "Récurrent" }[selectedFeedback.frequency] ?? selectedFeedback.frequency) : "Non renseignée"}`,
       `- Urgence : ${selectedFeedback.urgency ? ({ low: "Faible", medium: "Moyen", high: "Élevé" }[selectedFeedback.urgency] ?? selectedFeedback.urgency) : "Non renseignée"}`,
-      `- Importance initiale : ${IMPORTANCE_LABELS[selectedFeedback.importance] ?? selectedFeedback.importance}`,
       ``,
       `**Critères d'acceptation :**`,
       `- [ ] À compléter`,
     ].join("\n");
     const priorityMap: Record<string, "low" | "medium" | "high" | "critical"> = { critical: "critical", high: "high", medium: "medium", low: "low" };
-    createTicketForm.reset({
-      title: selectedFeedback.title,
-      description: desc,
-      priority: priorityMap[selectedFeedback.importance] ?? "medium",
-    });
+    createTicketForm.reset({ title: selectedFeedback.title, description: desc, priority: priorityMap[selectedFeedback.importance] ?? "medium" });
     setIsCreateTicketOpen(true);
   };
 
+  const openCreateEpicFromCluster = (cluster: FeedbackCluster) => {
+    const feedbackSources = cluster.items.slice(0, 3).map((i) => `- "${i.feedbackTitle}"`).join("\n");
+    const desc = [
+      `**Problème :**`,
+      cluster.detectedProblem ?? "(à compléter)",
+      ``,
+      `**Objectif :**`,
+      cluster.detectedNeed ?? "(à compléter)",
+      ``,
+      `**User stories suggérées :**`,
+      `1. En tant qu'utilisateur, je souhaite...`,
+      `2. En tant qu'utilisateur, je souhaite...`,
+      ``,
+      `**Critères de succès :**`,
+      `- Réduction du nombre de feedbacks similaires`,
+      `- Amélioration du taux d'adoption`,
+      ``,
+      `**Sources :**`,
+      `Cluster basé sur ${cluster.feedbackCount} feedbacks.`,
+      feedbackSources,
+    ].join("\n");
+    const priorityMap: Record<string, "low" | "medium" | "high" | "critical"> = { critical: "critical", high: "high", medium: "medium", low: "low" };
+    createFromClusterForm.reset({ title: cluster.title, description: desc, priority: priorityMap[cluster.impactLevel ?? ""] ?? "medium" });
+    setCreateFromClusterMode("epic");
+    setIsCreateFromClusterOpen(true);
+  };
+
+  const handleGenerateClusters = async () => {
+    setIsGeneratingClusters(true);
+    try {
+      const result = await apiRequest(`/api/backlogs/${backlogId}/feedback-clusters/generate`, "POST", {}) as any;
+      await refetchClusters();
+      if (result.generated === 0) {
+        toast({ title: "Aucun cluster généré", description: "Les feedbacks ne semblent pas former de groupes distincts." });
+      } else {
+        toast({ title: `${result.generated} cluster${result.generated > 1 ? "s" : ""} suggéré${result.generated > 1 ? "s" : ""}`, description: "Vous pouvez maintenant les valider ou les ignorer." });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de générer des clusters.", variant: "destructive" });
+    } finally {
+      setIsGeneratingClusters(false);
+    }
+  };
+
+  // ── Computed ──
   const filteredFeedbacks = useMemo(() => {
     return feedbacks.filter((fb) => {
       if (showArchived ? fb.internalStatus !== "archived" : fb.internalStatus === "archived") return false;
@@ -399,19 +657,19 @@ export function FeedbackTab({ backlogId }: Props) {
         ticketMap[fb.linkedTicketId] = { id: fb.linkedTicketId, title: fb.linkedTicketTitle, count: (ticketMap[fb.linkedTicketId]?.count ?? 0) + 1 };
       }
     });
-    const topByScore = [...active]
-      .map((fb) => ({ ...fb, _score: calcScore(fb) }))
-      .filter((fb) => fb._score > 0)
-      .sort((a, b) => b._score - a._score)
-      .slice(0, 5);
+    const topByScore = [...active].map((fb) => ({ ...fb, _score: calcScore(fb) })).filter((fb) => fb._score > 0).sort((a, b) => b._score - a._score).slice(0, 5);
     const productAreas = Object.entries(productAreaMap).sort(([, a], [, b]) => b - a).slice(0, 6).map(([area, count]) => ({ area, count }));
     const topTickets = Object.values(ticketMap).sort((a, b) => b.count - a.count).slice(0, 5);
     const toQualifyCount = (byStatus["new"] ?? 0) + (byStatus["to_qualify"] ?? 0) + (byStatus["to_review"] ?? 0);
     const linkedCount = (byStatus["linked_to_ticket"] ?? 0) + (byStatus["converted_to_ticket"] ?? 0);
     const recurringCount = active.filter((fb) => fb.frequency === "recurring").length;
     const criticalBugsCount = active.filter((fb) => fb.type === "bug" && fb.importance === "critical").length;
-    return { byStatus, byType, topByScore, productAreas, topTickets, toQualifyCount, linkedCount, recurringCount, criticalBugsCount };
+    const criticalWithoutTicket = active.filter((fb) => (fb.importance === "critical" || fb.urgency === "high") && !fb.linkedTicketId);
+    const analyzedCount = active.filter((fb) => !!fb.analyzedAt).length;
+    return { byStatus, byType, topByScore, productAreas, topTickets, toQualifyCount, linkedCount, recurringCount, criticalBugsCount, criticalWithoutTicket, analyzedCount };
   }, [feedbacks]);
+
+  const strongClusters = useMemo(() => clusters.filter((c) => c.feedbackCount >= 3 && !c.linkedTicketId && c.status !== "dismissed"), [clusters]);
 
   const publicUrl = settings ? `${window.location.origin}/feedback/${settings.shareToken}` : null;
   const copyLink = () => {
@@ -431,39 +689,49 @@ export function FeedbackTab({ backlogId }: Props) {
     );
   }
 
+  // Displayed AI analysis (either from fresh analysis or stored on feedback)
+  const displayedAnalysis: Partial<AiAnalysis> | null = aiAnalysis ?? (selectedFeedback?.analyzedAt ? {
+    summary: selectedFeedback.aiSummary ?? undefined,
+    detectedProblem: selectedFeedback.aiDetectedProblem ?? undefined,
+    detectedNeed: selectedFeedback.aiDetectedNeed ?? undefined,
+    sentiment: selectedFeedback.aiSentiment ?? undefined,
+    urgency: selectedFeedback.aiUrgency ?? undefined,
+    productArea: selectedFeedback.aiProductArea ?? undefined,
+    keywords: selectedFeedback.aiKeywords ?? undefined,
+    suggestedTags: selectedFeedback.aiSuggestedTags ?? undefined,
+    confidenceScore: selectedFeedback.aiConfidenceScore ?? undefined,
+  } : null);
+
   return (
     <div className="space-y-4">
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-base font-semibold font-heading">Feedbacks</h2>
+          <h2 className="text-base font-semibold font-heading">Feedback Intelligence</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Centralisez les retours terrain et transformez-les en tickets priorisables.
+            Centralisez, analysez et transformez vos retours terrain en décisions produit.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            size="sm"
-            variant={activeView === "inbox" ? "default" : "outline"}
-            onClick={() => setActiveView("inbox")}
-            className="gap-1.5"
-            data-testid="button-view-inbox"
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-            Inbox
-            {nonArchivedCount > 0 && <Badge variant="secondary" className="text-[10px] ml-0.5">{nonArchivedCount}</Badge>}
-          </Button>
-          <Button
-            size="sm"
-            variant={activeView === "insights" ? "default" : "outline"}
-            onClick={() => setActiveView("insights")}
-            className="gap-1.5"
-            data-testid="button-view-insights"
-          >
-            <BarChart2 className="w-3.5 h-3.5" />
-            Insights
-          </Button>
+          <Tabs value={activeView} onValueChange={(v) => setActiveView(v as any)}>
+            <TabsList className="h-8">
+              <TabsTrigger value="inbox" className="text-xs gap-1.5" data-testid="tab-feedback-inbox">
+                <MessageSquare className="w-3 h-3" />
+                Inbox
+                {nonArchivedCount > 0 && <span className="ml-0.5 bg-primary/10 text-primary text-[10px] font-medium px-1 rounded">{nonArchivedCount}</span>}
+              </TabsTrigger>
+              <TabsTrigger value="clusters" className="text-xs gap-1.5" data-testid="tab-feedback-clusters">
+                <Layers className="w-3 h-3" />
+                Clusters
+                {clusters.length > 0 && <span className="ml-0.5 bg-primary/10 text-primary text-[10px] font-medium px-1 rounded">{clusters.length}</span>}
+              </TabsTrigger>
+              <TabsTrigger value="insights" className="text-xs gap-1.5" data-testid="tab-feedback-insights">
+                <BarChart2 className="w-3 h-3" />
+                Insights
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
           <Button size="sm" onClick={() => setIsAddOpen(true)} className="gap-1.5" data-testid="button-add-feedback">
             <Plus className="w-3.5 h-3.5" />
             Ajouter
@@ -504,7 +772,7 @@ export function FeedbackTab({ backlogId }: Props) {
         </CardContent>
       </Card>
 
-      {/* ── Inbox view ── */}
+      {/* ═══════════════════════ INBOX VIEW ═══════════════════════ */}
       {activeView === "inbox" && (
         <Card>
           <CardHeader className="pb-3">
@@ -514,11 +782,9 @@ export function FeedbackTab({ backlogId }: Props) {
                 <span className="text-xs text-muted-foreground">Filtres</span>
               </div>
               <Button
-                size="sm"
-                variant={showArchived ? "default" : "outline"}
+                size="sm" variant={showArchived ? "default" : "outline"}
                 onClick={() => { setShowArchived((v) => !v); setFilterStatus("all"); }}
-                className="gap-1.5 text-xs"
-                data-testid="button-toggle-archived"
+                className="gap-1.5 text-xs" data-testid="button-toggle-archived"
               >
                 <Archive className="w-3 h-3" />
                 {showArchived ? "Voir les actifs" : "Voir les archivés"}
@@ -576,7 +842,9 @@ export function FeedbackTab({ backlogId }: Props) {
                 </SelectContent>
               </Select>
               {hasActiveFilters && (
-                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs gap-1" onClick={() => { setFilterType("all"); setFilterImportance("all"); setFilterStatus("all"); setFilterSource("all"); setSearchText(""); }} data-testid="button-clear-filters">
+                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs gap-1"
+                  onClick={() => { setFilterType("all"); setFilterImportance("all"); setFilterStatus("all"); setFilterSource("all"); setSearchText(""); }}
+                  data-testid="button-clear-filters">
                   <X className="w-3 h-3" />Effacer
                 </Button>
               )}
@@ -587,7 +855,7 @@ export function FeedbackTab({ backlogId }: Props) {
               <div className="text-center py-12">
                 <MessageSquare className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
                 <p className="text-sm font-medium mb-1">Aucun feedback pour le moment</p>
-                <p className="text-xs text-muted-foreground mb-4">Ajoutez des retours manuellement ou partagez le lien public pour alimenter votre backlog avec des signaux terrain.</p>
+                <p className="text-xs text-muted-foreground mb-4">Ajoutez des retours manuellement ou partagez le lien public.</p>
                 <Button size="sm" onClick={() => setIsAddOpen(true)} className="gap-1.5" data-testid="button-add-feedback-empty">
                   <Plus className="w-3.5 h-3.5" />Ajouter un feedback
                 </Button>
@@ -613,7 +881,10 @@ export function FeedbackTab({ backlogId }: Props) {
                     {filteredFeedbacks.map((fb) => (
                       <tr key={fb.id} className="hover-elevate cursor-pointer" onClick={() => openFeedback(fb)} data-testid={`feedback-row-${fb.id}`}>
                         <td className="px-3 py-2.5 font-medium text-foreground max-w-[180px]">
-                          <span className="truncate block">{fb.title}</span>
+                          <div className="flex items-center gap-1.5">
+                            {fb.analyzedAt && <Brain className="w-3 h-3 text-violet-500 shrink-0" title="Analysé par l'IA" />}
+                            <span className="truncate block">{fb.title}</span>
+                          </div>
                         </td>
                         <td className="px-3 py-2.5 hidden sm:table-cell">
                           <Badge variant="outline" className={`text-[10px] ${TYPE_COLORS[fb.type] ?? ""}`}>{TYPE_LABELS[fb.type] ?? fb.type}</Badge>
@@ -666,9 +937,132 @@ export function FeedbackTab({ backlogId }: Props) {
         </Card>
       )}
 
-      {/* ── Insights view ── */}
+      {/* ═══════════════════════ CLUSTERS VIEW ═══════════════════════ */}
+      {activeView === "clusters" && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-xs text-muted-foreground">
+              Regroupez les feedbacks similaires en clusters pour identifier les signaux produit récurrents.
+            </p>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={handleGenerateClusters} disabled={isGeneratingClusters} className="gap-1.5" data-testid="button-generate-clusters">
+                {isGeneratingClusters ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                Générer avec l'IA
+              </Button>
+              <Button size="sm" onClick={() => { createClusterForm.reset(); setIsCreateClusterOpen(true); }} className="gap-1.5" data-testid="button-create-cluster">
+                <Plus className="w-3.5 h-3.5" />Créer manuellement
+              </Button>
+            </div>
+          </div>
+
+          {clustersLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full rounded-md" />)}
+            </div>
+          ) : clusters.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Layers className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+                <p className="text-sm font-medium mb-1">Aucun cluster pour le moment</p>
+                <p className="text-xs text-muted-foreground mb-4">Générez des clusters avec l'IA ou créez-en un manuellement.</p>
+                <Button size="sm" onClick={handleGenerateClusters} disabled={isGeneratingClusters} className="gap-1.5" data-testid="button-generate-clusters-empty">
+                  {isGeneratingClusters ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                  Générer avec l'IA
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="border rounded-md overflow-hidden">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/50 text-muted-foreground border-b border-border">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium">Cluster</th>
+                    <th className="px-3 py-2 text-left font-medium hidden sm:table-cell">Feedbacks</th>
+                    <th className="px-3 py-2 text-left font-medium hidden md:table-cell">Signal</th>
+                    <th className="px-3 py-2 text-left font-medium hidden lg:table-cell">Zone produit</th>
+                    <th className="px-3 py-2 text-left font-medium hidden md:table-cell">Sentiment</th>
+                    <th className="px-3 py-2 text-left font-medium">Statut</th>
+                    <th className="px-3 py-2 text-left font-medium hidden xl:table-cell">Lié à</th>
+                    <th className="px-3 py-2 w-8"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {clusters.map((cluster) => {
+                    const priority = calcClusterPriorityLabel(cluster.feedbackCount, cluster.impactLevel);
+                    return (
+                      <tr key={cluster.id} className="hover-elevate cursor-pointer" onClick={() => setSelectedCluster(cluster)} data-testid={`cluster-row-${cluster.id}`}>
+                        <td className="px-3 py-2.5 font-medium text-foreground max-w-[200px]">
+                          <span className="truncate block">{cluster.title}</span>
+                          {cluster.description && <span className="text-[10px] text-muted-foreground truncate block">{cluster.description}</span>}
+                        </td>
+                        <td className="px-3 py-2.5 hidden sm:table-cell">
+                          <Badge variant="outline" className="text-[10px]">{cluster.feedbackCount}</Badge>
+                        </td>
+                        <td className="px-3 py-2.5 hidden md:table-cell">
+                          <Badge variant="outline" className={`text-[10px] ${priority.cls}`}>{priority.label}</Badge>
+                        </td>
+                        <td className="px-3 py-2.5 hidden lg:table-cell text-muted-foreground">
+                          {cluster.productArea ?? <span className="text-[10px] italic">—</span>}
+                        </td>
+                        <td className="px-3 py-2.5 hidden md:table-cell">
+                          {cluster.sentiment ? (
+                            <span className={`text-[10px] ${SENTIMENT_COLORS[cluster.sentiment] ?? ""}`}>
+                              {SENTIMENT_LABELS[cluster.sentiment] ?? cluster.sentiment}
+                            </span>
+                          ) : <span className="text-[10px] text-muted-foreground">—</span>}
+                        </td>
+                        <td className="px-3 py-2.5"><ClusterStatusBadge status={cluster.status} /></td>
+                        <td className="px-3 py-2.5 hidden xl:table-cell">
+                          {cluster.linkedTicketTitle ? (
+                            <span className="text-violet-600 dark:text-violet-400 flex items-center gap-1">
+                              <Ticket className="w-3 h-3 shrink-0" />
+                              <span className="truncate max-w-[100px] block">{cluster.linkedTicketTitle}</span>
+                            </span>
+                          ) : cluster.linkedEpicTitle ? (
+                            <span className="text-cyan-600 dark:text-cyan-400 flex items-center gap-1">
+                              <GitMerge className="w-3 h-3 shrink-0" />
+                              <span className="truncate max-w-[100px] block">{cluster.linkedEpicTitle}</span>
+                            </span>
+                          ) : <span className="text-[10px] text-muted-foreground">—</span>}
+                        </td>
+                        <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="icon" variant="ghost" data-testid={`button-cluster-menu-${cluster.id}`}><MoreHorizontal className="w-3.5 h-3.5" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setSelectedCluster(cluster)}>Voir le détail</DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => updateClusterMutation.mutate({ clusterId: cluster.id, patch: { status: "validated" } })} disabled={cluster.status === "validated"}>
+                                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />Valider
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => updateClusterMutation.mutate({ clusterId: cluster.id, patch: { status: "dismissed" } })} disabled={cluster.status === "dismissed"}>
+                                <Minus className="w-3.5 h-3.5 mr-1.5" />Ignorer
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => { setSelectedCluster(cluster); openCreateTicket(cluster); }}>
+                                <Ticket className="w-3.5 h-3.5 mr-1.5" />Créer un ticket
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setSelectedCluster(cluster); openCreateEpicFromCluster(cluster); }}>
+                                <GitMerge className="w-3.5 h-3.5 mr-1.5" />Créer une epic
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════ INSIGHTS VIEW ═══════════════════════ */}
       {activeView === "insights" && (
         <div className="space-y-4">
+          {/* KPI cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Card><CardContent className="p-4">
               <p className="text-xs text-muted-foreground mb-1">À qualifier</p>
@@ -679,17 +1073,46 @@ export function FeedbackTab({ backlogId }: Props) {
               <p className="text-2xl font-bold text-violet-600 dark:text-violet-400">{insights.linkedCount}</p>
             </CardContent></Card>
             <Card><CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">Récurrents</p>
-              <p className="text-2xl font-bold text-primary">{insights.recurringCount}</p>
+              <p className="text-xs text-muted-foreground mb-1">Clusters actifs</p>
+              <p className="text-2xl font-bold text-primary">{clusters.filter((c) => c.status !== "dismissed" && c.status !== "archived").length}</p>
             </CardContent></Card>
             <Card><CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">Bugs critiques</p>
-              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{insights.criticalBugsCount}</p>
+              <p className="text-xs text-muted-foreground mb-1">Feedbacks critiques</p>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{insights.criticalWithoutTicket.length}</p>
             </CardContent></Card>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Signaux forts (clusters) */}
             <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><TrendingUp className="w-4 h-4 text-primary" />Top signaux</CardTitle></CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><Zap className="w-4 h-4 text-violet-500" />Signaux forts à traiter</CardTitle></CardHeader>
+              <CardContent className="pt-0">
+                {strongClusters.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">Aucun cluster fort sans ticket pour le moment.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {strongClusters.slice(0, 5).map((c) => {
+                      const priority = calcClusterPriorityLabel(c.feedbackCount, c.impactLevel);
+                      return (
+                        <div key={c.id} className="flex items-start gap-2 cursor-pointer hover-elevate rounded-md p-1.5"
+                          onClick={() => { setActiveView("clusters"); setSelectedCluster(c); }}
+                          data-testid={`insight-cluster-${c.id}`}>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate">{c.title}</p>
+                            <p className="text-[10px] text-muted-foreground">{c.feedbackCount} feedbacks{c.productArea ? ` · ${c.productArea}` : ""}</p>
+                          </div>
+                          <Badge variant="outline" className={`text-[10px] shrink-0 ${priority.cls}`}>{priority.label}</Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Top signaux feedbacks */}
+            <Card>
+              <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><TrendingUp className="w-4 h-4 text-primary" />Top feedbacks qualifiés</CardTitle></CardHeader>
               <CardContent className="pt-0">
                 {insights.topByScore.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic">Qualifiez des feedbacks pour voir leurs signaux.</p>
@@ -698,7 +1121,9 @@ export function FeedbackTab({ backlogId }: Props) {
                     {insights.topByScore.map((fb, i) => {
                       const info = getScoreInfo(fb._score);
                       return (
-                        <div key={fb.id} className="flex items-start gap-2 cursor-pointer hover-elevate rounded-md p-1.5" onClick={() => { setActiveView("inbox"); openFeedback(fb); }} data-testid={`insight-top-${i}`}>
+                        <div key={fb.id} className="flex items-start gap-2 cursor-pointer hover-elevate rounded-md p-1.5"
+                          onClick={() => { setActiveView("inbox"); openFeedback(fb); }}
+                          data-testid={`insight-top-${i}`}>
                           <span className="text-xs text-muted-foreground w-4 shrink-0 mt-0.5">{i + 1}.</span>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium truncate">{fb.title}</p>
@@ -712,6 +1137,35 @@ export function FeedbackTab({ backlogId }: Props) {
                 )}
               </CardContent>
             </Card>
+
+            {/* Feedbacks critiques sans ticket */}
+            <Card>
+              <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-red-500" />Feedbacks critiques sans ticket</CardTitle></CardHeader>
+              <CardContent className="pt-0">
+                {insights.criticalWithoutTicket.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">Aucun feedback critique non traité.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {insights.criticalWithoutTicket.slice(0, 5).map((fb) => (
+                      <div key={fb.id} className="flex items-start gap-2 cursor-pointer hover-elevate rounded-md p-1.5"
+                        onClick={() => { setActiveView("inbox"); openFeedback(fb); }}
+                        data-testid={`insight-critical-${fb.id}`}>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate">{fb.title}</p>
+                          <p className="text-[10px] text-muted-foreground">{fb.contributorName} · {IMPORTANCE_LABELS[fb.importance]}</p>
+                        </div>
+                        <Badge variant="outline" className={`text-[10px] shrink-0 ${TYPE_COLORS[fb.type] ?? ""}`}>{TYPE_LABELS[fb.type]}</Badge>
+                      </div>
+                    ))}
+                    {insights.criticalWithoutTicket.length > 5 && (
+                      <p className="text-[10px] text-muted-foreground text-center pt-1">+{insights.criticalWithoutTicket.length - 5} autres</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Tickets les plus soutenus */}
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><Ticket className="w-4 h-4 text-primary" />Tickets les plus soutenus</CardTitle></CardHeader>
               <CardContent className="pt-0">
@@ -729,8 +1183,10 @@ export function FeedbackTab({ backlogId }: Props) {
                 )}
               </CardContent>
             </Card>
+
+            {/* Zones produit */}
             <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><Tag className="w-4 h-4 text-primary" />Zones produit</CardTitle></CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><Tag className="w-4 h-4 text-primary" />Zones produit les plus remontées</CardTitle></CardHeader>
               <CardContent className="pt-0">
                 {insights.productAreas.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic">Renseignez la zone produit lors de la qualification.</p>
@@ -753,6 +1209,8 @@ export function FeedbackTab({ backlogId }: Props) {
                 )}
               </CardContent>
             </Card>
+
+            {/* Répartition par type */}
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><Zap className="w-4 h-4 text-primary" />Répartition par type</CardTitle></CardHeader>
               <CardContent className="pt-0">
@@ -777,7 +1235,7 @@ export function FeedbackTab({ backlogId }: Props) {
         </div>
       )}
 
-      {/* ── Feedback detail drawer ── */}
+      {/* ═══════ FEEDBACK DETAIL DRAWER ═══════ */}
       <Sheet open={!!selectedFeedback} onOpenChange={(open) => !open && setSelectedFeedback(null)}>
         <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col gap-0 p-0">
           {selectedFeedback && (
@@ -788,6 +1246,7 @@ export function FeedbackTab({ backlogId }: Props) {
                   <Badge variant="outline" className={`text-[10px] ${TYPE_COLORS[selectedFeedback.type] ?? ""}`}>{TYPE_LABELS[selectedFeedback.type] ?? selectedFeedback.type}</Badge>
                   <StatusBadge status={selectedFeedback.internalStatus} />
                   <ScoreBadge feedback={selectedFeedback} />
+                  {selectedFeedback.analyzedAt && <Badge variant="outline" className="text-[10px] text-violet-600 border-violet-400 gap-0.5"><Brain className="w-2.5 h-2.5" />Analysé</Badge>}
                 </div>
               </SheetHeader>
 
@@ -796,19 +1255,136 @@ export function FeedbackTab({ backlogId }: Props) {
                 <div className="px-5 py-4 space-y-3">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Feedback original</p>
                   <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{selectedFeedback.description}</p>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                     <div><p className="text-muted-foreground text-[10px]">Contributeur</p><p className="font-medium">{selectedFeedback.contributorName}</p></div>
                     {selectedFeedback.contributorEmail && <div><p className="text-muted-foreground text-[10px]">Email</p><p className="font-medium">{selectedFeedback.contributorEmail}</p></div>}
                     <div><p className="text-muted-foreground text-[10px]">Source</p><p className="font-medium">{SOURCE_LABELS[selectedFeedback.source] ?? selectedFeedback.source}</p></div>
                     <div><p className="text-muted-foreground text-[10px]">Date</p><p className="font-medium">{new Date(selectedFeedback.createdAt).toLocaleDateString("fr-FR")}</p></div>
                     <div><p className="text-muted-foreground text-[10px]">Importance initiale</p>
-                      <Badge variant="outline" className={`text-[10px] mt-0.5 ${selectedFeedback.importance === "critical" ? "text-red-600 border-red-400" : selectedFeedback.importance === "high" ? "text-orange-600 border-orange-400" : ""}`}>{IMPORTANCE_LABELS[selectedFeedback.importance] ?? selectedFeedback.importance}</Badge>
+                      <Badge variant="outline" className={`text-[10px] mt-0.5 ${selectedFeedback.importance === "critical" ? "text-red-600 border-red-400" : selectedFeedback.importance === "high" ? "text-orange-600 border-orange-400" : ""}`}>
+                        {IMPORTANCE_LABELS[selectedFeedback.importance] ?? selectedFeedback.importance}
+                      </Badge>
                     </div>
                   </div>
                 </div>
                 <Separator />
 
-                {/* Section 2: Qualification */}
+                {/* Section 2: Analyse IA */}
+                <div className="px-5 py-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                      <Brain className="w-3 h-3" />Analyse suggérée
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      {showAiSection && (
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px] gap-1" onClick={() => setShowAiSection((v) => !v)}>
+                          {showAiSection ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          {showAiSection ? "Réduire" : "Voir"}
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1.5" onClick={handleAnalyzeFeedback} disabled={isAnalyzing} data-testid="button-analyze-feedback">
+                        {isAnalyzing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                        {selectedFeedback.analyzedAt && !aiAnalysis ? "Ré-analyser" : "Analyser"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {showAiSection && displayedAnalysis && (
+                    <div className="rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/20 p-3 space-y-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-[10px] text-violet-500 font-medium">
+                          Score de confiance : {displayedAnalysis.confidenceScore ? `${Math.round(displayedAnalysis.confidenceScore * 100)}%` : "—"}
+                        </p>
+                        <span className="text-[10px] text-violet-500 italic">Score indicatif basé sur les signaux disponibles.</span>
+                      </div>
+                      {displayedAnalysis.summary && (
+                        <div>
+                          <p className="text-[10px] text-muted-foreground font-medium mb-0.5">Résumé</p>
+                          <p className="text-xs">{displayedAnalysis.summary}</p>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        {displayedAnalysis.detectedProblem && (
+                          <div>
+                            <p className="text-[10px] text-muted-foreground font-medium mb-0.5">Problème détecté</p>
+                            <p className="text-xs">{displayedAnalysis.detectedProblem}</p>
+                          </div>
+                        )}
+                        {displayedAnalysis.detectedNeed && (
+                          <div>
+                            <p className="text-[10px] text-muted-foreground font-medium mb-0.5">Besoin utilisateur</p>
+                            <p className="text-xs">{displayedAnalysis.detectedNeed}</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {displayedAnalysis.sentiment && (
+                          <div>
+                            <p className="text-[10px] text-muted-foreground font-medium mb-0.5">Sentiment</p>
+                            <span className={`text-xs font-medium ${SENTIMENT_COLORS[displayedAnalysis.sentiment] ?? ""}`}>
+                              {SENTIMENT_LABELS[displayedAnalysis.sentiment] ?? displayedAnalysis.sentiment}
+                            </span>
+                          </div>
+                        )}
+                        {displayedAnalysis.urgency && (
+                          <div>
+                            <p className="text-[10px] text-muted-foreground font-medium mb-0.5">Urgence IA</p>
+                            <span className={`text-xs font-medium ${displayedAnalysis.urgency === "high" ? "text-red-600 dark:text-red-400" : displayedAnalysis.urgency === "medium" ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                              {{ low: "Faible", medium: "Moyen", high: "Élevé" }[displayedAnalysis.urgency] ?? displayedAnalysis.urgency}
+                            </span>
+                          </div>
+                        )}
+                        {displayedAnalysis.productArea && (
+                          <div>
+                            <p className="text-[10px] text-muted-foreground font-medium mb-0.5">Zone produit</p>
+                            <span className="text-xs">{displayedAnalysis.productArea}</span>
+                          </div>
+                        )}
+                      </div>
+                      {(displayedAnalysis.suggestedTags?.length ?? 0) > 0 && (
+                        <div>
+                          <p className="text-[10px] text-muted-foreground font-medium mb-1">Tags suggérés</p>
+                          <div className="flex flex-wrap gap-1">
+                            {displayedAnalysis.suggestedTags!.map((tag) => (
+                              <Badge key={tag} variant="outline" className="text-[10px] text-violet-600 border-violet-300">{tag}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {(displayedAnalysis.keywords?.length ?? 0) > 0 && (
+                        <div>
+                          <p className="text-[10px] text-muted-foreground font-medium mb-1">Mots-clés</p>
+                          <div className="flex flex-wrap gap-1">
+                            {displayedAnalysis.keywords!.map((kw) => (
+                              <span key={kw} className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{kw}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {aiAnalysis && (
+                        <Button size="sm" className="w-full gap-1.5 text-xs mt-1" onClick={() => applyAiSuggestionsMutation.mutate({ id: selectedFeedback.id, analysis: aiAnalysis })} disabled={applyAiSuggestionsMutation.isPending} data-testid="button-apply-ai-suggestions">
+                          {applyAiSuggestionsMutation.isPending ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                          Appliquer les suggestions
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {showAiSection && !displayedAnalysis && !isAnalyzing && (
+                    <p className="text-xs text-muted-foreground italic">Cliquez sur "Analyser" pour obtenir des suggestions IA.</p>
+                  )}
+                  {isAnalyzing && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <RefreshCw className="w-3 h-3 animate-spin" />Analyse en cours…
+                    </div>
+                  )}
+                  {!showAiSection && !isAnalyzing && (
+                    <p className="text-xs text-muted-foreground italic">Cliquez sur "Analyser" pour obtenir une analyse IA de ce feedback.</p>
+                  )}
+                </div>
+                <Separator />
+
+                {/* Section 3: Qualification */}
                 <div className="px-5 py-4 space-y-3">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Qualification</p>
                   <Form {...qualifForm}>
@@ -897,7 +1473,7 @@ export function FeedbackTab({ backlogId }: Props) {
                 </div>
                 <Separator />
 
-                {/* Section 3: Liaison ticket */}
+                {/* Section 4: Liaison ticket */}
                 <div className="px-5 py-4 space-y-3">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Liaison backlog</p>
                   {selectedFeedback.linkedTicketId && selectedFeedback.linkedTicketTitle ? (
@@ -914,7 +1490,7 @@ export function FeedbackTab({ backlogId }: Props) {
                     <p className="text-xs text-muted-foreground italic">Aucun ticket lié.</p>
                   )}
                   <div className="flex gap-2 flex-wrap">
-                    <Button size="sm" variant="outline" className="gap-1.5 flex-1" onClick={openCreateTicket} data-testid="button-create-ticket">
+                    <Button size="sm" variant="outline" className="gap-1.5 flex-1" onClick={() => openCreateTicket()} data-testid="button-create-ticket">
                       <Plus className="w-3.5 h-3.5" />Créer un ticket
                     </Button>
                     <Button size="sm" variant="outline" className="gap-1.5 flex-1" onClick={() => { setIsLinkTicketOpen(true); setTicketSearch(""); setSelectedTicketId(null); }} data-testid="button-link-ticket">
@@ -924,7 +1500,7 @@ export function FeedbackTab({ backlogId }: Props) {
                 </div>
                 <Separator />
 
-                {/* Section 4: Actions */}
+                {/* Section 5: Actions */}
                 <div className="px-5 py-4 space-y-3">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Actions</p>
                   <div className="flex gap-2 flex-wrap">
@@ -940,33 +1516,170 @@ export function FeedbackTab({ backlogId }: Props) {
                   </div>
                 </div>
 
-                {/* Feedbacks similaires */}
-                {(() => {
-                  const similar = feedbacks.filter((fb) =>
-                    fb.id !== selectedFeedback.id &&
-                    fb.internalStatus !== "archived" &&
-                    (fb.type === selectedFeedback.type || (fb.productArea && fb.productArea === selectedFeedback.productArea))
-                  ).slice(0, 3);
-                  if (!similar.length) return null;
-                  return (
-                    <>
-                      <Separator />
-                      <div className="px-5 py-4 space-y-2">
-                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Feedbacks similaires</p>
-                        {similar.map((fb) => (
-                          <div key={fb.id} className="flex items-start gap-2 cursor-pointer hover-elevate rounded-md p-2" onClick={() => openFeedback(fb)}>
-                            <Badge variant="outline" className={`text-[10px] shrink-0 mt-0.5 ${TYPE_COLORS[fb.type] ?? ""}`}>{TYPE_LABELS[fb.type] ?? fb.type}</Badge>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium truncate">{fb.title}</p>
-                              <p className="text-[10px] text-muted-foreground">{fb.contributorName}</p>
-                            </div>
-                            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                {/* Section 6: Feedbacks similaires */}
+                {showAiSection && similarFeedbacks.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="px-5 py-4 space-y-2">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Feedbacks similaires</p>
+                      {similarFeedbacks.map((fb) => (
+                        <div key={fb.id} className="flex items-start gap-2 cursor-pointer hover-elevate rounded-md p-2" onClick={() => openFeedback(fb)}>
+                          <Badge variant="outline" className={`text-[10px] shrink-0 mt-0.5 ${TYPE_COLORS[fb.type] ?? ""}`}>{TYPE_LABELS[fb.type] ?? fb.type}</Badge>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate">{fb.title}</p>
+                            <p className="text-[10px] text-muted-foreground">{fb.contributorName}</p>
                           </div>
-                        ))}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {fb.similarityScore >= 3 && <span className="text-[10px] text-violet-600 dark:text-violet-400">Similaire</span>}
+                            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* ═══════ CLUSTER DETAIL DRAWER ═══════ */}
+      <Sheet open={!!selectedCluster} onOpenChange={(open) => !open && setSelectedCluster(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col gap-0 p-0">
+          {selectedCluster && (
+            <>
+              <SheetHeader className="px-5 py-4 border-b border-border shrink-0">
+                <SheetTitle className="text-sm font-heading leading-snug line-clamp-2">{selectedCluster.title}</SheetTitle>
+                <div className="flex items-center gap-2 flex-wrap mt-1">
+                  <Badge variant="outline" className="text-[10px]">{selectedCluster.feedbackCount} feedback{selectedCluster.feedbackCount > 1 ? "s" : ""}</Badge>
+                  <ClusterStatusBadge status={selectedCluster.status} />
+                  <Badge variant="outline" className={`text-[10px] ${calcClusterPriorityLabel(selectedCluster.feedbackCount, selectedCluster.impactLevel).cls}`}>
+                    {calcClusterPriorityLabel(selectedCluster.feedbackCount, selectedCluster.impactLevel).label}
+                  </Badge>
+                </div>
+              </SheetHeader>
+
+              <div className="flex-1 overflow-y-auto">
+                {/* Cluster info */}
+                <div className="px-5 py-4 space-y-3">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Signal consolidé</p>
+                  {selectedCluster.description && <p className="text-xs text-foreground leading-relaxed">{selectedCluster.description}</p>}
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    {selectedCluster.detectedProblem && (
+                      <div>
+                        <p className="text-[10px] text-muted-foreground font-medium mb-0.5">Problème détecté</p>
+                        <p>{selectedCluster.detectedProblem}</p>
                       </div>
-                    </>
-                  );
-                })()}
+                    )}
+                    {selectedCluster.detectedNeed && (
+                      <div>
+                        <p className="text-[10px] text-muted-foreground font-medium mb-0.5">Besoin détecté</p>
+                        <p>{selectedCluster.detectedNeed}</p>
+                      </div>
+                    )}
+                    {selectedCluster.productArea && (
+                      <div>
+                        <p className="text-[10px] text-muted-foreground font-medium mb-0.5">Zone produit</p>
+                        <p>{selectedCluster.productArea}</p>
+                      </div>
+                    )}
+                    {selectedCluster.sentiment && (
+                      <div>
+                        <p className="text-[10px] text-muted-foreground font-medium mb-0.5">Sentiment dominant</p>
+                        <span className={`${SENTIMENT_COLORS[selectedCluster.sentiment] ?? ""}`}>{SENTIMENT_LABELS[selectedCluster.sentiment] ?? selectedCluster.sentiment}</span>
+                      </div>
+                    )}
+                  </div>
+                  {selectedCluster.confidenceScore && (
+                    <p className="text-[10px] text-muted-foreground italic">Score de confiance IA : {Math.round(selectedCluster.confidenceScore * 100)}% — Score indicatif basé sur les signaux disponibles.</p>
+                  )}
+                </div>
+                <Separator />
+
+                {/* Linked entities */}
+                {(selectedCluster.linkedTicketId || selectedCluster.linkedEpicId) && (
+                  <>
+                    <div className="px-5 py-4 space-y-2">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Liaison</p>
+                      {selectedCluster.linkedTicketTitle && (
+                        <div className="rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30 p-2.5 flex items-center gap-2">
+                          <Ticket className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+                          <p className="text-xs font-medium text-violet-700 dark:text-violet-300 truncate">{selectedCluster.linkedTicketTitle}</p>
+                        </div>
+                      )}
+                      {selectedCluster.linkedEpicTitle && (
+                        <div className="rounded-md border border-cyan-200 dark:border-cyan-800 bg-cyan-50 dark:bg-cyan-950/30 p-2.5 flex items-center gap-2">
+                          <GitMerge className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
+                          <p className="text-xs font-medium text-cyan-700 dark:text-cyan-300 truncate">{selectedCluster.linkedEpicTitle}</p>
+                        </div>
+                      )}
+                    </div>
+                    <Separator />
+                  </>
+                )}
+
+                {/* Feedbacks list */}
+                <div className="px-5 py-4 space-y-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Feedbacks inclus ({selectedCluster.feedbackCount})</p>
+                  {selectedCluster.items.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">Aucun feedback dans ce cluster.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {selectedCluster.items.map((item) => (
+                        <div key={item.feedbackId} className="flex items-start gap-2 p-2 rounded-md border border-border">
+                          <Badge variant="outline" className={`text-[10px] shrink-0 mt-0.5 ${TYPE_COLORS[item.type] ?? ""}`}>{TYPE_LABELS[item.type] ?? item.type}</Badge>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate">{item.feedbackTitle}</p>
+                            <p className="text-[10px] text-muted-foreground">{item.contributorName} · {IMPORTANCE_LABELS[item.importance] ?? item.importance}</p>
+                          </div>
+                          <Button size="icon" variant="ghost" className="shrink-0 h-6 w-6"
+                            onClick={() => removeFeedbackFromClusterMutation.mutate({ clusterId: selectedCluster.id, feedbackId: item.feedbackId })}
+                            data-testid={`button-remove-from-cluster-${item.feedbackId}`}>
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Separator />
+
+                {/* Cluster actions */}
+                <div className="px-5 py-4 space-y-3">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Actions</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button size="sm" variant="outline" className="gap-1.5 text-xs"
+                      onClick={() => updateClusterMutation.mutate({ clusterId: selectedCluster.id, patch: { status: "validated" } })}
+                      disabled={selectedCluster.status === "validated" || updateClusterMutation.isPending}
+                      data-testid="button-validate-cluster">
+                      <CheckCircle2 className="w-3.5 h-3.5" />Valider
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-1.5 text-xs"
+                      onClick={() => updateClusterMutation.mutate({ clusterId: selectedCluster.id, patch: { status: "dismissed" } })}
+                      disabled={selectedCluster.status === "dismissed" || updateClusterMutation.isPending}
+                      data-testid="button-dismiss-cluster">
+                      <Minus className="w-3.5 h-3.5" />Ignorer
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => openCreateTicket(selectedCluster)} data-testid="button-cluster-create-ticket">
+                      <Ticket className="w-3.5 h-3.5" />Créer un ticket
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => openCreateEpicFromCluster(selectedCluster)} data-testid="button-cluster-create-epic">
+                      <GitMerge className="w-3.5 h-3.5" />Créer une epic
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-1.5 text-xs"
+                      onClick={() => { setIsLinkTicketToClusterOpen(true); setClusterTicketSearch(""); setSelectedClusterTicketId(null); }}
+                      data-testid="button-cluster-link-ticket">
+                      <Link2 className="w-3.5 h-3.5" />Lier un ticket
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-1.5 text-xs text-destructive border-destructive/30"
+                      onClick={() => updateClusterMutation.mutate({ clusterId: selectedCluster.id, patch: { status: "archived" } })}
+                      disabled={selectedCluster.status === "archived" || updateClusterMutation.isPending}
+                      data-testid="button-archive-cluster">
+                      <Archive className="w-3.5 h-3.5" />Archiver
+                    </Button>
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -1062,7 +1775,57 @@ export function FeedbackTab({ backlogId }: Props) {
         </SheetContent>
       </Sheet>
 
-      {/* ── Create ticket dialog ── */}
+      {/* ── Create cluster dialog ── */}
+      <Dialog open={isCreateClusterOpen} onOpenChange={setIsCreateClusterOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="text-sm font-heading">Créer un cluster</DialogTitle></DialogHeader>
+          <Form {...createClusterForm}>
+            <form id="create-cluster-form" onSubmit={createClusterForm.handleSubmit((data) => createClusterMutation.mutate(data))} className="space-y-3">
+              <FormField control={createClusterForm.control} name="title" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-medium">Titre *</FormLabel>
+                  <FormControl><Input className="text-sm" data-testid="input-cluster-title" {...field} /></FormControl>
+                  <FormMessage className="text-xs" />
+                </FormItem>
+              )} />
+              <FormField control={createClusterForm.control} name="description" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-medium">Description</FormLabel>
+                  <FormControl><Textarea className="text-xs min-h-[60px] resize-none" data-testid="textarea-cluster-description" {...field} /></FormControl>
+                </FormItem>
+              )} />
+              <div className="grid grid-cols-2 gap-3">
+                <FormField control={createClusterForm.control} name="productArea" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-medium">Zone produit</FormLabel>
+                    <FormControl><Input className="text-xs" placeholder="Ex : Facturation" data-testid="input-cluster-product-area" {...field} /></FormControl>
+                  </FormItem>
+                )} />
+                <FormField control={createClusterForm.control} name="impactLevel" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-medium">Impact</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                      <FormControl><SelectTrigger className="text-xs"><SelectValue placeholder="—" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="">—</SelectItem><SelectItem value="low">Faible</SelectItem>
+                        <SelectItem value="medium">Moyen</SelectItem><SelectItem value="high">Élevé</SelectItem><SelectItem value="critical">Critique</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )} />
+              </div>
+            </form>
+          </Form>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsCreateClusterOpen(false)}>Annuler</Button>
+            <Button size="sm" form="create-cluster-form" type="submit" disabled={createClusterMutation.isPending} data-testid="button-confirm-create-cluster">
+              {createClusterMutation.isPending && <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" />}Créer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Create ticket dialog (from feedback) ── */}
       <Dialog open={isCreateTicketOpen} onOpenChange={setIsCreateTicketOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle className="text-sm font-heading">Créer un ticket depuis ce feedback</DialogTitle></DialogHeader>
@@ -1104,7 +1867,54 @@ export function FeedbackTab({ backlogId }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* ── Link existing ticket dialog ── */}
+      {/* ── Create ticket/epic from cluster dialog ── */}
+      <Dialog open={isCreateFromClusterOpen} onOpenChange={setIsCreateFromClusterOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-heading">
+              {createFromClusterMode === "ticket" ? "Créer un ticket depuis ce cluster" : "Créer une epic depuis ce cluster"}
+            </DialogTitle>
+          </DialogHeader>
+          <Form {...createFromClusterForm}>
+            <form id="create-from-cluster-form" onSubmit={createFromClusterForm.handleSubmit((data) => selectedCluster && createFromClusterMutation.mutate({ clusterId: selectedCluster.id, mode: createFromClusterMode, data }))} className="space-y-3">
+              <FormField control={createFromClusterForm.control} name="title" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-medium">Titre *</FormLabel>
+                  <FormControl><Input className="text-sm" data-testid="input-from-cluster-title" {...field} /></FormControl>
+                  <FormMessage className="text-xs" />
+                </FormItem>
+              )} />
+              <FormField control={createFromClusterForm.control} name="priority" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-medium">Priorité</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger className="text-xs"><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="critical">Critique</SelectItem><SelectItem value="high">Élevé</SelectItem>
+                      <SelectItem value="medium">Moyen</SelectItem><SelectItem value="low">Faible</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )} />
+              <FormField control={createFromClusterForm.control} name="description" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-medium">Description (pré-remplie depuis le cluster)</FormLabel>
+                  <FormControl><Textarea className="text-xs min-h-[180px] resize-none font-mono" data-testid="textarea-from-cluster-description" {...field} /></FormControl>
+                </FormItem>
+              )} />
+            </form>
+          </Form>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsCreateFromClusterOpen(false)}>Annuler</Button>
+            <Button size="sm" form="create-from-cluster-form" type="submit" disabled={createFromClusterMutation.isPending} data-testid="button-confirm-create-from-cluster">
+              {createFromClusterMutation.isPending && <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" />}
+              {createFromClusterMode === "ticket" ? "Créer le ticket" : "Créer l'epic"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Link existing ticket dialog (feedback) ── */}
       <Dialog open={isLinkTicketOpen} onOpenChange={setIsLinkTicketOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle className="text-sm font-heading">Lier à un ticket existant</DialogTitle></DialogHeader>
@@ -1118,24 +1928,18 @@ export function FeedbackTab({ backlogId }: Props) {
                 <div className="p-4 text-center"><RefreshCw className="w-4 h-4 animate-spin mx-auto text-muted-foreground" /></div>
               ) : (
                 <div className="divide-y divide-border">
-                  {userStories
-                    .filter((us) => !ticketSearch || us.title.toLowerCase().includes(ticketSearch.toLowerCase()))
-                    .slice(0, 20)
-                    .map((us) => (
-                      <div
-                        key={us.id}
-                        className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer hover-elevate ${selectedTicketId === us.id ? "bg-primary/10" : ""}`}
-                        onClick={() => setSelectedTicketId(us.id)}
-                        data-testid={`ticket-option-${us.id}`}
-                      >
-                        {selectedTicketId === us.id && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium truncate">{us.title}</p>
-                          <p className="text-[10px] text-muted-foreground">{us.state?.replace(/_/g, " ") ?? "—"}</p>
-                        </div>
-                        <Badge variant="outline" className="text-[10px] shrink-0">{us.priority ?? "medium"}</Badge>
+                  {userStories.filter((us) => !ticketSearch || us.title.toLowerCase().includes(ticketSearch.toLowerCase())).slice(0, 20).map((us) => (
+                    <div key={us.id}
+                      className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer hover-elevate ${selectedTicketId === us.id ? "bg-primary/10" : ""}`}
+                      onClick={() => setSelectedTicketId(us.id)} data-testid={`ticket-option-${us.id}`}>
+                      {selectedTicketId === us.id && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate">{us.title}</p>
+                        <p className="text-[10px] text-muted-foreground">{us.state?.replace(/_/g, " ") ?? "—"}</p>
                       </div>
-                    ))}
+                      <Badge variant="outline" className="text-[10px] shrink-0">{us.priority ?? "medium"}</Badge>
+                    </div>
+                  ))}
                   {userStories.filter((us) => !ticketSearch || us.title.toLowerCase().includes(ticketSearch.toLowerCase())).length === 0 && (
                     <div className="p-4 text-center text-xs text-muted-foreground">Aucun ticket trouvé.</div>
                   )}
@@ -1147,9 +1951,52 @@ export function FeedbackTab({ backlogId }: Props) {
             <Button variant="outline" size="sm" onClick={() => setIsLinkTicketOpen(false)}>Annuler</Button>
             <Button size="sm" disabled={!selectedTicketId || linkTicketMutation.isPending}
               onClick={() => selectedFeedback && selectedTicketId && linkTicketMutation.mutate({ feedbackId: selectedFeedback.id, ticketId: selectedTicketId })}
-              data-testid="button-confirm-link-ticket"
-            >
-              {linkTicketMutation.isPending && <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" />}Lier le ticket
+              data-testid="button-confirm-link-ticket">
+              {linkTicketMutation.isPending && <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" />}Lier ce ticket
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Link existing ticket dialog (cluster) ── */}
+      <Dialog open={isLinkTicketToClusterOpen} onOpenChange={setIsLinkTicketToClusterOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="text-sm font-heading">Lier le cluster à un ticket</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+              <Input placeholder="Rechercher un ticket..." className="pl-8 text-xs" value={clusterTicketSearch} onChange={(e) => setClusterTicketSearch(e.target.value)} data-testid="input-cluster-ticket-search" />
+            </div>
+            <div className="border rounded-md max-h-64 overflow-y-auto">
+              {storiesLoading ? (
+                <div className="p-4 text-center"><RefreshCw className="w-4 h-4 animate-spin mx-auto text-muted-foreground" /></div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {userStories.filter((us) => !clusterTicketSearch || us.title.toLowerCase().includes(clusterTicketSearch.toLowerCase())).slice(0, 20).map((us) => (
+                    <div key={us.id}
+                      className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer hover-elevate ${selectedClusterTicketId === us.id ? "bg-primary/10" : ""}`}
+                      onClick={() => setSelectedClusterTicketId(us.id)} data-testid={`cluster-ticket-option-${us.id}`}>
+                      {selectedClusterTicketId === us.id && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate">{us.title}</p>
+                        <p className="text-[10px] text-muted-foreground">{us.state?.replace(/_/g, " ") ?? "—"}</p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] shrink-0">{us.priority ?? "medium"}</Badge>
+                    </div>
+                  ))}
+                  {userStories.filter((us) => !clusterTicketSearch || us.title.toLowerCase().includes(clusterTicketSearch.toLowerCase())).length === 0 && (
+                    <div className="p-4 text-center text-xs text-muted-foreground">Aucun ticket trouvé.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsLinkTicketToClusterOpen(false)}>Annuler</Button>
+            <Button size="sm" disabled={!selectedClusterTicketId || linkTicketToClusterMutation.isPending}
+              onClick={() => selectedCluster && selectedClusterTicketId && linkTicketToClusterMutation.mutate({ clusterId: selectedCluster.id, ticketId: selectedClusterTicketId })}
+              data-testid="button-confirm-link-cluster-ticket">
+              {linkTicketToClusterMutation.isPending && <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" />}Lier ce ticket
             </Button>
           </DialogFooter>
         </DialogContent>
