@@ -272,6 +272,9 @@ export function FeedbackTab({ backlogId }: Props) {
   const [isCreateFromClusterOpen, setIsCreateFromClusterOpen] = useState(false);
   const [createFromClusterMode, setCreateFromClusterMode] = useState<"ticket" | "epic">("ticket");
   const [isLinkTicketToClusterOpen, setIsLinkTicketToClusterOpen] = useState(false);
+  const [isAddToClusterOpen, setIsAddToClusterOpen] = useState(false);
+  const [clusterSearchForFeedback, setClusterSearchForFeedback] = useState("");
+  const [selectedClusterIdForFeedback, setSelectedClusterIdForFeedback] = useState<string | null>(null);
 
   // Filters
   const [showArchived, setShowArchived] = useState(false);
@@ -298,7 +301,7 @@ export function FeedbackTab({ backlogId }: Props) {
   });
   const { data: clusters = [], isLoading: clustersLoading, refetch: refetchClusters } = useQuery<FeedbackCluster[]>({
     queryKey: [`/api/backlogs/${backlogId}/feedback-clusters`],
-    enabled: activeView === "clusters" || activeView === "insights",
+    enabled: activeView === "clusters" || activeView === "insights" || isAddToClusterOpen,
   });
   const { data: similarFeedbacks = [] } = useQuery<(FeedbackV3 & { similarityScore: number })[]>({
     queryKey: [`/api/backlogs/${backlogId}/feedbacks/${selectedFeedback?.id}/similar`],
@@ -423,6 +426,19 @@ export function FeedbackTab({ backlogId }: Props) {
       setSelectedFeedback(null); toast({ title: "Feedback supprimé" });
     },
     onError: () => toast({ title: "Erreur", variant: "destructive" }),
+  });
+
+  const addFeedbackToClusterMutation = useMutation({
+    mutationFn: ({ clusterId, feedbackId }: { clusterId: string; feedbackId: string }) =>
+      apiRequest(`/api/backlogs/${backlogId}/feedback-clusters/${clusterId}/add-feedback`, "POST", { feedbackId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedback-clusters`] });
+      setIsAddToClusterOpen(false);
+      setSelectedClusterIdForFeedback(null);
+      setClusterSearchForFeedback("");
+      toast({ title: "Feedback ajouté au cluster" });
+    },
+    onError: () => toast({ title: "Erreur", description: "Impossible d'ajouter au cluster", variant: "destructive" }),
   });
 
   // Cluster mutations
@@ -1504,6 +1520,9 @@ export function FeedbackTab({ backlogId }: Props) {
                 <div className="px-5 py-4 space-y-3">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Actions</p>
                   <div className="flex gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { setClusterSearchForFeedback(""); setSelectedClusterIdForFeedback(null); setIsAddToClusterOpen(true); }} data-testid="button-add-to-cluster">
+                      <Layers className="w-3.5 h-3.5" />Ajouter à un cluster
+                    </Button>
                     <Button size="sm" variant="outline" className="gap-1.5" onClick={() => updateStatusMutation.mutate({ id: selectedFeedback.id, internalStatus: "archived" })} disabled={selectedFeedback.internalStatus === "archived"} data-testid="button-archive-feedback">
                       <Archive className="w-3.5 h-3.5" />Archiver
                     </Button>
@@ -1953,6 +1972,66 @@ export function FeedbackTab({ backlogId }: Props) {
               onClick={() => selectedFeedback && selectedTicketId && linkTicketMutation.mutate({ feedbackId: selectedFeedback.id, ticketId: selectedTicketId })}
               data-testid="button-confirm-link-ticket">
               {linkTicketMutation.isPending && <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" />}Lier ce ticket
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Add feedback to existing cluster dialog ── */}
+      <Dialog open={isAddToClusterOpen} onOpenChange={(open) => { setIsAddToClusterOpen(open); if (!open) { setSelectedClusterIdForFeedback(null); setClusterSearchForFeedback(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="text-sm font-heading">Ajouter à un cluster</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+              <Input placeholder="Rechercher un cluster..." className="pl-8 text-xs" value={clusterSearchForFeedback} onChange={(e) => setClusterSearchForFeedback(e.target.value)} data-testid="input-cluster-search-for-feedback" />
+            </div>
+            <div className="border rounded-md max-h-64 overflow-y-auto">
+              {clustersLoading ? (
+                <div className="p-4 text-center"><RefreshCw className="w-4 h-4 animate-spin mx-auto text-muted-foreground" /></div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {clusters
+                    .filter((c) => c.status !== "dismissed" && c.status !== "archived")
+                    .filter((c) => !clusterSearchForFeedback || c.title.toLowerCase().includes(clusterSearchForFeedback.toLowerCase()))
+                    .filter((c) => !c.items.some((i) => i.feedbackId === selectedFeedback?.id))
+                    .map((c) => {
+                      const priority = calcClusterPriorityLabel(c.feedbackCount, c.impactLevel);
+                      return (
+                        <div key={c.id}
+                          className={`flex items-start gap-2 px-3 py-2.5 cursor-pointer hover-elevate ${selectedClusterIdForFeedback === c.id ? "bg-primary/10" : ""}`}
+                          onClick={() => setSelectedClusterIdForFeedback(c.id)}
+                          data-testid={`cluster-option-${c.id}`}>
+                          {selectedClusterIdForFeedback === c.id && <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate">{c.title}</p>
+                            <p className="text-[10px] text-muted-foreground">{c.feedbackCount} feedback{c.feedbackCount !== 1 ? "s" : ""}{c.productArea ? ` · ${c.productArea}` : ""}</p>
+                          </div>
+                          <Badge variant="outline" className={`text-[10px] shrink-0 ${priority.cls}`}>{priority.label}</Badge>
+                        </div>
+                      );
+                    })}
+                  {clusters.filter((c) => c.status !== "dismissed" && c.status !== "archived").length === 0 && (
+                    <div className="p-4 text-center text-xs text-muted-foreground">Aucun cluster actif. Créez-en un depuis l'onglet Clusters.</div>
+                  )}
+                  {clusters.filter((c) => c.status !== "dismissed" && c.status !== "archived")
+                    .filter((c) => !clusterSearchForFeedback || c.title.toLowerCase().includes(clusterSearchForFeedback.toLowerCase()))
+                    .filter((c) => !c.items.some((i) => i.feedbackId === selectedFeedback?.id))
+                    .length === 0 && clusters.filter((c) => c.status !== "dismissed" && c.status !== "archived").length > 0 && (
+                    <div className="p-4 text-center text-xs text-muted-foreground">
+                      {clusterSearchForFeedback ? "Aucun cluster trouvé." : "Ce feedback est déjà dans tous les clusters actifs."}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsAddToClusterOpen(false)}>Annuler</Button>
+            <Button size="sm" disabled={!selectedClusterIdForFeedback || addFeedbackToClusterMutation.isPending}
+              onClick={() => selectedFeedback && selectedClusterIdForFeedback && addFeedbackToClusterMutation.mutate({ clusterId: selectedClusterIdForFeedback, feedbackId: selectedFeedback.id })}
+              data-testid="button-confirm-add-to-cluster">
+              {addFeedbackToClusterMutation.isPending && <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" />}Ajouter au cluster
             </Button>
           </DialogFooter>
         </DialogContent>
