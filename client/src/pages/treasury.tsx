@@ -2009,7 +2009,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [undoStack, redoStack, selectedCell, editingCell, cellClipboard, localFormulas, localColors]);
+  }, [undoStack, redoStack, selectedCell, editingCell, cellClipboard, localFormulas, localColors, localCells]);
 
   if (isLoading) {
     return (
