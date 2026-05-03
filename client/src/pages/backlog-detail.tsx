@@ -4045,6 +4045,13 @@ function UserStoryDialog({
     setAcceptedSections(prev => new Set([...prev, sectionKey]));
   };
 
+  const handleIgnoreAll = () => {
+    if (!generatedTicket) return;
+    const sectionOrder = ["description", "acceptanceCriteria", "nonRegression", "successMetrics"] as const;
+    const toIgnore = sectionOrder.filter(k => generatedTicket[k] && !acceptedSections.has(k));
+    setAcceptedSections(prev => new Set([...prev, ...toIgnore]));
+  };
+
   const handleAcceptAll = () => {
     const sectionOrder = ["description", "acceptanceCriteria", "nonRegression", "successMetrics"] as const;
     const sectionLabels: Record<string, string> = {
@@ -4120,17 +4127,30 @@ function UserStoryDialog({
                   <Sparkles className="w-3.5 h-3.5" />
                   Contenu généré par IA — acceptez ou ignorez chaque section
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-6 text-xs gap-1 shrink-0"
-                  onClick={handleAcceptAll}
-                  data-testid="button-accept-all-ai-sections"
-                >
-                  <CheckCheck className="w-3 h-3" />
-                  Accepter tout
-                </Button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-xs gap-1"
+                    onClick={handleIgnoreAll}
+                    data-testid="button-ignore-all-ai-sections"
+                  >
+                    <X className="w-3 h-3" />
+                    Ignorer tout
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-xs gap-1"
+                    onClick={handleAcceptAll}
+                    data-testid="button-accept-all-ai-sections"
+                  >
+                    <CheckCheck className="w-3 h-3" />
+                    Accepter tout
+                  </Button>
+                </div>
               </div>
               {([
                 { key: "description", label: "Description fonctionnelle" },
