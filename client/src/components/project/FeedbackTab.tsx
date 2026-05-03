@@ -807,9 +807,15 @@ export function FeedbackTab({ backlogId }: Props) {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2 flex-wrap justify-between">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Filter className="w-3.5 h-3.5 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Filtres</span>
+                {Object.keys(feedbackClusterMap).length > 0 && (
+                  <Badge variant="outline" className="gap-1 text-[10px] text-cyan-600 dark:text-cyan-400 border-cyan-500/30" data-testid="badge-clustered-count">
+                    <Layers className="w-2.5 h-2.5" />
+                    {Object.keys(feedbackClusterMap).length} dans des clusters
+                  </Badge>
+                )}
               </div>
               <Button
                 size="sm" variant={showArchived ? "default" : "outline"}
