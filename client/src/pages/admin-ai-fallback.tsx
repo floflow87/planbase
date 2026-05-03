@@ -146,22 +146,10 @@ export default function AdminAiFallbackPage() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [search, setSearch] = useState("");
 
-  // Client-side role guard (defense-in-depth — server enforces 403 too)
+  // Client-side role guard derived value (used after all hooks)
   const isOwner = userProfile?.role === "owner";
-  if (userProfile !== null && !isOwner) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
-        <ShieldAlert className="w-12 h-12 text-muted-foreground" />
-        <div>
-          <p className="font-semibold text-lg">Accès réservé</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Cette page est réservée aux propriétaires du compte.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
+  // Query is disabled for non-owners — avoids a pointless fetch that will 403
   const { data, isLoading, isError, error, refetch, isFetching } =
     useQuery<FallbackApiResponse>({
       queryKey: ["/api/admin/ai-fallback-events", { limit: 500, offset: 0 }],
@@ -173,6 +161,7 @@ export default function AdminAiFallbackPage() {
         }
         return res.json();
       },
+      enabled: isOwner,
       retry: false,
     });
 
@@ -230,6 +219,22 @@ export default function AdminAiFallbackPage() {
     setter(v);
     setPage(0);
   };
+
+  // ─── Client-side role guard (all hooks already called above) ────────────────
+
+  if (userProfile !== null && !isOwner) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center" data-testid="access-denied-admin">
+        <ShieldAlert className="w-12 h-12 text-muted-foreground" />
+        <div>
+          <p className="font-semibold text-lg">Accès réservé</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Cette page est réservée aux propriétaires du compte.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // ─── Error / forbidden state ─────────────────────────────────────────────────
 
