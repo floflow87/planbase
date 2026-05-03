@@ -16340,48 +16340,76 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
-  // GET /api/backlogs/:backlogId/feedbacks
+  // ── Helper: map DB row → V2 feedback object ──
+  function mapFeedbackRow(r: any) {
+    return {
+      id: r.id,
+      contributorName: r.contributor_name,
+      contributorEmail: r.contributor_email ?? null,
+      type: r.type,
+      title: r.title,
+      description: r.description,
+      importance: r.importance,
+      internalStatus: r.internal_status,
+      publicStatus: r.public_status,
+      source: r.source,
+      impactUser: r.impact_user ?? null,
+      frequency: r.frequency ?? null,
+      urgency: r.urgency ?? null,
+      segment: r.segment ?? null,
+      productArea: r.product_area ?? null,
+      tags: r.tags ?? null,
+      qualificationNotes: r.qualification_notes ?? null,
+      score: r.score ?? null,
+      linkedTicketId: r.linked_ticket_id ?? null,
+      linkedTicketTitle: r.linked_ticket_title ?? null,
+      linkedTicketState: r.linked_ticket_state ?? null,
+      attachmentUrl: r.attachment_url ?? null,
+      createdAt: r.created_at,
+      archivedAt: r.archived_at ?? null,
+    };
+  }
+
+  // GET /api/backlogs/:backlogId/feedbacks — V2: returns all fields + linked ticket info
   app.get("/api/backlogs/:backlogId/feedbacks", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const accountId = req.accountId!;
       const { backlogId } = req.params;
       const rows = (await db.execute(sql`
-        SELECT * FROM project_feedbacks
-        WHERE backlog_id = ${backlogId} AND account_id = ${accountId}
-          AND archived_at IS NULL
-        ORDER BY created_at DESC
+        SELECT pf.*, us.title as linked_ticket_title, us.state as linked_ticket_state
+        FROM project_feedbacks pf
+        LEFT JOIN user_stories us ON us.id = pf.linked_ticket_id
+        WHERE pf.backlog_id = ${backlogId} AND pf.account_id = ${accountId}
+        ORDER BY pf.created_at DESC
       `)) as any[];
-      res.json(rows.map((r) => ({
-        id: r.id, contributorName: r.contributor_name, contributorEmail: r.contributor_email,
-        type: r.type, title: r.title, description: r.description, importance: r.importance,
-        internalStatus: r.internal_status, publicStatus: r.public_status, source: r.source,
-        attachmentUrl: r.attachment_url, createdAt: r.created_at, archivedAt: r.archived_at,
-      })));
+      res.json(rows.map(mapFeedbackRow));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  // POST /api/backlogs/:backlogId/feedbacks — manual creation
+  // POST /api/backlogs/:backlogId/feedbacks — manual creation (V2: supports source + pain_point type)
   app.post("/api/backlogs/:backlogId/feedbacks", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const accountId = req.accountId!;
       const { backlogId } = req.params;
-      const { contributorName, contributorEmail, type, title, description, importance } = req.body;
+      const { contributorName, contributorEmail, type, title, description, importance, source } = req.body;
       if (!contributorName?.trim()) return res.status(400).json({ error: "Le nom est requis" });
       if (!title?.trim()) return res.status(400).json({ error: "Le titre est requis" });
       if (!description?.trim()) return res.status(400).json({ error: "La description est requise" });
-      const validTypes = ["bug","improvement","idea","question","other"];
+      const validTypes = ["bug","improvement","idea","question","pain_point","other"];
       const validImportances = ["low","medium","high","critical"];
+      const validSources = ["manual","client_call","support","sales","other"];
       const safeType = validTypes.includes(type) ? type : "other";
       const safeImportance = validImportances.includes(importance) ? importance : "medium";
+      const safeSource = validSources.includes(source) ? source : "manual";
       const result = (await db.execute(sql`
         INSERT INTO project_feedbacks
-          (account_id, backlog_id, contributor_name, contributor_email, type, title, description, importance, source)
+          (account_id, backlog_id, contributor_name, contributor_email, type, title, description, importance, source, internal_status)
         VALUES
           (${accountId}, ${backlogId}, ${contributorName.trim()}, ${contributorEmail?.trim() || null},
-           ${safeType}, ${title.trim()}, ${description.trim()}, ${safeImportance}, 'manual')
-        RETURNING id, title, type, importance, created_at
+           ${safeType}, ${title.trim()}, ${description.trim()}, ${safeImportance}, ${safeSource}, 'new')
+        RETURNING id, title, type, importance, internal_status, created_at
       `)) as any[];
       res.status(201).json(result[0]);
     } catch (error: any) {
@@ -16389,32 +16417,54 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
-  // PATCH /api/backlogs/:backlogId/feedbacks/:feedbackId
+  // PATCH /api/backlogs/:backlogId/feedbacks/:feedbackId — V2: qualification + status
   app.patch("/api/backlogs/:backlogId/feedbacks/:feedbackId", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const accountId = req.accountId!;
       const { backlogId, feedbackId } = req.params;
-      const { internalStatus, publicStatus } = req.body;
-      const validInternal = ["new","to_review","accepted","converted_to_ticket","rejected","archived"];
+      const { internalStatus, publicStatus, impactUser, frequency, urgency, segment, productArea, tags, qualificationNotes, score, linkedTicketId } = req.body;
+      const validInternal = ["new","to_qualify","qualified","linked_to_ticket","rejected","archived","to_review","accepted","converted_to_ticket"];
       const validPublic = ["received","reviewing","considered","not_selected"];
       if (internalStatus && !validInternal.includes(internalStatus)) return res.status(400).json({ error: "Invalid internalStatus" });
       if (publicStatus && !validPublic.includes(publicStatus)) return res.status(400).json({ error: "Invalid publicStatus" });
-      await db.execute(sql`
-        UPDATE project_feedbacks SET
-          internal_status = COALESCE(${internalStatus ?? null}, internal_status),
-          public_status = COALESCE(${publicStatus ?? null}, public_status),
-          updated_at = now()
-        WHERE id = ${feedbackId} AND backlog_id = ${backlogId} AND account_id = ${accountId}
-      `);
-      const rows = (await db.execute(sql`SELECT * FROM project_feedbacks WHERE id = ${feedbackId} LIMIT 1`)) as any[];
+
+      const hasQualif = 'impactUser' in req.body;
+      if (hasQualif) {
+        const tagsArr: string[] = Array.isArray(tags) ? tags.filter((t: any) => typeof t === 'string') : [];
+        await db.execute(sql`
+          UPDATE project_feedbacks SET
+            internal_status = COALESCE(${internalStatus ?? null}, internal_status),
+            impact_user = ${impactUser ?? null},
+            frequency = ${frequency ?? null},
+            urgency = ${urgency ?? null},
+            segment = ${segment ?? null},
+            product_area = ${productArea ?? null},
+            tags = ${tagsArr},
+            qualification_notes = ${qualificationNotes ?? null},
+            score = ${score ?? null},
+            archived_at = CASE WHEN ${internalStatus ?? ''} = 'archived' AND archived_at IS NULL THEN now() ELSE archived_at END,
+            updated_at = now()
+          WHERE id = ${feedbackId} AND backlog_id = ${backlogId} AND account_id = ${accountId}
+        `);
+      } else {
+        await db.execute(sql`
+          UPDATE project_feedbacks SET
+            internal_status = COALESCE(${internalStatus ?? null}, internal_status),
+            public_status = COALESCE(${publicStatus ?? null}, public_status),
+            archived_at = CASE WHEN ${internalStatus ?? ''} = 'archived' AND archived_at IS NULL THEN now() ELSE archived_at END,
+            updated_at = now()
+          WHERE id = ${feedbackId} AND backlog_id = ${backlogId} AND account_id = ${accountId}
+        `);
+      }
+
+      const rows = (await db.execute(sql`
+        SELECT pf.*, us.title as linked_ticket_title, us.state as linked_ticket_state
+        FROM project_feedbacks pf
+        LEFT JOIN user_stories us ON us.id = pf.linked_ticket_id
+        WHERE pf.id = ${feedbackId} LIMIT 1
+      `)) as any[];
       if (!rows.length) return res.status(404).json({ error: "Not found" });
-      const r = rows[0];
-      res.json({
-        id: r.id, contributorName: r.contributor_name, contributorEmail: r.contributor_email,
-        type: r.type, title: r.title, description: r.description, importance: r.importance,
-        internalStatus: r.internal_status, publicStatus: r.public_status, source: r.source,
-        createdAt: r.created_at,
-      });
+      res.json(mapFeedbackRow(rows[0]));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -16430,6 +16480,86 @@ app.get("/config/feature-flags", async (_req, res) => {
         WHERE id = ${feedbackId} AND backlog_id = ${backlogId} AND account_id = ${accountId}
       `);
       res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/backlogs/:backlogId/feedbacks/:feedbackId/create-ticket — V2
+  app.post("/api/backlogs/:backlogId/feedbacks/:feedbackId/create-ticket", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const { backlogId, feedbackId } = req.params;
+      const { title, description, priority } = req.body;
+      if (!title?.trim()) return res.status(400).json({ error: "Le titre est requis" });
+      const fbRows = (await db.execute(sql`
+        SELECT id FROM project_feedbacks WHERE id = ${feedbackId} AND backlog_id = ${backlogId} AND account_id = ${accountId} LIMIT 1
+      `)) as any[];
+      if (!fbRows.length) return res.status(404).json({ error: "Feedback not found" });
+      const validPriorities = ["low","medium","high","critical"];
+      const safePriority = validPriorities.includes(priority) ? priority : "medium";
+      const storyRows = (await db.execute(sql`
+        INSERT INTO user_stories (account_id, backlog_id, title, description, priority, state, "order", created_by, created_at, updated_at)
+        VALUES (${accountId}, ${backlogId}, ${title.trim()}, ${description ?? null}, ${safePriority}, 'a_faire', 0, ${userId}, now(), now())
+        RETURNING id, title, state
+      `)) as any[];
+      if (!storyRows.length) return res.status(500).json({ error: "Failed to create ticket" });
+      const story = storyRows[0];
+      await db.execute(sql`
+        UPDATE project_feedbacks SET
+          linked_ticket_id = ${story.id},
+          internal_status = 'linked_to_ticket',
+          updated_at = now()
+        WHERE id = ${feedbackId} AND account_id = ${accountId}
+      `);
+      res.status(201).json({ ticketId: story.id, ticketTitle: story.title });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/backlogs/:backlogId/feedbacks/:feedbackId/link-ticket — V2
+  app.post("/api/backlogs/:backlogId/feedbacks/:feedbackId/link-ticket", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId, feedbackId } = req.params;
+      const { ticketId } = req.body;
+      if (!ticketId) return res.status(400).json({ error: "ticketId requis" });
+      const ticketRows = (await db.execute(sql`
+        SELECT id, title FROM user_stories
+        WHERE id = ${ticketId} AND backlog_id = ${backlogId} AND account_id = ${accountId} LIMIT 1
+      `)) as any[];
+      if (!ticketRows.length) return res.status(404).json({ error: "Ticket not found in this backlog" });
+      await db.execute(sql`
+        UPDATE project_feedbacks SET
+          linked_ticket_id = ${ticketId},
+          internal_status = 'linked_to_ticket',
+          updated_at = now()
+        WHERE id = ${feedbackId} AND backlog_id = ${backlogId} AND account_id = ${accountId}
+      `);
+      res.json({ ticketId: ticketRows[0].id, ticketTitle: ticketRows[0].title });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/user-stories/:ticketId/feedbacks — feedbacks linked to a ticket (for ticket detail panel)
+  app.get("/api/user-stories/:ticketId/feedbacks", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { ticketId } = req.params;
+      const rows = (await db.execute(sql`
+        SELECT id, title, description, type, importance, internal_status, contributor_name, created_at
+        FROM project_feedbacks
+        WHERE linked_ticket_id = ${ticketId} AND account_id = ${accountId}
+        ORDER BY created_at DESC
+      `)) as any[];
+      res.json(rows.map(r => ({
+        id: r.id, title: r.title, description: r.description, type: r.type,
+        importance: r.importance, internalStatus: r.internal_status,
+        contributorName: r.contributor_name, createdAt: r.created_at,
+      })));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

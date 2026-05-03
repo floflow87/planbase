@@ -202,7 +202,7 @@ export async function runStartupMigrations() {
   // Creates a lightweight tracking table on first boot, records a version
   // marker after all migrations complete. Subsequent boots skip everything
   // in ~1 query instead of running 150+ sequential SQL statements.
-  const MIGRATION_VERSION = "planbase_v2_feedback_backlog_r2";
+  const MIGRATION_VERSION = "planbase_v2_feedback_v2_r1";
   try {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS schema_migrations_tracking (
@@ -3207,6 +3207,22 @@ export async function runStartupMigrations() {
       console.log("✅ project_feedbacks.backlog_id added");
     } catch (e: any) {
       console.warn("⚠️  project_feedbacks backlog_id migration (non-blocking):", e.message);
+    }
+
+    // ── project_feedbacks V2 qualification columns ──
+    try {
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS impact_user text`);
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS frequency text`);
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS urgency text`);
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS segment text`);
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS product_area text`);
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS tags text[]`);
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS qualification_notes text`);
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS score integer`);
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS linked_ticket_id uuid REFERENCES user_stories(id) ON DELETE SET NULL`);
+      console.log("✅ project_feedbacks V2 qualification columns added");
+    } catch (e: any) {
+      console.warn("⚠️  project_feedbacks V2 qualification migration (non-blocking):", e.message);
     }
     // ─────────────────────────────────────────────────────────────
 
