@@ -13,7 +13,7 @@ import {
   CheckSquare, BarChart3, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2,
   ArrowUp, ArrowDown, ArrowUpDown, Lock, FlaskConical, MessageSquare, X,
   Wrench, Bug, Sparkles, ExternalLink, Filter, HelpCircle, XCircle, AlertTriangle,
-  FileText, Eye, Ticket, Bot, Loader2, ChevronUp, CheckCheck
+  FileText, Eye, Ticket, Bot, Loader2, ChevronUp, CheckCheck, ThumbsUp
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -92,6 +92,7 @@ import { Switch } from "@/components/ui/switch";
 import { Settings2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { AutomationButton } from "@/components/automations/AutomationDrawer";
+import { FeedbackTab } from "@/components/project/FeedbackTab";
 
 type BacklogData = Backlog & {
   epics: Epic[];
@@ -2110,6 +2111,10 @@ export default function BacklogDetail() {
             <TabsTrigger value="statistiques" className="text-[12px]" data-testid="tab-statistiques">
               Statistiques
             </TabsTrigger>
+            <TabsTrigger value="feedback" className="text-[12px] gap-1" data-testid="tab-feedback">
+              <ThumbsUp className="w-3.5 h-3.5" />
+              Feedback
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -3124,6 +3129,11 @@ export default function BacklogDetail() {
             onNavigateToBacklog={() => setActiveTab("backlog")}
             onCloseSprint={handleSprintCloseAttempt}
           />
+        </TabsContent>
+
+        {/* Feedback tab */}
+        <TabsContent value="feedback" className="flex-1 min-h-0 overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
+          {id && <FeedbackTab backlogId={id} />}
         </TabsContent>
       </Tabs>
 

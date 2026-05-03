@@ -36,7 +36,6 @@ import { useBilling } from "@/hooks/useBilling";
 import { Loader } from "@/components/Loader";
 import { ProjectScopeSection } from "@/components/ProjectScopeSection";
 import { RoadmapTab } from "@/components/roadmap/roadmap-tab";
-import { FeedbackTab } from "@/components/project/FeedbackTab";
 import { ResourcesTab } from "@/components/resources-tab";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { PostCreationSuggestions } from "@/components/PostCreationSuggestions";
@@ -2900,7 +2899,7 @@ export default function ProjectDetail() {
   useEffect(() => {
     const params = new URLSearchParams(searchString);
     const tabParam = params.get('tab');
-    const validTabs = ['activities', 'billing', 'time', 'tasks', 'notes', 'documents', 'backlogs', 'roadmap', 'feedback'];
+    const validTabs = ['activities', 'billing', 'time', 'tasks', 'notes', 'documents', 'backlogs', 'roadmap'];
     if (tabParam && validTabs.includes(tabParam)) {
       setActiveTab(tabParam);
     }
@@ -4631,10 +4630,6 @@ export default function ProjectDetail() {
               <FolderKanban className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Backlogs</span>
             </TabsTrigger>
-            <TabsTrigger value="feedback" className="gap-1.5 text-xs h-[42px] px-3" data-testid="tab-feedback">
-              <MessageSquare className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Feedback</span>
-            </TabsTrigger>
           </TabsList>
           </div>
 
@@ -5370,10 +5365,6 @@ export default function ProjectDetail() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="feedback" className="mt-0">
-            {id && <FeedbackTab projectId={id} />}
           </TabsContent>
 
           <TabsContent value="roadmap" className="mt-0">

@@ -16277,6 +16277,164 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  // ── Backlog Feedback routes ────────────────────────────────────────────────
+
+  // GET /api/backlogs/:backlogId/feedback-settings
+  app.get("/api/backlogs/:backlogId/feedback-settings", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId } = req.params;
+      const rows = (await db.execute(sql`
+        SELECT * FROM project_feedback_settings
+        WHERE backlog_id = ${backlogId} AND account_id = ${accountId}
+        LIMIT 1
+      `)) as any[];
+      if (rows.length > 0) return res.json(rows[0]);
+      const { randomBytes } = await import("crypto");
+      const shareToken = randomBytes(24).toString("hex");
+      const created = (await db.execute(sql`
+        INSERT INTO project_feedback_settings (account_id, backlog_id, share_token)
+        VALUES (${accountId}, ${backlogId}, ${shareToken})
+        RETURNING *
+      `)) as any[];
+      res.json(created[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/backlogs/:backlogId/feedback-settings
+  app.post("/api/backlogs/:backlogId/feedback-settings", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId } = req.params;
+      const { isEnabled, showExistingFeedbacks, allowAttachments } = req.body;
+      const rows = (await db.execute(sql`
+        SELECT id FROM project_feedback_settings
+        WHERE backlog_id = ${backlogId} AND account_id = ${accountId}
+        LIMIT 1
+      `)) as any[];
+      if (rows.length === 0) {
+        const { randomBytes } = await import("crypto");
+        const shareToken = randomBytes(24).toString("hex");
+        await db.execute(sql`
+          INSERT INTO project_feedback_settings (account_id, backlog_id, share_token, is_enabled, show_existing_feedbacks, allow_attachments)
+          VALUES (${accountId}, ${backlogId}, ${shareToken}, ${isEnabled ?? false}, ${showExistingFeedbacks ?? false}, ${allowAttachments ?? false})
+        `);
+      } else {
+        await db.execute(sql`
+          UPDATE project_feedback_settings SET
+            is_enabled = COALESCE(${isEnabled ?? null}, is_enabled),
+            show_existing_feedbacks = COALESCE(${showExistingFeedbacks ?? null}, show_existing_feedbacks),
+            allow_attachments = COALESCE(${allowAttachments ?? null}, allow_attachments),
+            updated_at = now()
+          WHERE backlog_id = ${backlogId} AND account_id = ${accountId}
+        `);
+      }
+      const result = (await db.execute(sql`
+        SELECT * FROM project_feedback_settings WHERE backlog_id = ${backlogId} AND account_id = ${accountId} LIMIT 1
+      `)) as any[];
+      res.json(result[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/backlogs/:backlogId/feedbacks
+  app.get("/api/backlogs/:backlogId/feedbacks", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId } = req.params;
+      const rows = (await db.execute(sql`
+        SELECT * FROM project_feedbacks
+        WHERE backlog_id = ${backlogId} AND account_id = ${accountId}
+          AND archived_at IS NULL
+        ORDER BY created_at DESC
+      `)) as any[];
+      res.json(rows.map((r) => ({
+        id: r.id, contributorName: r.contributor_name, contributorEmail: r.contributor_email,
+        type: r.type, title: r.title, description: r.description, importance: r.importance,
+        internalStatus: r.internal_status, publicStatus: r.public_status, source: r.source,
+        attachmentUrl: r.attachment_url, createdAt: r.created_at, archivedAt: r.archived_at,
+      })));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/backlogs/:backlogId/feedbacks — manual creation
+  app.post("/api/backlogs/:backlogId/feedbacks", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId } = req.params;
+      const { contributorName, contributorEmail, type, title, description, importance } = req.body;
+      if (!contributorName?.trim()) return res.status(400).json({ error: "Le nom est requis" });
+      if (!title?.trim()) return res.status(400).json({ error: "Le titre est requis" });
+      if (!description?.trim()) return res.status(400).json({ error: "La description est requise" });
+      const validTypes = ["bug","improvement","idea","question","other"];
+      const validImportances = ["low","medium","high","critical"];
+      const safeType = validTypes.includes(type) ? type : "other";
+      const safeImportance = validImportances.includes(importance) ? importance : "medium";
+      const result = (await db.execute(sql`
+        INSERT INTO project_feedbacks
+          (account_id, backlog_id, contributor_name, contributor_email, type, title, description, importance, source)
+        VALUES
+          (${accountId}, ${backlogId}, ${contributorName.trim()}, ${contributorEmail?.trim() || null},
+           ${safeType}, ${title.trim()}, ${description.trim()}, ${safeImportance}, 'manual')
+        RETURNING id, title, type, importance, created_at
+      `)) as any[];
+      res.status(201).json(result[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PATCH /api/backlogs/:backlogId/feedbacks/:feedbackId
+  app.patch("/api/backlogs/:backlogId/feedbacks/:feedbackId", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId, feedbackId } = req.params;
+      const { internalStatus, publicStatus } = req.body;
+      const validInternal = ["new","to_review","accepted","converted_to_ticket","rejected","archived"];
+      const validPublic = ["received","reviewing","considered","not_selected"];
+      if (internalStatus && !validInternal.includes(internalStatus)) return res.status(400).json({ error: "Invalid internalStatus" });
+      if (publicStatus && !validPublic.includes(publicStatus)) return res.status(400).json({ error: "Invalid publicStatus" });
+      await db.execute(sql`
+        UPDATE project_feedbacks SET
+          internal_status = COALESCE(${internalStatus ?? null}, internal_status),
+          public_status = COALESCE(${publicStatus ?? null}, public_status),
+          updated_at = now()
+        WHERE id = ${feedbackId} AND backlog_id = ${backlogId} AND account_id = ${accountId}
+      `);
+      const rows = (await db.execute(sql`SELECT * FROM project_feedbacks WHERE id = ${feedbackId} LIMIT 1`)) as any[];
+      if (!rows.length) return res.status(404).json({ error: "Not found" });
+      const r = rows[0];
+      res.json({
+        id: r.id, contributorName: r.contributor_name, contributorEmail: r.contributor_email,
+        type: r.type, title: r.title, description: r.description, importance: r.importance,
+        internalStatus: r.internal_status, publicStatus: r.public_status, source: r.source,
+        createdAt: r.created_at,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // DELETE /api/backlogs/:backlogId/feedbacks/:feedbackId
+  app.delete("/api/backlogs/:backlogId/feedbacks/:feedbackId", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { backlogId, feedbackId } = req.params;
+      await db.execute(sql`
+        DELETE FROM project_feedbacks
+        WHERE id = ${feedbackId} AND backlog_id = ${backlogId} AND account_id = ${accountId}
+      `);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ── Public feedback routes (no auth, token-gated) ──────────────────────────
 
   // GET /api/public/feedback/:shareToken
@@ -16284,21 +16442,31 @@ app.get("/config/feature-flags", async (_req, res) => {
     try {
       const { shareToken } = req.params;
       const settings = (await db.execute(sql`
-        SELECT pfs.*, p.name as project_name, p.description as project_description
+        SELECT pfs.*,
+          p.name as project_name, p.description as project_description,
+          b.name as backlog_name, b.description as backlog_description
         FROM project_feedback_settings pfs
-        JOIN projects p ON p.id = pfs.project_id
+        LEFT JOIN projects p ON p.id = pfs.project_id
+        LEFT JOIN backlogs b ON b.id = pfs.backlog_id
         WHERE pfs.share_token = ${shareToken}
         LIMIT 1
       `)) as any[];
       if (!settings.length) return res.status(404).json({ error: "Page not found" });
       const s = settings[0];
       if (!s.is_enabled) return res.status(403).json({ error: "Page disabled", isEnabled: false });
+      const entityName = s.backlog_id
+        ? (s.backlog_name || "Backlog")
+        : (s.project_name || "Projet");
+      const entityDescription = s.backlog_id ? s.backlog_description : s.project_description;
       let feedbacks: any[] = [];
       if (s.show_existing_feedbacks) {
+        const whereClause = s.backlog_id
+          ? sql`WHERE backlog_id = ${s.backlog_id} AND archived_at IS NULL`
+          : sql`WHERE project_id = ${s.project_id} AND archived_at IS NULL`;
         const rows = (await db.execute(sql`
           SELECT id, type, title, description, importance, public_status, created_at
           FROM project_feedbacks
-          WHERE project_id = ${s.project_id} AND archived_at IS NULL
+          ${whereClause}
           ORDER BY created_at DESC
           LIMIT 50
         `)) as any[];
@@ -16308,7 +16476,7 @@ app.get("/config/feature-flags", async (_req, res) => {
         }));
       }
       res.json({
-        project: { name: s.project_name, description: s.project_description },
+        project: { name: entityName, description: entityDescription },
         isEnabled: true,
         showExistingFeedbacks: s.show_existing_feedbacks,
         feedbacks,
@@ -16323,7 +16491,7 @@ app.get("/config/feature-flags", async (_req, res) => {
     try {
       const { shareToken } = req.params;
       const settings = (await db.execute(sql`
-        SELECT pfs.project_id, pfs.account_id, pfs.is_enabled
+        SELECT pfs.project_id, pfs.backlog_id, pfs.account_id, pfs.is_enabled
         FROM project_feedback_settings pfs
         WHERE pfs.share_token = ${shareToken}
         LIMIT 1
@@ -16343,9 +16511,9 @@ app.get("/config/feature-flags", async (_req, res) => {
 
       const result = (await db.execute(sql`
         INSERT INTO project_feedbacks
-          (account_id, project_id, share_token, contributor_name, contributor_email, type, title, description, importance, source)
+          (account_id, project_id, backlog_id, share_token, contributor_name, contributor_email, type, title, description, importance, source)
         VALUES
-          (${s.account_id}, ${s.project_id}, ${shareToken},
+          (${s.account_id}, ${s.project_id ?? null}, ${s.backlog_id ?? null}, ${shareToken},
            ${contributorName.trim()}, ${contributorEmail?.trim() || null},
            ${safeType}, ${title.trim()}, ${description.trim()}, ${safeImportance}, 'external_feedback_page')
         RETURNING id, title, type, importance, created_at

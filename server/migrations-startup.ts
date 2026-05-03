@@ -202,7 +202,7 @@ export async function runStartupMigrations() {
   // Creates a lightweight tracking table on first boot, records a version
   // marker after all migrations complete. Subsequent boots skip everything
   // in ~1 query instead of running 150+ sequential SQL statements.
-  const MIGRATION_VERSION = "planbase_v2_feedback_module_r1";
+  const MIGRATION_VERSION = "planbase_v2_feedback_backlog_r2";
   try {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS schema_migrations_tracking (
@@ -3146,7 +3146,7 @@ export async function runStartupMigrations() {
         CREATE TABLE IF NOT EXISTS project_feedback_settings (
           id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
           account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-          project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          project_id uuid REFERENCES projects(id) ON DELETE CASCADE,
           share_token text NOT NULL,
           is_enabled boolean NOT NULL DEFAULT false,
           show_existing_feedbacks boolean NOT NULL DEFAULT false,
@@ -3155,12 +3155,20 @@ export async function runStartupMigrations() {
           updated_at timestamptz NOT NULL DEFAULT now()
         )
       `);
-      await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS pfs_project_idx ON project_feedback_settings(project_id)`);
       await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS pfs_token_idx ON project_feedback_settings(share_token)`);
       await db.execute(sql`CREATE INDEX IF NOT EXISTS pfs_account_idx ON project_feedback_settings(account_id)`);
       console.log("✅ project_feedback_settings table created");
     } catch (e: any) {
       console.warn("⚠️  project_feedback_settings migration (non-blocking):", e.message);
+    }
+
+    // ── project_feedback_settings: add backlog_id column ──
+    try {
+      await db.execute(sql`ALTER TABLE project_feedback_settings ADD COLUMN IF NOT EXISTS backlog_id uuid REFERENCES backlogs(id) ON DELETE CASCADE`);
+      await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS pfs_backlog_idx ON project_feedback_settings(backlog_id) WHERE backlog_id IS NOT NULL`);
+      console.log("✅ project_feedback_settings.backlog_id added");
+    } catch (e: any) {
+      console.warn("⚠️  project_feedback_settings backlog_id migration (non-blocking):", e.message);
     }
 
     // ── project_feedbacks table ──
@@ -3169,7 +3177,7 @@ export async function runStartupMigrations() {
         CREATE TABLE IF NOT EXISTS project_feedbacks (
           id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
           account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-          project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          project_id uuid REFERENCES projects(id) ON DELETE CASCADE,
           share_token text,
           contributor_name text NOT NULL,
           contributor_email text,
@@ -3187,10 +3195,18 @@ export async function runStartupMigrations() {
         )
       `);
       await db.execute(sql`CREATE INDEX IF NOT EXISTS pfb_account_idx ON project_feedbacks(account_id)`);
-      await db.execute(sql`CREATE INDEX IF NOT EXISTS pfb_project_idx ON project_feedbacks(project_id)`);
       console.log("✅ project_feedbacks table created");
     } catch (e: any) {
       console.warn("⚠️  project_feedbacks migration (non-blocking):", e.message);
+    }
+
+    // ── project_feedbacks: add backlog_id column ──
+    try {
+      await db.execute(sql`ALTER TABLE project_feedbacks ADD COLUMN IF NOT EXISTS backlog_id uuid REFERENCES backlogs(id) ON DELETE CASCADE`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS pfb_backlog_idx ON project_feedbacks(backlog_id)`);
+      console.log("✅ project_feedbacks.backlog_id added");
+    } catch (e: any) {
+      console.warn("⚠️  project_feedbacks backlog_id migration (non-blocking):", e.message);
     }
     // ─────────────────────────────────────────────────────────────
 

@@ -1,0 +1,626 @@
+Tu es développeur senior fullstack sur PlanBase.
+
+Contexte :
+PlanBase est une web app SaaS pour freelances, CPO, product managers et indépendants.
+L’application contient déjà des modules comme Dashboard, Projets, Backlog, Roadmap, CRM, Trésorerie.
+Un premier module Feedback a été prévu, mais il doit maintenant être rattaché à la partie Backlog, et non à la partie Projet.
+
+Objectif :
+Créer une V2 du module Feedback dans la partie Backlog.
+Cette V2 doit permettre de centraliser les retours utilisateurs, clients ou parties prenantes, puis de les qualifier, les regrouper et les transformer en tickets backlog.
+
+Le module doit devenir une vraie “Feedback Inbox” orientée discovery produit.
+
+Emplacement :
+Ajouter une entrée ou un onglet “Feedbacks” dans la partie Backlog.
+
+Structure recommandée dans Backlog :
+- Tickets
+- Sprints
+- Feedbacks
+- Insights, si déjà pertinent ou prévu plus tard
+
+Ne pas rattacher le module uniquement à un projet.
+Le feedback peut être lié :
+- à un backlog ;
+- à un ticket existant ;
+- à un futur ticket ;
+- à un projet si la relation existe, mais ce n’est pas le rattachement principal.
+
+Nom du module :
+Feedbacks
+
+Sous-titre :
+“Centralisez les retours terrain et transformez-les en tickets priorisables.”
+
+---
+
+## 1. Vue principale : Feedback Inbox
+
+Créer une page “Feedbacks” dans Backlog.
+
+Cette page doit afficher tous les feedbacks reçus ou créés manuellement.
+
+Objectif de la vue :
+Permettre à l’utilisateur de voir rapidement :
+- les nouveaux feedbacks à traiter ;
+- les feedbacks à qualifier ;
+- les feedbacks déjà liés à des tickets ;
+- les feedbacks rejetés ou archivés ;
+- les demandes récurrentes.
+
+Filtres simples :
+- statut ;
+- type ;
+- importance ;
+- source ;
+- backlog lié ;
+- ticket lié ;
+- période ;
+- recherche texte.
+
+Vue recommandée :
+Un tableau ou une liste de cards.
+
+Colonnes principales :
+- titre ;
+- type ;
+- importance ;
+- source ;
+- contributeur ;
+- backlog lié ;
+- ticket lié ;
+- statut ;
+- date ;
+- actions.
+
+---
+
+## 2. Statuts des feedbacks
+
+Ajouter les statuts suivants :
+
+- new = Nouveau
+- to_qualify = À qualifier
+- qualified = Qualifié
+- linked_to_ticket = Lié à un ticket
+- rejected = Rejeté
+- archived = Archivé
+
+Règles :
+- Tout nouveau feedback externe arrive en statut “new”.
+- Un feedback peut être passé en “to_qualify” si l’utilisateur commence à le traiter.
+- Un feedback devient “qualified” après analyse.
+- Un feedback devient “linked_to_ticket” lorsqu’il est lié à un ticket backlog.
+- Un feedback rejeté reste consultable.
+- Un feedback archivé ne doit plus apparaître par défaut dans la vue principale.
+
+---
+
+## 3. Types de feedbacks
+
+Types possibles :
+
+- bug
+- improvement
+- idea
+- question
+- pain_point
+- other
+
+Libellés FR :
+- Bug
+- Amélioration
+- Idée
+- Question
+- Point de douleur
+- Autre
+
+---
+
+## 4. Qualification du feedback
+
+Dans le détail d’un feedback, permettre de qualifier le retour.
+
+Champs de qualification :
+
+- importance : low | medium | high | critical
+- impact_user : low | medium | high
+- frequency : isolated | recurring
+- urgency : low | medium | high
+- segment : freelance | agency | client | internal | other
+- tags
+- product_area
+- backlog_id nullable
+- linked_ticket_id nullable
+- qualification_notes
+
+Objectif :
+Transformer un retour brut en information exploitable pour prioriser le backlog.
+
+---
+
+## 5. Drawer détail feedback
+
+Au clic sur un feedback, ouvrir un drawer latéral.
+
+Contenu du drawer :
+
+Section 1 — Feedback original :
+- titre ;
+- description ;
+- type ;
+- importance initiale ;
+- contributeur ;
+- email si disponible ;
+- source ;
+- date de création.
+
+Section 2 — Qualification :
+- impact utilisateur ;
+- fréquence ;
+- urgence ;
+- segment ;
+- zone produit ;
+- tags ;
+- notes internes.
+
+Section 3 — Liaison backlog :
+- backlog lié ;
+- ticket lié ;
+- bouton “Créer un ticket depuis ce feedback” ;
+- bouton “Lier à un ticket existant”.
+
+Section 4 — Statut :
+- statut actuel ;
+- changement de statut ;
+- bouton archiver ;
+- bouton rejeter.
+
+---
+
+## 6. Créer un ticket depuis un feedback
+
+Ajouter une action principale :
+
+“Créer un ticket depuis ce feedback”
+
+Au clic :
+Ouvrir un drawer ou formulaire de création de ticket prérempli.
+
+Champs préremplis :
+
+Titre :
+reprendre le titre du feedback.
+
+Type :
+- bug si feedback type bug ;
+- feature ou improvement si feedback type improvement/idea ;
+- task ou discovery si question/pain_point selon les types existants dans PlanBase.
+
+Description préremplie :
+
+Format recommandé :
+
+En tant que [segment si connu],
+je souhaite [besoin reformulé],
+afin de [bénéfice attendu].
+
+Contexte :
+[description originale du feedback]
+
+Source :
+Feedback reçu de [contributeur] le [date]
+
+Qualification :
+- Impact utilisateur :
+- Fréquence :
+- Urgence :
+- Importance :
+
+Critères d’acceptation :
+- À compléter
+
+Règle :
+Après création du ticket :
+- lier automatiquement le feedback au ticket créé ;
+- passer le feedback en statut linked_to_ticket ;
+- afficher le lien vers le ticket.
+
+---
+
+## 7. Lier un feedback à un ticket existant
+
+Ajouter une action :
+
+“Lier à un ticket existant”
+
+L’utilisateur doit pouvoir rechercher un ticket existant dans le backlog.
+
+Recherche par :
+- titre ;
+- identifiant ticket ;
+- backlog ;
+- statut.
+
+Après sélection :
+- créer la relation feedback ↔ ticket ;
+- passer le feedback en statut linked_to_ticket ;
+- afficher le ticket lié dans le drawer.
+
+Un ticket peut avoir plusieurs feedbacks liés.
+Un feedback peut être lié à un seul ticket en V2 simple.
+Prévoir une structure qui permettra éventuellement plusieurs relations plus tard.
+
+---
+
+## 8. Feedbacks liés dans les tickets backlog
+
+Dans le détail d’un ticket backlog, ajouter un bloc :
+
+“Feedbacks liés”
+
+Ce bloc doit afficher :
+- nombre de feedbacks liés ;
+- liste des feedbacks ;
+- importance ;
+- contributeur ;
+- date ;
+- extrait du verbatim.
+
+Exemple :
+“8 feedbacks soutiennent ce ticket.”
+
+Objectif :
+Montrer que certains tickets sont appuyés par des signaux terrain.
+
+---
+
+## 9. Score simple de feedback
+
+Ajouter un score simple pour aider à prioriser.
+
+Score indicatif :
+feedback_score = impact_user + frequency + urgency + importance
+
+Mapping simple :
+- low = 1
+- medium = 2
+- high = 3
+- critical = 4 pour importance uniquement
+- isolated = 1
+- recurring = 3
+
+Le score doit rester indicatif.
+Ne pas créer un moteur RICE complet en V2.
+
+Afficher :
+- score faible ;
+- score moyen ;
+- score fort.
+
+Libellés :
+- Signal faible
+- Signal moyen
+- Signal fort
+
+---
+
+## 10. Détection manuelle des doublons / regroupement
+
+Ajouter une première gestion simple des doublons.
+
+Dans le drawer d’un feedback :
+Afficher une section :
+“Feedbacks similaires”
+
+Pour la V2, la détection peut être simple :
+- recherche par mots-clés proches dans le titre ;
+- mêmes tags ;
+- même product_area ;
+- même type.
+
+Ne pas faire d’IA obligatoire.
+
+Permettre à l’utilisateur de :
+- consulter les feedbacks similaires ;
+- lier plusieurs feedbacks au même ticket ;
+- ajouter un tag commun.
+
+Ne pas fusionner automatiquement les feedbacks en V2.
+
+---
+
+## 11. Vue Insights Feedbacks
+
+Créer une vue ou un bloc “Insights” dans Backlog > Feedbacks.
+
+Objectif :
+Donner une synthèse utile des retours terrain.
+
+Cards KPI :
+- Feedbacks à qualifier
+- Feedbacks liés à des tickets
+- Demandes récurrentes
+- Bugs critiques
+- Tickets les plus soutenus par des feedbacks
+
+Sections :
+1. Top feedbacks par score
+2. Tickets avec le plus de feedbacks liés
+3. Product areas les plus remontées
+4. Feedbacks critiques non liés à un ticket
+5. Feedbacks anciens encore non traités
+
+Limiter la V2 à une vue simple.
+Ne pas créer de dashboard complexe.
+
+---
+
+## 12. Page externe de feedback
+
+Si une page externe de feedback existe déjà ou a été prévue en V1, elle doit alimenter ce module Backlog > Feedbacks.
+
+Important :
+Les feedbacks externes ne doivent pas seulement être liés à un projet.
+Ils doivent pouvoir être rattachés :
+- à un backlog ;
+- à une zone produit ;
+- à un projet optionnel ;
+- puis transformés en tickets.
+
+Adapter la page externe si nécessaire avec des champs simples :
+
+- nom ;
+- email optionnel ;
+- type de feedback ;
+- titre ;
+- description ;
+- importance ;
+- zone produit optionnelle ;
+- backlog concerné si le lien est spécifique à un backlog.
+
+Ne pas exposer le backlog interne.
+Ne pas exposer les tickets internes.
+Ne pas demander de compte.
+
+---
+
+## 13. Modèle de données recommandé
+
+Créer ou adapter les tables suivantes.
+
+Table backlog_feedbacks :
+- id
+- organization_id
+- backlog_id nullable
+- project_id nullable
+- linked_ticket_id nullable
+- contributor_name nullable
+- contributor_email nullable
+- source
+- type
+- title
+- description
+- initial_importance
+- status
+- impact_user nullable
+- frequency nullable
+- urgency nullable
+- segment nullable
+- product_area nullable
+- tags text[] nullable
+- qualification_notes nullable
+- score nullable
+- created_at
+- updated_at
+- archived_at nullable
+
+Valeurs source :
+- external_feedback_page
+- internal
+- client_call
+- support
+- sales
+- other
+
+Table backlog_feedback_ticket_links :
+- id
+- organization_id
+- feedback_id
+- ticket_id
+- created_at
+- created_by nullable
+
+Même si la V2 limite à un ticket par feedback, créer une table de relation est préférable pour permettre plusieurs feedbacks liés à un même ticket.
+
+Si une table feedback existe déjà :
+- ne pas dupliquer inutilement ;
+- proposer une migration ou adaptation ;
+- préserver les données existantes.
+
+---
+
+## 14. API backend
+
+Créer ou adapter les endpoints internes authentifiés.
+
+GET /api/backlog/feedbacks
+Retourne les feedbacks avec filtres.
+
+Query params possibles :
+- status
+- type
+- importance
+- backlog_id
+- linked_ticket_id
+- search
+- period_start
+- period_end
+
+POST /api/backlog/feedbacks
+Crée un feedback interne.
+
+GET /api/backlog/feedbacks/:feedbackId
+Retourne le détail d’un feedback.
+
+PATCH /api/backlog/feedbacks/:feedbackId
+Met à jour la qualification, le statut ou les notes.
+
+POST /api/backlog/feedbacks/:feedbackId/create-ticket
+Crée un ticket backlog depuis le feedback.
+
+POST /api/backlog/feedbacks/:feedbackId/link-ticket
+Lie le feedback à un ticket existant.
+
+GET /api/backlog/tickets/:ticketId/feedbacks
+Retourne les feedbacks liés à un ticket.
+
+GET /api/backlog/feedbacks/insights
+Retourne les insights feedbacks.
+
+Sécurité :
+- tous les endpoints internes doivent être authentifiés ;
+- toutes les requêtes doivent filtrer par organization_id ;
+- ne jamais exposer les feedbacks d’une autre organisation.
+
+---
+
+## 15. UI attendue
+
+Dans Backlog > Feedbacks :
+
+Header :
+Titre :
+Feedbacks
+
+Description :
+“Centralisez les retours terrain, qualifiez-les et transformez-les en tickets priorisables.”
+
+Actions :
+- Ajouter un feedback
+- Voir les insights
+
+Filtres :
+- statut
+- type
+- importance
+- backlog
+- ticket lié
+- recherche
+
+Liste :
+- feedbacks sous forme de table ou cards.
+
+Chaque feedback affiche :
+- titre ;
+- type ;
+- score ;
+- statut ;
+- contributeur ;
+- source ;
+- ticket lié si disponible ;
+- date ;
+- action “Voir”.
+
+Drawer :
+- voir détail ;
+- qualifier ;
+- créer ticket ;
+- lier ticket ;
+- changer statut.
+
+---
+
+## 16. États vides
+
+Si aucun feedback :
+Titre :
+“Aucun feedback pour le moment”
+
+Texte :
+“Ajoutez des retours manuellement ou partagez une page de feedback pour alimenter votre backlog avec des signaux terrain.”
+
+CTA :
+“Ajouter un feedback”
+
+Si aucun feedback à qualifier :
+“Tous les feedbacks sont qualifiés.”
+
+Si aucun ticket lié :
+“Aucun feedback n’est encore relié à un ticket backlog.”
+
+---
+
+## 17. Garde-fous V2
+
+Ne pas créer de portail communautaire public.
+Ne pas créer de votes publics.
+Ne pas créer de commentaires publics.
+Ne pas exposer le backlog aux visiteurs externes.
+Ne pas créer d’IA obligatoire.
+Ne pas créer de priorisation RICE complète.
+Ne pas modifier automatiquement la roadmap.
+Ne pas transformer automatiquement tous les feedbacks en tickets.
+Ne pas envoyer de notifications Slack ou email en V2 sauf si déjà très simple.
+
+La V2 doit rester centrée sur :
+- centraliser ;
+- qualifier ;
+- relier ;
+- transformer en ticket ;
+- voir les signaux forts.
+
+---
+
+## 18. Critères d’acceptation
+
+- Je vois une entrée Feedbacks dans la partie Backlog.
+- Je peux voir tous les feedbacks dans une inbox.
+- Je peux filtrer les feedbacks par statut, type, importance et backlog.
+- Je peux ouvrir un feedback dans un drawer.
+- Je peux qualifier un feedback.
+- Je peux ajouter impact, fréquence, urgence, segment, tags et zone produit.
+- Je peux créer un ticket backlog depuis un feedback.
+- Le ticket créé reprend les informations principales du feedback.
+- Le feedback est automatiquement lié au ticket créé.
+- Je peux lier un feedback à un ticket existant.
+- Un ticket affiche ses feedbacks liés.
+- Je peux voir combien de feedbacks soutiennent un ticket.
+- Je peux voir une vue Insights simple.
+- Les feedbacks externes alimentent Backlog > Feedbacks.
+- Les données sont filtrées par organization_id.
+- Les visiteurs externes ne voient jamais le backlog interne.
+- L’interface respecte le design system existant de PlanBase.
+- Les états loading, empty, error et success sont gérés.
+
+---
+
+## 19. À analyser avant implémentation
+
+Avant de coder, analyser l’existant :
+- structure actuelle du module Backlog ;
+- modèles de tickets backlog ;
+- modèles de sprints si existants ;
+- modèles projet si relation utile ;
+- éventuel module feedback déjà créé ;
+- routing frontend ;
+- composants UI existants ;
+- système d’authentification ;
+- gestion organization_id ;
+- endpoints backend existants ;
+- possibilités de créer des tickets depuis une autre source ;
+- structure des drawers et tables existantes.
+
+Ensuite :
+1. proposer brièvement le plan d’implémentation ;
+2. adapter ou créer le modèle de données feedback backlog ;
+3. créer les endpoints backend ;
+4. créer la page Backlog > Feedbacks ;
+5. créer le drawer détail / qualification ;
+6. créer l’action “Créer un ticket depuis ce feedback” ;
+7. créer l’action “Lier à un ticket existant” ;
+8. ajouter le bloc “Feedbacks liés” dans le détail d’un ticket ;
+9. créer la vue Insights simple ;
+10. vérifier le filtrage organization_id ;
+11. tester les états loading, empty, error et success.

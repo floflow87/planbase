@@ -2589,7 +2589,8 @@ export type VatPeriod = typeof vatPeriods.$inferSelect;
 export const projectFeedbackSettings = pgTable("project_feedback_settings", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
-  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+  backlogId: uuid("backlog_id").references(() => backlogs.id, { onDelete: "cascade" }),
   shareToken: text("share_token").notNull(),
   isEnabled: boolean("is_enabled").notNull().default(false),
   showExistingFeedbacks: boolean("show_existing_feedbacks").notNull().default(false),
@@ -2598,8 +2599,8 @@ export const projectFeedbackSettings = pgTable("project_feedback_settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   accountIdx: index("pfs_account_idx").on(table.accountId),
-  projectIdx: uniqueIndex("pfs_project_idx").on(table.projectId),
   tokenIdx: uniqueIndex("pfs_token_idx").on(table.shareToken),
+  backlogIdx: uniqueIndex("pfs_backlog_idx").on(table.backlogId),
 }));
 export const insertProjectFeedbackSettingsSchema = createInsertSchema(projectFeedbackSettings).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertProjectFeedbackSettings = z.infer<typeof insertProjectFeedbackSettingsSchema>;
@@ -2609,7 +2610,8 @@ export type ProjectFeedbackSettings = typeof projectFeedbackSettings.$inferSelec
 export const projectFeedbacks = pgTable("project_feedbacks", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
-  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+  backlogId: uuid("backlog_id").references(() => backlogs.id, { onDelete: "cascade" }),
   shareToken: text("share_token"),
   contributorName: text("contributor_name").notNull(),
   contributorEmail: text("contributor_email"),
