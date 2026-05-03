@@ -2585,6 +2585,53 @@ export const insertVatPeriodSchema = createInsertSchema(vatPeriods).omit({ id: t
 export type InsertVatPeriod = z.infer<typeof insertVatPeriodSchema>;
 export type VatPeriod = typeof vatPeriods.$inferSelect;
 
+// ── Project Feedback Settings ──────────────────────────────────────────────
+export const projectFeedbackSettings = pgTable("project_feedback_settings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  shareToken: text("share_token").notNull(),
+  isEnabled: boolean("is_enabled").notNull().default(false),
+  showExistingFeedbacks: boolean("show_existing_feedbacks").notNull().default(false),
+  allowAttachments: boolean("allow_attachments").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index("pfs_account_idx").on(table.accountId),
+  projectIdx: uniqueIndex("pfs_project_idx").on(table.projectId),
+  tokenIdx: uniqueIndex("pfs_token_idx").on(table.shareToken),
+}));
+export const insertProjectFeedbackSettingsSchema = createInsertSchema(projectFeedbackSettings).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertProjectFeedbackSettings = z.infer<typeof insertProjectFeedbackSettingsSchema>;
+export type ProjectFeedbackSettings = typeof projectFeedbackSettings.$inferSelect;
+
+// ── Project Feedbacks ──────────────────────────────────────────────────────
+export const projectFeedbacks = pgTable("project_feedbacks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  shareToken: text("share_token"),
+  contributorName: text("contributor_name").notNull(),
+  contributorEmail: text("contributor_email"),
+  type: text("type").notNull().default("other"),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  importance: text("importance").notNull().default("medium"),
+  internalStatus: text("internal_status").notNull().default("new"),
+  publicStatus: text("public_status").notNull().default("received"),
+  source: text("source").notNull().default("external_feedback_page"),
+  attachmentUrl: text("attachment_url"),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index("pfb_account_idx").on(table.accountId),
+  projectIdx: index("pfb_project_idx").on(table.projectId),
+}));
+export const insertProjectFeedbackSchema = createInsertSchema(projectFeedbacks).omit({ id: true, createdAt: true, updatedAt: true, archivedAt: true });
+export type InsertProjectFeedback = z.infer<typeof insertProjectFeedbackSchema>;
+export type ProjectFeedback = typeof projectFeedbacks.$inferSelect;
+
 // Billing Status Options - Re-exported from centralized config for backwards compatibility
 export { 
   billingStatusOptions,

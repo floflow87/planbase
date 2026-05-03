@@ -3112,6 +3112,60 @@ export async function runStartupMigrations() {
     }
     // ─────────────────────────────────────────────────────────────
 
+    // ── project_feedback_settings table ──
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS project_feedback_settings (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+          project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          share_token text NOT NULL,
+          is_enabled boolean NOT NULL DEFAULT false,
+          show_existing_feedbacks boolean NOT NULL DEFAULT false,
+          allow_attachments boolean NOT NULL DEFAULT false,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `);
+      await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS pfs_project_idx ON project_feedback_settings(project_id)`);
+      await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS pfs_token_idx ON project_feedback_settings(share_token)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS pfs_account_idx ON project_feedback_settings(account_id)`);
+      console.log("✅ project_feedback_settings table created");
+    } catch (e: any) {
+      console.warn("⚠️  project_feedback_settings migration (non-blocking):", e.message);
+    }
+
+    // ── project_feedbacks table ──
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS project_feedbacks (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+          project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          share_token text,
+          contributor_name text NOT NULL,
+          contributor_email text,
+          type text NOT NULL DEFAULT 'other',
+          title text NOT NULL,
+          description text NOT NULL,
+          importance text NOT NULL DEFAULT 'medium',
+          internal_status text NOT NULL DEFAULT 'new',
+          public_status text NOT NULL DEFAULT 'received',
+          source text NOT NULL DEFAULT 'external_feedback_page',
+          attachment_url text,
+          archived_at timestamptz,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS pfb_account_idx ON project_feedbacks(account_id)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS pfb_project_idx ON project_feedbacks(project_id)`);
+      console.log("✅ project_feedbacks table created");
+    } catch (e: any) {
+      console.warn("⚠️  project_feedbacks migration (non-blocking):", e.message);
+    }
+    // ─────────────────────────────────────────────────────────────
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

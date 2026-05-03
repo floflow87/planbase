@@ -1,0 +1,518 @@
+Tu es développeur senior fullstack sur PlanBase.
+
+Contexte :
+PlanBase est une web app SaaS pour freelances, CPO, product managers et indépendants. Elle contient déjà des modules comme Projets, Backlog, Roadmap, CRM, Trésorerie et Dashboard.
+
+Je souhaite créer un module simple de collecte de feedback externe, rattaché à un projet PlanBase.
+
+Objectif :
+Permettre à un utilisateur PlanBase de partager une page externe publique ou semi-publique avec un client, un testeur, un utilisateur ou une partie prenante afin de collecter des feedbacks structurés sur un projet.
+
+Cette page doit être très simple :
+- pas de sidebar ;
+- pas de navigation PlanBase ;
+- pas d’accès aux autres modules ;
+- seulement le titre du projet, sa description, la liste des feedbacks si autorisée, et un bouton pour ajouter un feedback.
+
+Le module doit être pensé comme une V1 simple, sans complexité excessive.
+
+---
+
+## 1. Emplacement dans PlanBase
+
+Ajouter une section ou un onglet “Feedback” dans la page détail d’un projet.
+
+Depuis un projet, l’utilisateur PlanBase doit pouvoir :
+- activer ou désactiver la page de feedback externe ;
+- copier le lien public de feedback ;
+- choisir si les feedbacks déjà déposés sont visibles ou non par les visiteurs ;
+- consulter les feedbacks reçus ;
+- changer leur statut ;
+- éventuellement les transformer plus tard en tickets backlog, mais pas obligatoire en V1.
+
+---
+
+## 2. Page externe de feedback
+
+Créer une page externe accessible via une URL unique.
+
+Exemple :
+/feedback/:shareToken
+
+Cette page doit être séparée de l’interface PlanBase classique.
+
+Contraintes UI :
+- aucune sidebar ;
+- aucun menu principal ;
+- aucun accès aux modules PlanBase ;
+- page sobre, claire, centrée ;
+- responsive desktop/mobile ;
+- design cohérent avec PlanBase mais plus léger.
+
+Contenu de la page :
+
+Header :
+- titre du projet ;
+- description du projet ;
+- éventuellement nom du client ou de l’organisation si disponible et pertinent.
+
+Bloc principal :
+- bouton “Ajouter un feedback” ;
+- liste des feedbacks existants uniquement si l’option de visibilité est activée côté PlanBase.
+
+Si la visibilité des feedbacks est désactivée :
+Afficher uniquement :
+“Vous pouvez transmettre votre retour via le bouton ci-dessous.”
+
+Si la visibilité est activée :
+Afficher la liste des feedbacks déjà soumis.
+
+---
+
+## 3. Ajout d’un feedback
+
+Le visiteur externe doit pouvoir ajouter un feedback via un bouton.
+
+Bouton :
+“Ajouter un feedback”
+
+Au clic :
+Ouvrir un drawer latéral, pas une modale.
+
+Le drawer contient un formulaire simple.
+
+Champs du formulaire :
+- nom du contributeur ;
+- email du contributeur, optionnel ;
+- type de feedback ;
+- titre du feedback ;
+- description détaillée ;
+- niveau d’importance ;
+- pièce jointe optionnelle si simple à intégrer.
+
+Types de feedback :
+- bug ;
+- amélioration ;
+- idée ;
+- question ;
+- autre.
+
+Niveau d’importance :
+- faible ;
+- moyen ;
+- élevé ;
+- critique.
+
+Formulaire :
+- tous les champs importants doivent être clairement nommés ;
+- titre et description obligatoires ;
+- nom obligatoire ;
+- email optionnel ;
+- validation simple ;
+- message de succès après soumission.
+
+Message après envoi :
+“Merci, votre feedback a bien été envoyé.”
+
+Ne pas forcer la création de compte.
+Ne pas demander de connexion.
+Ne pas exposer l’interface PlanBase.
+
+---
+
+## 4. Liste des feedbacks côté page externe
+
+Si l’option de visibilité est activée par l’utilisateur PlanBase, afficher les feedbacks sous forme de liste ou de cards.
+
+Pour chaque feedback afficher :
+- titre ;
+- type ;
+- importance ;
+- description courte ;
+- date de création ;
+- statut public simplifié si pertinent.
+
+Ne pas afficher :
+- données internes ;
+- commentaires internes ;
+- priorisation interne ;
+- informations sensibles ;
+- liens vers le backlog interne ;
+- informations de rentabilité/projet.
+
+Statuts publics possibles :
+- reçu ;
+- en cours d’analyse ;
+- pris en compte ;
+- non retenu.
+
+Si aucun feedback visible :
+Afficher :
+“Aucun feedback n’a encore été ajouté.”
+
+---
+
+## 5. Gestion des feedbacks côté PlanBase
+
+Dans la page projet PlanBase, ajouter un onglet ou bloc “Feedback”.
+
+L’utilisateur PlanBase doit pouvoir voir tous les feedbacks reçus.
+
+Tableau côté interne :
+- titre ;
+- type ;
+- importance ;
+- contributeur ;
+- email ;
+- date ;
+- statut ;
+- actions.
+
+Actions :
+- voir le détail ;
+- changer le statut ;
+- archiver ;
+- supprimer si déjà prévu dans les patterns PlanBase ;
+- copier le lien de la page externe.
+
+Statuts internes :
+- nouveau ;
+- à analyser ;
+- retenu ;
+- transformé en ticket ;
+- rejeté ;
+- archivé.
+
+En V1, la transformation en ticket backlog peut être préparée mais pas forcément développée.
+
+Si elle est simple à intégrer :
+Ajouter une action “Créer un ticket backlog depuis ce feedback”.
+
+Sinon :
+Prévoir le champ feedback.source_id ou une future relation vers backlog_item_id.
+
+---
+
+## 6. Paramètres de partage
+
+Dans l’onglet Feedback du projet, ajouter un bloc “Page de feedback externe”.
+
+Champs :
+- activer la page publique : oui / non ;
+- lien de partage ;
+- bouton copier le lien ;
+- visibilité des feedbacks existants : oui / non ;
+- autoriser les pièces jointes : oui / non si simple ;
+- statut de la page : active / désactivée.
+
+Règle :
+Si la page est désactivée, l’URL externe doit afficher un écran simple :
+“Cette page de feedback n’est plus disponible.”
+
+---
+
+## 7. Modèle de données recommandé
+
+Créer ou adapter les tables suivantes.
+
+Table project_feedback_settings :
+- id
+- organization_id
+- project_id
+- share_token
+- is_enabled boolean default false
+- show_existing_feedbacks boolean default false
+- allow_attachments boolean default false
+- created_at
+- updated_at
+
+Table project_feedbacks :
+- id
+- organization_id
+- project_id
+- share_token nullable
+- contributor_name
+- contributor_email nullable
+- type
+- title
+- description
+- importance
+- internal_status
+- public_status
+- source
+- attachment_url nullable
+- created_at
+- updated_at
+- archived_at nullable
+
+Valeurs possibles :
+
+type :
+- bug
+- improvement
+- idea
+- question
+- other
+
+importance :
+- low
+- medium
+- high
+- critical
+
+internal_status :
+- new
+- to_review
+- accepted
+- converted_to_ticket
+- rejected
+- archived
+
+public_status :
+- received
+- reviewing
+- considered
+- not_selected
+
+source :
+- external_feedback_page
+- internal
+
+Important :
+- chaque feedback doit être rattaché à organization_id et project_id ;
+- ne jamais exposer organization_id côté public ;
+- utiliser share_token pour retrouver la page externe ;
+- le share_token doit être suffisamment long et non devinable.
+
+---
+
+## 8. API backend
+
+Créer les endpoints nécessaires.
+
+Endpoints internes authentifiés :
+
+GET /api/projects/:projectId/feedback-settings
+Retourne les paramètres de feedback du projet.
+
+POST /api/projects/:projectId/feedback-settings
+Crée ou met à jour les paramètres de feedback.
+
+GET /api/projects/:projectId/feedbacks
+Retourne les feedbacks du projet côté PlanBase.
+
+PATCH /api/projects/:projectId/feedbacks/:feedbackId
+Met à jour le statut ou les informations internes d’un feedback.
+
+DELETE /api/projects/:projectId/feedbacks/:feedbackId
+Archive ou supprime un feedback selon le pattern existant.
+
+Endpoints publics non authentifiés mais sécurisés par share_token :
+
+GET /api/public/feedback/:shareToken
+Retourne :
+- titre du projet ;
+- description du projet ;
+- statut de la page ;
+- show_existing_feedbacks ;
+- feedbacks publics si autorisé.
+
+POST /api/public/feedback/:shareToken
+Permet de soumettre un feedback.
+
+Sécurité :
+- vérifier que share_token existe ;
+- vérifier que la page est activée ;
+- limiter les champs retournés côté public ;
+- ne jamais retourner de données internes ;
+- valider les inputs ;
+- prévoir rate limiting si l’architecture le permet ;
+- éviter le spam basique.
+
+---
+
+## 9. UX attendue côté page externe
+
+Structure :
+
+Page :
+- container centré ;
+- header projet ;
+- description ;
+- card principale.
+
+Card :
+Titre :
+“Vos retours nous aident à améliorer ce projet.”
+
+Texte :
+“Partagez un bug, une idée, une question ou une suggestion.”
+
+Bouton :
+“Ajouter un feedback”
+
+Si feedbacks visibles :
+Section :
+“Feedbacks déjà partagés”
+
+Cards feedback :
+- badge type ;
+- badge importance ;
+- titre ;
+- description courte ;
+- statut public ;
+- date.
+
+Drawer d’ajout :
+Titre :
+“Ajouter un feedback”
+
+Champs :
+- Votre nom
+- Votre email, optionnel
+- Type de retour
+- Importance
+- Titre
+- Description
+- Pièce jointe, optionnel si disponible
+
+Boutons :
+- Annuler
+- Envoyer le feedback
+
+---
+
+## 10. UX attendue côté PlanBase
+
+Dans Projet > Feedback :
+
+Bloc en haut :
+“Page externe de feedback”
+
+Afficher :
+- statut active/désactivée ;
+- lien public ;
+- bouton copier ;
+- toggle afficher les feedbacks aux visiteurs ;
+- toggle autoriser les pièces jointes si disponible.
+
+Ensuite :
+Tableau “Feedbacks reçus”
+
+Filtres simples :
+- type ;
+- importance ;
+- statut.
+
+Colonnes :
+- titre ;
+- type ;
+- importance ;
+- contributeur ;
+- date ;
+- statut ;
+- actions.
+
+Drawer détail feedback :
+- titre ;
+- description complète ;
+- contributeur ;
+- email ;
+- type ;
+- importance ;
+- statut interne ;
+- statut public ;
+- date ;
+- pièce jointe si disponible ;
+- actions.
+
+---
+
+## 11. Empty states
+
+Côté PlanBase :
+Si aucun feedback :
+Titre :
+“Aucun feedback reçu pour le moment”
+
+Texte :
+“Partagez le lien de feedback avec votre client ou vos utilisateurs pour collecter leurs retours.”
+
+CTA :
+“Copier le lien de feedback”
+
+Côté page externe :
+Si aucun feedback visible :
+“Aucun feedback n’a encore été partagé.”
+
+Si page désactivée :
+“Cette page de feedback n’est plus disponible.”
+
+---
+
+## 12. Ce qu’il ne faut pas faire en V1
+
+Ne pas créer de système de vote.
+Ne pas créer de commentaires publics.
+Ne pas créer d’authentification pour les contributeurs.
+Ne pas exposer le backlog.
+Ne pas exposer les données internes du projet.
+Ne pas créer de workflow complexe de discovery.
+Ne pas créer de scoring RICE en V1.
+Ne pas créer de priorisation automatique.
+Ne pas créer de notification Slack ou email en V1.
+Ne pas créer d’IA en V1.
+Ne pas surcharger la page externe.
+
+La V1 doit rester simple :
+un lien externe, un formulaire, une liste visible ou non, et une gestion interne des retours.
+
+---
+
+## 13. Critères d’acceptation
+
+- Depuis un projet PlanBase, je peux activer une page externe de feedback.
+- Je peux copier un lien public de feedback.
+- La page externe affiche le titre et la description du projet.
+- La page externe n’affiche pas la sidebar ni les autres modules PlanBase.
+- Un visiteur externe peut ajouter un feedback via un drawer.
+- Le feedback est bien rattaché au bon projet.
+- Je peux choisir si les feedbacks existants sont visibles ou non publiquement.
+- Si la visibilité est désactivée, les visiteurs ne voient pas les autres feedbacks.
+- Si la visibilité est activée, les visiteurs voient uniquement les informations publiques des feedbacks.
+- Côté PlanBase, je vois tous les feedbacks reçus.
+- Je peux changer le statut d’un feedback.
+- Les données sont filtrées par organization_id.
+- Le share_token est non devinable.
+- Une page désactivée n’est plus accessible.
+- Les états loading, empty, error et success sont gérés.
+- L’interface respecte le design system existant.
+
+---
+
+## 14. À analyser avant implémentation
+
+Avant de coder, analyser l’existant :
+- structure de la page détail projet ;
+- routing frontend ;
+- système de tabs projet ;
+- modèles project existants ;
+- présence ou non d’un module feedback existant ;
+- système d’auth ;
+- gestion organization_id ;
+- composants UI existants : Card, Drawer, Badge, Button, Table, Input, Textarea, Select, Switch ;
+- patterns backend existants ;
+- gestion des routes publiques ;
+- stockage fichier si pièces jointes déjà disponible.
+
+Ensuite :
+1. proposer brièvement le plan d’implémentation ;
+2. créer les tables/migrations nécessaires ;
+3. créer les endpoints backend internes et publics ;
+4. créer l’onglet Feedback côté projet ;
+5. créer la page externe sans sidebar ;
+6. créer le drawer d’ajout feedback ;
+7. gérer les paramètres de visibilité ;
+8. tester le rattachement au bon projet ;
+9. vérifier la sécurité et le filtrage organization_id ;
+10. vérifier les états loading, empty, error et success.

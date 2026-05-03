@@ -47,6 +47,7 @@ import CalendarPage from "@/pages/calendar";
 import Settings from "@/pages/settings";
 import IntegrationDetailPage from "@/pages/integration-detail";
 import SharePublicPage from "@/pages/share-public";
+import FeedbackPublicPage from "@/pages/feedback-public";
 import ProjectDecisions from "@/pages/project-decisions";
 import ProjectExecutive from "@/pages/project-executive";
 import AcceptInvitation from "@/pages/accept-invitation";
@@ -220,6 +221,7 @@ function Router() {
         <ProtectedRoute><IntegrationDetailPage /></ProtectedRoute>
       </Route>
       <Route path="/share/:token" component={SharePublicPage} />
+      <Route path="/feedback/:shareToken" component={FeedbackPublicPage} />
       <Route component={NotFound} />
     </Switch>
   );
