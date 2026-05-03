@@ -8632,7 +8632,7 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
-  app.get("/api/clients/:clientId/emails", requireAuth, async (req, res) => {
+  app.get("/api/clients/:clientId/emails", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const { clientId } = req.params;
       const messages = await storage.getEmailMessages(req.accountId!, req.userId!, 100, 0, undefined, undefined, undefined, clientId, undefined);
