@@ -7,56 +7,40 @@ interface ProviderAlertParams {
   errorMessage?: string;
 }
 
-// ── Deduplication / aggregation state ───────────────────────────────────────
-// All fallback events within a window are buffered.  One consolidated alert
-// fires when the window closes, reporting the total number of affected requests.
+// Configurable deduplication window — all fallback events within the window
+// are aggregated into one alert fired when the timer expires.
 const DEDUP_WINDOW_MS = (() => {
   const secs = parseInt(process.env.ALERT_DEDUP_WINDOW_SECONDS ?? "300", 10);
   return (isNaN(secs) || secs < 0 ? 300 : secs) * 1000;
 })();
 
-interface BufferedEvent {
-  promptType: string;
-  timestamp: Date;
-  errorMessage?: string;
-}
-
+// Lightweight aggregation state — only the first event's fields + count.
 let windowTimer: ReturnType<typeof setTimeout> | null = null;
-let bufferedEvents: BufferedEvent[] = [];
+let windowCount = 0;
+let windowFirst: ProviderAlertParams | null = null;
 
-// Drain the buffer and dispatch one consolidated alert
 async function flushWindow(): Promise<void> {
-  const events = bufferedEvents;
-  bufferedEvents = [];
+  const first = windowFirst;
+  const total = windowCount;
   windowTimer = null;
+  windowCount = 0;
+  windowFirst = null;
 
-  if (events.length === 0) return;
+  if (!first || total === 0) return;
 
   const hasEmail = !!process.env.ALERT_EMAIL;
   const hasWebhook = !!process.env.ALERT_WEBHOOK_URL;
-
   if (!hasEmail && !hasWebhook) return;
 
-  // Use the first event as the representative (earliest in the window)
-  const first = events[0];
-  const totalAffected = events.length;
-
-  console.log(
-    `[Alert] Flushing dedup window — dispatching 1 alert for ${totalAffected} event(s).`
-  );
+  console.log(`[Alert] Dispatching consolidated alert for ${total} event(s).`);
 
   await Promise.allSettled([
-    sendEmailAlert({ ...first, totalAffected }),
-    sendWebhookAlert({ ...first, totalAffected }),
+    sendEmailAlert(first, total),
+    sendWebhookAlert(first, total),
   ]);
 }
 
-// ── Email ────────────────────────────────────────────────────────────────────
-interface AlertDispatchParams extends BufferedEvent {
-  totalAffected: number;
-}
-
-async function sendEmailAlert(params: AlertDispatchParams): Promise<void> {
+async function sendEmailAlert(params: ProviderAlertParams, totalAffected: number): Promise<void> {
   const alertEmail = process.env.ALERT_EMAIL;
   if (!alertEmail) return;
 
@@ -64,17 +48,16 @@ async function sendEmailAlert(params: AlertDispatchParams): Promise<void> {
     const { client, fromEmail } = await getResendClient();
     const timestampStr = params.timestamp.toISOString();
     const affectedRow =
-      params.totalAffected > 1
+      totalAffected > 1
         ? `<tr>
              <td style="padding:0 20px 16px;">
                <p style="margin:0 0 8px;font-size:13px;color:#71717a;text-transform:uppercase;letter-spacing:0.05em;">Requests affected</p>
-               <p style="margin:0;font-size:15px;font-weight:600;color:#ef4444;">${params.totalAffected} requests triggered this alert during the ${DEDUP_WINDOW_MS / 1000}s deduplication window</p>
+               <p style="margin:0;font-size:15px;font-weight:600;color:#ef4444;">${totalAffected} requests affected during the ${DEDUP_WINDOW_MS / 1000}s window</p>
              </td>
            </tr>`
         : "";
 
-    const subjectSuffix =
-      params.totalAffected > 1 ? ` [${params.totalAffected} requests]` : "";
+    const subjectSuffix = totalAffected > 1 ? ` [${totalAffected} requests]` : "";
 
     const { error } = await client.emails.send({
       from: fromEmail,
@@ -150,7 +133,6 @@ async function sendEmailAlert(params: AlertDispatchParams): Promise<void> {
   }
 }
 
-// ── Webhook ──────────────────────────────────────────────────────────────────
 function maskUrl(url: string): string {
   try {
     const parsed = new URL(url);
@@ -160,7 +142,7 @@ function maskUrl(url: string): string {
   }
 }
 
-async function sendWebhookAlert(params: AlertDispatchParams): Promise<void> {
+async function sendWebhookAlert(params: ProviderAlertParams, totalAffected: number): Promise<void> {
   const webhookUrl = process.env.ALERT_WEBHOOK_URL;
   if (!webhookUrl) return;
 
@@ -170,7 +152,7 @@ async function sendWebhookAlert(params: AlertDispatchParams): Promise<void> {
     fallback_provider: "openai",
     prompt_type: params.promptType,
     timestamp: params.timestamp.toISOString(),
-    total_affected: params.totalAffected,
+    total_affected: totalAffected,
     dedup_window_seconds: DEDUP_WINDOW_MS / 1000,
     ...(params.errorMessage ? { error: params.errorMessage } : {}),
   };
@@ -192,11 +174,9 @@ async function sendWebhookAlert(params: AlertDispatchParams): Promise<void> {
   }
 }
 
-// ── Public API ───────────────────────────────────────────────────────────────
 export async function alertOllamaFallback(
   params: ProviderAlertParams & { fallbackSucceeded?: boolean }
 ): Promise<void> {
-  // Always persist the event regardless of alert channel configuration or dedup
   storage.logAiFallbackEvent({
     promptType: params.promptType,
     errorMessage: params.errorMessage ?? null,
@@ -217,19 +197,13 @@ export async function alertOllamaFallback(
     return;
   }
 
-  // Buffer this event into the current window
-  bufferedEvents.push({
-    promptType: params.promptType,
-    timestamp: params.timestamp,
-    errorMessage: params.errorMessage,
-  });
+  windowCount += 1;
+  if (windowFirst === null) {
+    windowFirst = { promptType: params.promptType, timestamp: params.timestamp, errorMessage: params.errorMessage };
+  }
 
-  // Start the window timer only once per window
   if (windowTimer === null) {
-    console.log(
-      `[Alert] Dedup window started (${DEDUP_WINDOW_MS / 1000}s). ` +
-      "One consolidated alert will fire at the end of the window."
-    );
+    console.log(`[Alert] Dedup window started (${DEDUP_WINDOW_MS / 1000}s).`);
     windowTimer = setTimeout(() => {
       flushWindow().catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
@@ -237,8 +211,6 @@ export async function alertOllamaFallback(
       });
     }, DEDUP_WINDOW_MS);
   } else {
-    console.log(
-      `[Alert] Fallback event buffered (${bufferedEvents.length} in window so far).`
-    );
+    console.log(`[Alert] Fallback event buffered (${windowCount} in window so far).`);
   }
 }
