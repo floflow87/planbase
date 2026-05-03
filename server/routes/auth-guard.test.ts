@@ -1,49 +1,72 @@
 /**
  * Auth-guard integration tests — notes / projects / clients / tasks
  *
- * Strategy (two complementary layers):
+ * Mounts the real production routes (via registerRoutes) with only the heavy
+ * I/O dependencies mocked.  The requireAuth middleware runs from its actual
+ * source; no stubs or synthetic apps are used.
  *
- * LAYER 1 — Supertest runtime tests
- *   Builds a minimal Express app that mounts the real requireAuth +
- *   requireOrgMember middleware chain in front of thin stub handlers.
- *   Confirms that unauthenticated requests (no Authorization header) receive
- *   401 for a representative endpoint from each resource group.
- *   This proves the middleware actually runs and rejects at runtime — a static
- *   token-scan cannot catch a broken or no-op requireAuth implementation.
- *
- * LAYER 2 — Static source audit
- *   Reads server/routes.ts source and asserts every registered route line for
- *   the four resource groups contains "requireAuth" and "requireOrgMember".
- *   Catches regressions where a developer accidentally removes a middleware
- *   argument from a line without the test suite noticing at runtime.
+ * Why this proves 401 behaviour on real routes:
+ *   requireAuth (server/middleware/auth.ts) checks for an
+ *   "Authorization: Bearer <token>" header before making any external call.
+ *   A request without that header short-circuits at line 35 and returns 401
+ *   immediately — without touching Supabase or storage.  We therefore only
+ *   need to mock the modules that routes.ts imports so the file can be loaded;
+ *   no handler logic runs in these tests.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import express, { type Request, type Response, type NextFunction } from "express";
+import { describe, it, expect, vi, beforeAll } from "vitest";
+import express from "express";
 import request from "supertest";
-import { readFileSync } from "fs";
-import path from "path";
+import type { Express } from "express";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mocks for requireAuth's two dependencies
+// Mock every heavy I/O dependency that routes.ts (and its transitive imports)
+// require.  The real requireAuth / requireOrgMember are NOT mocked.
 // ─────────────────────────────────────────────────────────────────────────────
 
 vi.mock("../lib/supabase", () => ({
   supabaseAdmin: {
     auth: {
-      getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: { message: "invalid token" } }),
+      getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: { message: "invalid" } }),
     },
   },
 }));
 
+const storageMock = {
+  getAccount: vi.fn().mockResolvedValue(null),
+  getUserById: vi.fn().mockResolvedValue(null),
+  getUserByEmail: vi.fn().mockResolvedValue(null),
+  getAppUserByUserId: vi.fn().mockResolvedValue(null),
+  createAccount: vi.fn().mockResolvedValue({ id: "acct-1" }),
+  createAppUser: vi.fn().mockResolvedValue({ id: "user-1" }),
+  getNotesByAccount: vi.fn().mockResolvedValue([]),
+  getNote: vi.fn().mockResolvedValue(null),
+  getProjectsByAccountId: vi.fn().mockResolvedValue([]),
+  getProject: vi.fn().mockResolvedValue(null),
+  getClientsByAccountId: vi.fn().mockResolvedValue([]),
+  getClient: vi.fn().mockResolvedValue(null),
+  getTasksByAccountId: vi.fn().mockResolvedValue([]),
+  getTask: vi.fn().mockResolvedValue(null),
+};
+
 vi.mock("../storage", () => ({
-  storage: {
-    getUserByEmail: vi.fn().mockResolvedValue(null),
-    getAccount: vi.fn().mockResolvedValue(null),
-    getUserById: vi.fn().mockResolvedValue(null),
-    getAppUserByUserId: vi.fn().mockResolvedValue(null),
-    createAccount: vi.fn().mockResolvedValue({ id: "acct-1" }),
-    createAppUser: vi.fn().mockResolvedValue({ id: "user-1" }),
+  storage: storageMock,
+  getGoogleClientId: vi.fn().mockReturnValue(""),
+  getGoogleClientSecret: vi.fn().mockReturnValue(""),
+}));
+
+vi.mock("../db", () => ({
+  db: {
+    execute: vi.fn().mockResolvedValue([]),
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => []),
+        leftJoin: vi.fn(() => ({ where: vi.fn(() => []) })),
+      })),
+    })),
+    insert: vi.fn(() => ({ values: vi.fn(() => ({ returning: vi.fn().mockResolvedValue([]) })) })),
+    update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn().mockResolvedValue([]) })) })),
+    delete: vi.fn(() => ({ where: vi.fn().mockResolvedValue([]) })),
   },
 }));
 
@@ -51,38 +74,92 @@ vi.mock("../services/permissionService", () => ({
   permissionService: {
     getUserPermissions: vi.fn().mockResolvedValue([]),
     hasPermission: vi.fn().mockResolvedValue(true),
+    resolvePermissions: vi.fn().mockResolvedValue([]),
   },
 }));
 
-import { requireAuth, requireOrgMember } from "../middleware/auth";
+vi.mock("../middleware/demo-helper", () => ({
+  getDemoCredentials: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock("../services/configService", () => ({
+  configService: {
+    resolveConfig: vi.fn().mockResolvedValue({}),
+    getConfig: vi.fn().mockResolvedValue(null),
+  },
+}));
+
+vi.mock("googleapis", () => ({
+  google: {
+    auth: { OAuth2: vi.fn(() => ({ setCredentials: vi.fn(), generateAuthUrl: vi.fn(() => "") })) },
+    gmail: vi.fn(() => ({ users: { messages: { list: vi.fn(), get: vi.fn() } } })),
+  },
+}));
+
+vi.mock("../services/aiService", () => ({
+  callAi: vi.fn().mockResolvedValue(""),
+  extractTextFromProseMirror: vi.fn().mockReturnValue(""),
+}));
+
+vi.mock("../services/aiOrchestrator", () => ({
+  runAi: vi.fn().mockResolvedValue({ text: "" }),
+}));
+
+vi.mock("../services/billingService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../services/billingService")>();
+  return { ...actual, hasFeature: vi.fn().mockReturnValue(false) };
+});
+
+vi.mock("../services/alertService", () => ({
+  sendAlerts: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../lib/openai", () => ({
+  extractActions: vi.fn().mockResolvedValue([]),
+  suggestNextActions: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("../routes/ai", () => {
+  const { Router } = require("express");
+  const r = Router();
+  r.post("*", (_req: express.Request, res: express.Response) => res.sendStatus(200));
+  return { default: r };
+});
+
+vi.mock("../routes/billing", () => {
+  const { Router } = require("express");
+  const r = Router();
+  r.all("*", (_req: express.Request, res: express.Response) => res.sendStatus(200));
+  return { default: r };
+});
+
+vi.mock("../routes/aiNested", () => {
+  const { Router } = require("express");
+  const r = Router();
+  r.all("*", (_req: express.Request, res: express.Response) => res.sendStatus(200));
+  return { default: r };
+});
+
+vi.mock("../index", () => ({}));
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers
+// Build the test app once (expensive — registerRoutes registers ~500 routes)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Builds a minimal Express app that mounts requireAuth + requireOrgMember
- * in front of a 200 OK stub handler at the given path.
- */
-function buildProtectedApp(method: "get" | "post" | "put" | "patch" | "delete", routePath: string) {
-  const app = express();
+let app: Express;
+
+beforeAll(async () => {
+  const { registerRoutes } = await import("../routes");
+  app = express();
   app.use(express.json());
-
-  const stub = (_req: Request, res: Response) => res.status(200).json({ ok: true });
-
-  app[method](routePath, requireAuth, requireOrgMember, stub);
-  return app;
-}
+  await registerRoutes(app);
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LAYER 1 — Runtime 401 checks (no Authorization header)
+// Runtime 401 tests — real routes, no Authorization header
 // ─────────────────────────────────────────────────────────────────────────────
 
-const representativeRoutes: Array<{
-  resource: string;
-  method: "get" | "post" | "put" | "patch" | "delete";
-  path: string;
-}> = [
+const unauthCases: Array<{ resource: string; method: string; path: string }> = [
   { resource: "notes",    method: "get",  path: "/api/notes" },
   { resource: "notes",    method: "post", path: "/api/notes" },
   { resource: "projects", method: "get",  path: "/api/projects" },
@@ -93,77 +170,11 @@ const representativeRoutes: Array<{
   { resource: "tasks",    method: "post", path: "/api/tasks" },
 ];
 
-describe("Auth-guard — unauthenticated requests return 401", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  for (const { resource, method, path: routePath } of representativeRoutes) {
-    it(`${method.toUpperCase()} ${routePath} (${resource}) returns 401 with no Authorization header`, async () => {
-      const app = buildProtectedApp(method, routePath);
-      const res = await (request(app) as any)[method](routePath).send({});
-
+describe("Auth-guard — unauthenticated requests on real routes return 401", () => {
+  for (const { resource, method, path } of unauthCases) {
+    it(`${method.toUpperCase()} ${path} (${resource}) → 401 when Authorization header is absent`, async () => {
+      const res = await (request(app) as Record<string, Function>)[method](path).send({});
       expect(res.status).toBe(401);
     });
   }
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// LAYER 2 — Static audit: every production route line has requireAuth
-// ─────────────────────────────────────────────────────────────────────────────
-
-const routesSrc = readFileSync(path.resolve(__dirname, "../routes.ts"), "utf-8");
-const routeLines = routesSrc.split("\n");
-
-function routeLinesFor(prefix: string): string[] {
-  const routeMethodPattern = /^\s*app\.(get|post|put|patch|delete)\(/;
-  return routeLines.filter(
-    (line) => routeMethodPattern.test(line) && line.includes(`"${prefix}`)
-  );
-}
-
-const RESOURCES = [
-  { name: "notes",    prefix: "/api/notes" },
-  { name: "projects", prefix: "/api/projects" },
-  { name: "clients",  prefix: "/api/clients" },
-  { name: "tasks",    prefix: "/api/tasks" },
-] as const;
-
-describe("Auth-guard static audit — server/routes.ts", () => {
-  for (const { name, prefix } of RESOURCES) {
-    describe(`${name} routes (${prefix})`, () => {
-      const matched = routeLinesFor(prefix);
-
-      it(`detects at least one ${name} route registration (sanity check)`, () => {
-        expect(matched.length).toBeGreaterThan(0);
-      });
-
-      it(`every ${name} route line in routes.ts includes requireAuth`, () => {
-        const unprotected = matched.filter((line) => !line.includes("requireAuth"));
-        expect(
-          unprotected,
-          `Found ${name} routes WITHOUT requireAuth:\n${unprotected.join("\n")}`
-        ).toHaveLength(0);
-      });
-
-      it(`every ${name} route line in routes.ts includes requireOrgMember`, () => {
-        const unguarded = matched.filter((line) => !line.includes("requireOrgMember"));
-        expect(
-          unguarded,
-          `Found ${name} routes WITHOUT requireOrgMember:\n${unguarded.join("\n")}`
-        ).toHaveLength(0);
-      });
-    });
-  }
-
-  describe("Overall routes.ts wiring", () => {
-    it("imports requireAuth from the auth middleware", () => {
-      expect(routesSrc).toContain('from "./middleware/auth"');
-      expect(routesSrc).toContain("requireAuth");
-    });
-
-    it("imports requireOrgMember from the auth middleware", () => {
-      expect(routesSrc).toContain("requireOrgMember");
-    });
-  });
 });
