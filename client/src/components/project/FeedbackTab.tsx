@@ -301,7 +301,7 @@ export function FeedbackTab({ backlogId }: Props) {
   });
   const { data: clusters = [], isLoading: clustersLoading, refetch: refetchClusters } = useQuery<FeedbackCluster[]>({
     queryKey: [`/api/backlogs/${backlogId}/feedback-clusters`],
-    enabled: activeView === "clusters" || activeView === "insights" || isAddToClusterOpen,
+    enabled: activeView === "inbox" || activeView === "clusters" || activeView === "insights" || isAddToClusterOpen,
   });
   const { data: similarFeedbacks = [] } = useQuery<(FeedbackV3 & { similarityScore: number })[]>({
     queryKey: [`/api/backlogs/${backlogId}/feedbacks/${selectedFeedback?.id}/similar`],
@@ -659,6 +659,20 @@ export function FeedbackTab({ backlogId }: Props) {
 
   const nonArchivedCount = feedbacks.filter((fb) => fb.internalStatus !== "archived").length;
 
+  // Map feedbackId → cluster titles (active clusters only)
+  const feedbackClusterMap = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    clusters
+      .filter((c) => c.status !== "dismissed" && c.status !== "archived")
+      .forEach((c) => {
+        c.items.forEach((item) => {
+          if (!map[item.feedbackId]) map[item.feedbackId] = [];
+          map[item.feedbackId].push(c.title);
+        });
+      });
+    return map;
+  }, [clusters]);
+
   const insights = useMemo(() => {
     const active = feedbacks.filter((fb) => fb.internalStatus !== "archived");
     const byStatus: Record<string, number> = {};
@@ -899,6 +913,13 @@ export function FeedbackTab({ backlogId }: Props) {
                         <td className="px-3 py-2.5 font-medium text-foreground max-w-[180px]">
                           <div className="flex items-center gap-1.5">
                             {fb.analyzedAt && <Brain className="w-3 h-3 text-violet-500 shrink-0" title="Analysé par l'IA" />}
+                            {feedbackClusterMap[fb.id] && (
+                              <Layers
+                                className="w-3 h-3 text-cyan-500 shrink-0"
+                                title={`Dans le cluster : ${feedbackClusterMap[fb.id].join(", ")}`}
+                                data-testid={`icon-clustered-${fb.id}`}
+                              />
+                            )}
                             <span className="truncate block">{fb.title}</span>
                           </div>
                         </td>
