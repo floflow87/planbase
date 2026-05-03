@@ -269,7 +269,7 @@ export default function AdminAiFallbackPage() {
             Historique des fallbacks IA
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Suivi des bascules Ollama → OpenAI — données brutes des 500 derniers événements
+            Suivi des bascules Ollama → OpenAI — statistiques calculées sur les 500 derniers événements chargés
           </p>
         </div>
         <Button
