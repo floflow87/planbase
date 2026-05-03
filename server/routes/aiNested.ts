@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { requireAuth, requireOrgMember, requirePermission } from "../middleware/auth";
 import { requireAiAccess } from "../middleware/aiAccess";
-import { extractActions, suggestNextActions } from "../lib/openai";
+import { runAi } from "../services/aiOrchestrator";
 import { storage } from "../storage";
 
 const router = Router();
@@ -19,8 +19,13 @@ router.post("/notes/:id/extract-actions", requirePermission("notes", "read"), as
     }
 
     const text = typeof note.content === "string" ? note.content : JSON.stringify(note.content);
-    const actions = await extractActions(text);
 
+    const result = await runAi({
+      type: "extractActions",
+      context: { content: text },
+    });
+
+    const actions = (result.data?.actions as { title: string; priority: string; suggestedProjectId: string | null }[]) ?? [];
     res.json({ actions });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -65,8 +70,21 @@ router.post("/clients/:id/suggest-actions", requirePermission("crm", "read", "cr
     }
 
     const history = parts.join(". ");
-    const suggestions = await suggestNextActions(history);
 
+    const result = await runAi({
+      type: "suggestCrmActions",
+      context: {
+        content: history,
+        promptContext: {
+          clientName: clientCtx.name,
+          clientType: clientCtx.type ?? undefined,
+          clientStatus: clientCtx.status ?? undefined,
+          clientBudget: clientCtx.budget ?? null,
+        },
+      },
+    });
+
+    const suggestions = (result.data?.suggestions as string[]) ?? [];
     res.json({ suggestions });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
