@@ -197,7 +197,35 @@ async function seedResourceTemplates(database: typeof db) {
 
 export async function runStartupMigrations() {
   console.log("🔄 Running startup migrations...");
-  
+
+  // ── Migration tracking: skip all migrations if already applied ──
+  // Creates a lightweight tracking table on first boot, records a version
+  // marker after all migrations complete. Subsequent boots skip everything
+  // in ~1 query instead of running 150+ sequential SQL statements.
+  const MIGRATION_VERSION = "planbase_v2_feedback_module_r1";
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS schema_migrations_tracking (
+        key TEXT PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    const checkResult = await db.execute(
+      sql`SELECT 1 FROM schema_migrations_tracking WHERE key = ${MIGRATION_VERSION}`
+    );
+    // postgres-js adapter returns rows directly as an array
+    const existingRows: unknown[] = Array.isArray(checkResult)
+      ? checkResult
+      : ((checkResult as any).rows ?? []);
+    if (existingRows.length > 0) {
+      console.log("⚡ Startup migrations already applied — skipping (fast boot)");
+      return;
+    }
+  } catch (trackErr: any) {
+    console.warn("⚠️  Migration tracking table check failed (will run migrations):", trackErr.message);
+  }
+  // ────────────────────────────────────────────────────────────────
+
   try {
     // Create document tables and seed templates
     await addDocumentTables();
@@ -3165,6 +3193,16 @@ export async function runStartupMigrations() {
       console.warn("⚠️  project_feedbacks migration (non-blocking):", e.message);
     }
     // ─────────────────────────────────────────────────────────────
+
+    // Record completion marker so future boots skip all of the above
+    try {
+      await db.execute(
+        sql`INSERT INTO schema_migrations_tracking (key) VALUES (${MIGRATION_VERSION}) ON CONFLICT DO NOTHING`
+      );
+      console.log("⚡ Migration version marker recorded for fast future boots");
+    } catch (markerErr: any) {
+      console.warn("⚠️  Could not record migration marker:", markerErr.message);
+    }
 
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
