@@ -65,7 +65,7 @@ describe("AI router — route-level access control", () => {
     vi.clearAllMocks();
   });
 
-  describe("A) Free-plan users → 403 on all representative endpoints", () => {
+  describe("A) Free-plan users → 403 on all POST endpoints (auto-discovered)", () => {
     beforeEach(() => {
       mockDb.execute.mockResolvedValue([
         { plan: "freelance", subscription_status: null, owner_email: "user@example.com" },
@@ -73,23 +73,22 @@ describe("AI router — route-level access control", () => {
       mockHasFeature.mockReturnValue(false);
     });
 
-    const representativeEndpoints = [
-      { path: "/api/ai/chat", body: { message: "hello" } },
-      { path: "/api/ai/search-context", body: { query: "test" } },
-      { path: "/api/ai/project-analysis", body: { project: { name: "Proj" } } },
-      { path: "/api/ai/generate-ticket", body: { title: "Fix bug" } },
-      { path: "/api/ai/summarize", body: { content: "some text" } },
-      { path: "/api/ai/improve", body: { content: "some text" } },
-      { path: "/api/ai/recommendations", body: { content: "some text" } },
-    ];
+    type RouterLayer = { route?: { path: string; methods: Record<string, boolean> } };
+    const discoveredPostPaths = (aiRouter as unknown as { stack: RouterLayer[] }).stack
+      .filter((l) => l.route?.methods?.post)
+      .map((l) => `/api/ai${l.route!.path}`);
 
-    for (const { path, body } of representativeEndpoints) {
+    it("discovers at least one POST route on the AI router (sanity check)", () => {
+      expect(discoveredPostPaths.length).toBeGreaterThan(0);
+    });
+
+    for (const path of discoveredPostPaths) {
       it(`returns 403 for a freelance account on POST ${path}`, async () => {
         const app = buildApp();
         const res = await request(app)
           .post(path)
           .set("x-account-id", "account-free")
-          .send(body);
+          .send({});
 
         expect(res.status).toBe(403);
         expect(res.body).toMatchObject({
