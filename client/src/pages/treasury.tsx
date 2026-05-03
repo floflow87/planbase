@@ -1947,6 +1947,43 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
         handleRedo();
         return;
       }
+      // Ctrl+C = copy selected cell to internal clipboard
+      if ((e.ctrlKey || e.metaKey) && e.key === "c" && !isInput && selectedCell && !editingCell) {
+        e.preventDefault();
+        const { lineId, periodKey } = selectedCell;
+        const rawFormula = localFormulas[lineId]?.[periodKey];
+        const amount = getCellValue(lineId, periodKey);
+        setCellClipboard({ formula: rawFormula ?? String(amount), amount });
+        return;
+      }
+      // Ctrl+V = paste internal clipboard into selected cell
+      if ((e.ctrlKey || e.metaKey) && e.key === "v" && !isInput && selectedCell && !editingCell && cellClipboard) {
+        e.preventDefault();
+        const { lineId, periodKey } = selectedCell;
+        const amount = evalFormula(cellClipboard.formula);
+        const prevAmount = getCellValue(lineId, periodKey);
+        const formula = cellClipboard.formula.startsWith("=") ? cellClipboard.formula : null;
+        setLocalCells((prev) => ({ ...prev, [lineId]: { ...(prev[lineId] ?? {}), [periodKey]: amount } }));
+        if (formula) {
+          setLocalFormulas((prev) => ({ ...prev, [lineId]: { ...(prev[lineId] ?? {}), [periodKey]: formula } }));
+        } else {
+          setLocalFormulas((prev) => {
+            const next = { ...prev };
+            if (next[lineId]) {
+              const lc = { ...next[lineId] };
+              delete lc[periodKey];
+              next[lineId] = lc;
+            }
+            return next;
+          });
+        }
+        saveCellMutation.mutate([{ lineId, periodKey, amount, formula, cell_color: localColors[lineId]?.[periodKey] ?? null }]);
+        if (prevAmount !== amount) {
+          setUndoStack((prev) => [...prev, [{ lineId, periodKey, prevAmount, nextAmount: amount }]]);
+          setRedoStack([]);
+        }
+        return;
+      }
       // Delete/Suppr = clear selected cell (only when not editing)
       if ((e.key === "Delete") && !isInput && selectedCell && !editingCell) {
         e.preventDefault();
@@ -1972,7 +2009,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [undoStack, redoStack, selectedCell, editingCell]);
+  }, [undoStack, redoStack, selectedCell, editingCell, cellClipboard, localFormulas, localColors]);
 
   if (isLoading) {
     return (
