@@ -53,6 +53,7 @@ import ProjectExecutive from "@/pages/project-executive";
 import AcceptInvitation from "@/pages/accept-invitation";
 import Emails from "@/pages/emails";
 import EmailTemplates from "@/pages/email-templates";
+import AdminAiFallback from "@/pages/admin-ai-fallback";
 import NotFound from "@/pages/not-found";
 import { EmailComposeModal } from "@/components/EmailComposeModal";
 import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote, CalendarPlus, MoreVertical, Timer, BookOpen } from "lucide-react";
@@ -219,6 +220,9 @@ function Router() {
       </Route>
       <Route path="/settings/integrations/:integrationId">
         <ProtectedRoute><IntegrationDetailPage /></ProtectedRoute>
+      </Route>
+      <Route path="/admin/ai-fallback">
+        <ProtectedRoute><AdminAiFallback /></ProtectedRoute>
       </Route>
       <Route path="/share/:token" component={SharePublicPage} />
       <Route path="/feedback/:shareToken" component={FeedbackPublicPage} />

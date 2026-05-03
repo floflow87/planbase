@@ -181,7 +181,7 @@ export function TrialExpiredGate({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
 
   // Pages accessible regardless of billing state
-  const freePaths = ["/pricing", "/settings", "/login", "/signup", "/accept-invitation"];
+  const freePaths = ["/pricing", "/settings", "/login", "/signup", "/accept-invitation", "/admin"];
   const isFreePage = freePaths.some(
     (p) => location === p || location.startsWith(p + "/") || location.startsWith(p + "?")
   );
