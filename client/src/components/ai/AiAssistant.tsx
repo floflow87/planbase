@@ -179,7 +179,7 @@ function AiAssistantPanel({ onClose, projectId, projectName }: { onClose: () => 
       const recentlyOverdueCount = tasksData.filter((t) => {
         if (!t.dueDate || t.status === "done") return false;
         const due = new Date(t.dueDate);
-        return due >= sevenDaysAgo && due < now;
+        return due > sevenDaysAgo && due < now;
       }).length;
       if (recentlyOverdueCount > 0) {
         proactiveSuggestions.push({
