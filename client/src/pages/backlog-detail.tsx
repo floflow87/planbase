@@ -2102,8 +2102,7 @@ export default function BacklogDetail() {
             <TabsTrigger value="done" className="text-[12px]" data-testid="tab-done">
               Tickets terminés
             </TabsTrigger>
-            <TabsTrigger value="feedback" className="text-[12px] gap-1" data-testid="tab-feedback">
-              <ThumbsUp className="w-3.5 h-3.5" />
+            <TabsTrigger value="feedback" className="text-[12px]" data-testid="tab-feedback">
               Feedback
             </TabsTrigger>
             <TabsTrigger value="recette" className="text-[12px]" data-testid="tab-recette">
