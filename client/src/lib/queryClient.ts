@@ -11,26 +11,34 @@ async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
     
-    // Auto sign-out on 401 to clear invalid tokens
+    // Auto sign-out on 401 — only when a session actually exists.
+    // If auth hasn't loaded yet (no session), the 401 is expected; ProtectedRoute
+    // will handle the redirect via wouter without a hard reload or blank screen.
     if (res.status === 401 && !isHandling401) {
       // Skip if already on login page
       if (window.location.pathname === "/login") {
         throw new Error(`${res.status}: ${text}`);
       }
-      
-      isHandling401 = true;
-      console.warn("401 Unauthorized - signing out to clear invalid session");
-      
-      // Clear all queries first to prevent more requests
-      queryClient.clear();
-      
-      await supabase.auth.signOut();
-      
-      // Redirect to login
-      window.location.href = "/login";
-      
-      // Reset flag after a delay
-      setTimeout(() => { isHandling401 = false; }, 2000);
+
+      // Check whether Supabase actually has a session before deciding to sign out.
+      // During HMR reloads or first paint, getSession() may not have resolved yet —
+      // in that case the 401 is a timing issue, not an invalid token.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        isHandling401 = true;
+        console.warn("401 Unauthorized - signing out to clear invalid session");
+
+        // Clear all queries first to prevent more requests
+        queryClient.clear();
+
+        // signOut triggers onAuthStateChange → user = null → ProtectedRoute
+        // redirects to /login via wouter (soft nav, no hard reload = no blank screen)
+        await supabase.auth.signOut();
+
+        // Reset flag after a delay
+        setTimeout(() => { isHandling401 = false; }, 2000);
+      }
+      // No session → just throw; ProtectedRoute handles the redirect
     }
     
     // Handle access revocation (NO_MEMBERSHIP error)
@@ -49,10 +57,9 @@ async function throwIfResNotOk(res: Response) {
           // Clear all queries first to prevent more requests
           queryClient.clear();
           
+          // signOut triggers onAuthStateChange → user = null → ProtectedRoute
+          // redirects via wouter (soft nav, no hard reload = no blank screen)
           await supabase.auth.signOut();
-          
-          // Redirect to login with message
-          window.location.href = "/login?revoked=true";
           
           // Reset flag after a delay
           setTimeout(() => { isHandlingAccessRevoked = false; }, 2000);

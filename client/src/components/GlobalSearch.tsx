@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Search, Users, FolderKanban, FileText, BookOpen, Map, File, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createPortal } from "react-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 type SearchResult = {
   id: string;
@@ -66,13 +67,15 @@ export function GlobalSearch() {
   const containerRef = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
+  const { user } = useAuth();
+  const isAuthed = !!user;
 
-  const { data: clients = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/clients"] });
-  const { data: projects = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/projects"] });
-  const { data: notes = [] } = useQuery<{ id: string; title: string }[]>({ queryKey: ["/api/notes"] });
-  const { data: backlogs = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/backlogs"] });
-  const { data: documents = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/documents"] });
-  const { data: roadmaps = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/roadmaps"] });
+  const { data: clients = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/clients"], enabled: isAuthed });
+  const { data: projects = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/projects"], enabled: isAuthed });
+  const { data: notes = [] } = useQuery<{ id: string; title: string }[]>({ queryKey: ["/api/notes"], enabled: isAuthed });
+  const { data: backlogs = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/backlogs"], enabled: isAuthed });
+  const { data: documents = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/documents"], enabled: isAuthed });
+  const { data: roadmaps = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/roadmaps"], enabled: isAuthed });
 
   const q = query.trim().toLowerCase();
 

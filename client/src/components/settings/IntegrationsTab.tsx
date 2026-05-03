@@ -178,14 +178,17 @@ export function IntegrationsTab() {
 
   const { data: googleStatus, isLoading: isLoadingGoogle } = useQuery<GoogleStatus>({
     queryKey: ["/api/google/status"],
+    enabled: true,
   });
 
   const { data: gmailStatus, isLoading: isLoadingGmail } = useQuery<GmailStatus>({
     queryKey: ["/api/gmail/status"],
+    enabled: true,
   });
 
   const { data: slackStatus, isLoading: isLoadingSlack } = useQuery<SlackStatus>({
     queryKey: ["/api/slack/status"],
+    enabled: true,
   });
 
   // Handle redirect callbacks from Slack OAuth

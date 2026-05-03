@@ -343,6 +343,7 @@ function QuickCreateMenu() {
 
   const { data: gmailStatus } = useQuery<{ connected: boolean; email?: string; canSend?: boolean }>({
     queryKey: ["/api/gmail/status"],
+    enabled: !!user,
   });
 
   const { data: crmContacts = [] } = useQuery<{ id: string; fullName: string; email: string | null }[]>({
@@ -1210,35 +1211,38 @@ function AppLayout() {
     return () => window.removeEventListener("open_daily_digest", handler);
   }, []);
   
-  // Fetch data for dynamic tab titles
+  // Fetch data for dynamic tab titles — only once the user is authenticated
+  // (prevents 401 storm during auth loading / HMR reloads)
+  const isAuthenticated = !isAuthPage && !!user;
+
   const { data: projects } = useQuery<{ id: string; name: string }[]>({
     queryKey: ["/api/projects"],
-    enabled: !isAuthPage,
+    enabled: isAuthenticated,
   });
   
   const { data: notes } = useQuery<{ id: string; title: string }[]>({
     queryKey: ["/api/notes"],
-    enabled: !isAuthPage,
+    enabled: isAuthenticated,
   });
   
   const { data: backlogs } = useQuery<{ id: string; name: string }[]>({
     queryKey: ["/api/backlogs"],
-    enabled: !isAuthPage,
+    enabled: isAuthenticated,
   });
   
   const { data: clients } = useQuery<{ id: string; name: string }[]>({
     queryKey: ["/api/clients"],
-    enabled: !isAuthPage,
+    enabled: isAuthenticated,
   });
   
   const { data: mindmaps } = useQuery<{ id: string; name: string }[]>({
     queryKey: ["/api/mindmaps"],
-    enabled: !isAuthPage,
+    enabled: isAuthenticated,
   });
   
   const { data: documents } = useQuery<{ id: string; title: string }[]>({
     queryKey: ["/api/documents"],
-    enabled: !isAuthPage,
+    enabled: isAuthenticated,
   });
   
   // Feature flags for conditional rendering
