@@ -327,4 +327,31 @@ describe("alertService — threshold-based degradation detection", () => {
       expect(logIdx).toBeLessThan(countIdx);
     });
   });
+
+  // ── I) Concurrent fallback burst detects threshold crossing ───────────────
+
+  describe("I) Concurrent fallback burst reliably detects threshold crossing", () => {
+    it("fires a threshold alert even when fallbacks arrive while a check is in-flight", async () => {
+      const { THRESHOLD_COUNT } = _test.getThresholdConfig();
+
+      // First count call returns below threshold (in-flight check during burst).
+      // The queued rerun sees count at threshold — simulating events persisted
+      // between the two DB queries.
+      let callN = 0;
+      mockCountSince.mockImplementation(async () => {
+        callN++;
+        return callN === 1 ? THRESHOLD_COUNT - 1 : THRESHOLD_COUNT;
+      });
+
+      // Fire two concurrent fallbacks — the second one sets thresholdCheckPending=true.
+      await Promise.all([
+        alertOllamaFallback(makeParams()),
+        alertOllamaFallback(makeParams()),
+      ]);
+      // Extra flush rounds to let the queued rerun complete.
+      for (let i = 0; i < 30; i++) await Promise.resolve();
+
+      expect(countThresholdEmails()).toBe(1);
+    });
+  });
 });
