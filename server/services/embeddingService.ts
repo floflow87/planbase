@@ -99,6 +99,11 @@ export interface SimilarFeedback {
   similarity: number;
 }
 
+export interface SimilarFeedbackResult {
+  matches: SimilarFeedback[];
+  embedding: number[];
+}
+
 export async function searchSimilarFeedbacks(
   queryText: string,
   accountId: string,
@@ -106,40 +111,56 @@ export async function searchSimilarFeedbacks(
   excludeFeedbackId: string | null,
   limit = 10,
   threshold = 0.85
-): Promise<SimilarFeedback[]> {
+): Promise<SimilarFeedbackResult> {
+  const embedding = await generateEmbedding(queryText);
+  const vectorStr = `[${embedding.join(",")}]`;
+
+  const excludeClause = excludeFeedbackId
+    ? sql`AND fe.feedback_id != ${excludeFeedbackId}`
+    : sql``;
+
+  const rows = await db.execute(sql`
+    SELECT
+      fe.feedback_id,
+      pf.title,
+      1 - (fe.embedding <=> ${vectorStr}::vector) AS similarity
+    FROM feedback_embeddings fe
+    JOIN project_feedbacks pf ON pf.id = fe.feedback_id
+    WHERE fe.account_id = ${accountId}
+      AND fe.backlog_id = ${backlogId}
+      AND pf.internal_status != 'archived'
+      ${excludeClause}
+    ORDER BY fe.embedding <=> ${vectorStr}::vector
+    LIMIT ${limit}
+  `);
+
+  const matches = (rows as any[])
+    .filter((row) => parseFloat(row.similarity) >= threshold)
+    .map((row) => ({
+      feedbackId: row.feedback_id,
+      title: row.title || "",
+      similarity: parseFloat(row.similarity) || 0,
+    }));
+
+  return { matches, embedding };
+}
+
+export async function saveFeedbackEmbedding(
+  feedbackId: string,
+  accountId: string,
+  backlogId: string,
+  embedding: number[]
+): Promise<void> {
   try {
-    const embedding = await generateEmbedding(queryText);
     const vectorStr = `[${embedding.join(",")}]`;
-
-    const excludeClause = excludeFeedbackId
-      ? sql`AND fe.feedback_id != ${excludeFeedbackId}`
-      : sql``;
-
-    const rows = await db.execute(sql`
-      SELECT
-        fe.feedback_id,
-        pf.title,
-        1 - (fe.embedding <=> ${vectorStr}::vector) AS similarity
-      FROM feedback_embeddings fe
-      JOIN project_feedbacks pf ON pf.id = fe.feedback_id
-      WHERE fe.account_id = ${accountId}
-        AND fe.backlog_id = ${backlogId}
-        AND pf.internal_status != 'archived'
-        ${excludeClause}
-      ORDER BY fe.embedding <=> ${vectorStr}::vector
-      LIMIT ${limit}
+    await db.execute(sql`
+      INSERT INTO feedback_embeddings (feedback_id, account_id, backlog_id, embedding, updated_at)
+      VALUES (${feedbackId}, ${accountId}, ${backlogId}, ${vectorStr}::vector, NOW())
+      ON CONFLICT (feedback_id)
+      DO UPDATE SET embedding = ${vectorStr}::vector, updated_at = NOW()
     `);
-
-    return (rows as any[])
-      .filter((row) => parseFloat(row.similarity) >= threshold)
-      .map((row) => ({
-        feedbackId: row.feedback_id,
-        title: row.title || "",
-        similarity: parseFloat(row.similarity) || 0,
-      }));
   } catch (err) {
-    console.error("[EmbeddingService] Failed to search similar feedbacks:", err);
-    return [];
+    console.error(`[EmbeddingService] Failed to save embedding for feedback ${feedbackId}:`, err);
   }
 }
 

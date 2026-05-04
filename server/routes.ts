@@ -16964,9 +16964,11 @@ app.get("/config/feature-flags", async (_req, res) => {
       let suggestedClusterId: string | null = null;
       let suggestedClusterTitle: string | null = null;
       let similarCount = 0;
+      let cachedEmbedding: number[] | null = null;
       try {
         const { searchSimilarFeedbacks } = await import("./services/embeddingService");
-        const similarFeedbacks = await searchSimilarFeedbacks(feedbackText, accountId, backlogId, newFeedback.id, 10, 0.85);
+        const { matches: similarFeedbacks, embedding } = await searchSimilarFeedbacks(feedbackText, accountId, backlogId, newFeedback.id, 10, 0.85);
+        cachedEmbedding = embedding;
         if (similarFeedbacks.length > 0) {
           const similarIds = similarFeedbacks.map((f) => f.feedbackId);
           const clusterMatches = (await db.execute(sql`
@@ -16991,12 +16993,19 @@ app.get("/config/feature-flags", async (_req, res) => {
         // Embedding similarity is best-effort — don't fail the creation
       }
 
-      // Store embedding asynchronously (fire-and-forget)
-      import("./services/embeddingService")
-        .then(({ upsertFeedbackEmbedding }) =>
-          upsertFeedbackEmbedding(newFeedback.id, accountId, backlogId, feedbackText)
-        )
-        .catch(() => {});
+      if (cachedEmbedding) {
+        import("./services/embeddingService")
+          .then(({ saveFeedbackEmbedding }) =>
+            saveFeedbackEmbedding(newFeedback.id, accountId, backlogId, cachedEmbedding!)
+          )
+          .catch(() => {});
+      } else {
+        import("./services/embeddingService")
+          .then(({ upsertFeedbackEmbedding }) =>
+            upsertFeedbackEmbedding(newFeedback.id, accountId, backlogId, feedbackText)
+          )
+          .catch(() => {});
+      }
 
       res.status(201).json({ ...newFeedback, suggestedClusterId, suggestedClusterTitle, similarCount });
     } catch (error: any) {
@@ -17267,7 +17276,8 @@ app.get("/config/feature-flags", async (_req, res) => {
       let embeddingResults: Array<{ feedbackId: string; similarity: number }> = [];
       try {
         const { searchSimilarFeedbacks } = await import("./services/embeddingService");
-        embeddingResults = await searchSimilarFeedbacks(queryText, accountId, backlogId, feedbackId, 5, 0.75);
+        const { matches } = await searchSimilarFeedbacks(queryText, accountId, backlogId, feedbackId, 5, 0.75);
+        embeddingResults = matches;
       } catch { }
 
       if (embeddingResults.length > 0) {
