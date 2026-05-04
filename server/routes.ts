@@ -15489,7 +15489,7 @@ app.get("/config/feature-flags", async (_req, res) => {
         // Week granularity
         const getMonday = (d: Date) => { const c = new Date(d); const day = c.getDay(); c.setDate(c.getDate() - day + (day === 0 ? -6 : 1)); return c; };
         const monday = getMonday(now);
-        const endD = new Date(endYear, 11, 31);
+        const endD = new Date(cappedEndYear, 11, 31);
         for (let i = -2; ; i++) {
           const d = new Date(monday); d.setDate(d.getDate() + i * 7);
           if (d > endD) break;
@@ -15780,12 +15780,11 @@ app.get("/config/feature-flags", async (_req, res) => {
       }
 
       // Generate periods
-      const endYear = cappedEndYear;
       const periods: Array<{ key: string; label: string }> = [];
       const now = new Date();
       if (granularity === "month") {
         const cur = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-        const endD = new Date(endYear, 11, 1);
+        const endD = new Date(cappedEndYear, 11, 1);
         while (cur <= endD) {
           periods.push({
             key: `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`,
@@ -15796,7 +15795,7 @@ app.get("/config/feature-flags", async (_req, res) => {
       } else {
         const getMonday = (d: Date) => { const c = new Date(d); const day = c.getDay(); c.setDate(c.getDate() - day + (day === 0 ? -6 : 1)); return c; };
         const monday = getMonday(now);
-        const endD = new Date(endYear, 11, 31);
+        const endD = new Date(cappedEndYear, 11, 31);
         for (let i = -2; ; i++) {
           const d = new Date(monday); d.setDate(d.getDate() + i * 7);
           if (d > endD) break;
