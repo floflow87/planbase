@@ -693,6 +693,7 @@ export const deals = pgTable("deals", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   accountStageIdx: index().on(table.accountId, table.stage),
+  accountClientIdx: index().on(table.accountId, table.clientId),
 }));
 
 export const activities = pgTable("activities", {

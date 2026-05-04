@@ -218,6 +218,9 @@ export async function runStartupMigrations() {
       ? checkResult
       : ((checkResult as any).rows ?? []);
     if (existingRows.length > 0) {
+      // Fast-boot: v3 already applied. Still run any newer independent migration
+      // blocks before returning so they are never skipped.
+      await runIncrementalMigrations();
       console.log("⚡ Startup migrations already applied — skipping (fast boot)");
       return;
     }
@@ -3311,4 +3314,48 @@ export async function runStartupMigrations() {
     console.error("❌ Error running startup migrations:", error);
     // Do NOT re-throw — migrations failing must never crash the server
   }
+
+  // Always run incremental migrations regardless of the fast-boot path.
+  await runIncrementalMigrations();
+}
+
+// ── Incremental migrations (run on every boot, each gated by its own key) ────
+// Add new independently-versioned blocks here. Each block checks its own
+// marker so it runs exactly once, even on instances where fast-boot already
+// stamped the v3 marker and returned early.
+async function runIncrementalMigrations() {
+  // ── v4: client_id indexes on projects and deals ──────────────────────────
+  const V4_KEY = "planbase_v4_client_id_indexes";
+  try {
+    const v4Check = await db.execute(
+      sql`SELECT 1 FROM schema_migrations_tracking WHERE key = ${V4_KEY}`
+    );
+    const v4Rows: unknown[] = Array.isArray(v4Check)
+      ? v4Check
+      : ((v4Check as any).rows ?? []);
+
+    if (v4Rows.length === 0) {
+      // projects(account_id, client_id) — covers getProjectsByClientId queries
+      await db.execute(sql`
+        CREATE INDEX IF NOT EXISTS projects_account_client_idx
+        ON projects(account_id, client_id)
+      `);
+      console.log("✅ Index projects(account_id, client_id) ensured");
+
+      // deals(account_id, client_id) — covers getDealsByClientId queries
+      await db.execute(sql`
+        CREATE INDEX IF NOT EXISTS deals_account_client_idx
+        ON deals(account_id, client_id)
+      `);
+      console.log("✅ Index deals(account_id, client_id) ensured");
+
+      await db.execute(
+        sql`INSERT INTO schema_migrations_tracking (key) VALUES (${V4_KEY}) ON CONFLICT DO NOTHING`
+      );
+      console.log("⚡ v4 client_id index migration marker recorded");
+    }
+  } catch (v4Err: any) {
+    console.warn("⚠️  v4 client_id index migration (non-blocking):", v4Err.message);
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 }
