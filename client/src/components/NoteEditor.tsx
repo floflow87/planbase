@@ -604,48 +604,61 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     const container = editorContainerRef.current;
     if (!container) return;
 
+    let isAdding = false;
     const addCopyButtons = () => {
-      const preBlocks = container.querySelectorAll('.ProseMirror pre');
-      preBlocks.forEach((pre) => {
-        if (pre.querySelector('[data-code-copy]')) return;
-        (pre as HTMLElement).style.position = 'relative';
-        const btn = document.createElement('button');
-        btn.setAttribute('data-code-copy', 'true');
-        btn.setAttribute('data-testid', 'button-copy-code-block');
-        btn.title = 'Copier';
-        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
-        Object.assign(btn.style, {
-          position: 'absolute', top: '6px', right: '6px',
-          background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-          borderRadius: '4px', padding: '4px', cursor: 'pointer',
-          color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', zIndex: '10', transition: 'opacity 0.15s',
-          opacity: '0',
+      if (isAdding) return;
+      isAdding = true;
+      try {
+        const preBlocks = container.querySelectorAll('.ProseMirror pre');
+        preBlocks.forEach((pre) => {
+          if (pre.querySelector('[data-code-copy]')) return;
+          (pre as HTMLElement).style.position = 'relative';
+          const btn = document.createElement('button');
+          btn.setAttribute('data-code-copy', 'true');
+          btn.setAttribute('data-testid', 'button-copy-code-block');
+          btn.setAttribute('aria-label', 'Copier le code');
+          btn.title = 'Copier';
+          btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
+          Object.assign(btn.style, {
+            position: 'absolute', top: '6px', right: '6px',
+            background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: '4px', padding: '4px', cursor: 'pointer',
+            color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', zIndex: '10', transition: 'opacity 0.15s',
+            opacity: '0',
+          });
+          pre.appendChild(btn);
+          pre.addEventListener('mouseenter', () => { btn.style.opacity = '1'; });
+          pre.addEventListener('mouseleave', () => { btn.style.opacity = '0'; });
+          btn.addEventListener('click', async (e) => {
+            e.preventDefault(); e.stopPropagation();
+            const code = pre.querySelector('code');
+            const text = code ? code.textContent || '' : pre.textContent || '';
+            try {
+              await navigator.clipboard.writeText(text);
+              btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
+              btn.style.color = '#4ade80';
+              setTimeout(() => {
+                btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
+                btn.style.color = 'rgba(255,255,255,0.7)';
+              }, 1500);
+            } catch { }
+          });
         });
-        pre.appendChild(btn);
-        pre.addEventListener('mouseenter', () => { btn.style.opacity = '1'; });
-        pre.addEventListener('mouseleave', () => { btn.style.opacity = '0'; });
-        btn.addEventListener('click', async (e) => {
-          e.preventDefault(); e.stopPropagation();
-          const code = pre.querySelector('code');
-          const text = code ? code.textContent || '' : pre.textContent || '';
-          try {
-            await navigator.clipboard.writeText(text);
-            btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
-            btn.style.color = '#4ade80';
-            setTimeout(() => {
-              btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
-              btn.style.color = 'rgba(255,255,255,0.7)';
-            }, 1500);
-          } catch { }
-        });
-      });
+      } finally {
+        isAdding = false;
+      }
     };
 
     addCopyButtons();
-    const observer = new MutationObserver(addCopyButtons);
+    let rafId: number | null = null;
+    const debouncedAdd = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(addCopyButtons);
+    };
+    const observer = new MutationObserver(debouncedAdd);
     observer.observe(container, { childList: true, subtree: true });
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); if (rafId) cancelAnimationFrame(rafId); };
   }, [editor]);
 
   // Handle slash command events

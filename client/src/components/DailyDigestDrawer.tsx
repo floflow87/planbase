@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetClose, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,7 +8,7 @@ import { useLocation } from "wouter";
 import {
   RefreshCw, CheckSquare, Flag, MapPin, Banknote, Lightbulb,
   ChevronRight, CalendarClock, AlertCircle, Clock, CheckCheck,
-  ArrowUpRight, Sun, Calendar, Video,
+  ArrowUpRight, Sun, Calendar, Video, X,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -199,7 +199,7 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md flex flex-col gap-0 p-0" data-testid="sheet-daily-digest">
+      <SheetContent side="right" className="w-full sm:max-w-md flex flex-col gap-0 p-0 [&>button.absolute]:hidden" data-testid="sheet-daily-digest">
         {/* Header */}
         <SheetHeader className="px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -207,15 +207,22 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
               <Sun className="w-4 h-4 text-primary" />
               <SheetTitle className="text-base font-heading font-semibold">Ma journée</SheetTitle>
             </div>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => refresh.mutate()}
-              disabled={refresh.isPending || isLoading}
-              data-testid="button-refresh-digest"
-            >
-              <RefreshCw className={`w-4 h-4 ${refresh.isPending ? "animate-spin" : ""}`} />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => refresh.mutate()}
+                disabled={refresh.isPending || isLoading}
+                data-testid="button-refresh-digest"
+              >
+                <RefreshCw className={`w-4 h-4 ${refresh.isPending ? "animate-spin" : ""}`} />
+              </Button>
+              <SheetClose asChild>
+                <Button size="icon" variant="ghost" data-testid="button-close-digest">
+                  <X className="w-4 h-4" />
+                </Button>
+              </SheetClose>
+            </div>
           </div>
           {generatedAt && (
             <p className="text-[11px] text-muted-foreground mt-1">
