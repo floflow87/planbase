@@ -644,18 +644,16 @@ export function FeedbackTab({ backlogId }: Props) {
 
   // ── Computed ──
   const filteredFeedbacks = useMemo(() => {
+    const clusterFeedbackIds = filterCluster !== "all"
+      ? new Set(clusters.find((c) => c.id === filterCluster)?.items.map((item) => item.feedbackId) ?? [])
+      : null;
     return feedbacks.filter((fb) => {
       if (showArchived ? fb.internalStatus !== "archived" : fb.internalStatus === "archived") return false;
       if (filterType !== "all" && fb.type !== filterType) return false;
       if (filterImportance !== "all" && fb.importance !== filterImportance) return false;
       if (filterStatus !== "all" && fb.internalStatus !== filterStatus) return false;
       if (filterSource !== "all" && fb.source !== filterSource) return false;
-      if (filterCluster !== "all") {
-        const cluster = clusters.find((c) => c.id === filterCluster);
-        if (!cluster) return false;
-        const clusterFeedbackIds = new Set(cluster.items.map((item) => item.feedbackId));
-        if (!clusterFeedbackIds.has(fb.id)) return false;
-      }
+      if (clusterFeedbackIds && !clusterFeedbackIds.has(fb.id)) return false;
       if (searchText) {
         const q = searchText.toLowerCase();
         if (!fb.title.toLowerCase().includes(q) && !fb.description.toLowerCase().includes(q) && !fb.contributorName.toLowerCase().includes(q)) return false;
