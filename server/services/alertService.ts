@@ -42,6 +42,12 @@ const THRESHOLD_COOLDOWN_MINUTES = (() => {
 // resume after restart which is itself a form of infrastructure event).
 let lastThresholdAlertAt: Date | null = null;
 
+// In-flight guard: prevents two concurrent threshold checks from both passing
+// the cooldown gate before either has had a chance to set lastThresholdAlertAt.
+// Node.js is single-threaded between awaits, so a synchronous assignment here
+// is sufficient to serialize concurrent async invocations.
+let thresholdCheckInFlight = false;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function maskUrl(url: string): string {
@@ -322,27 +328,41 @@ async function sendThresholdWebhookAlert(count: number, windowMinutes: number): 
 /**
  * Checks whether recent fallback count exceeds the configured threshold.
  * If so, and if the cooldown has expired, fires a sustained-degradation alert.
- * Safe to call fire-and-forget.
+ *
+ * Race-safety: `thresholdCheckInFlight` is set synchronously before the first
+ * `await`, so Node.js's single-threaded event loop guarantees only one check
+ * runs at a time. A concurrent call that arrives between two awaits will see
+ * the flag already set and exit immediately, preventing duplicate alerts.
+ *
+ * Ordering: callers must await `logAiFallbackEvent` before calling this so the
+ * just-triggered event is already persisted when the DB count runs.
+ *
+ * Safe to call fire-and-forget after the log insert completes.
  */
 async function checkAndAlertThreshold(): Promise<void> {
   const hasEmail = !!process.env.ALERT_EMAIL;
   const hasWebhook = !!process.env.ALERT_WEBHOOK_URL;
   if (!hasEmail && !hasWebhook) return;
 
-  // Check cooldown first (cheap, avoids unnecessary DB query)
+  // Check cooldown (sync, cheap — avoids unnecessary DB query)
   if (lastThresholdAlertAt !== null) {
     const elapsedMs = Date.now() - lastThresholdAlertAt.getTime();
     const cooldownMs = THRESHOLD_COOLDOWN_MINUTES * 60 * 1000;
-    if (elapsedMs < cooldownMs) {
-      return;
-    }
+    if (elapsedMs < cooldownMs) return;
   }
+
+  // Acquire in-flight lock synchronously before the first await so that
+  // concurrent calls queued behind this one bail out rather than double-alert.
+  if (thresholdCheckInFlight) return;
+  thresholdCheckInFlight = true;
 
   try {
     const since = new Date(Date.now() - THRESHOLD_WINDOW_MINUTES * 60 * 1000);
     const count = await storage.countAiFallbackEventsSince(since);
 
     if (count >= THRESHOLD_COUNT) {
+      // Stamp cooldown before dispatching to prevent a second concurrent check
+      // from sneaking through while we await the email/webhook sends.
       lastThresholdAlertAt = new Date();
       console.warn(
         `[Alert] Threshold crossed: ${count} fallbacks in last ${THRESHOLD_WINDOW_MINUTES}min ` +
@@ -356,6 +376,8 @@ async function checkAndAlertThreshold(): Promise<void> {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[Alert] Failed to check fallback threshold:", msg);
+  } finally {
+    thresholdCheckInFlight = false;
   }
 }
 
@@ -364,17 +386,21 @@ async function checkAndAlertThreshold(): Promise<void> {
 export async function alertOllamaFallback(
   params: ProviderAlertParams & { fallbackSucceeded?: boolean }
 ): Promise<void> {
-  storage.logAiFallbackEvent({
-    promptType: params.promptType,
-    errorMessage: params.errorMessage ?? null,
-    fallbackSucceeded: params.fallbackSucceeded !== false,
-  }).catch((err: unknown) => {
+  // Await the insert so the event is in the DB before the threshold count runs.
+  // Errors are caught so a failed insert never blocks the dedup-window path.
+  try {
+    await storage.logAiFallbackEvent({
+      promptType: params.promptType,
+      errorMessage: params.errorMessage ?? null,
+      fallbackSucceeded: params.fallbackSucceeded !== false,
+    });
+  } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[Alert] Failed to persist AI fallback event:", msg);
-  });
+  }
 
-  // Fire threshold check asynchronously (after the event is logged above).
-  // Uses the DB-persisted count so it's accurate even across process restarts.
+  // Threshold check runs after the insert; the new event is now included in the
+  // DB count. Called fire-and-forget so it doesn't delay the dedup-window path.
   checkAndAlertThreshold().catch((err: unknown) => {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[Alert] Failed to run threshold check:", msg);
@@ -420,7 +446,7 @@ export const _test = {
   }),
   resetCooldown: () => { lastThresholdAlertAt = null; },
   getLastThresholdAlertAt: () => lastThresholdAlertAt,
-  /** Clear all in-memory dedup-window and cooldown state between unit tests. */
+  /** Clear all in-memory dedup-window, cooldown, and in-flight state between unit tests. */
   resetAllState: () => {
     if (windowTimer !== null) {
       clearTimeout(windowTimer);
@@ -429,5 +455,6 @@ export const _test = {
     windowCount = 0;
     windowFirst = null;
     lastThresholdAlertAt = null;
+    thresholdCheckInFlight = false;
   },
 };

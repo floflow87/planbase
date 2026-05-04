@@ -9,6 +9,7 @@
  * E) Cooldown expiry re-enables alerting
  * F) No alert when no channel is configured
  * G) DB error during threshold check is handled gracefully
+ * H) Log insert is awaited before threshold check (ordering guarantee)
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
@@ -57,6 +58,28 @@ function makeParams(overrides: Partial<{ promptType: string; errorMessage: strin
     errorMessage: overrides.errorMessage,
     fallbackSucceeded: true,
   };
+}
+
+/** Count how many times mockEmailSend was called with a "sustained degradation" subject. */
+function countThresholdEmails(): number {
+  return mockEmailSend.mock.calls.filter((call) => {
+    const arg = call[0] as Record<string, unknown>;
+    return typeof arg?.subject === "string" && arg.subject.includes("sustained degradation");
+  }).length;
+}
+
+/** Count how many times mockFetch was called with the sustained-degradation webhook payload. */
+function countThresholdWebhooks(): number {
+  return (mockFetch as ReturnType<typeof vi.fn>).mock.calls.filter((call: unknown[]) => {
+    const opts = call[1] as RequestInit | undefined;
+    if (!opts?.body) return false;
+    try {
+      const body = JSON.parse(opts.body as string) as Record<string, unknown>;
+      return body.event === "ai_provider_sustained_degradation";
+    } catch {
+      return false;
+    }
+  }).length;
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -108,10 +131,7 @@ describe("alertService — threshold-based degradation detection", () => {
       await alertOllamaFallback(makeParams());
       await flush();
 
-      const thresholdEmails = mockEmailSend.mock.calls.filter(([args]: [any]) =>
-        String(args?.subject ?? "").includes("sustained degradation")
-      );
-      expect(thresholdEmails).toHaveLength(0);
+      expect(countThresholdEmails()).toBe(0);
     });
 
     it("does not send a threshold webhook when recent count < threshold", async () => {
@@ -122,14 +142,7 @@ describe("alertService — threshold-based degradation detection", () => {
       await alertOllamaFallback(makeParams());
       await flush();
 
-      const thresholdCalls = mockFetch.mock.calls.filter(([, opts]: [string, RequestInit]) => {
-        try {
-          return JSON.parse(opts?.body as string).event === "ai_provider_sustained_degradation";
-        } catch {
-          return false;
-        }
-      });
-      expect(thresholdCalls).toHaveLength(0);
+      expect(countThresholdWebhooks()).toBe(0);
     });
 
     it("does NOT record a threshold alert timestamp when below threshold", async () => {
@@ -153,9 +166,7 @@ describe("alertService — threshold-based degradation detection", () => {
       await alertOllamaFallback(makeParams());
       await flush();
 
-      expect(mockEmailSend).toHaveBeenCalledWith(
-        expect.objectContaining({ subject: expect.stringContaining("sustained degradation") })
-      );
+      expect(countThresholdEmails()).toBe(1);
     });
 
     it("sends a threshold email when count exceeds threshold", async () => {
@@ -165,9 +176,7 @@ describe("alertService — threshold-based degradation detection", () => {
       await alertOllamaFallback(makeParams());
       await flush();
 
-      expect(mockEmailSend).toHaveBeenCalledWith(
-        expect.objectContaining({ subject: expect.stringContaining("sustained degradation") })
-      );
+      expect(countThresholdEmails()).toBe(1);
     });
 
     it("includes the actual fallback count in the email subject", async () => {
@@ -178,9 +187,12 @@ describe("alertService — threshold-based degradation detection", () => {
       await alertOllamaFallback(makeParams());
       await flush();
 
-      expect(mockEmailSend).toHaveBeenCalledWith(
-        expect.objectContaining({ subject: expect.stringContaining(String(count)) })
-      );
+      const subjectCall = mockEmailSend.mock.calls.find((call) => {
+        const arg = call[0] as Record<string, unknown>;
+        return typeof arg?.subject === "string" && arg.subject.includes("sustained degradation");
+      });
+      const subject = (subjectCall?.[0] as Record<string, unknown>)?.subject as string;
+      expect(subject).toContain(String(count));
     });
 
     it("sends a threshold webhook with event=ai_provider_sustained_degradation", async () => {
@@ -192,14 +204,7 @@ describe("alertService — threshold-based degradation detection", () => {
       await alertOllamaFallback(makeParams());
       await flush();
 
-      const thresholdCalls = mockFetch.mock.calls.filter(([, opts]: [string, RequestInit]) => {
-        try {
-          return JSON.parse(opts?.body as string).event === "ai_provider_sustained_degradation";
-        } catch {
-          return false;
-        }
-      });
-      expect(thresholdCalls.length).toBeGreaterThanOrEqual(1);
+      expect(countThresholdWebhooks()).toBeGreaterThanOrEqual(1);
     });
 
     it("records the timestamp of the threshold alert", async () => {
@@ -224,20 +229,12 @@ describe("alertService — threshold-based degradation detection", () => {
       // First fallback → crosses threshold → alert fires
       await alertOllamaFallback(makeParams());
       await flush();
-
-      const countAfterFirst = mockEmailSend.mock.calls.filter(([args]: [any]) =>
-        String(args?.subject ?? "").includes("sustained degradation")
-      ).length;
-      expect(countAfterFirst).toBe(1);
+      expect(countThresholdEmails()).toBe(1);
 
       // Second fallback — still above threshold but inside cooldown → suppressed
       await alertOllamaFallback(makeParams());
       await flush();
-
-      const countAfterSecond = mockEmailSend.mock.calls.filter(([args]: [any]) =>
-        String(args?.subject ?? "").includes("sustained degradation")
-      ).length;
-      expect(countAfterSecond).toBe(1); // still only 1
+      expect(countThresholdEmails()).toBe(1); // still only 1
     });
   });
 
@@ -254,11 +251,7 @@ describe("alertService — threshold-based degradation detection", () => {
       // First alert
       await alertOllamaFallback(makeParams());
       await flush();
-
-      const afterFirst = mockEmailSend.mock.calls.filter(([args]: [any]) =>
-        String(args?.subject ?? "").includes("sustained degradation")
-      ).length;
-      expect(afterFirst).toBe(1);
+      expect(countThresholdEmails()).toBe(1);
 
       // Advance the clock past the cooldown window
       vi.advanceTimersByTime(THRESHOLD_COOLDOWN_MINUTES * 60 * 1000 + 1000);
@@ -266,11 +259,7 @@ describe("alertService — threshold-based degradation detection", () => {
       // Second alert after cooldown expiry
       await alertOllamaFallback(makeParams());
       await flush();
-
-      const afterSecond = mockEmailSend.mock.calls.filter(([args]: [any]) =>
-        String(args?.subject ?? "").includes("sustained degradation")
-      ).length;
-      expect(afterSecond).toBe(2);
+      expect(countThresholdEmails()).toBe(2);
 
       vi.useRealTimers();
     }, 15000);
@@ -302,7 +291,6 @@ describe("alertService — threshold-based degradation detection", () => {
 
       await expect(alertOllamaFallback(makeParams())).resolves.not.toThrow();
       await flush();
-      // No crash — error is logged and swallowed
     });
 
     it("does not record a threshold alert timestamp when DB query fails", async () => {
@@ -312,6 +300,31 @@ describe("alertService — threshold-based degradation detection", () => {
       await flush();
 
       expect(_test.getLastThresholdAlertAt()).toBeNull();
+    });
+  });
+
+  // ── H) Ordering guarantee: log insert completes before threshold check ────
+
+  describe("H) Log insert completes before threshold count query", () => {
+    it("always calls logAiFallbackEvent before countAiFallbackEventsSince", async () => {
+      const callOrder: string[] = [];
+      mockLogEvent.mockImplementation(async () => {
+        callOrder.push("log");
+        return {};
+      });
+      mockCountSince.mockImplementation(async () => {
+        callOrder.push("count");
+        return 0;
+      });
+
+      await alertOllamaFallback(makeParams());
+      await flush();
+
+      const logIdx = callOrder.indexOf("log");
+      const countIdx = callOrder.indexOf("count");
+      expect(logIdx).toBeGreaterThanOrEqual(0);
+      expect(countIdx).toBeGreaterThanOrEqual(0);
+      expect(logIdx).toBeLessThan(countIdx);
     });
   });
 });
