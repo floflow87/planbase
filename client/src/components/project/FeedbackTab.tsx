@@ -282,6 +282,7 @@ export function FeedbackTab({ backlogId }: Props) {
   const [filterImportance, setFilterImportance] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterSource, setFilterSource] = useState("all");
+  const [filterCluster, setFilterCluster] = useState("all");
   const [searchText, setSearchText] = useState("");
   const [ticketSearch, setTicketSearch] = useState("");
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
@@ -649,13 +650,19 @@ export function FeedbackTab({ backlogId }: Props) {
       if (filterImportance !== "all" && fb.importance !== filterImportance) return false;
       if (filterStatus !== "all" && fb.internalStatus !== filterStatus) return false;
       if (filterSource !== "all" && fb.source !== filterSource) return false;
+      if (filterCluster !== "all") {
+        const cluster = clusters.find((c) => c.id === filterCluster);
+        if (!cluster) return false;
+        const clusterFeedbackIds = new Set(cluster.items.map((item) => item.feedbackId));
+        if (!clusterFeedbackIds.has(fb.id)) return false;
+      }
       if (searchText) {
         const q = searchText.toLowerCase();
         if (!fb.title.toLowerCase().includes(q) && !fb.description.toLowerCase().includes(q) && !fb.contributorName.toLowerCase().includes(q)) return false;
       }
       return true;
     });
-  }, [feedbacks, showArchived, filterType, filterImportance, filterStatus, filterSource, searchText]);
+  }, [feedbacks, showArchived, filterType, filterImportance, filterStatus, filterSource, filterCluster, clusters, searchText]);
 
   const nonArchivedCount = feedbacks.filter((fb) => fb.internalStatus !== "archived").length;
 
@@ -708,7 +715,7 @@ export function FeedbackTab({ backlogId }: Props) {
     toast({ title: "Lien copié !" });
   };
 
-  const hasActiveFilters = filterType !== "all" || filterImportance !== "all" || filterStatus !== "all" || filterSource !== "all" || searchText;
+  const hasActiveFilters = filterType !== "all" || filterImportance !== "all" || filterStatus !== "all" || filterSource !== "all" || filterCluster !== "all" || searchText;
 
   if (settingsLoading || feedbacksLoading) {
     return (
@@ -877,9 +884,22 @@ export function FeedbackTab({ backlogId }: Props) {
                   <SelectItem value="sales">Commercial</SelectItem>
                 </SelectContent>
               </Select>
+              {clusters.filter((c) => c.status !== "dismissed" && c.status !== "archived").length > 0 && (
+                <Select value={filterCluster} onValueChange={setFilterCluster}>
+                  <SelectTrigger className="h-7 text-xs w-40" data-testid="select-filter-cluster"><SelectValue placeholder="Cluster" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les clusters</SelectItem>
+                    {clusters
+                      .filter((c) => c.status !== "dismissed" && c.status !== "archived")
+                      .map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              )}
               {hasActiveFilters && (
                 <Button size="sm" variant="ghost" className="h-7 px-2 text-xs gap-1"
-                  onClick={() => { setFilterType("all"); setFilterImportance("all"); setFilterStatus("all"); setFilterSource("all"); setSearchText(""); }}
+                  onClick={() => { setFilterType("all"); setFilterImportance("all"); setFilterStatus("all"); setFilterSource("all"); setFilterCluster("all"); setSearchText(""); }}
                   data-testid="button-clear-filters">
                   <X className="w-3 h-3" />Effacer
                 </Button>
@@ -1075,6 +1095,9 @@ export function FeedbackTab({ backlogId }: Props) {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => setSelectedCluster(cluster)}>Voir le détail</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setFilterCluster(cluster.id); setActiveView("inbox"); }} data-testid={`button-view-in-inbox-${cluster.id}`}>
+                                <Filter className="w-3.5 h-3.5 mr-1.5" />Voir dans l'Inbox
+                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => updateClusterMutation.mutate({ clusterId: cluster.id, patch: { status: "validated" } })} disabled={cluster.status === "validated"}>
                                 <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />Valider
@@ -1137,14 +1160,18 @@ export function FeedbackTab({ backlogId }: Props) {
                     {strongClusters.slice(0, 5).map((c) => {
                       const priority = calcClusterPriorityLabel(c.feedbackCount, c.impactLevel);
                       return (
-                        <div key={c.id} className="flex items-start gap-2 cursor-pointer hover-elevate rounded-md p-1.5"
-                          onClick={() => { setActiveView("clusters"); setSelectedCluster(c); }}
+                        <div key={c.id} className="flex items-start gap-2 rounded-md p-1.5 hover-elevate"
                           data-testid={`insight-cluster-${c.id}`}>
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setActiveView("clusters"); setSelectedCluster(c); }}>
                             <p className="text-xs font-medium truncate">{c.title}</p>
                             <p className="text-[10px] text-muted-foreground">{c.feedbackCount} feedbacks{c.productArea ? ` · ${c.productArea}` : ""}</p>
                           </div>
                           <Badge variant="outline" className={`text-[10px] shrink-0 ${priority.cls}`}>{priority.label}</Badge>
+                          <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" title="Voir dans l'Inbox"
+                            onClick={() => { setFilterCluster(c.id); setActiveView("inbox"); }}
+                            data-testid={`button-insight-inbox-${c.id}`}>
+                            <Filter className="w-3 h-3" />
+                          </Button>
                         </div>
                       );
                     })}
