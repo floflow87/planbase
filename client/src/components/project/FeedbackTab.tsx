@@ -398,7 +398,7 @@ export function FeedbackTab({ backlogId }: Props) {
                 Voir le cluster
               </ToastAction>
             </div>
-          ) as any,
+          ),
         });
       } else {
         toast({ title: "Feedback ajouté" });
