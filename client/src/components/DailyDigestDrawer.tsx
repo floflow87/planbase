@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { useLocation } from "wouter";
 import {
   RefreshCw, CheckSquare, Flag, MapPin, Banknote, Lightbulb,
   ChevronRight, CalendarClock, AlertCircle, Clock, CheckCheck,
-  ArrowUpRight, Sun,
+  ArrowUpRight, Sun, Calendar, Video,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -94,6 +95,25 @@ function EmptyState({ message }: { message: string }) {
   return <p className="text-xs text-muted-foreground italic py-2">{message}</p>;
 }
 
+interface DigestAppointment {
+  id: string;
+  title: string;
+  startDateTime: string;
+  endDateTime: string | null;
+  type: string | null;
+  location?: string | null;
+  source: "planbase" | "google";
+  hangoutLink?: string | null;
+}
+
+interface GoogleEvent {
+  id: string;
+  summary: string;
+  start: { dateTime?: string; date?: string };
+  end: { dateTime?: string; date?: string };
+  hangoutLink?: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -103,11 +123,64 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
 
+  const todayStart = useMemo(() => {
+    const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString();
+  }, []);
+  const todayEnd = useMemo(() => {
+    const d = new Date(); d.setHours(23, 59, 59, 999); return d.toISOString();
+  }, []);
+
   const { data: digest, isLoading, isError } = useQuery<DigestSummary>({
     queryKey: ["/api/daily-digest/today"],
     enabled: open,
     staleTime: 5 * 60 * 1000,
   });
+
+  const { data: rawAppointments = [] } = useQuery<any[]>({
+    queryKey: ["/api/appointments", todayStart, todayEnd],
+    queryFn: async () => {
+      const params = new URLSearchParams({ startDate: todayStart, endDate: todayEnd });
+      const res = await apiRequest(`/api/appointments?${params}`, "GET");
+      return res.json();
+    },
+    enabled: open,
+  });
+
+  const { data: googleStatus } = useQuery<{ connected: boolean }>({
+    queryKey: ["/api/google/status"],
+    enabled: open,
+  });
+
+  const { data: rawGoogleEvents = [] } = useQuery<GoogleEvent[]>({
+    queryKey: ["/api/google/events", todayStart, todayEnd],
+    queryFn: async () => {
+      const params = new URLSearchParams({ startDate: todayStart, endDate: todayEnd });
+      const res = await apiRequest(`/api/google/events?${params}`, "GET");
+      return res.json();
+    },
+    enabled: open && !!googleStatus?.connected,
+  });
+
+  const todayAppointments = useMemo<DigestAppointment[]>(() => {
+    const syncedIds = new Set(rawAppointments.map((a: any) => a.googleEventId).filter(Boolean));
+    const local: DigestAppointment[] = rawAppointments.map((a: any) => ({
+      id: a.id, title: a.title, startDateTime: a.startDateTime,
+      endDateTime: a.endDateTime, type: a.type, location: a.location,
+      source: "planbase" as const, hangoutLink: a.htmlLink || null,
+    }));
+    const google: DigestAppointment[] = rawGoogleEvents
+      .filter((e) => !syncedIds.has(e.id))
+      .map((e) => ({
+        id: e.id, title: e.summary || "Sans titre",
+        startDateTime: e.start.dateTime || e.start.date || "",
+        endDateTime: e.end?.dateTime || e.end?.date || null,
+        type: null, location: null, source: "google" as const,
+        hangoutLink: e.hangoutLink || null,
+      }));
+    return [...local, ...google].sort((a, b) =>
+      new Date(a.startDateTime).getTime() - new Date(b.startDateTime).getTime()
+    );
+  }, [rawAppointments, rawGoogleEvents]);
 
   const refresh = useMutation({
     mutationFn: () => apiRequest("/api/daily-digest/refresh", "POST"),
@@ -135,15 +208,13 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
               <SheetTitle className="text-base font-heading font-semibold">Ma journée</SheetTitle>
             </div>
             <Button
-              size="sm"
-              variant="outline"
+              size="icon"
+              variant="ghost"
               onClick={() => refresh.mutate()}
               disabled={refresh.isPending || isLoading}
               data-testid="button-refresh-digest"
-              className="gap-1.5 text-xs"
             >
-              <RefreshCw className={`w-3 h-3 ${refresh.isPending ? "animate-spin" : ""}`} />
-              Rafraîchir
+              <RefreshCw className={`w-4 h-4 ${refresh.isPending ? "animate-spin" : ""}`} />
             </Button>
           </div>
           {generatedAt && (
@@ -217,7 +288,61 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
                 )}
               </section>
 
-              {/* ── Section 2 : Roadmap ── */}
+              {/* ── Section 2 : Rendez-vous du jour ── */}
+              <section data-testid="digest-section-appointments">
+                <SectionTitle icon={Calendar} label="Rendez-vous du jour" />
+                {todayAppointments.length === 0 ? (
+                  <EmptyState message="Aucun rendez-vous prévu aujourd'hui." />
+                ) : (
+                  <div className="space-y-2">
+                    {todayAppointments.map((appt) => {
+                      const start = new Date(appt.startDateTime);
+                      const end = appt.endDateTime ? new Date(appt.endDateTime) : null;
+                      const fmt = (d: Date) => d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+                      return (
+                        <div
+                          key={appt.id}
+                          className="flex items-start gap-3 p-3 rounded-md border border-border hover-elevate active-elevate-2 cursor-pointer"
+                          onClick={() => navigate("/calendar")}
+                          data-testid={`digest-appointment-${appt.id}`}
+                        >
+                          <Clock className="w-3.5 h-3.5 text-cyan-500 shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-foreground leading-snug truncate">{appt.title}</p>
+                            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                              <span className="text-[10px] text-muted-foreground">
+                                {fmt(start)}{end ? ` – ${fmt(end)}` : ""}
+                              </span>
+                              {appt.source === "google" && (
+                                <Badge variant="outline" className="text-[10px] border-blue-400 text-blue-600 dark:text-blue-400">Google</Badge>
+                              )}
+                              {appt.hangoutLink && (
+                                <a
+                                  href={appt.hangoutLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-0.5 text-[10px] text-primary hover:underline"
+                                  data-testid={`link-meet-${appt.id}`}
+                                >
+                                  <Video className="w-2.5 h-2.5" />
+                                  Meet
+                                </a>
+                              )}
+                              {appt.location && (
+                                <span className="text-[10px] text-muted-foreground truncate">{appt.location}</span>
+                              )}
+                            </div>
+                          </div>
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+
+              {/* ── Section 3 : Roadmap ── */}
               <section data-testid="digest-section-roadmap">
                 <SectionTitle icon={MapPin} label="Roadmap & jalons" />
                 {digest.roadmap.completedLast7Days.length === 0 && digest.roadmap.upcomingNext7Days.length === 0 ? (
