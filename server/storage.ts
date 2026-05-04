@@ -440,6 +440,7 @@ export interface IStorage {
   logAiFallbackEvent(event: InsertAiFallbackEvent): Promise<AiFallbackEvent>;
   getAiFallbackEvents(limit?: number, offset?: number): Promise<AiFallbackEvent[]>;
   getAiFallbackEventCount(): Promise<number>;
+  countAiFallbackEventsSince(since: Date): Promise<number>;
 }
 
 // Supabase PostgreSQL implementation using Drizzle ORM
@@ -2779,6 +2780,14 @@ export class DatabaseStorage implements IStorage {
 
   async getAiFallbackEventCount(): Promise<number> {
     const [result] = await db.select({ count: sql<number>`count(*)::int` }).from(aiFallbackEvents);
+    return result?.count ?? 0;
+  }
+
+  async countAiFallbackEventsSince(since: Date): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(aiFallbackEvents)
+      .where(sql`${aiFallbackEvents.createdAt} >= ${since.toISOString()}`);
     return result?.count ?? 0;
   }
 }
