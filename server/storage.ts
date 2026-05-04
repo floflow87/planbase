@@ -1367,12 +1367,13 @@ export class DatabaseStorage implements IStorage {
     if (links.length === 0) return [];
     
     const noteIds = links.map(link => link.noteId);
-    const conditions = [inArray(notes.id, noteIds)] as any[];
-    if (accountId) conditions.push(eq(notes.accountId, accountId));
     return await db
       .select()
       .from(notes)
-      .where(and(...conditions));
+      .where(and(
+        inArray(notes.id, noteIds),
+        accountId ? eq(notes.accountId, accountId) : undefined,
+      ));
   }
 
   async getNoteLinksByAccountId(accountId: string): Promise<NoteLink[]> {

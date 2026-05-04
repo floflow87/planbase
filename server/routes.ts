@@ -12324,18 +12324,14 @@ app.get("/config/feature-flags", async (_req, res) => {
       const { projectId } = req.params;
       const { type, status, isSimulation } = req.query;
       
-      const conditions: any[] = [
-        eq(projectResources.accountId, accountId),
-        eq(projectResources.projectId, projectId),
-      ];
-      if (type) conditions.push(eq(projectResources.type, type as string));
-      if (status) conditions.push(eq(projectResources.status, status as string));
-      if (isSimulation !== undefined) {
-        conditions.push(eq(projectResources.isSimulation, isSimulation === 'true' ? 1 : 0));
-      }
-
       const resources = await db.select().from(projectResources)
-        .where(and(...conditions))
+        .where(and(
+          eq(projectResources.accountId, accountId),
+          eq(projectResources.projectId, projectId),
+          type ? eq(projectResources.type, type as string) : undefined,
+          status ? eq(projectResources.status, status as string) : undefined,
+          isSimulation !== undefined ? eq(projectResources.isSimulation, isSimulation === 'true' ? 1 : 0) : undefined,
+        ))
         .orderBy(asc(projectResources.createdAt));
       
       res.json(resources);
@@ -12567,14 +12563,12 @@ app.get("/config/feature-flags", async (_req, res) => {
       const accountId = req.accountId!;
       const { type, projectType } = req.query;
       
-      const conditions: any[] = [eq(resourceTemplates.accountId, accountId)];
-      if (type) conditions.push(eq(resourceTemplates.type, type as string));
-      if (projectType) conditions.push(
-        or(eq(resourceTemplates.projectType, projectType as string), isNull(resourceTemplates.projectType))!
-      );
-
       const templates = await db.select().from(resourceTemplates)
-        .where(and(...conditions))
+        .where(and(
+          eq(resourceTemplates.accountId, accountId),
+          type ? eq(resourceTemplates.type, type as string) : undefined,
+          projectType ? or(eq(resourceTemplates.projectType, projectType as string), isNull(resourceTemplates.projectType)) : undefined,
+        ))
         .orderBy(asc(resourceTemplates.name));
       
       res.json(templates);
