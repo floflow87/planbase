@@ -15406,9 +15406,11 @@ app.get("/config/feature-flags", async (_req, res) => {
       const accountId = req.accountId!;
       const planScenarioId = req.query.planScenarioId as string | undefined;
       const endYear = parseInt(req.query.endYear as string) || new Date().getFullYear();
-      const rawScenarioName = (req.query.scenarioName as string) || "base";
-      // Sanitize to ASCII-safe slug for use in Content-Disposition filename
-      const scenarioName = rawScenarioName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "-").slice(0, 60) || "base";
+      // Cap endYear to prevent pathologically large exports (max 5 years into the future)
+      const cappedEndYear = Math.min(endYear, new Date().getFullYear() + 5);
+
+      const slugify = (s: string) =>
+        s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "-").slice(0, 60) || "base";
 
       const toRows = (r: any): any[] => {
         if (!r) return [];
@@ -15449,15 +15451,20 @@ app.get("/config/feature-flags", async (_req, res) => {
         cellMap[c.line_id][c.period_key] = { amount: Number(c.amount ?? 0), color: c.cell_color ?? null };
       }
 
-      // Fetch settings
+      // Fetch settings — resolve scenarioName server-side for canonical filenames
       let initialBalance = 0;
       let granularity = "month";
+      let scenarioName = "base";
       if (planScenarioId) {
         const sc = toRows(await db.execute(sql`
-          SELECT initial_balance, granularity FROM treasury_plan_scenarios
+          SELECT name, initial_balance, granularity FROM treasury_plan_scenarios
           WHERE id = ${planScenarioId} AND account_id = ${accountId}
         `))[0] as any;
-        if (sc) { initialBalance = Number(sc.initial_balance ?? 0); granularity = sc.granularity ?? "month"; }
+        if (sc) {
+          initialBalance = Number(sc.initial_balance ?? 0);
+          granularity = sc.granularity ?? "month";
+          scenarioName = slugify(sc.name ?? "scenario");
+        }
       } else {
         const s = toRows(await db.execute(sql`
           SELECT plan_initial_balance, plan_granularity FROM treasury_settings WHERE account_id = ${accountId} LIMIT 1
@@ -15470,7 +15477,7 @@ app.get("/config/feature-flags", async (_req, res) => {
       const now = new Date();
       if (granularity === "month") {
         const cur = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-        const endD = new Date(endYear, 11, 1);
+        const endD = new Date(cappedEndYear, 11, 1);
         while (cur <= endD) {
           periods.push({
             key: `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`,
@@ -15707,9 +15714,11 @@ app.get("/config/feature-flags", async (_req, res) => {
       const accountId = req.accountId!;
       const planScenarioId = req.query.planScenarioId as string | undefined;
       const endYear = parseInt(req.query.endYear as string) || new Date().getFullYear();
-      const rawScenarioName = (req.query.scenarioName as string) || "base";
-      // Sanitize to ASCII-safe slug for Content-Disposition filename and HTML display
-      const scenarioName = rawScenarioName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "-").slice(0, 60) || "base";
+      // Cap endYear to prevent pathologically large exports (max 5 years into the future)
+      const cappedEndYear = Math.min(endYear, new Date().getFullYear() + 5);
+
+      const slugify = (s: string) =>
+        s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "-").slice(0, 60) || "base";
 
       const toRows = (r: any): any[] => {
         if (!r) return [];
@@ -15749,15 +15758,20 @@ app.get("/config/feature-flags", async (_req, res) => {
         cellMap[c.line_id][c.period_key] = { amount: Number(c.amount ?? 0), color: c.cell_color ?? null };
       }
 
-      // Fetch settings
+      // Fetch settings — resolve scenarioName server-side for canonical filenames
       let initialBalance = 0;
       let granularity = "month";
+      let scenarioName = "base";
       if (planScenarioId) {
         const sc = toRows(await db.execute(sql`
-          SELECT initial_balance, granularity FROM treasury_plan_scenarios
+          SELECT name, initial_balance, granularity FROM treasury_plan_scenarios
           WHERE id = ${planScenarioId} AND account_id = ${accountId}
         `))[0] as any;
-        if (sc) { initialBalance = Number(sc.initial_balance ?? 0); granularity = sc.granularity ?? "month"; }
+        if (sc) {
+          initialBalance = Number(sc.initial_balance ?? 0);
+          granularity = sc.granularity ?? "month";
+          scenarioName = slugify(sc.name ?? "scenario");
+        }
       } else {
         const s = toRows(await db.execute(sql`
           SELECT plan_initial_balance, plan_granularity FROM treasury_settings WHERE account_id = ${accountId} LIMIT 1
@@ -15766,6 +15780,7 @@ app.get("/config/feature-flags", async (_req, res) => {
       }
 
       // Generate periods
+      const endYear = cappedEndYear;
       const periods: Array<{ key: string; label: string }> = [];
       const now = new Date();
       if (granularity === "month") {
