@@ -16958,7 +16958,62 @@ app.get("/config/feature-flags", async (_req, res) => {
            ${safeType}, ${title.trim()}, ${description.trim()}, ${safeImportance}, ${safeSource}, 'new')
         RETURNING id, title, type, importance, internal_status, created_at
       `)) as any[];
-      res.status(201).json(result[0]);
+      const newFeedback = result[0];
+
+      // Quick similarity check: score candidates against the new feedback's title keywords + type
+      let suggestedClusterId: string | null = null;
+      let suggestedClusterTitle: string | null = null;
+      let similarCount = 0;
+      try {
+        const candidates = (await db.execute(sql`
+          SELECT id, title, type, product_area, tags, ai_keywords
+          FROM project_feedbacks
+          WHERE backlog_id = ${backlogId} AND account_id = ${accountId}
+            AND id != ${newFeedback.id}
+            AND internal_status != 'archived'
+          ORDER BY created_at DESC
+          LIMIT 50
+        `)) as any[];
+        const titleWords = (title as string).trim().toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
+        const targetKeywords = new Set(titleWords);
+        const similarIds: string[] = [];
+        for (const c of candidates) {
+          let score = 0;
+          if (c.type === safeType) score += 2;
+          const cKeywords = [
+            ...(c.ai_keywords ?? []).map((k: string) => k.toLowerCase()),
+            ...(c.tags ?? []).map((t: string) => t.toLowerCase()),
+            ...(c.title ?? "").toLowerCase().split(/\s+/).filter((w: string) => w.length > 3),
+          ];
+          for (const kw of cKeywords) {
+            if (targetKeywords.has(kw)) score += 1;
+          }
+          if (score >= 3) similarIds.push(c.id as string);
+        }
+        if (similarIds.length > 0) {
+          const clusterMatches = (await db.execute(sql`
+            SELECT fc.id, fc.title, COUNT(fci.feedback_id) as match_count
+            FROM feedback_clusters fc
+            JOIN feedback_cluster_items fci ON fci.cluster_id = fc.id
+            WHERE fc.backlog_id = ${backlogId} AND fc.account_id = ${accountId}
+              AND fc.archived_at IS NULL
+              AND fc.status NOT IN ('dismissed', 'archived')
+              AND fci.feedback_id = ANY(${similarIds}::uuid[])
+            GROUP BY fc.id, fc.title
+            ORDER BY match_count DESC
+            LIMIT 1
+          `)) as any[];
+          if (clusterMatches.length > 0) {
+            suggestedClusterId = clusterMatches[0].id as string;
+            suggestedClusterTitle = clusterMatches[0].title as string;
+            similarCount = Number(clusterMatches[0].match_count);
+          }
+        }
+      } catch {
+        // Similarity check is best-effort — don't fail the creation if it errors
+      }
+
+      res.status(201).json({ ...newFeedback, suggestedClusterId, suggestedClusterTitle, similarCount });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

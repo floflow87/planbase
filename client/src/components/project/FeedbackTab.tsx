@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
   MessageSquare, Copy, ExternalLink, Link2, Plus, Check, Trash2,
@@ -342,10 +343,24 @@ export function FeedbackTab({ backlogId }: Props) {
   const addFeedbackMutation = useMutation({
     mutationFn: (data: z.infer<typeof addFeedbackSchema>) =>
       apiRequest(`/api/backlogs/${backlogId}/feedbacks`, "POST", data),
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedbacks`] });
       setIsAddOpen(false); addForm.reset();
-      toast({ title: "Feedback ajouté" });
+      if (result?.suggestedClusterId && result?.suggestedClusterTitle) {
+        const clusterId = result.suggestedClusterId as string;
+        const clusterTitle = result.suggestedClusterTitle as string;
+        toast({
+          title: "Feedback ajouté",
+          description: `Ce feedback ressemble à des feedbacks du cluster « ${clusterTitle} »`,
+          action: (
+            <ToastAction altText="Voir le cluster" onClick={() => { setActiveView("clusters"); qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedback-clusters`] }); setTimeout(() => { const found = (qc.getQueryData([`/api/backlogs/${backlogId}/feedback-clusters`]) as any[])?.find((c: any) => c.id === clusterId); if (found) setSelectedCluster(found); }, 300); }}>
+              Voir le cluster
+            </ToastAction>
+          ),
+        });
+      } else {
+        toast({ title: "Feedback ajouté" });
+      }
     },
     onError: () => toast({ title: "Erreur", description: "Impossible d'ajouter le feedback", variant: "destructive" }),
   });
