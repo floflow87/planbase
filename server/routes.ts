@@ -1662,21 +1662,21 @@ app.get("/config/feature-flags", async (_req, res) => {
 
   app.get("/api/projects", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
-      const [projects, allScopeItems, allTimeEntries] = await Promise.all([
+      const [projects, scopeStats, timeStats] = await Promise.all([
         storage.getProjectsByAccountId(req.accountId!),
-        storage.getScopeItemsByAccountId(req.accountId!),
-        storage.getTimeEntriesByAccountId(req.accountId!),
+        storage.getScopeItemsStatsByAccountId(req.accountId!),
+        storage.getTimeEntriesStatsByAccountId(req.accountId!),
       ]);
 
       const enriched = projects.map((project) => {
-        const scopeItems = allScopeItems.filter(s => s.projectId === project.id);
-        const timeEntries = allTimeEntries.filter(t => t.projectId === project.id);
+        const scope = scopeStats[project.id] || { totalEstimatedDays: 0, completedEstimatedDays: 0, count: 0 };
+        const time = timeStats[project.id] || { totalDuration: 0 };
 
-        const totalEstimatedDays = scopeItems.reduce((sum, s) => sum + parseFloat(s.estimatedDays?.toString() || "0"), 0);
-        const completedEstimatedDays = scopeItems.filter(s => s.completedAt).reduce((sum, s) => sum + parseFloat(s.estimatedDays?.toString() || "0"), 0);
+        const totalEstimatedDays = scope.totalEstimatedDays;
+        const completedEstimatedDays = scope.completedEstimatedDays;
         const scopeProgress = totalEstimatedDays > 0 ? Math.min(100, Math.round((completedEstimatedDays / totalEstimatedDays) * 100)) : null;
 
-        const actualDaysWorked = timeEntries.reduce((sum, t) => sum + (t.duration || 0), 0) / 3600 / 8;
+        const actualDaysWorked = time.totalDuration / 3600 / 8;
         const timeConsumedPct = totalEstimatedDays > 0 ? Math.min(150, Math.round((actualDaysWorked / totalEstimatedDays) * 100)) : null;
 
         return {
@@ -1686,7 +1686,7 @@ app.get("/config/feature-flags", async (_req, res) => {
             timeConsumedPct,
             actualDaysWorked: Math.round(actualDaysWorked * 10) / 10,
             totalEstimatedDays: Math.round(totalEstimatedDays * 10) / 10,
-            hasScopeData: scopeItems.length > 0,
+            hasScopeData: scope.count > 0,
           },
         };
       });
@@ -4669,9 +4669,7 @@ app.get("/config/feature-flags", async (_req, res) => {
   app.get("/api/notes/by-entity/:targetType/:targetId", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
     try {
       const { targetType, targetId } = req.params;
-      const linkedNotes = await storage.getNotesByEntityLink(targetType, targetId);
-      // Filter to only return notes belonging to this account
-      const accountNotes = linkedNotes.filter(n => n.accountId === req.accountId);
+      const accountNotes = await storage.getNotesByEntityLink(targetType, targetId, req.accountId!);
       res.json(accountNotes);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -5998,12 +5996,8 @@ app.get("/config/feature-flags", async (_req, res) => {
   app.delete("/api/projects/:projectId/activities", requireAuth, requireOrgMember, requirePermission("projects", "delete"), async (req, res) => {
     try {
       const { projectId } = req.params;
-      const activities = await storage.getActivitiesBySubject("project", projectId);
+      const accountActivities = await storage.getActivitiesBySubject(req.accountId!, "project", projectId);
       
-      // Filter by account
-      const accountActivities = activities.filter(a => a.accountId === req.accountId);
-      
-      // Delete each activity
       for (const activity of accountActivities) {
         await storage.deleteActivity(activity.id);
       }
@@ -6017,18 +6011,8 @@ app.get("/config/feature-flags", async (_req, res) => {
   // Cleanup all project activities (admin cleanup endpoint)
   app.delete("/api/admin/cleanup-project-activities", requireAuth, async (req, res) => {
     try {
-      // Get all activities for the account
-      const allActivities = await storage.getActivitiesByAccountId(req.accountId!, 10000);
-      
-      // Filter only project activities
-      const projectActivities = allActivities.filter(a => a.subjectType === "project");
-      
-      // Delete each project activity
-      for (const activity of projectActivities) {
-        await storage.deleteActivity(activity.id);
-      }
-      
-      res.json({ success: true, deleted: projectActivities.length });
+      const deleted = await storage.deleteActivitiesBySubjectType(req.accountId!, "project");
+      res.json({ success: true, deleted });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -6298,12 +6282,7 @@ app.get("/config/feature-flags", async (_req, res) => {
   app.get("/api/roadmaps", requireAuth, requireOrgMember, requirePermission("roadmap", "read"), async (req, res) => {
     try {
       const { unlinked } = req.query;
-      if (unlinked === 'true') {
-        const allRoadmaps = await storage.getRoadmapsByAccountId(req.accountId!);
-        const unlinkedRoadmaps = allRoadmaps.filter(r => !r.projectId);
-        return res.json(unlinkedRoadmaps);
-      }
-      const roadmaps = await storage.getRoadmapsByAccountId(req.accountId!);
+      const roadmaps = await storage.getRoadmapsByAccountId(req.accountId!, unlinked === 'true' ? { unlinked: true } : undefined);
       res.json(roadmaps);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -12345,28 +12324,21 @@ app.get("/config/feature-flags", async (_req, res) => {
       const { projectId } = req.params;
       const { type, status, isSimulation } = req.query;
       
-      let query = db.select().from(projectResources)
-        .where(and(
-          eq(projectResources.accountId, accountId),
-          eq(projectResources.projectId, projectId)
-        ));
-      
-      const resources = await query.orderBy(asc(projectResources.createdAt));
-      
-      // Filter in memory for optional params
-      let filtered = resources;
-      if (type) {
-        filtered = filtered.filter(r => r.type === type);
-      }
-      if (status) {
-        filtered = filtered.filter(r => r.status === status);
-      }
+      const conditions: any[] = [
+        eq(projectResources.accountId, accountId),
+        eq(projectResources.projectId, projectId),
+      ];
+      if (type) conditions.push(eq(projectResources.type, type as string));
+      if (status) conditions.push(eq(projectResources.status, status as string));
       if (isSimulation !== undefined) {
-        const simValue = isSimulation === 'true' ? 1 : 0;
-        filtered = filtered.filter(r => r.isSimulation === simValue);
+        conditions.push(eq(projectResources.isSimulation, isSimulation === 'true' ? 1 : 0));
       }
+
+      const resources = await db.select().from(projectResources)
+        .where(and(...conditions))
+        .orderBy(asc(projectResources.createdAt));
       
-      res.json(filtered);
+      res.json(resources);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -12595,20 +12567,17 @@ app.get("/config/feature-flags", async (_req, res) => {
       const accountId = req.accountId!;
       const { type, projectType } = req.query;
       
+      const conditions: any[] = [eq(resourceTemplates.accountId, accountId)];
+      if (type) conditions.push(eq(resourceTemplates.type, type as string));
+      if (projectType) conditions.push(
+        or(eq(resourceTemplates.projectType, projectType as string), isNull(resourceTemplates.projectType))!
+      );
+
       const templates = await db.select().from(resourceTemplates)
-        .where(eq(resourceTemplates.accountId, accountId))
+        .where(and(...conditions))
         .orderBy(asc(resourceTemplates.name));
       
-      // Filter in memory for optional params
-      let filtered = templates;
-      if (type) {
-        filtered = filtered.filter(t => t.type === type);
-      }
-      if (projectType) {
-        filtered = filtered.filter(t => t.projectType === projectType || t.projectType === null);
-      }
-      
-      res.json(filtered);
+      res.json(templates);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

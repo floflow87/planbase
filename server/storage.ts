@@ -161,6 +161,7 @@ export interface IStorage {
   // Project Scope Items (CDC/Statement of Work)
   getScopeItemsByProjectId(projectId: string): Promise<ProjectScopeItem[]>;
   getScopeItemsByAccountId(accountId: string): Promise<ProjectScopeItem[]>;
+  getScopeItemsStatsByAccountId(accountId: string): Promise<Record<string, { totalEstimatedDays: number; completedEstimatedDays: number; count: number }>>;
   getScopeItemsByCdcSessionId(cdcSessionId: string): Promise<ProjectScopeItem[]>;
   getScopeItem(id: string): Promise<ProjectScopeItem | undefined>;
   createScopeItem(scopeItem: InsertProjectScopeItem): Promise<ProjectScopeItem>;
@@ -213,7 +214,7 @@ export interface IStorage {
   // Note Links
   getNoteLinksByNoteId(noteId: string): Promise<NoteLink[]>;
   getNotesByProjectId(projectId: string): Promise<Note[]>;
-  getNotesByEntityLink(targetType: string, targetId: string): Promise<Note[]>;
+  getNotesByEntityLink(targetType: string, targetId: string, accountId?: string): Promise<Note[]>;
   getNoteLinksByAccountId(accountId: string): Promise<NoteLink[]>;
   createNoteLink(noteLink: InsertNoteLink): Promise<NoteLink>;
   deleteNoteLink(noteId: string, targetType: string, targetId: string): Promise<boolean>;
@@ -259,6 +260,7 @@ export interface IStorage {
   getActivity(id: string): Promise<Activity | undefined>;
   getActivitiesByAccountId(accountId: string, limit?: number): Promise<Activity[]>;
   getActivitiesBySubject(accountId: string, subjectType: string, subjectId: string): Promise<Activity[]>;
+  deleteActivitiesBySubjectType(accountId: string, subjectType: string): Promise<number>;
   createActivity(activity: InsertActivity): Promise<Activity>;
   updateActivity(id: string, data: Partial<InsertActivity>): Promise<Activity | undefined>;
   deleteActivity(id: string): Promise<boolean>;
@@ -287,7 +289,7 @@ export interface IStorage {
 
   // Roadmaps
   getRoadmap(id: string): Promise<Roadmap | undefined>;
-  getRoadmapsByAccountId(accountId: string): Promise<Roadmap[]>;
+  getRoadmapsByAccountId(accountId: string, opts?: { unlinked?: boolean }): Promise<Roadmap[]>;
   getRoadmapsByProjectId(accountId: string, projectId: string): Promise<Roadmap[]>;
   createRoadmap(roadmap: InsertRoadmap): Promise<Roadmap>;
   updateRoadmap(id: string, roadmap: Partial<InsertRoadmap>): Promise<Roadmap | undefined>;
@@ -365,6 +367,7 @@ export interface IStorage {
   getTimeEntry(accountId: string, id: string): Promise<TimeEntry | undefined>;
   getTimeEntriesByProjectId(accountId: string, projectId: string): Promise<TimeEntry[]>;
   getTimeEntriesByAccountId(accountId: string): Promise<TimeEntry[]>;
+  getTimeEntriesStatsByAccountId(accountId: string): Promise<Record<string, { totalDuration: number }>>;
   getActiveTimeEntry(accountId: string, userId: string): Promise<TimeEntry | undefined>;
   createTimeEntry(entry: InsertTimeEntry): Promise<TimeEntry>;
   updateTimeEntry(accountId: string, id: string, entry: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined>;
@@ -934,6 +937,31 @@ export class DatabaseStorage implements IStorage {
       .where(eq(projectScopeItems.accountId, accountId));
   }
 
+  async getScopeItemsStatsByAccountId(accountId: string): Promise<Record<string, { totalEstimatedDays: number; completedEstimatedDays: number; count: number }>> {
+    const rows = await db
+      .select({
+        projectId: projectScopeItems.projectId,
+        totalEstimatedDays: sql<number>`COALESCE(SUM(CAST(${projectScopeItems.estimatedDays} AS FLOAT)), 0)`,
+        completedEstimatedDays: sql<number>`COALESCE(SUM(CASE WHEN ${projectScopeItems.completedAt} IS NOT NULL THEN CAST(${projectScopeItems.estimatedDays} AS FLOAT) ELSE 0 END), 0)`,
+        count: sql<number>`COUNT(*)::int`,
+      })
+      .from(projectScopeItems)
+      .where(eq(projectScopeItems.accountId, accountId))
+      .groupBy(projectScopeItems.projectId);
+
+    const result: Record<string, { totalEstimatedDays: number; completedEstimatedDays: number; count: number }> = {};
+    for (const row of rows) {
+      if (row.projectId) {
+        result[row.projectId] = {
+          totalEstimatedDays: Number(row.totalEstimatedDays) || 0,
+          completedEstimatedDays: Number(row.completedEstimatedDays) || 0,
+          count: Number(row.count) || 0,
+        };
+      }
+    }
+    return result;
+  }
+
   async getScopeItemsByCdcSessionId(cdcSessionId: string): Promise<ProjectScopeItem[]> {
     return await db
       .select()
@@ -1325,7 +1353,7 @@ export class DatabaseStorage implements IStorage {
       .where(inArray(notes.id, noteIds));
   }
 
-  async getNotesByEntityLink(targetType: string, targetId: string): Promise<Note[]> {
+  async getNotesByEntityLink(targetType: string, targetId: string, accountId?: string): Promise<Note[]> {
     const links = await db
       .select()
       .from(noteLinks)
@@ -1339,10 +1367,12 @@ export class DatabaseStorage implements IStorage {
     if (links.length === 0) return [];
     
     const noteIds = links.map(link => link.noteId);
+    const conditions = [inArray(notes.id, noteIds)] as any[];
+    if (accountId) conditions.push(eq(notes.accountId, accountId));
     return await db
       .select()
       .from(notes)
-      .where(inArray(notes.id, noteIds));
+      .where(and(...conditions));
   }
 
   async getNoteLinksByAccountId(accountId: string): Promise<NoteLink[]> {
@@ -1686,6 +1716,14 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(activities.occurredAt), desc(activities.createdAt));
   }
 
+  async deleteActivitiesBySubjectType(accountId: string, subjectType: string): Promise<number> {
+    const result = await db
+      .delete(activities)
+      .where(and(eq(activities.accountId, accountId), eq(activities.subjectType, subjectType)))
+      .returning({ id: activities.id });
+    return result.length;
+  }
+
   async createActivity(insertActivity: InsertActivity): Promise<Activity> {
     const [activity] = await db
       .insert(activities)
@@ -1798,8 +1836,10 @@ export class DatabaseStorage implements IStorage {
     return roadmap || undefined;
   }
 
-  async getRoadmapsByAccountId(accountId: string): Promise<Roadmap[]> {
-    return await db.select().from(roadmaps).where(eq(roadmaps.accountId, accountId))
+  async getRoadmapsByAccountId(accountId: string, opts?: { unlinked?: boolean }): Promise<Roadmap[]> {
+    const conditions = [eq(roadmaps.accountId, accountId)];
+    if (opts?.unlinked) conditions.push(isNull(roadmaps.projectId));
+    return await db.select().from(roadmaps).where(and(...conditions))
       .orderBy(desc(roadmaps.createdAt));
   }
 
@@ -2382,6 +2422,25 @@ export class DatabaseStorage implements IStorage {
       .from(timeEntries)
       .where(eq(timeEntries.accountId, accountId))
       .orderBy(desc(timeEntries.startTime));
+  }
+
+  async getTimeEntriesStatsByAccountId(accountId: string): Promise<Record<string, { totalDuration: number }>> {
+    const rows = await db
+      .select({
+        projectId: timeEntries.projectId,
+        totalDuration: sql<number>`COALESCE(SUM(${timeEntries.duration}), 0)`,
+      })
+      .from(timeEntries)
+      .where(eq(timeEntries.accountId, accountId))
+      .groupBy(timeEntries.projectId);
+
+    const result: Record<string, { totalDuration: number }> = {};
+    for (const row of rows) {
+      if (row.projectId) {
+        result[row.projectId] = { totalDuration: Number(row.totalDuration) || 0 };
+      }
+    }
+    return result;
   }
 
   async getActiveTimeEntry(accountId: string, userId: string): Promise<TimeEntry | undefined> {
