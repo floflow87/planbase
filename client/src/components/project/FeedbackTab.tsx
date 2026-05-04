@@ -359,20 +359,46 @@ export function FeedbackTab({ backlogId }: Props) {
       if (result.suggestedClusterId && result.suggestedClusterTitle) {
         const clusterId = result.suggestedClusterId;
         const clusterTitle = result.suggestedClusterTitle;
+        const feedbackId = result.id;
         const count = result.similarCount;
         toast({
           title: "Feedback ajouté",
           description: `Ce feedback ressemble à ${count} autre${count > 1 ? "s" : ""} dans le cluster « ${clusterTitle} »`,
           action: (
-            <ToastAction altText="Voir le cluster" onClick={async () => {
-              setActiveView("clusters");
-              const refreshed = await refetchClusters();
-              const found = (refreshed.data ?? []).find((c) => c.id === clusterId);
-              if (found) setSelectedCluster(found);
-            }}>
-              Voir le cluster
-            </ToastAction>
-          ),
+            <div className="flex flex-col gap-1.5 shrink-0">
+              <ToastAction
+                altText="Ajouter au cluster"
+                data-testid="button-add-to-cluster-toast"
+                onClick={async () => {
+                  try {
+                    await apiRequest(
+                      `/api/backlogs/${backlogId}/feedback-clusters/${clusterId}/add-feedback`,
+                      "POST",
+                      { feedbackId }
+                    );
+                    qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedback-clusters`] });
+                    toast({ title: "Ajouté au cluster", description: `Feedback ajouté au cluster « ${clusterTitle} »` });
+                  } catch {
+                    toast({ title: "Erreur", description: "Impossible d'ajouter au cluster", variant: "destructive" });
+                  }
+                }}
+              >
+                Ajouter au cluster
+              </ToastAction>
+              <ToastAction
+                altText="Voir le cluster"
+                data-testid="button-view-cluster-toast"
+                onClick={async () => {
+                  setActiveView("clusters");
+                  const refreshed = await refetchClusters();
+                  const found = (refreshed.data ?? []).find((c) => c.id === clusterId);
+                  if (found) setSelectedCluster(found);
+                }}
+              >
+                Voir le cluster
+              </ToastAction>
+            </div>
+          ) as any,
         });
       } else {
         toast({ title: "Feedback ajouté" });
