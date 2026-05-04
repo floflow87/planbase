@@ -48,6 +48,101 @@ export async function upsertNoteEmbedding(noteId: string, accountId: string, tex
   }
 }
 
+export async function initFeedbackEmbeddingsTable(): Promise<void> {
+  try {
+    await db.execute(sql`CREATE EXTENSION IF NOT EXISTS vector`);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS feedback_embeddings (
+        feedback_id UUID PRIMARY KEY REFERENCES project_feedbacks(id) ON DELETE CASCADE,
+        account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        backlog_id UUID REFERENCES backlogs(id) ON DELETE CASCADE,
+        embedding vector(1536),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS feedback_embeddings_account_idx ON feedback_embeddings(account_id)
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS feedback_embeddings_backlog_idx ON feedback_embeddings(backlog_id)
+    `);
+    console.log("[EmbeddingService] feedback_embeddings table ready");
+  } catch (err) {
+    console.error("[EmbeddingService] Failed to initialize feedback_embeddings table:", err);
+  }
+}
+
+export async function upsertFeedbackEmbedding(
+  feedbackId: string,
+  accountId: string,
+  backlogId: string,
+  text: string
+): Promise<void> {
+  try {
+    if (!text?.trim()) return;
+    const embedding = await generateEmbedding(text);
+    const vectorStr = `[${embedding.join(",")}]`;
+    await db.execute(sql`
+      INSERT INTO feedback_embeddings (feedback_id, account_id, backlog_id, embedding, updated_at)
+      VALUES (${feedbackId}, ${accountId}, ${backlogId}, ${vectorStr}::vector, NOW())
+      ON CONFLICT (feedback_id)
+      DO UPDATE SET embedding = ${vectorStr}::vector, updated_at = NOW()
+    `);
+  } catch (err) {
+    console.error(`[EmbeddingService] Failed to upsert embedding for feedback ${feedbackId}:`, err);
+  }
+}
+
+export interface SimilarFeedback {
+  feedbackId: string;
+  title: string;
+  similarity: number;
+}
+
+export async function searchSimilarFeedbacks(
+  queryText: string,
+  accountId: string,
+  backlogId: string,
+  excludeFeedbackId: string | null,
+  limit = 10,
+  threshold = 0.85
+): Promise<SimilarFeedback[]> {
+  try {
+    const embedding = await generateEmbedding(queryText);
+    const vectorStr = `[${embedding.join(",")}]`;
+
+    const excludeClause = excludeFeedbackId
+      ? sql`AND fe.feedback_id != ${excludeFeedbackId}`
+      : sql``;
+
+    const rows = await db.execute(sql`
+      SELECT
+        fe.feedback_id,
+        pf.title,
+        1 - (fe.embedding <=> ${vectorStr}::vector) AS similarity
+      FROM feedback_embeddings fe
+      JOIN project_feedbacks pf ON pf.id = fe.feedback_id
+      WHERE fe.account_id = ${accountId}
+        AND fe.backlog_id = ${backlogId}
+        AND pf.internal_status != 'archived'
+        ${excludeClause}
+      ORDER BY fe.embedding <=> ${vectorStr}::vector
+      LIMIT ${limit}
+    `);
+
+    return (rows as any[])
+      .filter((row) => parseFloat(row.similarity) >= threshold)
+      .map((row) => ({
+        feedbackId: row.feedback_id,
+        title: row.title || "",
+        similarity: parseFloat(row.similarity) || 0,
+      }));
+  } catch (err) {
+    console.error("[EmbeddingService] Failed to search similar feedbacks:", err);
+    return [];
+  }
+}
+
 export interface SimilarNote {
   noteId: string;
   title: string;

@@ -16959,38 +16959,16 @@ app.get("/config/feature-flags", async (_req, res) => {
         RETURNING id, title, type, importance, internal_status, created_at
       `)) as any[];
       const newFeedback = result[0];
+      const feedbackText = `${title.trim()} ${description.trim()}`;
 
-      // Quick similarity check: score candidates against the new feedback's title keywords + type
       let suggestedClusterId: string | null = null;
       let suggestedClusterTitle: string | null = null;
       let similarCount = 0;
       try {
-        const candidates = (await db.execute(sql`
-          SELECT id, title, type, product_area, tags, ai_keywords
-          FROM project_feedbacks
-          WHERE backlog_id = ${backlogId} AND account_id = ${accountId}
-            AND id != ${newFeedback.id}
-            AND internal_status != 'archived'
-          ORDER BY created_at DESC
-          LIMIT 50
-        `)) as any[];
-        const titleWords = (title as string).trim().toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
-        const targetKeywords = new Set(titleWords);
-        const similarIds: string[] = [];
-        for (const c of candidates) {
-          let score = 0;
-          if (c.type === safeType) score += 2;
-          const cKeywords = [
-            ...(c.ai_keywords ?? []).map((k: string) => k.toLowerCase()),
-            ...(c.tags ?? []).map((t: string) => t.toLowerCase()),
-            ...(c.title ?? "").toLowerCase().split(/\s+/).filter((w: string) => w.length > 3),
-          ];
-          for (const kw of cKeywords) {
-            if (targetKeywords.has(kw)) score += 1;
-          }
-          if (score >= 3) similarIds.push(c.id as string);
-        }
-        if (similarIds.length > 0) {
+        const { searchSimilarFeedbacks } = await import("./services/embeddingService");
+        const similarFeedbacks = await searchSimilarFeedbacks(feedbackText, accountId, backlogId, newFeedback.id, 10, 0.85);
+        if (similarFeedbacks.length > 0) {
+          const similarIds = similarFeedbacks.map((f) => f.feedbackId);
           const clusterMatches = (await db.execute(sql`
             SELECT fc.id, fc.title, COUNT(fci.feedback_id) as match_count
             FROM feedback_clusters fc
@@ -17010,8 +16988,15 @@ app.get("/config/feature-flags", async (_req, res) => {
           }
         }
       } catch {
-        // Similarity check is best-effort — don't fail the creation if it errors
+        // Embedding similarity is best-effort — don't fail the creation
       }
+
+      // Store embedding asynchronously (fire-and-forget)
+      import("./services/embeddingService")
+        .then(({ upsertFeedbackEmbedding }) =>
+          upsertFeedbackEmbedding(newFeedback.id, accountId, backlogId, feedbackText)
+        )
+        .catch(() => {});
 
       res.status(201).json({ ...newFeedback, suggestedClusterId, suggestedClusterTitle, similarCount });
     } catch (error: any) {
@@ -17252,13 +17237,19 @@ app.get("/config/feature-flags", async (_req, res) => {
         WHERE pf.id = ${feedbackId} LIMIT 1
       `)) as any[];
       if (!updated.length) return res.status(404).json({ error: "Not found" });
-      res.json(mapFeedbackRow(updated[0]));
+      const row = updated[0];
+      import("./services/embeddingService")
+        .then(({ upsertFeedbackEmbedding }) =>
+          upsertFeedbackEmbedding(feedbackId, accountId, backlogId, `${row.title ?? ""} ${row.description ?? ""}`)
+        )
+        .catch(() => {});
+      res.json(mapFeedbackRow(row));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  // GET /api/backlogs/:backlogId/feedbacks/:feedbackId/similar — V3
+  // GET /api/backlogs/:backlogId/feedbacks/:feedbackId/similar — V3 (embedding + keyword fallback)
   app.get("/api/backlogs/:backlogId/feedbacks/:feedbackId/similar", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const accountId = req.accountId!;
@@ -17271,7 +17262,31 @@ app.get("/config/feature-flags", async (_req, res) => {
       `)) as any[];
       if (!fbRows.length) return res.status(404).json({ error: "Feedback not found" });
       const target = fbRows[0];
-      // Fetch candidates
+      const queryText = `${target.title ?? ""} ${target.description ?? ""}`.trim();
+
+      let embeddingResults: Array<{ feedbackId: string; similarity: number }> = [];
+      try {
+        const { searchSimilarFeedbacks } = await import("./services/embeddingService");
+        embeddingResults = await searchSimilarFeedbacks(queryText, accountId, backlogId, feedbackId, 5, 0.75);
+      } catch { }
+
+      if (embeddingResults.length > 0) {
+        const matchedIds = embeddingResults.map((r) => r.feedbackId);
+        const matchedRows = (await db.execute(sql`
+          SELECT pf.*, us.title as linked_ticket_title, us.state as linked_ticket_state
+          FROM project_feedbacks pf
+          LEFT JOIN user_stories us ON us.id = pf.linked_ticket_id
+          WHERE pf.id = ANY(${matchedIds}::uuid[])
+            AND pf.account_id = ${accountId}
+            AND pf.backlog_id = ${backlogId}
+        `)) as any[];
+        const simMap = new Map(embeddingResults.map((r) => [r.feedbackId, r.similarity]));
+        const sorted = matchedRows
+          .map((r: any) => ({ ...r, _simScore: simMap.get(r.id) ?? 0 }))
+          .sort((a: any, b: any) => b._simScore - a._simScore);
+        return res.json(sorted.map((r: any) => ({ ...mapFeedbackRow(r), similarityScore: r._simScore })));
+      }
+
       const candidates = (await db.execute(sql`
         SELECT pf.*, us.title as linked_ticket_title, us.state as linked_ticket_state
         FROM project_feedbacks pf
@@ -17281,7 +17296,6 @@ app.get("/config/feature-flags", async (_req, res) => {
           AND pf.internal_status != 'archived'
         LIMIT 50
       `)) as any[];
-      // Keyword-based similarity scoring
       const targetKeywords = new Set([
         ...(target.ai_keywords ?? []).map((k: string) => k.toLowerCase()),
         ...(target.tags ?? []).map((t: string) => t.toLowerCase()),
@@ -17707,7 +17721,15 @@ app.get("/config/feature-flags", async (_req, res) => {
            ${safeType}, ${title.trim()}, ${description.trim()}, ${safeImportance}, 'external_feedback_page')
         RETURNING id, title, type, importance, created_at
       `)) as any[];
-      res.status(201).json(result[0]);
+      const newPub = result[0];
+      if (s.backlog_id) {
+        import("./services/embeddingService")
+          .then(({ upsertFeedbackEmbedding }) =>
+            upsertFeedbackEmbedding(newPub.id, s.account_id, s.backlog_id, `${title.trim()} ${description.trim()}`)
+          )
+          .catch(() => {});
+      }
+      res.status(201).json(newPub);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

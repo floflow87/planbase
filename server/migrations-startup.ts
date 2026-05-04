@@ -3049,6 +3049,14 @@ export async function runStartupMigrations() {
       console.warn("⚠️  Note embeddings table migration (non-blocking):", e.message);
     }
 
+    // ── Feedback embeddings (pgvector similarity) ──
+    try {
+      const { initFeedbackEmbeddingsTable } = await import("./services/embeddingService");
+      await initFeedbackEmbeddingsTable();
+    } catch (e: any) {
+      console.warn("⚠️  Feedback embeddings table migration (non-blocking):", e.message);
+    }
+
     // ── AI Fallback Events ──
     try {
       await db.execute(sql`
@@ -3356,6 +3364,28 @@ async function runIncrementalMigrations() {
     }
   } catch (v4Err: any) {
     console.warn("⚠️  v4 client_id index migration (non-blocking):", v4Err.message);
+  }
+  // ── v5: feedback_embeddings table (pgvector similarity) ─────────────────
+  const V5_KEY = "planbase_v5_feedback_embeddings";
+  try {
+    const v5Check = await db.execute(
+      sql`SELECT 1 FROM schema_migrations_tracking WHERE key = ${V5_KEY}`
+    );
+    const v5Rows: unknown[] = Array.isArray(v5Check)
+      ? v5Check
+      : ((v5Check as any).rows ?? []);
+
+    if (v5Rows.length === 0) {
+      const { initFeedbackEmbeddingsTable } = await import("./services/embeddingService");
+      await initFeedbackEmbeddingsTable();
+
+      await db.execute(
+        sql`INSERT INTO schema_migrations_tracking (key) VALUES (${V5_KEY}) ON CONFLICT DO NOTHING`
+      );
+      console.log("⚡ v5 feedback_embeddings migration marker recorded");
+    }
+  } catch (v5Err: any) {
+    console.warn("⚠️  v5 feedback_embeddings migration (non-blocking):", v5Err.message);
   }
   // ─────────────────────────────────────────────────────────────────────────
 }
