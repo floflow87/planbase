@@ -15406,7 +15406,9 @@ app.get("/config/feature-flags", async (_req, res) => {
       const accountId = req.accountId!;
       const planScenarioId = req.query.planScenarioId as string | undefined;
       const endYear = parseInt(req.query.endYear as string) || new Date().getFullYear();
-      const scenarioName = (req.query.scenarioName as string) || "base";
+      const rawScenarioName = (req.query.scenarioName as string) || "base";
+      // Sanitize to ASCII-safe slug for use in Content-Disposition filename
+      const scenarioName = rawScenarioName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "-").slice(0, 60) || "base";
 
       const toRows = (r: any): any[] => {
         if (!r) return [];
@@ -15705,7 +15707,9 @@ app.get("/config/feature-flags", async (_req, res) => {
       const accountId = req.accountId!;
       const planScenarioId = req.query.planScenarioId as string | undefined;
       const endYear = parseInt(req.query.endYear as string) || new Date().getFullYear();
-      const scenarioName = (req.query.scenarioName as string) || "base";
+      const rawScenarioName = (req.query.scenarioName as string) || "base";
+      // Sanitize to ASCII-safe slug for Content-Disposition filename and HTML display
+      const scenarioName = rawScenarioName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "-").slice(0, 60) || "base";
 
       const toRows = (r: any): any[] => {
         if (!r) return [];
