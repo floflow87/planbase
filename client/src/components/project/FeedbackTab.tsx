@@ -85,6 +85,14 @@ interface AiAnalysis {
   keywords: string[]; suggestedTags: string[]; confidenceScore: number;
 }
 
+interface AddFeedbackResponse {
+  id: string; title: string; type: string; importance: string;
+  internal_status: string; created_at: string;
+  suggestedClusterId: string | null;
+  suggestedClusterTitle: string | null;
+  similarCount: number;
+}
+
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const TYPE_LABELS: Record<string, string> = {
@@ -341,19 +349,29 @@ export function FeedbackTab({ backlogId }: Props) {
   });
 
   const addFeedbackMutation = useMutation({
-    mutationFn: (data: z.infer<typeof addFeedbackSchema>) =>
-      apiRequest(`/api/backlogs/${backlogId}/feedbacks`, "POST", data),
-    onSuccess: (result: any) => {
+    mutationFn: async (data: z.infer<typeof addFeedbackSchema>): Promise<AddFeedbackResponse> => {
+      const res = await apiRequest(`/api/backlogs/${backlogId}/feedbacks`, "POST", data);
+      return res.json();
+    },
+    onSuccess: (result: AddFeedbackResponse) => {
       qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedbacks`] });
       setIsAddOpen(false); addForm.reset();
-      if (result?.suggestedClusterId && result?.suggestedClusterTitle) {
-        const clusterId = result.suggestedClusterId as string;
-        const clusterTitle = result.suggestedClusterTitle as string;
+      if (result.suggestedClusterId && result.suggestedClusterTitle) {
+        const clusterId = result.suggestedClusterId;
+        const clusterTitle = result.suggestedClusterTitle;
         toast({
           title: "Feedback ajouté",
           description: `Ce feedback ressemble à des feedbacks du cluster « ${clusterTitle} »`,
           action: (
-            <ToastAction altText="Voir le cluster" onClick={() => { setActiveView("clusters"); qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedback-clusters`] }); setTimeout(() => { const found = (qc.getQueryData([`/api/backlogs/${backlogId}/feedback-clusters`]) as any[])?.find((c: any) => c.id === clusterId); if (found) setSelectedCluster(found); }, 300); }}>
+            <ToastAction altText="Voir le cluster" onClick={() => {
+              setActiveView("clusters");
+              qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedback-clusters`] });
+              setTimeout(() => {
+                const cached = qc.getQueryData<FeedbackCluster[]>([`/api/backlogs/${backlogId}/feedback-clusters`]);
+                const found = cached?.find((c) => c.id === clusterId);
+                if (found) setSelectedCluster(found);
+              }, 300);
+            }}>
               Voir le cluster
             </ToastAction>
           ),
