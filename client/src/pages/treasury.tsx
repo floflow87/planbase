@@ -1086,8 +1086,8 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   // Export state
   const [isExporting, setIsExporting] = useState(false);
 
-  // Export to Excel
-  const exportToExcel = async () => {
+  // Generic export helper
+  const triggerExport = async (format: "xlsx" | "pdf") => {
     if (isExporting) return;
     setIsExporting(true);
     try {
@@ -1098,12 +1098,15 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
         ? (planData?.planScenarios?.find((s) => s.id === activePlanScenarioId)?.name ?? "scenario")
         : "base";
       params.set("scenarioName", scenarioName);
-      const response = await apiRequest(`/api/treasury/plan/export?${params.toString()}`, "GET");
+      const endpoint = format === "pdf"
+        ? `/api/treasury/plan/export/pdf?${params.toString()}`
+        : `/api/treasury/plan/export?${params.toString()}`;
+      const response = await apiRequest(endpoint, "GET");
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `plan-tresorerie-${scenarioName}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.download = `plan-tresorerie-${scenarioName}-${new Date().toISOString().slice(0, 10)}.${format}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -2300,20 +2303,43 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
           </DropdownMenu>
         </div>
 
-        {/* Export button */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 text-[11px] gap-1.5 px-2.5 shrink-0"
-          onClick={exportToExcel}
-          disabled={isExporting || !planData}
-          data-testid="button-export-plan-xlsx"
-        >
-          {isExporting
-            ? <Loader2 className="h-3 w-3 animate-spin" />
-            : <Download className="h-3 w-3" />}
-          Exporter
-        </Button>
+        {/* Export dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[11px] gap-1.5 px-2.5 shrink-0"
+              disabled={isExporting || !planData}
+              data-testid="button-export-plan"
+            >
+              {isExporting
+                ? <Loader2 className="h-3 w-3 animate-spin" />
+                : <Download className="h-3 w-3" />}
+              Exporter
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuLabel className="text-[10px]">Format d'export</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-xs gap-2"
+              onClick={() => triggerExport("xlsx")}
+              data-testid="button-export-plan-xlsx"
+            >
+              <Download className="h-3.5 w-3.5 text-muted-foreground" />
+              Excel (.xlsx)
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-xs gap-2"
+              onClick={() => triggerExport("pdf")}
+              data-testid="button-export-plan-pdf"
+            >
+              <Download className="h-3.5 w-3.5 text-muted-foreground" />
+              PDF
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Delete plan scenario confirmation dialog */}
         <Dialog open={!!deletePlanScenarioConfirm} onOpenChange={(o) => { if (!o) setDeletePlanScenarioConfirm(null); }}>

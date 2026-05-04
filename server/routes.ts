@@ -15698,6 +15698,263 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  // ─── Treasury Plan Export (PDF) ──────────────────────────────────────────────
+  app.get("/api/treasury/plan/export/pdf", requireAuth, requireOrgMember, async (req, res) => {
+    let browser: any = null;
+    try {
+      const accountId = req.accountId!;
+      const planScenarioId = req.query.planScenarioId as string | undefined;
+      const endYear = parseInt(req.query.endYear as string) || new Date().getFullYear();
+      const scenarioName = (req.query.scenarioName as string) || "base";
+
+      const toRows = (r: any): any[] => {
+        if (!r) return [];
+        if (Array.isArray(r)) return r;
+        if (Array.isArray(r.rows)) return r.rows;
+        return [];
+      };
+
+      // Fetch lines
+      const linesResult = planScenarioId
+        ? await db.execute(sql`
+            SELECT id, rubrique, label, position FROM treasury_plan_lines
+            WHERE account_id = ${accountId} AND plan_scenario_id = ${planScenarioId}
+            ORDER BY rubrique, position, created_at
+          `)
+        : await db.execute(sql`
+            SELECT id, rubrique, label, position FROM treasury_plan_lines
+            WHERE account_id = ${accountId} AND plan_scenario_id IS NULL
+            ORDER BY rubrique, position, created_at
+          `);
+      const lines: Array<{ id: string; rubrique: string; label: string; position: number }> = toRows(linesResult);
+
+      // Fetch cells
+      const cellsResult = await db.execute(sql`
+        SELECT c.line_id, c.period_key, c.amount, c.cell_color
+        FROM treasury_plan_cells c
+        JOIN treasury_plan_lines l ON l.id = c.line_id
+        WHERE l.account_id = ${accountId}
+          AND (${planScenarioId ?? null}::uuid IS NULL AND l.plan_scenario_id IS NULL
+               OR l.plan_scenario_id = ${planScenarioId ?? null}::uuid)
+      `);
+      const cellRows: Array<{ line_id: string; period_key: string; amount: string | number; cell_color?: string | null }> = toRows(cellsResult);
+
+      const cellMap: Record<string, Record<string, { amount: number; color?: string | null }>> = {};
+      for (const c of cellRows) {
+        if (!cellMap[c.line_id]) cellMap[c.line_id] = {};
+        cellMap[c.line_id][c.period_key] = { amount: Number(c.amount ?? 0), color: c.cell_color ?? null };
+      }
+
+      // Fetch settings
+      let initialBalance = 0;
+      let granularity = "month";
+      if (planScenarioId) {
+        const sc = toRows(await db.execute(sql`
+          SELECT initial_balance, granularity FROM treasury_plan_scenarios
+          WHERE id = ${planScenarioId} AND account_id = ${accountId}
+        `))[0] as any;
+        if (sc) { initialBalance = Number(sc.initial_balance ?? 0); granularity = sc.granularity ?? "month"; }
+      } else {
+        const s = toRows(await db.execute(sql`
+          SELECT plan_initial_balance, plan_granularity FROM treasury_settings WHERE account_id = ${accountId} LIMIT 1
+        `))[0] as any;
+        if (s) { initialBalance = Number(s.plan_initial_balance ?? 0); granularity = s.plan_granularity ?? "month"; }
+      }
+
+      // Generate periods
+      const periods: Array<{ key: string; label: string }> = [];
+      const now = new Date();
+      if (granularity === "month") {
+        const cur = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+        const endD = new Date(endYear, 11, 1);
+        while (cur <= endD) {
+          periods.push({
+            key: `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`,
+            label: cur.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
+          });
+          cur.setMonth(cur.getMonth() + 1);
+        }
+      } else {
+        const getMonday = (d: Date) => { const c = new Date(d); const day = c.getDay(); c.setDate(c.getDate() - day + (day === 0 ? -6 : 1)); return c; };
+        const monday = getMonday(now);
+        const endD = new Date(endYear, 11, 31);
+        for (let i = -2; ; i++) {
+          const d = new Date(monday); d.setDate(d.getDate() + i * 7);
+          if (d > endD) break;
+          const year = d.getFullYear();
+          const startOfYear = new Date(year, 0, 1);
+          const weekNum = Math.ceil(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
+          periods.push({ key: `${year}-W${String(weekNum).padStart(2, "00")}`, label: `S${weekNum} '${String(year).slice(2)}` });
+        }
+      }
+
+      const RUBRIQUES_PDF = [
+        { key: "entrees_clients", label: "Entrées clients", type: "income" },
+        { key: "entrees_exceptionnelles", label: "Entrées exceptionnelles", type: "income" },
+        { key: "sorties_ressources", label: "Sorties ressources", type: "expense" },
+        { key: "sorties_abonnement", label: "Sorties abonnement", type: "expense" },
+        { key: "sorties_charges", label: "Sorties charges", type: "expense" },
+        { key: "sorties_exceptionnelles", label: "Sorties exceptionnelles", type: "expense" },
+      ] as const;
+
+      const getCellVal = (lineId: string, pk: string) => cellMap[lineId]?.[pk]?.amount ?? 0;
+      const getCellColor = (lineId: string, pk: string) => cellMap[lineId]?.[pk]?.color ?? null;
+      const getRubTotal = (rubKey: string, pk: string) =>
+        lines.filter((l) => l.rubrique === rubKey).reduce((s, l) => s + getCellVal(l.id, pk), 0);
+      const getTotalEntrees = (pk: string) =>
+        ["entrees_clients", "entrees_exceptionnelles"].reduce((s, k) => s + getRubTotal(k, pk), 0);
+      const getTotalSorties = (pk: string) =>
+        ["sorties_ressources", "sorties_abonnement", "sorties_charges", "sorties_exceptionnelles"].reduce((s, k) => s + getRubTotal(k, pk), 0);
+
+      const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(n));
+      const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+      // Compute cumulative balances
+      let balance = initialBalance;
+      const balances: Record<string, { variation: number; balance: number }> = {};
+      for (const p of periods) {
+        const variation = getTotalEntrees(p.key) - getTotalSorties(p.key);
+        balance += variation;
+        balances[p.key] = { variation, balance };
+      }
+
+      // Build HTML table
+      const colWidth = Math.max(60, Math.floor(700 / (periods.length + 1)));
+      const headerCols = periods.map((p) => `<th style="min-width:${colWidth}px;white-space:nowrap">${esc(p.label)}</th>`).join("");
+      
+      let tableRows = "";
+      for (const rub of RUBRIQUES_PDF) {
+        const rubLines = [...lines].filter((l) => l.rubrique === rub.key).sort((a, b) => a.position - b.position);
+        const rubBg = rub.type === "income" ? "#D1FAE5" : "#FEE2E2";
+        const rubFg = rub.type === "income" ? "#065F46" : "#991B1B";
+        const rubTotals = periods.map((p) => getRubTotal(rub.key, p.key));
+        const rubGrandTotal = rubTotals.reduce((s, v) => s + v, 0);
+        const rubCells = rubTotals.map((v) => `<td style="text-align:right;background:${rubBg};color:${rubFg};font-weight:600">${v !== 0 ? fmt(v) : ""}</td>`).join("");
+        tableRows += `<tr style="background:${rubBg};color:${rubFg}"><td style="font-weight:700;padding-left:8px">${esc(rub.label)}</td>${rubCells}<td style="text-align:right;background:${rubBg};color:${rubFg};font-weight:700">${rubGrandTotal !== 0 ? fmt(rubGrandTotal) : ""}</td></tr>`;
+        for (const line of rubLines) {
+          const vals = periods.map((p) => getCellVal(line.id, p.key));
+          const lineTotal = vals.reduce((s, v) => s + v, 0);
+          const valCells = vals.map((v, i) => {
+            const pk = periods[i].key;
+            const customColor = getCellColor(line.id, pk);
+            const bgStyle = customColor ? `background:${customColor}` : "";
+            return `<td style="text-align:right;${bgStyle}">${v !== 0 ? fmt(v) : ""}</td>`;
+          }).join("");
+          tableRows += `<tr><td style="padding-left:20px;color:#374151">${esc(line.label)}</td>${valCells}<td style="text-align:right;background:#F9FAFB">${lineTotal !== 0 ? fmt(lineTotal) : ""}</td></tr>`;
+        }
+      }
+
+      // Summary rows
+      const entreesVals = periods.map((p) => getTotalEntrees(p.key));
+      const sortiesVals = periods.map((p) => getTotalSorties(p.key));
+      const variationVals = periods.map((p) => balances[p.key]?.variation ?? 0);
+      const balanceVals = periods.map((p) => balances[p.key]?.balance ?? initialBalance);
+
+      const summaryRow = (label: string, vals: number[], bg: string, fg: string, bold = true, colorFn?: (v: number) => string) => {
+        const total = vals.reduce((s, v) => s + v, 0);
+        const cells = vals.map((v) => {
+          const c = colorFn ? colorFn(v) : fg;
+          return `<td style="text-align:right;background:${bg};color:${c};font-weight:${bold ? "600" : "400"}">${v !== 0 ? fmt(v) : ""}</td>`;
+        }).join("");
+        const totalFg = colorFn ? colorFn(total) : fg;
+        return `<tr style="border-top:2px solid #e5e7eb"><td style="font-weight:700;padding-left:8px;background:${bg};color:${fg}">${esc(label)}</td>${cells}<td style="text-align:right;background:${bg};color:${totalFg};font-weight:700">${total !== 0 ? fmt(total) : ""}</td></tr>`;
+      };
+      const variationColor = (v: number) => v > 0 ? "#16A34A" : v < 0 ? "#DC2626" : "#374151";
+
+      tableRows += summaryRow("Total Entrées", entreesVals, "#D1FAE5", "#065F46");
+      tableRows += summaryRow("Total Sorties", sortiesVals, "#FEE2E2", "#991B1B");
+      tableRows += summaryRow("Variation nette", variationVals, "#F3F4F6", "#374151", true, variationColor);
+
+      // Balance row — last column is intentionally empty (sum of balances is meaningless)
+      const balanceCells = balanceVals.map((v) => {
+        const c = v >= 0 ? "#16A34A" : "#DC2626";
+        return `<td style="text-align:right;background:#E0E7FF;color:${c};font-weight:700">${fmt(v)}</td>`;
+      }).join("");
+      tableRows += `<tr style="border-top:3px solid #6D28D9"><td style="font-weight:700;padding-left:8px;background:#E0E7FF;color:#3730A3">Balance cumulée</td>${balanceCells}<td style="background:#E0E7FF"></td></tr>`;
+
+      const fullHTML = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Plan de trésorerie — ${esc(scenarioName)}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 9px; color: #111; padding: 0; }
+    .header { background: #4C1D95; color: #fff; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { font-size: 14px; font-weight: 700; }
+    .header .meta { font-size: 9px; opacity: 0.85; }
+    .subtitle { background: #6D28D9; color: #fff; font-size: 9px; padding: 4px 16px; }
+    .table-wrap { overflow: visible; padding: 0 4px; }
+    table { width: 100%; border-collapse: collapse; table-layout: auto; }
+    th { background: #4C1D95; color: #fff; font-weight: 600; font-size: 8px; padding: 4px 5px; text-align: center; white-space: nowrap; }
+    th:first-child { text-align: left; min-width: 120px; }
+    td { font-size: 8px; padding: 3px 5px; border-bottom: 1px solid #F3F4F6; white-space: nowrap; }
+    tr:hover td { background-color: rgba(0,0,0,0.02); }
+    .footer { font-size: 7.5px; color: #9CA3AF; font-style: italic; padding: 6px 16px; border-top: 1px solid #e5e7eb; margin-top: 4px; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Plan de trésorerie</h1>
+    <div class="meta">Scénario : ${esc(scenarioName)} &nbsp;|&nbsp; Solde initial : ${fmt(initialBalance)} € &nbsp;|&nbsp; Généré le ${new Date().toLocaleDateString("fr-FR")}</div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align:left;min-width:140px">Postes</th>
+          ${headerCols}
+          <th style="min-width:70px">Total</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  </div>
+  <div class="footer">Plan de trésorerie exporté depuis PlanBase · ${new Date().toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" })}</div>
+</body>
+</html>`;
+
+      // Launch puppeteer
+      const launchOptions: any = {
+        headless: true,
+        args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-accelerated-2d-canvas", "--disable-gpu", "--single-process"],
+      };
+      if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+        launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+      }
+
+      const puppeteer = await import("puppeteer");
+      browser = await puppeteer.default.launch(launchOptions);
+      const page = await browser.newPage();
+      await page.setRequestInterception(true);
+      page.on("request", (request: any) => {
+        if (request.isNavigationRequest() || request.url().startsWith("data:")) request.continue();
+        else request.abort("blockedbyclient");
+      });
+      await page.setContent(fullHTML, { waitUntil: "domcontentloaded" });
+
+      const pdfBuffer = await page.pdf({
+        format: "A4",
+        landscape: periods.length > 12,
+        printBackground: true,
+        margin: { top: "5mm", right: "5mm", bottom: "8mm", left: "5mm" },
+      });
+
+      await browser.close();
+      browser = null;
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="plan-tresorerie-${scenarioName}.pdf"`);
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.end(pdfBuffer, "binary");
+    } catch (e: any) {
+      if (browser) { try { await browser.close(); } catch {} }
+      console.error("❌ GET /api/treasury/plan/export/pdf error:", e.message);
+      if (!res.headersSent) res.status(500).json({ error: e.message });
+    }
+  });
+
   app.post("/api/treasury/plan/lines", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const accountId = req.accountId!;
