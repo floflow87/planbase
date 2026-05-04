@@ -130,6 +130,7 @@ import { supabaseAdmin } from "./lib/supabase";
 import { google } from "googleapis";
 import { db } from "./db";
 import { eq, and, asc, desc, not, sql, inArray, or, isNull } from "drizzle-orm";
+import ExcelJS from "exceljs";
 
 // Default view configurations for all modules
 function getDefaultViewConfig(module: string): any {
@@ -15396,6 +15397,304 @@ app.get("/config/feature-flags", async (_req, res) => {
     } catch (e: any) {
       console.error("❌ GET /api/treasury/plan error:", e.message, e.stack?.split?.("\n")?.[1]);
       res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ─── Treasury Plan Export (Excel) ────────────────────────────────────────────
+  app.get("/api/treasury/plan/export", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const planScenarioId = req.query.planScenarioId as string | undefined;
+      const endYear = parseInt(req.query.endYear as string) || new Date().getFullYear();
+      const scenarioName = (req.query.scenarioName as string) || "base";
+
+      const toRows = (r: any): any[] => {
+        if (!r) return [];
+        if (Array.isArray(r)) return r;
+        if (Array.isArray(r.rows)) return r.rows;
+        return [];
+      };
+
+      // Fetch lines
+      const linesResult = planScenarioId
+        ? await db.execute(sql`
+            SELECT id, rubrique, label, position FROM treasury_plan_lines
+            WHERE account_id = ${accountId} AND plan_scenario_id = ${planScenarioId}
+            ORDER BY rubrique, position, created_at
+          `)
+        : await db.execute(sql`
+            SELECT id, rubrique, label, position FROM treasury_plan_lines
+            WHERE account_id = ${accountId} AND plan_scenario_id IS NULL
+            ORDER BY rubrique, position, created_at
+          `);
+      const lines: Array<{ id: string; rubrique: string; label: string; position: number }> = toRows(linesResult);
+
+      // Fetch cells
+      const cellsResult = await db.execute(sql`
+        SELECT c.line_id, c.period_key, c.amount, c.cell_color
+        FROM treasury_plan_cells c
+        JOIN treasury_plan_lines l ON l.id = c.line_id
+        WHERE l.account_id = ${accountId}
+          AND (${planScenarioId ?? null}::uuid IS NULL AND l.plan_scenario_id IS NULL
+               OR l.plan_scenario_id = ${planScenarioId ?? null}::uuid)
+      `);
+      const cellRows: Array<{ line_id: string; period_key: string; amount: string | number; cell_color?: string | null }> = toRows(cellsResult);
+
+      // Build cell lookup: lineId -> periodKey -> { amount, color }
+      const cellMap: Record<string, Record<string, { amount: number; color?: string | null }>> = {};
+      for (const c of cellRows) {
+        if (!cellMap[c.line_id]) cellMap[c.line_id] = {};
+        cellMap[c.line_id][c.period_key] = { amount: Number(c.amount ?? 0), color: c.cell_color ?? null };
+      }
+
+      // Fetch settings
+      let initialBalance = 0;
+      let granularity = "month";
+      if (planScenarioId) {
+        const sc = toRows(await db.execute(sql`
+          SELECT initial_balance, granularity FROM treasury_plan_scenarios
+          WHERE id = ${planScenarioId} AND account_id = ${accountId}
+        `))[0] as any;
+        if (sc) { initialBalance = Number(sc.initial_balance ?? 0); granularity = sc.granularity ?? "month"; }
+      } else {
+        const s = toRows(await db.execute(sql`
+          SELECT plan_initial_balance, plan_granularity FROM treasury_settings WHERE account_id = ${accountId} LIMIT 1
+        `))[0] as any;
+        if (s) { initialBalance = Number(s.plan_initial_balance ?? 0); granularity = s.plan_granularity ?? "month"; }
+      }
+
+      // Generate periods (same logic as frontend)
+      const periods: Array<{ key: string; label: string }> = [];
+      const now = new Date();
+      if (granularity === "month") {
+        const cur = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+        const endD = new Date(endYear, 11, 1);
+        while (cur <= endD) {
+          periods.push({
+            key: `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`,
+            label: cur.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
+          });
+          cur.setMonth(cur.getMonth() + 1);
+        }
+      } else {
+        // Week granularity
+        const getMonday = (d: Date) => { const c = new Date(d); const day = c.getDay(); c.setDate(c.getDate() - day + (day === 0 ? -6 : 1)); return c; };
+        const monday = getMonday(now);
+        const endD = new Date(endYear, 11, 31);
+        for (let i = -2; ; i++) {
+          const d = new Date(monday); d.setDate(d.getDate() + i * 7);
+          if (d > endD) break;
+          const year = d.getFullYear();
+          const startOfYear = new Date(year, 0, 1);
+          const weekNum = Math.ceil(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
+          periods.push({ key: `${year}-W${String(weekNum).padStart(2, "00")}`, label: `S${weekNum} '${String(year).slice(2)}` });
+        }
+      }
+
+      // Helpers
+      const RUBRIQUES_EXPORT = [
+        { key: "entrees_clients", label: "Entrées clients", type: "income" },
+        { key: "entrees_exceptionnelles", label: "Entrées exceptionnelles", type: "income" },
+        { key: "sorties_ressources", label: "Sorties ressources", type: "expense" },
+        { key: "sorties_abonnement", label: "Sorties abonnement", type: "expense" },
+        { key: "sorties_charges", label: "Sorties charges", type: "expense" },
+        { key: "sorties_exceptionnelles", label: "Sorties exceptionnelles", type: "expense" },
+      ] as const;
+
+      const getCellVal = (lineId: string, periodKey: string) => cellMap[lineId]?.[periodKey]?.amount ?? 0;
+      const getRubTotal = (rubKey: string, pk: string) =>
+        lines.filter((l) => l.rubrique === rubKey).reduce((s, l) => s + getCellVal(l.id, pk), 0);
+      const getTotalEntrees = (pk: string) =>
+        ["entrees_clients", "entrees_exceptionnelles"].reduce((s, k) => s + getRubTotal(k, pk), 0);
+      const getTotalSorties = (pk: string) =>
+        ["sorties_ressources", "sorties_abonnement", "sorties_charges", "sorties_exceptionnelles"].reduce((s, k) => s + getRubTotal(k, pk), 0);
+
+      // Compute cumulative balances
+      let balance = initialBalance;
+      const balances: Record<string, { variation: number; balance: number }> = {};
+      for (const p of periods) {
+        const variation = getTotalEntrees(p.key) - getTotalSorties(p.key);
+        balance += variation;
+        balances[p.key] = { variation, balance };
+      }
+
+      // Format as EUR (no symbol in cells, display as number)
+      const fmtNum = (n: number) => Math.round(n * 100) / 100;
+
+      // Build workbook
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "PlanBase";
+      workbook.created = new Date();
+      const ws = workbook.addWorksheet("Plan de trésorerie", {
+        views: [{ state: "frozen", ySplit: 1, xSplit: 1 }],
+      });
+
+      // Colors
+      const COLOR_INCOME_BG = "FFD1FAE5";
+      const COLOR_EXPENSE_BG = "FFFEE2E2";
+      const COLOR_INCOME_FG = "FF065F46";
+      const COLOR_EXPENSE_FG = "FF991B1B";
+      const COLOR_TOTAL_BG = "FFF3F4F6";
+      const COLOR_BALANCE_BG = "FFE0E7FF";
+      const COLOR_VARIATION_POS = "FF16A34A";
+      const COLOR_VARIATION_NEG = "FFDC2626";
+      const COLOR_HEADER_BG = "FF4C1D95";
+      const COLOR_HEADER_FG = "FFFFFFFF";
+
+      // Column widths: label col + period cols + total col
+      ws.getColumn(1).width = 30;
+      for (let ci = 2; ci <= periods.length + 1; ci++) ws.getColumn(ci).width = 13;
+      ws.getColumn(periods.length + 2).width = 14; // Total col
+
+      // Header row
+      const headerRow = ws.addRow(["Postes", ...periods.map((p) => p.label), "Total"]);
+      headerRow.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: COLOR_HEADER_FG }, size: 10 };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLOR_HEADER_BG } };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.border = { bottom: { style: "thin", color: { argb: "FFD1D5DB" } } };
+      });
+      headerRow.getCell(1).alignment = { horizontal: "left", vertical: "middle" };
+      headerRow.height = 22;
+
+      // Helper to add a styled row
+      const addDataRow = (
+        label: string,
+        values: number[],
+        total: number,
+        opts: {
+          bold?: boolean;
+          bgArgb?: string;
+          fgArgb?: string;
+          indent?: number;
+          cellColors?: Array<string | null | undefined>;
+          isBalance?: boolean;
+          height?: number;
+          valueFgFn?: (v: number) => string | null;
+          totalFgFn?: (v: number) => string | null;
+        } = {}
+      ) => {
+        const row = ws.addRow([label, ...values.map(fmtNum), fmtNum(total)]);
+        row.height = opts.height ?? 18;
+        const labelCell = row.getCell(1);
+        labelCell.font = { bold: opts.bold ?? false, size: 9, color: opts.fgArgb ? { argb: opts.fgArgb } : undefined };
+        labelCell.alignment = { horizontal: "left", vertical: "middle", indent: opts.indent ?? 0 };
+        if (opts.bgArgb) {
+          labelCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: opts.bgArgb } };
+        }
+
+        values.forEach((v, i) => {
+          const cell = row.getCell(i + 2);
+          const customColor = opts.cellColors?.[i];
+          if (customColor) {
+            const argb = "FF" + customColor.replace(/^#/, "");
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb } };
+          } else if (opts.bgArgb) {
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: opts.bgArgb } };
+          }
+          cell.value = v !== 0 ? fmtNum(v) : null;
+          cell.numFmt = "#,##0;[Red]-#,##0;-";
+          cell.alignment = { horizontal: "right", vertical: "middle" };
+          const fg = opts.valueFgFn ? opts.valueFgFn(v) : (opts.fgArgb ?? null);
+          if (fg) cell.font = { bold: opts.bold ?? false, size: 9, color: { argb: fg } };
+          else cell.font = { bold: opts.bold ?? false, size: 9 };
+        });
+
+        const totalCell = row.getCell(periods.length + 2);
+        if (opts.bgArgb) {
+          totalCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: opts.bgArgb } };
+        } else {
+          totalCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLOR_TOTAL_BG } };
+        }
+        totalCell.value = total !== 0 ? fmtNum(total) : null;
+        totalCell.numFmt = "#,##0;[Red]-#,##0;-";
+        totalCell.alignment = { horizontal: "right", vertical: "middle" };
+        const totalFg = opts.totalFgFn ? opts.totalFgFn(total) : (opts.fgArgb ?? null);
+        if (totalFg) totalCell.font = { bold: opts.bold ?? true, size: 9, color: { argb: totalFg } };
+        else totalCell.font = { bold: opts.bold ?? true, size: 9 };
+        return row;
+      };
+
+      // Build data rows per rubrique
+      for (const rubrique of RUBRIQUES_EXPORT) {
+        const rubLines = [...lines].filter((l) => l.rubrique === rubrique.key).sort((a, b) => a.position - b.position);
+        const rubBg = rubrique.type === "income" ? COLOR_INCOME_BG : COLOR_EXPENSE_BG;
+        const rubFg = rubrique.type === "income" ? COLOR_INCOME_FG : COLOR_EXPENSE_FG;
+
+        // Rubrique header
+        const rubTotals = periods.map((p) => getRubTotal(rubrique.key, p.key));
+        const rubGrandTotal = rubTotals.reduce((s, v) => s + v, 0);
+        const rubRow = addDataRow(rubrique.label, rubTotals, rubGrandTotal, {
+          bold: true, bgArgb: rubBg, fgArgb: rubFg, height: 20,
+        });
+        rubRow.getCell(1).border = { top: { style: "thin", color: { argb: "FFD1D5DB" } } };
+
+        // Child lines
+        for (const line of rubLines) {
+          const vals = periods.map((p) => getCellVal(line.id, p.key));
+          const cellColors = periods.map((p) => cellMap[line.id]?.[p.key]?.color);
+          const lineTotal = vals.reduce((s, v) => s + v, 0);
+          addDataRow(line.label, vals, lineTotal, { indent: 1, cellColors });
+        }
+
+        // Empty spacer if no lines
+        if (rubLines.length === 0) {
+          ws.addRow([]).height = 12;
+        }
+      }
+
+      // Summary rows
+      const totalEntreesVals = periods.map((p) => getTotalEntrees(p.key));
+      const totalSortiesVals = periods.map((p) => getTotalSorties(p.key));
+      const variationVals = periods.map((p) => balances[p.key]?.variation ?? 0);
+      const balanceVals = periods.map((p) => balances[p.key]?.balance ?? initialBalance);
+
+      // Separator
+      const sepRow = ws.addRow([]);
+      sepRow.height = 4;
+
+      addDataRow("Total Entrées", totalEntreesVals, totalEntreesVals.reduce((s, v) => s + v, 0), {
+        bold: true, bgArgb: COLOR_INCOME_BG, fgArgb: COLOR_INCOME_FG, height: 20,
+        valueFgFn: (v) => v > 0 ? COLOR_INCOME_FG : null,
+        totalFgFn: (v) => v > 0 ? COLOR_INCOME_FG : null,
+      });
+
+      addDataRow("Total Sorties", totalSortiesVals, totalSortiesVals.reduce((s, v) => s + v, 0), {
+        bold: true, bgArgb: COLOR_EXPENSE_BG, fgArgb: COLOR_EXPENSE_FG, height: 20,
+        valueFgFn: (v) => v > 0 ? COLOR_EXPENSE_FG : null,
+        totalFgFn: (v) => v > 0 ? COLOR_EXPENSE_FG : null,
+      });
+
+      addDataRow("Variation nette", variationVals, variationVals.reduce((s, v) => s + v, 0), {
+        bold: true, bgArgb: COLOR_TOTAL_BG, height: 20,
+        valueFgFn: (v) => v > 0 ? COLOR_VARIATION_POS : v < 0 ? COLOR_VARIATION_NEG : null,
+        totalFgFn: (v) => v > 0 ? COLOR_VARIATION_POS : v < 0 ? COLOR_VARIATION_NEG : null,
+      });
+
+      const balanceRow = addDataRow("Balance cumulée", balanceVals, 0, {
+        bold: true, bgArgb: COLOR_BALANCE_BG, height: 22,
+        valueFgFn: (v) => v >= 0 ? COLOR_VARIATION_POS : COLOR_VARIATION_NEG,
+      });
+      // Balance row: no total (it doesn't make sense to sum balances)
+      balanceRow.getCell(periods.length + 2).value = null;
+      // Top border on balance row
+      for (let ci = 1; ci <= periods.length + 2; ci++) {
+        balanceRow.getCell(ci).border = { top: { style: "medium", color: { argb: "FF6D28D9" } } };
+      }
+
+      // Initial balance info in footer
+      ws.addRow([]);
+      const infoRow = ws.addRow([`Solde initial : ${new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(initialBalance)}   |   Scénario : ${scenarioName}   |   Généré par PlanBase le ${new Date().toLocaleDateString("fr-FR")}`]);
+      infoRow.getCell(1).font = { italic: true, size: 8, color: { argb: "FF9CA3AF" } };
+
+      // Send response
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", `attachment; filename="plan-tresorerie-${scenarioName}.xlsx"`);
+      await workbook.xlsx.write(res);
+      res.end();
+    } catch (e: any) {
+      console.error("❌ GET /api/treasury/plan/export error:", e.message);
+      if (!res.headersSent) res.status(500).json({ error: e.message });
     }
   });
 

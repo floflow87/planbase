@@ -1083,6 +1083,38 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   const [undoStack, setUndoStack] = useState<CellSnapshot[][]>([]);
   const [redoStack, setRedoStack] = useState<CellSnapshot[][]>([]);
 
+  // Export state
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Export to Excel
+  const exportToExcel = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (activePlanScenarioId) params.set("planScenarioId", activePlanScenarioId);
+      params.set("endYear", String(endYear));
+      const scenarioName = activePlanScenarioId
+        ? (planData?.planScenarios?.find((s) => s.id === activePlanScenarioId)?.name ?? "scenario")
+        : "base";
+      params.set("scenarioName", scenarioName);
+      const response = await apiRequest(`/api/treasury/plan/export?${params.toString()}`, "GET");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `plan-tresorerie-${scenarioName}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Erreur lors de l'export", variant: "destructive" });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Plan scenarios
   const [activePlanScenarioId, setActivePlanScenarioId] = useState<string | null>(null);
   const [showCreatePlanScenario, setShowCreatePlanScenario] = useState(false);
@@ -2267,6 +2299,21 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        {/* Export button */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-[11px] gap-1.5 px-2.5 shrink-0"
+          onClick={exportToExcel}
+          disabled={isExporting || !planData}
+          data-testid="button-export-plan-xlsx"
+        >
+          {isExporting
+            ? <Loader2 className="h-3 w-3 animate-spin" />
+            : <Download className="h-3 w-3" />}
+          Exporter
+        </Button>
 
         {/* Delete plan scenario confirmation dialog */}
         <Dialog open={!!deletePlanScenarioConfirm} onOpenChange={(o) => { if (!o) setDeletePlanScenarioConfirm(null); }}>
