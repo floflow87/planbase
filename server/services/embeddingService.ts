@@ -69,6 +69,7 @@ export async function initFeedbackEmbeddingsTable(): Promise<void> {
     console.log("[EmbeddingService] feedback_embeddings table ready");
   } catch (err) {
     console.error("[EmbeddingService] Failed to initialize feedback_embeddings table:", err);
+    throw err;
   }
 }
 
