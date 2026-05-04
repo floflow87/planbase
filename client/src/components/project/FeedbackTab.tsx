@@ -359,18 +359,16 @@ export function FeedbackTab({ backlogId }: Props) {
       if (result.suggestedClusterId && result.suggestedClusterTitle) {
         const clusterId = result.suggestedClusterId;
         const clusterTitle = result.suggestedClusterTitle;
+        const count = result.similarCount;
         toast({
           title: "Feedback ajouté",
-          description: `Ce feedback ressemble à des feedbacks du cluster « ${clusterTitle} »`,
+          description: `Ce feedback ressemble à ${count} autre${count > 1 ? "s" : ""} dans le cluster « ${clusterTitle} »`,
           action: (
-            <ToastAction altText="Voir le cluster" onClick={() => {
+            <ToastAction altText="Voir le cluster" onClick={async () => {
               setActiveView("clusters");
-              qc.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/feedback-clusters`] });
-              setTimeout(() => {
-                const cached = qc.getQueryData<FeedbackCluster[]>([`/api/backlogs/${backlogId}/feedback-clusters`]);
-                const found = cached?.find((c) => c.id === clusterId);
-                if (found) setSelectedCluster(found);
-              }, 300);
+              const refreshed = await refetchClusters();
+              const found = (refreshed.data ?? []).find((c) => c.id === clusterId);
+              if (found) setSelectedCluster(found);
             }}>
               Voir le cluster
             </ToastAction>
