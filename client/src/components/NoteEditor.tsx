@@ -621,15 +621,16 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
           btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
           Object.assign(btn.style, {
             position: 'absolute', top: '6px', right: '6px',
-            background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+            background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
             borderRadius: '4px', padding: '4px', cursor: 'pointer',
-            color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center',
-            justifyContent: 'center', zIndex: '10', transition: 'opacity 0.15s',
-            opacity: '0',
+            color: 'rgba(255,255,255,0.85)', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', zIndex: '10',
+            transition: 'opacity 0.15s, background 0.15s',
+            opacity: '0.6',
           });
           pre.appendChild(btn);
-          pre.addEventListener('mouseenter', () => { btn.style.opacity = '1'; });
-          pre.addEventListener('mouseleave', () => { btn.style.opacity = '0'; });
+          pre.addEventListener('mouseenter', () => { btn.style.opacity = '1'; btn.style.background = 'rgba(255,255,255,0.2)'; });
+          pre.addEventListener('mouseleave', () => { btn.style.opacity = '0.6'; btn.style.background = 'rgba(255,255,255,0.12)'; });
           btn.addEventListener('click', async (e) => {
             e.preventDefault(); e.stopPropagation();
             const code = pre.querySelector('code');
