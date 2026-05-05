@@ -313,6 +313,41 @@
     padding-left: 0;
   }
 
+  /* Code block copy button - always visible, brighter on hover */
+  .ProseMirror pre {
+    position: relative !important;
+  }
+
+  .ProseMirror pre [data-code-copy] {
+    position: absolute !important;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.95);
+    cursor: pointer;
+    z-index: 20;
+    opacity: 0.85;
+    transition: opacity 0.15s ease, background 0.15s ease;
+  }
+
+  .ProseMirror pre [data-code-copy]:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.28);
+  }
+
+  .ProseMirror pre [data-code-copy] svg {
+    width: 14px;
+    height: 14px;
+  }
+
   ul[data-type="taskList"] li {
     display: flex;
     align-items: flex-start;
