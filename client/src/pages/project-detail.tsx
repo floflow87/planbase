@@ -920,7 +920,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
       }
     }
     return recs;
-  }, [scopeItems, totalEstimatedDays, consumptionPercent, remainingDays, timeEntries, totalTimeDays, paceProjection, scopeItemProjections]);
+  })();
 
   return (
     <div className="space-y-4">
@@ -1148,41 +1148,42 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                 {timeInputMode === 'hours' ? (
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <Label className="text-sm">Heures</Label>
+                      <Label className="text-xs">Heures</Label>
                       <Input
                         type="number"
                         min="0"
                         value={newTimeHours}
                         onChange={(e) => setNewTimeHours(e.target.value)}
                         placeholder="0"
+                        className="text-xs"
                         data-testid="input-time-hours"
                       />
                     </div>
                     <div>
-                      <Label className="text-sm">Minutes</Label>
+                      <Label className="text-xs">Minutes</Label>
                       <Select
                         value={newTimeMinutes}
                         onValueChange={setNewTimeMinutes}
                       >
-                        <SelectTrigger data-testid="select-time-minutes">
+                        <SelectTrigger className="text-xs" data-testid="select-time-minutes">
                           <SelectValue placeholder="0" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="0">0 min</SelectItem>
-                          <SelectItem value="15">15 min</SelectItem>
-                          <SelectItem value="30">30 min</SelectItem>
-                          <SelectItem value="45">45 min</SelectItem>
+                          <SelectItem value="0" className="text-xs">0 min</SelectItem>
+                          <SelectItem value="15" className="text-xs">15 min</SelectItem>
+                          <SelectItem value="30" className="text-xs">30 min</SelectItem>
+                          <SelectItem value="45" className="text-xs">45 min</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-sm">Date</Label>
+                      <Label className="text-xs">Date</Label>
                       <Popover open={isNewTimeDatePickerOpen} onOpenChange={setIsNewTimeDatePickerOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
                             className={cn(
-                              "w-full justify-start text-left font-normal",
+                              "w-full justify-start text-left text-xs font-normal",
                               !newTimeDate && "text-muted-foreground"
                             )}
                             data-testid="button-time-date"
@@ -1209,7 +1210,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                 ) : (
                   <div className="space-y-3">
                     <div>
-                      <Label className="text-sm">Sélectionnez les jours travaillés (1 jour = 8h)</Label>
+                      <Label className="text-xs">Sélectionnez les jours travaillés (1 jour = 8h)</Label>
                       <p className="text-xs text-muted-foreground mb-2">
                         {newTimeDates.length} jour{newTimeDates.length !== 1 ? 's' : ''} sélectionné{newTimeDates.length !== 1 ? 's' : ''}
                       </p>
@@ -1240,18 +1241,18 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                 {/* Optional linking to scope items and tasks */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm">Étape CDC (optionnel)</Label>
+                    <Label className="text-xs">Étape CDC (optionnel)</Label>
                     <Select
                       value={selectedScopeItemId || "none"}
                       onValueChange={(v) => setSelectedScopeItemId(v === "none" ? null : v)}
                     >
-                      <SelectTrigger data-testid="select-scope-item">
+                      <SelectTrigger className="text-xs" data-testid="select-scope-item">
                         <SelectValue placeholder="Aucune" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Aucune</SelectItem>
+                        <SelectItem value="none" className="text-xs">Aucune</SelectItem>
                         {scopeItems.map((item) => (
-                          <SelectItem key={item.id} value={item.id}>
+                          <SelectItem key={item.id} value={item.id} className="text-xs">
                             {item.label}
                           </SelectItem>
                         ))}
@@ -1259,18 +1260,18 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                     </Select>
                   </div>
                   <div>
-                    <Label className="text-sm">Tâche (optionnel)</Label>
+                    <Label className="text-xs">Tâche (optionnel)</Label>
                     <Select
                       value={selectedTaskId || "none"}
                       onValueChange={(v) => setSelectedTaskId(v === "none" ? null : v)}
                     >
-                      <SelectTrigger data-testid="select-task">
+                      <SelectTrigger className="text-xs" data-testid="select-task">
                         <SelectValue placeholder="Aucune" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Aucune</SelectItem>
+                        <SelectItem value="none" className="text-xs">Aucune</SelectItem>
                         {projectTasks.map((task) => (
-                          <SelectItem key={task.id} value={task.id}>
+                          <SelectItem key={task.id} value={task.id} className="text-xs">
                             {task.title}
                           </SelectItem>
                         ))}
@@ -1282,18 +1283,18 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                 {/* Sprint selector */}
                 {projectSprints.length > 0 && (
                   <div>
-                    <Label className="text-sm">Sprint (optionnel)</Label>
+                    <Label className="text-xs">Sprint (optionnel)</Label>
                     <Select
                       value={selectedSprintId || "none"}
                       onValueChange={(v) => setSelectedSprintId(v === "none" ? null : v)}
                     >
-                      <SelectTrigger data-testid="select-sprint">
+                      <SelectTrigger className="text-xs" data-testid="select-sprint">
                         <SelectValue placeholder="Aucun" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Aucun</SelectItem>
+                        <SelectItem value="none" className="text-xs">Aucun</SelectItem>
                         {projectSprints.map((sprint) => (
-                          <SelectItem key={sprint.id} value={sprint.id}>
+                          <SelectItem key={sprint.id} value={sprint.id} className="text-xs">
                             {sprint.name}
                           </SelectItem>
                         ))}
@@ -1303,12 +1304,13 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                 )}
                 
                 <div>
-                  <Label className="text-sm">Description (optionnel)</Label>
+                  <Label className="text-xs">Description (optionnel)</Label>
                   <Textarea
                     value={newTimeDescription}
                     onChange={(e) => setNewTimeDescription(e.target.value)}
                     placeholder="Description de la session de travail..."
                     rows={2}
+                    className="text-xs"
                     data-testid="input-time-description"
                   />
                 </div>
@@ -1720,7 +1722,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                             )}
                             <div className="flex items-center flex-wrap gap-2 mt-2">
                               {user && (
-                                <Badge variant="outline" className="text-xs">
+                                <Badge variant="outline" className="text-[10px]">
                                   <User className="h-3 w-3 mr-1" />
                                   {user.firstName} {user.lastName}
                                 </Badge>
@@ -1742,7 +1744,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                                 const colorClass = SCOPE_BADGE_COLORS[(scopeItem as any).scopeType] || SCOPE_BADGE_COLORS.autre;
                                 return (
                                   <Badge 
-                                    className={cn("text-xs cursor-pointer border", colorClass)}
+                                    className={cn("text-[10px] cursor-pointer border", colorClass)}
                                     onClick={() => {
                                       const element = document.getElementById('scope-section');
                                       if (element) element.scrollIntoView({ behavior: 'smooth' });
@@ -1757,7 +1759,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                               {task && (
                                 <Badge 
                                   variant="secondary" 
-                                  className="text-xs cursor-pointer"
+                                  className="text-[10px] cursor-pointer"
                                   onClick={() => {
                                     const element = document.getElementById('tasks-section');
                                     if (element) element.scrollIntoView({ behavior: 'smooth' });
@@ -1771,7 +1773,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                               {sprint && (
                                 <Badge 
                                   variant="outline" 
-                                  className="text-xs"
+                                  className="text-[10px]"
                                   data-testid={`badge-sprint-${entry.id}`}
                                 >
                                   <Layers className="h-3 w-3 mr-1" />
