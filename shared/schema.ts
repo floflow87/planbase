@@ -1415,6 +1415,7 @@ export type BacklogMode = typeof backlogModeOptions[number]["value"];
 
 // Backlog item states
 export const backlogItemStateOptions = [
+  { value: "backlog", label: "Backlog", color: "#9CA3AF" },
   { value: "a_faire", label: "À faire", color: "#E5E7EB" },
   { value: "en_cours", label: "En cours", color: "#93C5FD" },
   { value: "testing", label: "Testing", color: "#22D3EE" },

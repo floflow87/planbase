@@ -44,6 +44,7 @@ import {
   PopoverTrigger 
 } from "@/components/ui/popover";
 import { backlogItemStateOptions, backlogPriorityOptions, complexityOptions, recipeConclusionOptions, type RecipeConclusion } from "@shared/schema";
+import { StatusIcon } from "./jira-scrum-view";
 import type { FlatTicket, TicketType } from "./jira-scrum-view";
 import { PriorityIcon } from "./jira-scrum-view";
 
@@ -105,6 +106,8 @@ function getStateStyle(state: string | null | undefined) {
       return { bg: "bg-orange-100", text: "text-orange-700", dot: "bg-orange-500" };
     case "bloque":
       return { bg: "bg-red-100", text: "text-red-700", dot: "bg-red-500" };
+    case "backlog":
+      return { bg: "bg-gray-50", text: "text-gray-500", dot: "bg-gray-400" };
     default:
       return { bg: "bg-gray-100", text: "text-gray-600", dot: "bg-gray-400" };
   }
@@ -919,7 +922,7 @@ export function TicketDetailPanel({
                     const label = backlogItemStateOptions.find(o => o.value === ticket.state)?.label || "À faire";
                     return (
                       <div className="flex items-center gap-2">
-                        <span className={cn("w-2 h-2 rounded-full", style.dot)} />
+                        <StatusIcon state={ticket.state} size={14} />
                         <span className={style.text}>{label}</span>
                       </div>
                     );
@@ -932,7 +935,7 @@ export function TicketDetailPanel({
                   return (
                     <SelectItem key={opt.value} value={opt.value} className="text-gray-900 cursor-pointer">
                       <div className="flex items-center gap-2">
-                        <span className={cn("w-2 h-2 rounded-full", style.dot)} />
+                        <StatusIcon state={opt.value} size={14} />
                         <span className={style.text}>{opt.label}</span>
                       </div>
                     </SelectItem>

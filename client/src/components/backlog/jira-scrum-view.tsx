@@ -127,6 +127,8 @@ function getStateStyle(state: string | null | undefined) {
       return "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400";
     case "to_fix":
       return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
+    case "backlog":
+      return "bg-gray-50 text-gray-500 dark:bg-gray-900/40 dark:text-gray-400";
     default:
       return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
   }
@@ -144,6 +146,8 @@ function getStateLabel(state: string | null | undefined) {
       return "Testing";
     case "to_fix":
       return "To fix";
+    case "backlog":
+      return "Backlog";
     case "a_faire":
     default:
       return "À faire";
@@ -162,10 +166,91 @@ function getStateDot(state: string | null | undefined) {
       return "bg-cyan-500";
     case "to_fix":
       return "bg-orange-500";
+    case "backlog":
+      return "bg-gray-400";
     case "a_faire":
     default:
       return "bg-gray-400";
   }
+}
+
+// Linear-style progressive status icon (SVG circle that fills based on progression)
+function getStateColor(state: string | null | undefined): string {
+  switch (state) {
+    case "termine": return "#22C55E";
+    case "review": return "#A855F7";
+    case "testing": return "#06B6D4";
+    case "to_fix": return "#F97316";
+    case "en_cours": return "#3B82F6";
+    case "backlog": return "#9CA3AF";
+    case "a_faire":
+    default: return "#9CA3AF";
+  }
+}
+
+function getStateProgress(state: string | null | undefined): number {
+  switch (state) {
+    case "termine": return 1;
+    case "review": return 0.75;
+    case "testing": return 0.5;
+    case "to_fix": return 0.5;
+    case "en_cours": return 0.25;
+    case "a_faire":
+    case "backlog":
+    default: return 0;
+  }
+}
+
+function pieSlicePath(cx: number, cy: number, r: number, progress: number): string {
+  if (progress <= 0) return "";
+  if (progress >= 1) return `M ${cx} ${cy} m -${r} 0 a ${r} ${r} 0 1 0 ${r * 2} 0 a ${r} ${r} 0 1 0 -${r * 2} 0 Z`;
+  const angle = progress * 2 * Math.PI;
+  const endX = cx + r * Math.sin(angle);
+  const endY = cy - r * Math.cos(angle);
+  const largeArc = progress > 0.5 ? 1 : 0;
+  return `M ${cx} ${cy} L ${cx} ${cy - r} A ${r} ${r} 0 ${largeArc} 1 ${endX} ${endY} Z`;
+}
+
+export function StatusIcon({ state, size = 14, className }: { state: string | null | undefined; size?: number; className?: string }) {
+  const color = getStateColor(state);
+  const progress = getStateProgress(state);
+  const isBacklog = state === "backlog";
+  const isDone = state === "termine";
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = (size / 2) - 1.5;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className={cn("flex-shrink-0", className)}>
+      {isDone ? (
+        <>
+          <circle cx={cx} cy={cy} r={r} fill={color} />
+          <path
+            d={`M ${cx - r * 0.5} ${cy} L ${cx - r * 0.1} ${cy + r * 0.4} L ${cx + r * 0.55} ${cy - r * 0.35}`}
+            fill="none"
+            stroke="white"
+            strokeWidth={1.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </>
+      ) : (
+        <>
+          <circle
+            cx={cx}
+            cy={cy}
+            r={r}
+            fill="none"
+            stroke={color}
+            strokeWidth={1.5}
+            strokeDasharray={isBacklog ? "2 2" : undefined}
+          />
+          {progress > 0 && (
+            <path d={pieSlicePath(cx, cy, r - 1.5, progress)} fill={color} />
+          )}
+        </>
+      )}
+    </svg>
+  );
 }
 
 function formatDuration(ms: number): string {
@@ -367,7 +452,56 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
       <div {...listeners} {...attributes}>
         <GripVertical className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 cursor-grab" />
       </div>
-      
+
+      {/* Linear-style status icon (left of type icon, opens state dropdown on click) */}
+      {onUpdateState ? (
+        <Select
+          value={ticket.state || "a_faire"}
+          onValueChange={(value) => {
+            onUpdateState(ticket.id, ticket.type, value);
+          }}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <SelectTrigger
+                className="h-5 w-5 p-0 border-0 bg-transparent shadow-none [&>svg:last-child]:hidden hover:opacity-80 focus:ring-0 focus:ring-offset-0"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                data-testid={`status-icon-trigger-${ticket.id}`}
+              >
+                <SelectValue>
+                  <StatusIcon state={ticket.state} size={14} />
+                </SelectValue>
+              </SelectTrigger>
+            </TooltipTrigger>
+            <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md">
+              <p className="text-xs">{getStateLabel(ticket.state)}</p>
+            </TooltipContent>
+          </Tooltip>
+          <SelectContent className="bg-white dark:bg-card">
+            {backlogItemStateOptions.map(opt => (
+              <SelectItem key={opt.value} value={opt.value} className="text-xs cursor-pointer">
+                <span className="flex items-center gap-2">
+                  <StatusIcon state={opt.value} size={14} />
+                  {opt.label}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div data-testid={`status-icon-${ticket.id}`}>
+              <StatusIcon state={ticket.state} size={14} />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border shadow-md">
+            <p className="text-xs">{getStateLabel(ticket.state)}</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
+
       {onConvertType && !isCompleted && ticket.type !== "epic" ? (
         <Popover open={typePopoverOpen} onOpenChange={setTypePopoverOpen}>
           <Tooltip>
@@ -793,46 +927,6 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
               </div>
             )}
           </div>
-        )}
-        {onUpdateState ? (
-          <Select
-            value={ticket.state || "a_faire"}
-            onValueChange={(value) => {
-              onUpdateState(ticket.id, ticket.type, value);
-            }}
-          >
-            <SelectTrigger 
-              className={cn("h-5 w-auto min-w-[70px] text-[10px] px-1.5 border cursor-pointer bg-white dark:bg-card", getStateStyle(ticket.state))}
-              onPointerDown={(e) => e.stopPropagation()}
-              data-testid={`select-inline-state-${ticket.id}`}
-            >
-              <SelectValue>
-                <span className="flex items-center gap-1.5">
-                  <span className={cn("w-2 h-2 rounded-full", getStateDot(ticket.state))} />
-                  {getStateLabel(ticket.state)}
-                </span>
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent className="bg-white dark:bg-card">
-              {backlogItemStateOptions.map(opt => (
-                <SelectItem key={opt.value} value={opt.value} className="text-xs cursor-pointer">
-                  <span className="flex items-center gap-1.5">
-                    <span className={cn("w-2 h-2 rounded-full", getStateDot(opt.value))} />
-                    {opt.label}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <Badge 
-            variant="secondary" 
-            className={cn("text-[10px] px-1 py-0 cursor-pointer", getStateStyle(ticket.state))}
-            data-testid={`ticket-state-${ticket.id}`}
-          >
-            <span className={cn("w-1.5 h-1.5 rounded-full mr-1 inline-block", getStateDot(ticket.state))} />
-            {getStateLabel(ticket.state)}
-          </Badge>
         )}
       </div>
       </div>

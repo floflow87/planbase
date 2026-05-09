@@ -246,7 +246,7 @@ function DraggableKanbanCard({
         )}
         
         <div className="pt-1">
-          <span className="text-sm font-bold text-primary dark:text-white">€ {totalBudget.toLocaleString()}</span>
+          <span className="text-xs font-bold text-primary dark:text-white">€ {totalBudget.toLocaleString()}</span>
         </div>
       </CardContent>
     </Card>
