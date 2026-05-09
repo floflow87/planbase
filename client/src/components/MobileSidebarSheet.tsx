@@ -5,7 +5,7 @@ import {
   Home, FolderKanban, CheckSquare, Rocket, Package,
   FileText, FolderOpen, Users, DollarSign, Settings,
   Network, HelpCircle, Wallet, Zap, Bot, LogOut,
-  X, Moon, Sun,
+  X, Moon, Sun, BookOpen,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -311,6 +311,16 @@ export function MobileSidebarSheet({ open, onClose }: Props) {
               <span className="text-sm font-medium">Assistant IA</span>
             </button>
           )}
+
+          {/* Résumé quotidien */}
+          <button
+            onClick={() => { onClose(); window.dispatchEvent(new Event("open_daily_digest")); }}
+            className="flex items-center gap-3 w-full px-3 py-3 rounded-xl text-left hover-elevate active-elevate-2"
+            data-testid="mobile-nav-daily-digest"
+          >
+            <BookOpen className="w-5 h-5 shrink-0 text-primary" />
+            <span className="text-sm text-foreground">Résumé quotidien</span>
+          </button>
 
           {/* Aide et support */}
           <button
