@@ -2098,9 +2098,95 @@ function PreferencesTabContent() {
         </CardContent>
       </Card>
 
+      {/* Task ID prefix */}
+      <TaskIdPrefixCard />
+
       {/* Daily Digest */}
       <DigestPreferencesCard />
     </div>
+  );
+}
+
+function TaskIdPrefixCard() {
+  const { toast } = useToast();
+
+  const { data: allSettings = {} } = useQuery<Record<string, any>>({
+    queryKey: ["/api/settings"],
+    queryFn: async () => {
+      const res = await apiRequest("/api/settings", "GET");
+      const list: Array<{ key: string; value: any }> = await res.json();
+      return Array.isArray(list) ? Object.fromEntries(list.map((s) => [s.key, s.value])) : {};
+    },
+  });
+
+  const initial = String(allSettings["tasks.idPrefix"] ?? "PLB").toUpperCase().slice(0, 3);
+  const [prefix, setPrefix] = useState<string>(initial);
+
+  useEffect(() => {
+    setPrefix(initial);
+  }, [initial]);
+
+  const saveSetting = useMutation({
+    mutationFn: async (value: string) => {
+      await apiRequest(`/api/settings/tasks.idPrefix`, "PUT", { value });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+      toast({ title: "Préfixe enregistré" });
+    },
+    onError: () =>
+      toast({ title: "Erreur", description: "Impossible d'enregistrer le préfixe", variant: "destructive" }),
+  });
+
+  const handleSave = () => {
+    const cleaned = prefix.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3);
+    if (cleaned.length !== 3) {
+      toast({
+        title: "Préfixe invalide",
+        description: "Le préfixe doit contenir exactement 3 lettres.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setPrefix(cleaned);
+    saveSetting.mutate(cleaned);
+  };
+
+  return (
+    <Card data-testid="card-task-id-prefix">
+      <CardHeader className="pb-3 flex flex-row items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Hash className="w-4 h-4 text-muted-foreground" />
+          <CardTitle className="text-sm font-semibold">Identifiant des tâches</CardTitle>
+        </div>
+        <CardDescription className="text-xs mt-0">
+          Préfixe à 3 lettres utilisé pour les ID de tâches (ex. PLB-001)
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center gap-3">
+          <Input
+            value={prefix}
+            onChange={(e) => setPrefix(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3))}
+            maxLength={3}
+            placeholder="PLB"
+            className="w-24 uppercase tracking-widest text-center font-mono"
+            data-testid="input-task-id-prefix"
+          />
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={saveSetting.isPending || prefix === initial || prefix.length !== 3}
+            data-testid="button-save-task-id-prefix"
+          >
+            Enregistrer
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Aperçu : <span className="font-mono">{(prefix || "PLB").padEnd(3, "X")}-001</span>
+          </span>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

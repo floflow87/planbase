@@ -3387,5 +3387,114 @@ async function runIncrementalMigrations() {
   } catch (v5Err: any) {
     console.warn("⚠️  v5 feedback_embeddings migration (non-blocking):", v5Err.message);
   }
+  // ── v6: tasks.display_id (per-account sequential human ID) ──────────────
+  const V6_KEY = "planbase_v6_tasks_display_id";
+  try {
+    const v6Check = await db.execute(
+      sql`SELECT 1 FROM schema_migrations_tracking WHERE key = ${V6_KEY}`
+    );
+    const v6Rows: unknown[] = Array.isArray(v6Check)
+      ? v6Check
+      : ((v6Check as any).rows ?? []);
+
+    if (v6Rows.length === 0) {
+      await db.execute(sql`
+        ALTER TABLE tasks ADD COLUMN IF NOT EXISTS display_id integer
+      `);
+      // Backfill existing tasks per account, ordering by created_at (oldest = 1)
+      await db.execute(sql`
+        WITH numbered AS (
+          SELECT id,
+                 ROW_NUMBER() OVER (PARTITION BY account_id ORDER BY created_at ASC, id ASC) AS rn
+          FROM tasks
+          WHERE display_id IS NULL
+        )
+        UPDATE tasks t
+        SET display_id = n.rn
+        FROM numbered n
+        WHERE t.id = n.id
+      `);
+      // Resolve any duplicate (account_id, display_id) pairs left over from
+      // pre-uniqueness inserts before adding the unique constraint.
+      await db.execute(sql`
+        WITH dups AS (
+          SELECT id,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY account_id, display_id
+                   ORDER BY created_at ASC, id ASC
+                 ) AS rn,
+                 account_id
+          FROM tasks
+          WHERE display_id IS NOT NULL
+        ),
+        maxes AS (
+          SELECT account_id, COALESCE(MAX(display_id), 0) AS mx
+          FROM tasks
+          GROUP BY account_id
+        )
+        UPDATE tasks t
+        SET display_id = m.mx + d.rn - 1 + 1
+        FROM dups d, maxes m
+        WHERE d.rn > 1
+          AND t.id = d.id
+          AND m.account_id = d.account_id
+      `);
+      await db.execute(sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS tasks_account_display_id_uidx
+          ON tasks(account_id, display_id)
+          WHERE display_id IS NOT NULL
+      `);
+      console.log("✅ tasks.display_id column ensured + backfilled + unique index");
+
+      await db.execute(
+        sql`INSERT INTO schema_migrations_tracking (key) VALUES (${V6_KEY}) ON CONFLICT DO NOTHING`
+      );
+      console.log("⚡ v6 tasks.display_id migration marker recorded");
+    }
+  } catch (v6Err: any) {
+    console.warn("⚠️  v6 tasks.display_id migration (non-blocking):", v6Err.message);
+  }
+  // ── v6_1: enforce unique (account_id, display_id) for tasks ─────────────
+  const V6_1_KEY = "planbase_v6_1_tasks_display_id_unique";
+  try {
+    const v61Check = await db.execute(
+      sql`SELECT 1 FROM schema_migrations_tracking WHERE key = ${V6_1_KEY}`
+    );
+    const v61Rows: unknown[] = Array.isArray(v61Check)
+      ? v61Check
+      : ((v61Check as any).rows ?? []);
+
+    if (v61Rows.length === 0) {
+      // Renumber any duplicates per account before applying the unique index.
+      await db.execute(sql`
+        WITH ranked AS (
+          SELECT id,
+                 account_id,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY account_id
+                   ORDER BY created_at ASC, id ASC
+                 ) AS rn
+          FROM tasks
+          WHERE account_id IS NOT NULL
+        )
+        UPDATE tasks t
+        SET display_id = r.rn
+        FROM ranked r
+        WHERE t.id = r.id
+      `);
+      await db.execute(sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS tasks_account_display_id_uidx
+          ON tasks(account_id, display_id)
+          WHERE display_id IS NOT NULL
+      `);
+      console.log("✅ tasks (account_id, display_id) unique index applied");
+
+      await db.execute(
+        sql`INSERT INTO schema_migrations_tracking (key) VALUES (${V6_1_KEY}) ON CONFLICT DO NOTHING`
+      );
+    }
+  } catch (v61Err: any) {
+    console.warn("⚠️  v6_1 tasks display_id unique migration (non-blocking):", v61Err.message);
+  }
   // ─────────────────────────────────────────────────────────────────────────
 }

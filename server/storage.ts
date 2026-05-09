@@ -1178,7 +1178,54 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTask(taskData: InsertTask): Promise<Task> {
-    const [task] = await db.insert(tasks).values(taskData).returning();
+    // Per-account sequential displayId (oldest = 1).
+    // Race-safe: a unique index on (account_id, display_id) is enforced
+    // by migration v6; on conflict (concurrent insert grabbed same MAX+1),
+    // we retry with a fresh MAX up to a bounded number of attempts.
+    const explicitDisplayId: number | undefined = (taskData as any).displayId;
+    const baseValues: any = { ...taskData };
+    delete baseValues.displayId;
+
+    if (explicitDisplayId != null || !taskData.accountId) {
+      const values: any = { ...baseValues };
+      if (explicitDisplayId != null) values.displayId = explicitDisplayId;
+      const [task] = await db.insert(tasks).values(values).returning();
+      return task;
+    }
+
+    const accountId = taskData.accountId;
+    let lastErr: any;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      let nextId: number;
+      try {
+        const result: any = await db.execute(
+          sql`SELECT COALESCE(MAX(display_id), 0) + 1 AS next FROM tasks WHERE account_id = ${accountId}`
+        );
+        const rows: any[] = Array.isArray(result) ? result : (result.rows ?? []);
+        nextId = Number(rows?.[0]?.next ?? 1);
+      } catch {
+        // If we can't compute, fall back to insert without displayId
+        const [task] = await db.insert(tasks).values(baseValues).returning();
+        return task;
+      }
+      try {
+        const [task] = await db
+          .insert(tasks)
+          .values({ ...baseValues, displayId: nextId })
+          .returning();
+        return task;
+      } catch (err: any) {
+        lastErr = err;
+        // 23505 = unique_violation (account_id, display_id) — another concurrent
+        // insert grabbed the same id. Retry with a fresh MAX.
+        const code = err?.code || err?.cause?.code;
+        if (code !== "23505") throw err;
+      }
+    }
+    // Exhausted retries — last resort: insert without displayId so the user
+    // is not blocked. Backfill scripts can later fix any null.
+    console.warn("createTask: exhausted displayId retries", lastErr?.message);
+    const [task] = await db.insert(tasks).values(baseValues).returning();
     return task;
   }
 

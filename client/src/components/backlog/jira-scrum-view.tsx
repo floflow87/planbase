@@ -464,7 +464,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
           <Tooltip>
             <TooltipTrigger asChild>
               <SelectTrigger
-                className="h-5 w-5 p-0 border-0 bg-transparent shadow-none [&>svg:last-child]:hidden hover:opacity-80 focus:ring-0 focus:ring-offset-0"
+                className="h-5 w-5 p-0 !bg-transparent dark:!bg-transparent !border-0 !shadow-none !ring-0 !ring-offset-0 [&>svg:last-child]:hidden hover:opacity-80 focus:outline-none data-[state=open]:!bg-transparent"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
                 data-testid={`status-icon-trigger-${ticket.id}`}
@@ -508,13 +508,14 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
             <TooltipTrigger asChild>
               <PopoverTrigger asChild>
                 <div 
-                  className="flex items-center justify-center h-5 w-5 rounded flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/50"
+                  className="flex items-center justify-center h-5 w-5 rounded flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/50 dark:!bg-transparent"
                   style={{ backgroundColor: pastelColors.bg }}
                   onClick={(e) => e.stopPropagation()}
                   onPointerDown={(e) => e.stopPropagation()}
                   data-testid={`ticket-type-selector-${ticket.id}`}
                 >
-                  <span style={{ color: pastelColors.text }}>{ticketTypeIcon(ticket.type)}</span>
+                  <span style={{ color: pastelColors.text }} className="dark:hidden">{ticketTypeIcon(ticket.type)}</span>
+                  <span style={{ color: pastelColors.bg }} className="hidden dark:inline">{ticketTypeIcon(ticket.type)}</span>
                 </div>
               </PopoverTrigger>
             </TooltipTrigger>
@@ -554,10 +555,11 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
         </Popover>
       ) : (
         <div 
-          className="flex items-center justify-center h-5 w-5 rounded flex-shrink-0"
+          className="flex items-center justify-center h-5 w-5 rounded flex-shrink-0 dark:!bg-transparent"
           style={{ backgroundColor: pastelColors.bg }}
         >
-          <span style={{ color: pastelColors.text }}>{ticketTypeIcon(ticket.type)}</span>
+          <span style={{ color: pastelColors.text }} className="dark:hidden">{ticketTypeIcon(ticket.type)}</span>
+          <span style={{ color: pastelColors.bg }} className="hidden dark:inline">{ticketTypeIcon(ticket.type)}</span>
         </div>
       )}
       

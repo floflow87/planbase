@@ -63,6 +63,7 @@ import { fr } from "date-fns/locale";
 import type { Task, TaskColumn, AppUser, Project, InsertTask } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest, formatDateForStorage } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
 import { getTaskPriorityBadgeClass, getTaskPriorityLabel, TASK_PRIORITIES, getStatusFromColumnName } from "@shared/config";
 
 interface ListViewProps {
@@ -117,6 +118,7 @@ export function ListView({
     }
     return [
       'checkbox',
+      'id',
       'title',
       'project',
       'assignedTo',
@@ -145,9 +147,14 @@ export function ListView({
         parsed.project = true;
         localStorage.setItem('taskColumnVisibility', JSON.stringify(parsed));
       }
+      if (parsed.id === undefined) {
+        parsed.id = true;
+        localStorage.setItem('taskColumnVisibility', JSON.stringify(parsed));
+      }
       return parsed;
     }
     return {
+      id: true,
       title: true,
       project: true,
       assignedTo: true,
@@ -163,6 +170,32 @@ export function ListView({
   
   // Fixed columns that are not draggable
   const FIXED_COLUMNS = ['checkbox', 'actions'];
+
+  // Migration: ensure 'id' column is in saved order (backward compatibility)
+  useEffect(() => {
+    if (!columnOrder.includes('id')) {
+      const newOrder = [...columnOrder];
+      const checkboxIdx = newOrder.indexOf('checkbox');
+      newOrder.splice(checkboxIdx + 1, 0, 'id');
+      localStorage.setItem('taskListColumnOrder', JSON.stringify(newOrder));
+      setColumnOrder(newOrder);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fetch task ID prefix from account settings
+  const { data: allSettings = {} } = useQuery<Record<string, any>>({
+    queryKey: ["/api/settings"],
+    queryFn: async () => {
+      const res = await apiRequest("/api/settings", "GET");
+      const list: Array<{ key: string; value: any }> = await res.json();
+      return Array.isArray(list) ? Object.fromEntries(list.map((s) => [s.key, s.value])) : {};
+    },
+    staleTime: 60_000,
+  });
+  const taskIdPrefix = String(allSettings["tasks.idPrefix"] ?? "PLB").toUpperCase().slice(0, 3) || "PLB";
+  const formatTaskId = (displayId: number | null | undefined) =>
+    displayId == null ? "—" : `${taskIdPrefix}-${String(displayId).padStart(3, "0")}`;
   
   // Memoized movable columns - excludes fixed columns and respects visibility
   const movableColumns = useMemo(() => 
@@ -276,6 +309,10 @@ export function ListView({
       let bValue: any;
 
       switch (sortConfig.column) {
+        case 'id':
+          aValue = a.displayId ?? Number.MAX_SAFE_INTEGER;
+          bValue = b.displayId ?? Number.MAX_SAFE_INTEGER;
+          break;
         case 'title':
           aValue = a.title?.toLowerCase() || '';
           bValue = b.title?.toLowerCase() || '';
@@ -330,6 +367,7 @@ export function ListView({
 
   const columnHeaders = {
     checkbox: { label: '', id: 'checkbox' },
+    id: { label: 'ID', id: 'id' },
     title: { label: 'Tâche', id: 'title' },
     project: { label: 'Projet', id: 'project' },
     assignedTo: { label: 'Assigné à', id: 'assignedTo' },
@@ -818,6 +856,16 @@ export function ListView({
                           {/* Movable columns */}
                           {movableColumns.map((columnId: string) => {
                             switch (columnId) {
+                              case 'id':
+                                return (
+                                  <TableCell
+                                    key={columnId}
+                                    className="text-[11px] text-muted-foreground font-mono whitespace-nowrap"
+                                    data-testid={`cell-id-${task.id}`}
+                                  >
+                                    {formatTaskId(task.displayId)}
+                                  </TableCell>
+                                );
                               case 'title':
                                 return (
                                   <TableCell 
@@ -1331,6 +1379,7 @@ export function ListView({
           </SheetHeader>
           <div className="py-4 space-y-4">
             {[
+              { id: "id", label: "ID" },
               { id: "title", label: "Titre", disabled: true },
               { id: "project", label: "Projet" },
               { id: "assignedTo", label: "Assigné à" },

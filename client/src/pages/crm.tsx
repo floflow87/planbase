@@ -1068,9 +1068,8 @@ export default function CRM() {
             {viewMode === "kanban" && (
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" data-testid="button-kanban-columns" className="hidden md:flex">
-                    <Columns3 className="w-4 h-4 mr-2" />
-                    <span>{t.crm.columns}</span>
+                  <Button variant="outline" size="icon" data-testid="button-kanban-columns" className="hidden md:flex" title={t.crm.columns}>
+                    <Settings2 className="w-4 h-4" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-56 bg-card" align="end">
@@ -1091,9 +1090,8 @@ export default function CRM() {
                 </PopoverContent>
               </Popover>
             )}
-            <Button variant="outline" size="sm" data-testid="button-export">
-              <Download className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">{t.crm.export}</span>
+            <Button variant="outline" size="icon" data-testid="button-export" title={t.crm.export}>
+              <Download className="w-4 h-4" />
             </Button>
             <AutomationButton scopeType="crm" scopeLabel="CRM" />
             <Can module="crm" action="create">
@@ -1483,9 +1481,8 @@ export default function CRM() {
                     <div className="flex items-center justify-between mb-3 md:hidden">
                       <Popover>
                         <PopoverTrigger asChild>
-                          <Button variant="outline" size="sm" data-testid="button-kanban-columns-mobile">
-                            <Columns3 className="w-4 h-4 mr-2" />
-                            Colonnes
+                          <Button variant="outline" size="icon" data-testid="button-kanban-columns-mobile" title="Colonnes">
+                            <Settings2 className="w-4 h-4" />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-56 bg-card" align="start">
