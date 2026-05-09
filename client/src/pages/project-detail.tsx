@@ -866,7 +866,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
     severity: "info" | "warning" | "critical";
   };
 
-  const timeRecommendationsData = useMemo<TimeRecommendation[]>(() => {
+  const timeRecommendationsData: TimeRecommendation[] = (() => {
     if (!(scopeItems.length > 0 && totalEstimatedDays > 0)) return [];
     const recs: TimeRecommendation[] = [];
 
