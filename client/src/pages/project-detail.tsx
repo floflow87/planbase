@@ -964,32 +964,32 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-1">
-              <p className="text-[10px] text-muted-foreground">Temps passé</p>
+              <p className="text-xs text-muted-foreground">Temps passé</p>
               <p className="text-lg font-semibold" data-testid="kpi-time-spent">
                 {totalTimeDays.toFixed(1)}j
               </p>
-              <p className="text-[10px] text-muted-foreground">{totalTimeHours.toFixed(1)}h</p>
+              <p className="text-xs text-muted-foreground">{totalTimeHours.toFixed(1)}h</p>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] text-muted-foreground">Temps prévu (CDC)</p>
+              <p className="text-xs text-muted-foreground">Temps prévu (CDC)</p>
               <p className="text-lg font-semibold" data-testid="kpi-time-estimated">
                 {totalEstimatedDays > 0 ? `${totalEstimatedDays.toFixed(1)}j` : "—"}
               </p>
               {totalEstimatedDays > 0 && (
-                <p className="text-[10px] text-muted-foreground">{(totalEstimatedDays * 8).toFixed(1)}h</p>
+                <p className="text-xs text-muted-foreground">{(totalEstimatedDays * 8).toFixed(1)}h</p>
               )}
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] text-muted-foreground">Temps restant</p>
+              <p className="text-xs text-muted-foreground">Temps restant</p>
               <p className={`text-lg font-semibold ${remainingDays < 0 ? "text-red-600" : ""}`} data-testid="kpi-time-remaining">
                 {totalEstimatedDays > 0 ? `${remainingDays.toFixed(1)}j` : "—"}
               </p>
               {totalEstimatedDays > 0 && (
-                <p className="text-[10px] text-muted-foreground">{(remainingDays * 8).toFixed(1)}h</p>
+                <p className="text-xs text-muted-foreground">{(remainingDays * 8).toFixed(1)}h</p>
               )}
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] text-muted-foreground">Consommation</p>
+              <p className="text-xs text-muted-foreground">Consommation</p>
               <div className="flex items-center gap-2">
                 <p className={`text-lg font-semibold ${timeStatus.color}`} data-testid="kpi-consumption-percent">
                   {totalEstimatedDays > 0 ? `${consumptionPercent.toFixed(0)}%` : "—"}
@@ -3634,15 +3634,15 @@ export default function ProjectDetail() {
                           </AvatarFallback>
                         </Avatar>
                       )}
-                      <span className="text-sm text-muted-foreground group-hover:text-primary cursor-pointer group-hover:underline">
+                      <span className="text-xs text-muted-foreground group-hover:text-primary cursor-pointer group-hover:underline">
                         {project.client.company || project.client.name}
                       </span>
                     </div>
                   </Link>
                 ) : (
-                  <span className="text-sm text-muted-foreground">Client non défini</span>
+                  <span className="text-xs text-muted-foreground">Client non défini</span>
                 )}
-                <span className="text-muted-foreground/40 select-none text-sm">·</span>
+                <span className="text-muted-foreground/40 select-none text-xs">·</span>
                 <Badge className={`${getStageColor(project.stage || "prospection")} text-[10px] px-1.5 py-0.5`} data-testid="badge-stage">
                   {getStageLabel(project.stage || "prospection")}
                 </Badge>
@@ -3855,7 +3855,7 @@ export default function ProjectDetail() {
                 </p>
                 {timeConsumedPct !== null ? (
                   <div className="mt-2">
-                    <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
                       <span data-testid="time-planned">{timeConsumedPct.toFixed(0)}% consommé</span>
                       {m.timeOverrunPercent > 10 && <span className="text-amber-600">+{m.timeOverrunPercent.toFixed(0)}%</span>}
                     </div>
@@ -5418,7 +5418,7 @@ export default function ProjectDetail() {
                   <div className="grid grid-cols-3 gap-4">
                     <Card className="bg-violet-100 dark:bg-violet-900/20 border-2 border-violet-400 dark:border-violet-600">
                       <CardContent className="pt-4 pb-4">
-                        <div className="text-[10px] text-muted-foreground mb-1">Montant facturé</div>
+                        <div className="text-xs text-muted-foreground mb-1">Montant facturé</div>
                         <div className="text-lg font-bold text-primary" data-testid="kpi-total-billed">
                           {totalBilled.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })}
                         </div>
@@ -5431,7 +5431,7 @@ export default function ProjectDetail() {
                     </Card>
                     <Card>
                       <CardContent className="pt-4 pb-4">
-                        <div className="text-[10px] text-muted-foreground mb-1">Nombre de jours facturé</div>
+                        <div className="text-xs text-muted-foreground mb-1">Nombre de jours facturé</div>
                         <div className="text-lg font-bold" data-testid="kpi-number-of-days">
                           {numberOfDays > 0 ? `${numberOfDays} j` : "-"}
                         </div>
@@ -5451,7 +5451,7 @@ export default function ProjectDetail() {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <div className="cursor-help">
-                                <div className="text-[10px] text-muted-foreground mb-1">
+                                <div className="text-xs text-muted-foreground mb-1">
                                   {isForfait ? "TJM facturé" : "TJM projet"}
                                 </div>
                                 <div className="text-lg font-bold" data-testid="kpi-effective-tjm">
@@ -5480,7 +5480,7 @@ export default function ProjectDetail() {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <div className="cursor-help border-l pl-4">
-                                <div className="text-[10px] text-muted-foreground mb-1">TJM réel</div>
+                                <div className="text-xs text-muted-foreground mb-1">TJM réel</div>
                                 <div className="text-lg font-bold" data-testid="kpi-actual-tjm">
                                   {profitabilityMetrics?.actualTJM && profitabilityMetrics.actualTJM > 0
                                     ? profitabilityMetrics.actualTJM.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
@@ -5517,7 +5517,7 @@ export default function ProjectDetail() {
                       <TooltipTrigger asChild>
                         <Card className="cursor-help">
                           <CardContent className="pt-4 pb-4">
-                            <div className="text-[10px] text-muted-foreground mb-1">Prix minimum recommandé</div>
+                            <div className="text-xs text-muted-foreground mb-1">Prix minimum recommandé</div>
                             <div className="text-lg font-bold" data-testid="kpi-recommended-price">
                               {recommendedPrice > 0 
                                 ? recommendedPrice.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
@@ -5541,7 +5541,7 @@ export default function ProjectDetail() {
                       <TooltipTrigger asChild>
                         <Card className="cursor-help">
                           <CardContent className="pt-4 pb-4">
-                            <div className="text-[10px] text-muted-foreground mb-1">Coût actualisé</div>
+                            <div className="text-xs text-muted-foreground mb-1">Coût actualisé</div>
                             <div className="text-lg font-bold" data-testid="kpi-estimated-cost">
                               {estimatedCost > 0 
                                 ? estimatedCost.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
@@ -5565,7 +5565,7 @@ export default function ProjectDetail() {
                       <TooltipTrigger asChild>
                         <Card className="cursor-help">
                           <CardContent className="pt-4 pb-4">
-                            <div className="text-[10px] text-muted-foreground mb-1">Marge réelle actualisée</div>
+                            <div className="text-xs text-muted-foreground mb-1">Marge réelle actualisée</div>
                             <div 
                               className="text-lg font-bold" 
                               style={{
@@ -5620,7 +5620,7 @@ export default function ProjectDetail() {
                 <Card>
                   <CollapsibleTrigger asChild>
                     <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-                      <CardTitle className="text-base flex items-center justify-between">
+                      <CardTitle className="text-sm flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <FileText className="h-4 w-4" />
                           Cahier des charges - Chiffrage
@@ -5654,8 +5654,8 @@ export default function ProjectDetail() {
             <Card className="mt-4">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Euro className="h-5 w-5" />
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Euro className="h-4 w-4" />
                     Suivi des paiements
                   </CardTitle>
                   <Button

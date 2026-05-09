@@ -914,9 +914,9 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
     <div className="space-y-4">
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center justify-between gap-2 text-lg flex-wrap">
+          <CardTitle className="flex items-center justify-between gap-2 text-sm flex-wrap">
             <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-violet-600" />
+              <FileText className="h-4 w-4 text-violet-600" />
               Cahier des Charges - Chiffrage
             </div>
             <div className="flex items-center gap-2">
@@ -982,7 +982,7 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
               value={newItemLabel}
               onChange={(e) => setNewItemLabel(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddItem()}
-              className="flex-1 h-8 text-sm"
+              className="flex-1 h-8 text-xs placeholder:text-xs"
               data-testid="input-new-scope-label"
             />
             <Input
@@ -993,7 +993,7 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
               value={newItemDays}
               onChange={(e) => setNewItemDays(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddItem()}
-              className="w-20 h-8 text-sm"
+              className="w-20 h-8 text-xs placeholder:text-xs"
               data-testid="input-new-scope-days"
             />
             <Button 
@@ -1052,7 +1052,7 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
       {recommendations.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center justify-between gap-2 text-base flex-wrap">
+            <CardTitle className="flex items-center justify-between gap-2 text-sm flex-wrap">
               <div className="flex items-center gap-2">
                 <Lightbulb className="h-4 w-4 text-amber-500" />
                 Recommandations {isProjectCompleted ? '' : 'pré-vente'}
