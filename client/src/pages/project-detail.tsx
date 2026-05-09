@@ -371,6 +371,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   
   // Free time entry form state
   const [showAddTimeForm, setShowAddTimeForm] = useState(false);
+  const [showTimeRecsDrawer, setShowTimeRecsDrawer] = useState(false);
   const [timeInputMode, setTimeInputMode] = useState<'hours' | 'days'>('hours');
   const [newTimeDate, setNewTimeDate] = useState<Date | undefined>(new Date());
   const [newTimeDates, setNewTimeDates] = useState<Date[]>([]);
@@ -855,6 +856,72 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   };
   const timeStatus = getTimeStatus();
 
+  // Compute time recommendations (used both by header icon button and drawer)
+  type TimeRecommendation = {
+    id: string;
+    horizon: "immediate" | "adjustment" | "learning";
+    type: "drift" | "overflow" | "ahead" | "imbalance" | "uncategorized";
+    title: string;
+    description: string;
+    severity: "info" | "warning" | "critical";
+  };
+
+  const timeRecommendationsData = useMemo<TimeRecommendation[]>(() => {
+    if (!(scopeItems.length > 0 && totalEstimatedDays > 0)) return [];
+    const recs: TimeRecommendation[] = [];
+
+    if (consumptionPercent >= 80 && consumptionPercent < 100) {
+      recs.push({ id: "drift", horizon: "immediate", type: "drift", title: "Anticipation dérive", description: `${consumptionPercent.toFixed(0)}% du temps prévu a été consommé. Planifiez les ajustements nécessaires.`, severity: "warning" });
+    }
+    if (remainingDays < 2 && remainingDays >= 0 && totalEstimatedDays > 0) {
+      recs.push({ id: "overflow", horizon: "immediate", type: "overflow", title: "Dépassement imminent", description: `Moins de 2 jours restants (${remainingDays.toFixed(1)}j). Action immédiate requise.`, severity: "critical" });
+    }
+    if (consumptionPercent > 100) {
+      recs.push({ id: "overflow-exceeded", horizon: "immediate", type: "overflow", title: "Budget temps dépassé", description: `Le temps prévu est dépassé de ${(consumptionPercent - 100).toFixed(0)}%. Renégociez le périmètre ou le budget.`, severity: "critical" });
+    }
+    if (consumptionPercent < 50 && consumptionPercent > 0) {
+      recs.push({ id: "ahead", horizon: "learning", type: "ahead", title: "Avance sur planning", description: `Seulement ${consumptionPercent.toFixed(0)}% du temps consommé. Documentez les bonnes pratiques.`, severity: "info" });
+    }
+
+    const openItems = scopeItems.filter(item => !item.completedAt);
+    const imbalanced = openItems.filter((item) => {
+      const sec = timeEntries.filter(e => e.scopeItemId === item.id).reduce((s, e) => s + (e.duration || 0), 0);
+      const days = sec / 3600 / 8;
+      const est = parseFloat(item.estimatedDays?.toString() || "0");
+      if (est === 0) return false;
+      return (days / est) * 100 > 100;
+    });
+    if (imbalanced.length > 0) {
+      const isLocal = imbalanced.length === 1;
+      recs.push({ id: "imbalance", horizon: "adjustment", type: "imbalance", title: isLocal ? "Dépassement étape isolée" : "Déséquilibre sur plusieurs étapes", description: isLocal ? `L'étape "${imbalanced[0].label}" a dépassé son enveloppe. Impact limité au périmètre de cette rubrique.` : `${imbalanced.length} étapes ont dépassé leur temps prévu : ${imbalanced.map(i => `"${i.label}"`).slice(0, 2).join(", ")}${imbalanced.length > 2 ? "..." : ""}`, severity: "warning" });
+    }
+
+    const uncatSec = timeEntries.filter(e => !e.scopeItemId).reduce((s, e) => s + (e.duration || 0), 0);
+    const uncatDays = uncatSec / 3600 / 8;
+    const uncatPct = totalTimeDays > 0 ? (uncatDays / totalTimeDays) * 100 : 0;
+    if (uncatPct > 20) {
+      recs.push({ id: "uncategorized", horizon: "adjustment", type: "uncategorized", title: "Temps non catégorisé", description: `${uncatPct.toFixed(0)}% du temps n'est pas lié à une étape CDC. Catégorisez pour un meilleur suivi.`, severity: "info" });
+    }
+
+    if (paceProjection?.available && !paceProjection.alreadyExceeded) {
+      const critItems = scopeItemProjections.filter(p => p.projection?.isCritical && !p.projection.exceeded && !p.projection.insufficientData);
+      if (critItems.length > 0) {
+        const isLocal = critItems.length === 1;
+        recs.push({ id: "pace-critical", horizon: "immediate", type: "drift", title: isLocal ? "Alerte critique étape isolée" : "Alertes critiques multiples", description: isLocal ? `L'étape "${critItems[0].item.label}" dépassera son enveloppe dans moins de 3 jours à ce rythme. Risque localisé.` : `${critItems.length} étapes en trajectoire critique : ${critItems.map(i => `"${i.item.label}"`).slice(0, 2).join(", ")}${critItems.length > 2 ? "..." : ""}. Risque global sur le projet.`, severity: "critical" });
+      }
+      const warnItems = scopeItemProjections.filter(p => p.projection?.isWarning && !p.projection.insufficientData);
+      if (warnItems.length > 0 && critItems.length === 0) {
+        const isLocal = warnItems.length === 1;
+        recs.push({ id: "pace-warning", horizon: "adjustment", type: "drift", title: isLocal ? "Anticipation étape isolée" : "Anticipation multi-étapes", description: isLocal ? `L'étape "${warnItems[0].item.label}" approche de son enveloppe. Impact limité si traité rapidement.` : `${warnItems.length} étapes approchent de leur enveloppe : ${warnItems.map(i => `"${i.item.label}"`).slice(0, 2).join(", ")}${warnItems.length > 2 ? "..." : ""}`, severity: "warning" });
+      }
+      const hasIssues = critItems.length > 0 || warnItems.length > 0 || imbalanced.length > 0 || consumptionPercent >= 80;
+      if (!hasIssues && totalTimeDays > 0) {
+        recs.push({ id: "pace-good", horizon: "learning", type: "ahead", title: "Bonne trajectoire", description: `À ce rythme (${(paceProjection.pacePerDay * 8).toFixed(1)}h/j), le projet reste dans l'enveloppe prévue. Fin estimée: ${paceProjection.estimatedEndDate?.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}.`, severity: "info" });
+      }
+    }
+    return recs;
+  }, [scopeItems, totalEstimatedDays, consumptionPercent, remainingDays, timeEntries, totalTimeDays, paceProjection, scopeItemProjections]);
+
   return (
     <div className="space-y-4">
       {/* Time KPI Card */}
@@ -864,50 +931,71 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
             <Clock className="h-4 w-4" />
             Pilotage Temps vs CDC
           </CardTitle>
-          <Button
-            variant={showAddTimeForm ? "ghost" : "default"}
-            size="sm"
-            onClick={() => setShowAddTimeForm(!showAddTimeForm)}
-            data-testid="button-toggle-add-time"
-          >
-            {showAddTimeForm ? "Annuler" : <><Plus className="h-4 w-4 mr-2" />Ajouter du temps</>}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={showAddTimeForm ? "ghost" : "default"}
+              size="sm"
+              onClick={() => setShowAddTimeForm(!showAddTimeForm)}
+              data-testid="button-toggle-add-time"
+            >
+              {showAddTimeForm ? "Annuler" : <><Plus className="h-4 w-4 mr-2" />Ajouter du temps</>}
+            </Button>
+            {timeRecommendationsData.length > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="relative border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50"
+                    onClick={() => setShowTimeRecsDrawer(true)}
+                    data-testid="button-open-time-recommendations"
+                  >
+                    <Lightbulb className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-white text-[10px] font-semibold flex items-center justify-center">
+                      {timeRecommendationsData.length}
+                    </span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom"><p className="text-xs">Recommandations temps ({timeRecommendationsData.length})</p></TooltipContent>
+              </Tooltip>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Temps passé</p>
+              <p className="text-[10px] text-muted-foreground">Temps passé</p>
               <p className="text-lg font-semibold" data-testid="kpi-time-spent">
                 {totalTimeDays.toFixed(1)}j
               </p>
-              <p className="text-xs text-muted-foreground">{totalTimeHours.toFixed(1)}h</p>
+              <p className="text-[10px] text-muted-foreground">{totalTimeHours.toFixed(1)}h</p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Temps prévu (CDC)</p>
+              <p className="text-[10px] text-muted-foreground">Temps prévu (CDC)</p>
               <p className="text-lg font-semibold" data-testid="kpi-time-estimated">
                 {totalEstimatedDays > 0 ? `${totalEstimatedDays.toFixed(1)}j` : "—"}
               </p>
               {totalEstimatedDays > 0 && (
-                <p className="text-xs text-muted-foreground">{(totalEstimatedDays * 8).toFixed(1)}h</p>
+                <p className="text-[10px] text-muted-foreground">{(totalEstimatedDays * 8).toFixed(1)}h</p>
               )}
             </div>
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Temps restant</p>
+              <p className="text-[10px] text-muted-foreground">Temps restant</p>
               <p className={`text-lg font-semibold ${remainingDays < 0 ? "text-red-600" : ""}`} data-testid="kpi-time-remaining">
                 {totalEstimatedDays > 0 ? `${remainingDays.toFixed(1)}j` : "—"}
               </p>
               {totalEstimatedDays > 0 && (
-                <p className="text-xs text-muted-foreground">{(remainingDays * 8).toFixed(1)}h</p>
+                <p className="text-[10px] text-muted-foreground">{(remainingDays * 8).toFixed(1)}h</p>
               )}
             </div>
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Consommation</p>
+              <p className="text-[10px] text-muted-foreground">Consommation</p>
               <div className="flex items-center gap-2">
                 <p className={`text-lg font-semibold ${timeStatus.color}`} data-testid="kpi-consumption-percent">
                   {totalEstimatedDays > 0 ? `${consumptionPercent.toFixed(0)}%` : "—"}
                 </p>
                 {totalEstimatedDays > 0 && (
-                  <Badge className={timeStatus.bg} data-testid="badge-time-status">
+                  <Badge className={cn(timeStatus.bg, "text-[10px] px-1.5 py-0")} data-testid="badge-time-status">
                     {timeStatus.label}
                   </Badge>
                 )}
@@ -1490,314 +1578,76 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
       )}
 
 
-      {/* Time Recommendations */}
-      {scopeItems.length > 0 && totalEstimatedDays > 0 && (() => {
-        type Recommendation = {
-          id: string;
-          horizon: "immediate" | "adjustment" | "learning";
-          type: "drift" | "overflow" | "ahead" | "imbalance" | "uncategorized";
-          title: string;
-          description: string;
-          severity: "info" | "warning" | "critical";
-        };
-        
-        const recommendations: Recommendation[] = [];
-        
-        // Check for drift anticipation (80% consumed)
-        if (consumptionPercent >= 80 && consumptionPercent < 100) {
-          recommendations.push({
-            id: "drift",
-            horizon: "immediate",
-            type: "drift",
-            title: "Anticipation dérive",
-            description: `${consumptionPercent.toFixed(0)}% du temps prévu a été consommé. Planifiez les ajustements nécessaires.`,
-            severity: "warning",
-          });
-        }
-        
-        // Check for imminent overflow (<2 days remaining)
-        if (remainingDays < 2 && remainingDays >= 0 && totalEstimatedDays > 0) {
-          recommendations.push({
-            id: "overflow",
-            horizon: "immediate",
-            type: "overflow",
-            title: "Dépassement imminent",
-            description: `Moins de 2 jours restants (${remainingDays.toFixed(1)}j). Action immédiate requise.`,
-            severity: "critical",
-          });
-        }
-        
-        // Check for overflow (over 100%)
-        if (consumptionPercent > 100) {
-          recommendations.push({
-            id: "overflow-exceeded",
-            horizon: "immediate",
-            type: "overflow",
-            title: "Budget temps dépassé",
-            description: `Le temps prévu est dépassé de ${(consumptionPercent - 100).toFixed(0)}%. Renégociez le périmètre ou le budget.`,
-            severity: "critical",
-          });
-        }
-        
-        // Check for ahead of schedule (<50% consumed with significant progress)
-        if (consumptionPercent < 50 && consumptionPercent > 0) {
-          recommendations.push({
-            id: "ahead",
-            horizon: "learning",
-            type: "ahead",
-            title: "Avance sur planning",
-            description: `Seulement ${consumptionPercent.toFixed(0)}% du temps consommé. Documentez les bonnes pratiques.`,
-            severity: "info",
-          });
-        }
-        
-        // Check for imbalance by scope item (only open items - completed items are frozen)
-        const openScopeItems = scopeItems.filter(item => !item.completedAt);
-        const imbalancedItems = openScopeItems.filter((item) => {
-          const itemTimeSeconds = timeEntries
-            .filter(e => e.scopeItemId === item.id)
-            .reduce((sum, e) => sum + (e.duration || 0), 0);
-          const itemTimeDays = itemTimeSeconds / 3600 / 8;
-          const estimatedDays = parseFloat(item.estimatedDays?.toString() || "0");
-          if (estimatedDays === 0) return false;
-          const itemConsumption = (itemTimeDays / estimatedDays) * 100;
-          return itemConsumption > 100;
-        });
-        
-        if (imbalancedItems.length > 0) {
-          const isLocalImpact = imbalancedItems.length === 1;
-          recommendations.push({
-            id: "imbalance",
-            horizon: "adjustment",
-            type: "imbalance",
-            title: isLocalImpact ? "Dépassement étape isolée" : "Déséquilibre sur plusieurs étapes",
-            description: isLocalImpact 
-              ? `L'étape "${imbalancedItems[0].label}" a dépassé son enveloppe. Impact limité au périmètre de cette rubrique.`
-              : `${imbalancedItems.length} étapes ont dépassé leur temps prévu : ${imbalancedItems.map(i => `"${i.label}"`).slice(0, 2).join(", ")}${imbalancedItems.length > 2 ? "..." : ""}`,
-            severity: "warning",
-          });
-        }
-        
-        // Check for uncategorized time
-        const uncategorizedTimeSeconds = timeEntries
-          .filter(e => !e.scopeItemId)
-          .reduce((sum, e) => sum + (e.duration || 0), 0);
-        const uncategorizedTimeDays = uncategorizedTimeSeconds / 3600 / 8;
-        const uncategorizedPercent = totalTimeDays > 0 ? (uncategorizedTimeDays / totalTimeDays) * 100 : 0;
-        
-        if (uncategorizedPercent > 20) {
-          recommendations.push({
-            id: "uncategorized",
-            horizon: "adjustment",
-            type: "uncategorized",
-            title: "Temps non catégorisé",
-            description: `${uncategorizedPercent.toFixed(0)}% du temps n'est pas lié à une étape CDC. Catégorisez pour un meilleur suivi.`,
-            severity: "info",
-          });
-        }
-        
-        // Pace-based projections recommendations
-        if (paceProjection?.available && !paceProjection.alreadyExceeded) {
-          // Check for critical scope items (will exceed in < 3 days at this pace)
-          // Filter out items with insufficient data to avoid false alarms
-          const criticalItems = scopeItemProjections.filter(p => 
-            p.projection?.isCritical && !p.projection.exceeded && !p.projection.insufficientData
-          );
-          if (criticalItems.length > 0) {
-            const isLocalRisk = criticalItems.length === 1;
-            recommendations.push({
-              id: "pace-critical",
-              horizon: "immediate",
-              type: "drift",
-              title: isLocalRisk ? "Alerte critique étape isolée" : "Alertes critiques multiples",
-              description: isLocalRisk 
-                ? `L'étape "${criticalItems[0].item.label}" dépassera son enveloppe dans moins de 3 jours à ce rythme. Risque localisé.`
-                : `${criticalItems.length} étapes en trajectoire critique : ${criticalItems.map(i => `"${i.item.label}"`).slice(0, 2).join(", ")}${criticalItems.length > 2 ? "..." : ""}. Risque global sur le projet.`,
-              severity: "critical",
-            });
-          }
-          
-          // Check for warning scope items (will exceed in < 7 days at this pace)
-          const warningItems = scopeItemProjections.filter(p => 
-            p.projection?.isWarning && !p.projection.insufficientData
-          );
-          if (warningItems.length > 0 && criticalItems.length === 0) {
-            const isLocalWarning = warningItems.length === 1;
-            recommendations.push({
-              id: "pace-warning",
-              horizon: "adjustment",
-              type: "drift",
-              title: isLocalWarning ? "Anticipation étape isolée" : "Anticipation multi-étapes",
-              description: isLocalWarning 
-                ? `L'étape "${warningItems[0].item.label}" approche de son enveloppe. Impact limité si traité rapidement.`
-                : `${warningItems.length} étapes approchent de leur enveloppe : ${warningItems.map(i => `"${i.item.label}"`).slice(0, 2).join(", ")}${warningItems.length > 2 ? "..." : ""}`,
-              severity: "warning",
-            });
-          }
-          
-          // Good trajectory message if no issues
-          const hasIssues = criticalItems.length > 0 || warningItems.length > 0 || imbalancedItems.length > 0 || consumptionPercent >= 80;
-          if (!hasIssues && totalTimeDays > 0) {
-            recommendations.push({
-              id: "pace-good",
-              horizon: "learning",
-              type: "ahead",
-              title: "Bonne trajectoire",
-              description: `À ce rythme (${(paceProjection.pacePerDay * 8).toFixed(1)}h/j), le projet reste dans l'enveloppe prévue. Fin estimée: ${paceProjection.estimatedEndDate?.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}.`,
-              severity: "info",
-            });
-          }
-        }
-        
-        if (recommendations.length === 0) return null;
-        
-        const getSeverityStyles = (severity: Recommendation["severity"]) => {
-          switch (severity) {
-            case "critical": return "border-red-500 bg-red-50 dark:bg-red-950/30";
-            case "warning": return "border-orange-500 bg-orange-50 dark:bg-orange-950/30";
-            case "info": return "border-blue-500 bg-blue-50 dark:bg-blue-950/30";
-          }
-        };
-        
-        const getHorizonLabel = (horizon: Recommendation["horizon"]) => {
-          switch (horizon) {
-            case "immediate": return "Action immédiate";
-            case "adjustment": return "Ajustement";
-            case "learning": return "Apprentissage";
-          }
-        };
-        
-        const getHorizonStyles = (horizon: Recommendation["horizon"]) => {
-          switch (horizon) {
-            case "immediate": return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
-            case "adjustment": return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
-            case "learning": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
-          }
-        };
-        
-        // Enhanced recommendations with guided actions
-        type ActionInfo = {
-          label: string;
-          action: () => void;
-          why?: string; // Explanation of why this action is suggested
-          prefillData?: Record<string, any>; // Data to prefill in forms
-        };
-
-        const getActionForRecommendation = (rec: Recommendation): ActionInfo | null => {
-          switch (rec.type) {
-            case "overflow": 
-              return { 
-                label: "Renégocier", 
-                action: () => {
-                  toast({
-                    title: "Action suggérée",
-                    description: "Contactez le client pour renégocier le périmètre ou le budget du projet.",
-                    variant: "default",
-                  });
-                },
-                why: "Le temps prévu est dépassé. Une discussion avec le client est nécessaire pour ajuster le périmètre ou le budget.",
-              };
-            case "drift": 
-              return { 
-                label: "Catégoriser le temps", 
-                action: () => setShowAddTimeForm(true),
-                why: "Du temps non catégorisé rend difficile le suivi de l'avancement par étape CDC.",
-              };
-            case "imbalance":
-              return {
-                label: "Revoir les estimations",
-                action: () => {
-                  toast({
-                    title: "Étapes déséquilibrées",
-                    description: "Certaines étapes ont dépassé leur enveloppe. Révisez les estimations pour les prochains projets similaires.",
-                    variant: "default",
-                  });
-                },
-                why: "Des étapes ont consommé plus de temps que prévu. Ajustez les estimations futures.",
-              };
-            case "uncategorized":
-              return {
-                label: "Catégoriser",
-                action: () => setShowAddTimeForm(true),
-                why: `${(timeEntries.filter(e => !e.scopeItemId).reduce((s, e) => s + (e.duration || 0), 0) / 3600).toFixed(1)}h de temps ne sont pas liées à une étape CDC.`,
-              };
-            case "ahead": 
-              return null;
-            default: 
-              return null;
-          }
-        };
-
-        const getImpactForRecommendation = (rec: Recommendation) => {
-          switch (rec.type) {
-            case "overflow":
-              return `Dépassement de ${(consumptionPercent - 100).toFixed(0)}% du budget temps`;
-            case "drift":
-              return `Risque de dépassement de ${remainingDays.toFixed(1)} jours`;
-            case "imbalance":
-              return `Temps non prévu sur certaines étapes`;
-            case "uncategorized":
-              return `Temps non catégorisé à risque`;
-            default:
-              return null;
-          }
-        };
-
-        return (
-          <Card className="border-2 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2 text-amber-800 dark:text-amber-200">
-                <AlertTriangle className="h-5 w-5 text-amber-600" />
-                Recommandations temps
-                <Badge variant="outline" className="ml-auto bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-amber-300">
-                  {recommendations.length} alerte{recommendations.length > 1 ? "s" : ""}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {recommendations.map((rec) => {
-                  const actionInfo = getActionForRecommendation(rec);
-                  const impact = getImpactForRecommendation(rec);
-                  
+      {/* Time Recommendations - rendered as a side drawer triggered from header */}
+      <Sheet open={showTimeRecsDrawer} onOpenChange={setShowTimeRecsDrawer}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              Recommandations temps
+              <Badge variant="outline" className="ml-2 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-amber-300 text-[10px]">
+                {timeRecommendationsData.length} alerte{timeRecommendationsData.length > 1 ? "s" : ""}
+              </Badge>
+            </SheetTitle>
+          </SheetHeader>
+          {(() => {
+            const getSeverityStyles = (severity: TimeRecommendation["severity"]) => {
+              switch (severity) {
+                case "critical": return "border-red-500 bg-red-50 dark:bg-red-950/30";
+                case "warning": return "border-orange-500 bg-orange-50 dark:bg-orange-950/30";
+                case "info": return "border-blue-500 bg-blue-50 dark:bg-blue-950/30";
+              }
+            };
+            const getHorizonLabel = (h: TimeRecommendation["horizon"]) => h === "immediate" ? "Action immédiate" : h === "adjustment" ? "Ajustement" : "Apprentissage";
+            const getHorizonStyles = (h: TimeRecommendation["horizon"]) =>
+              h === "immediate" ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+              : h === "adjustment" ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+              : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+            const getActionForRec = (rec: TimeRecommendation): { label: string; action: () => void; why?: string } | null => {
+              switch (rec.type) {
+                case "overflow": return { label: "Renégocier", action: () => { toast({ title: "Action suggérée", description: "Contactez le client pour renégocier le périmètre ou le budget du projet." }); }, why: "Le temps prévu est dépassé. Une discussion avec le client est nécessaire pour ajuster le périmètre ou le budget." };
+                case "drift": return { label: "Catégoriser le temps", action: () => { setShowTimeRecsDrawer(false); setShowAddTimeForm(true); }, why: "Du temps non catégorisé rend difficile le suivi de l'avancement par étape CDC." };
+                case "imbalance": return { label: "Revoir les estimations", action: () => { toast({ title: "Étapes déséquilibrées", description: "Certaines étapes ont dépassé leur enveloppe. Révisez les estimations pour les prochains projets similaires." }); }, why: "Des étapes ont consommé plus de temps que prévu. Ajustez les estimations futures." };
+                case "uncategorized": return { label: "Catégoriser", action: () => { setShowTimeRecsDrawer(false); setShowAddTimeForm(true); }, why: `${(timeEntries.filter(e => !e.scopeItemId).reduce((s, e) => s + (e.duration || 0), 0) / 3600).toFixed(1)}h de temps ne sont pas liées à une étape CDC.` };
+                default: return null;
+              }
+            };
+            const getImpactForRec = (rec: TimeRecommendation): string | null => {
+              switch (rec.type) {
+                case "overflow": return `Dépassement de ${(consumptionPercent - 100).toFixed(0)}% du budget temps`;
+                case "drift": return `Risque de dépassement de ${remainingDays.toFixed(1)} jours`;
+                case "imbalance": return `Temps non prévu sur certaines étapes`;
+                case "uncategorized": return `Temps non catégorisé à risque`;
+                default: return null;
+              }
+            };
+            return (
+              <div className="mt-6 space-y-3">
+                {timeRecommendationsData.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Aucune recommandation pour l'instant.</p>
+                ) : timeRecommendationsData.map((rec) => {
+                  const actionInfo = getActionForRec(rec);
+                  const impact = getImpactForRec(rec);
                   return (
-                    <div
-                      key={rec.id}
-                      className={cn(
-                        "border-l-4 p-4 rounded-r-lg",
-                        getSeverityStyles(rec.severity)
-                      )}
-                      data-testid={`recommendation-${rec.id}`}
-                    >
-                      <div className="flex items-start justify-between gap-4">
+                    <div key={rec.id} className={cn("border-l-4 p-3 rounded-r-lg", getSeverityStyles(rec.severity))} data-testid={`recommendation-${rec.id}`}>
+                      <div className="flex items-start justify-between gap-3">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline" className={`text-xs ${getHorizonStyles(rec.horizon)}`}>
-                              {getHorizonLabel(rec.horizon)}
-                            </Badge>
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            <Badge variant="outline" className={cn("text-[10px]", getHorizonStyles(rec.horizon))}>{getHorizonLabel(rec.horizon)}</Badge>
                             <span className="font-semibold text-xs">{rec.title}</span>
                           </div>
                           <p className="text-xs">{rec.description}</p>
                           {impact && rec.severity !== "info" && (
-                            <p className="text-xs mt-2 font-medium text-muted-foreground flex items-center gap-1">
-                              <TrendingDown className="h-3 w-3" />
-                              Impact: {impact}
+                            <p className="text-[11px] mt-2 font-medium text-muted-foreground flex items-center gap-1">
+                              <TrendingDown className="h-3 w-3" />Impact: {impact}
                             </p>
                           )}
                           {actionInfo?.why && (
-                            <p className="text-xs mt-2 italic text-muted-foreground border-l-2 border-muted-foreground/30 pl-2">
-                              Pourquoi : {actionInfo.why}
-                            </p>
+                            <p className="text-[11px] mt-2 italic text-muted-foreground border-l-2 border-muted-foreground/30 pl-2">Pourquoi : {actionInfo.why}</p>
                           )}
                         </div>
                         {actionInfo && (
-                          <Button 
-                            size="sm" 
-                            variant="default"
-                            className="shrink-0"
-                            onClick={actionInfo.action}
-                            data-testid={`action-${rec.id}`}
-                          >
+                          <Button size="sm" variant="default" className="shrink-0 text-xs" onClick={actionInfo.action} data-testid={`action-${rec.id}`}>
                             {actionInfo.label}
                           </Button>
                         )}
@@ -1806,53 +1656,11 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                   );
                 })}
               </div>
-              
-              {/* Synthesis phrase - global project status assessment */}
-              {(() => {
-                const criticalCount = recommendations.filter(r => r.severity === "critical").length;
-                const warningCount = recommendations.filter(r => r.severity === "warning").length;
-                const totalOpenItems = openScopeItems.length;
-                
-                // Deduplicate issue counting using a Set of item IDs
-                const itemsWithIssuesSet = new Set<string>();
-                imbalancedItems.forEach(item => itemsWithIssuesSet.add(item.id));
-                scopeItemProjections
-                  .filter(p => p.projection?.isCritical || p.projection?.isWarning)
-                  .forEach(p => itemsWithIssuesSet.add(p.item.id));
-                const itemsWithIssues = itemsWithIssuesSet.size;
-                
-                // Determine synthesis message (no emoji per design guidelines)
-                let synthesisMessage = "";
-                let synthesisColor = "";
-                
-                if (criticalCount === 0 && warningCount === 0) {
-                  synthesisMessage = "Projet globalement maîtrisé. Aucune alerte majeure en cours.";
-                  synthesisColor = "text-green-700 dark:text-green-400";
-                } else if (criticalCount === 0 && warningCount > 0 && itemsWithIssues <= 1) {
-                  synthesisMessage = `Projet sous contrôle malgré ${warningCount} alerte(s) locale(s). L'impact reste limité.`;
-                  synthesisColor = "text-amber-700 dark:text-amber-400";
-                } else if (criticalCount > 0 && itemsWithIssues <= 2) {
-                  synthesisMessage = `Attention requise sur ${itemsWithIssues} étape(s). Le reste du projet reste dans l'enveloppe.`;
-                  synthesisColor = "text-orange-700 dark:text-orange-400";
-                } else if (criticalCount > 0 || warningCount > 2) {
-                  synthesisMessage = `Risque global : ${itemsWithIssues} étapes sur ${totalOpenItems} présentent des alertes. Réévaluation recommandée.`;
-                  synthesisColor = "text-red-700 dark:text-red-400";
-                }
-                
-                if (!synthesisMessage) return null;
-                
-                return (
-                  <div className="mt-4 pt-3 border-t border-amber-200 dark:border-amber-800">
-                    <p className={cn("text-xs font-medium", synthesisColor)} data-testid="recommendation-synthesis">
-                      {synthesisMessage}
-                    </p>
-                  </div>
-                );
-              })()}
-            </CardContent>
-          </Card>
-        );
-      })()}
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
+
 
       {/* Time by Scope Item (CDC) Table - Collapsible */}
       {scopeItems.length > 0 && (
@@ -5610,7 +5418,7 @@ export default function ProjectDetail() {
                   <div className="grid grid-cols-3 gap-4">
                     <Card className="bg-violet-100 dark:bg-violet-900/20 border-2 border-violet-400 dark:border-violet-600">
                       <CardContent className="pt-4 pb-4">
-                        <div className="text-xs text-muted-foreground mb-1">Montant facturé</div>
+                        <div className="text-[10px] text-muted-foreground mb-1">Montant facturé</div>
                         <div className="text-lg font-bold text-primary" data-testid="kpi-total-billed">
                           {totalBilled.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })}
                         </div>
@@ -5623,7 +5431,7 @@ export default function ProjectDetail() {
                     </Card>
                     <Card>
                       <CardContent className="pt-4 pb-4">
-                        <div className="text-xs text-muted-foreground mb-1">Nombre de jours facturé</div>
+                        <div className="text-[10px] text-muted-foreground mb-1">Nombre de jours facturé</div>
                         <div className="text-lg font-bold" data-testid="kpi-number-of-days">
                           {numberOfDays > 0 ? `${numberOfDays} j` : "-"}
                         </div>
@@ -5643,7 +5451,7 @@ export default function ProjectDetail() {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <div className="cursor-help">
-                                <div className="text-xs text-muted-foreground mb-1">
+                                <div className="text-[10px] text-muted-foreground mb-1">
                                   {isForfait ? "TJM facturé" : "TJM projet"}
                                 </div>
                                 <div className="text-lg font-bold" data-testid="kpi-effective-tjm">
@@ -5672,7 +5480,7 @@ export default function ProjectDetail() {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <div className="cursor-help border-l pl-4">
-                                <div className="text-xs text-muted-foreground mb-1">TJM réel</div>
+                                <div className="text-[10px] text-muted-foreground mb-1">TJM réel</div>
                                 <div className="text-lg font-bold" data-testid="kpi-actual-tjm">
                                   {profitabilityMetrics?.actualTJM && profitabilityMetrics.actualTJM > 0
                                     ? profitabilityMetrics.actualTJM.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
@@ -5709,7 +5517,7 @@ export default function ProjectDetail() {
                       <TooltipTrigger asChild>
                         <Card className="cursor-help">
                           <CardContent className="pt-4 pb-4">
-                            <div className="text-xs text-muted-foreground mb-1">Prix minimum recommandé</div>
+                            <div className="text-[10px] text-muted-foreground mb-1">Prix minimum recommandé</div>
                             <div className="text-lg font-bold" data-testid="kpi-recommended-price">
                               {recommendedPrice > 0 
                                 ? recommendedPrice.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
@@ -5733,7 +5541,7 @@ export default function ProjectDetail() {
                       <TooltipTrigger asChild>
                         <Card className="cursor-help">
                           <CardContent className="pt-4 pb-4">
-                            <div className="text-xs text-muted-foreground mb-1">Coût actualisé</div>
+                            <div className="text-[10px] text-muted-foreground mb-1">Coût actualisé</div>
                             <div className="text-lg font-bold" data-testid="kpi-estimated-cost">
                               {estimatedCost > 0 
                                 ? estimatedCost.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
@@ -5757,7 +5565,7 @@ export default function ProjectDetail() {
                       <TooltipTrigger asChild>
                         <Card className="cursor-help">
                           <CardContent className="pt-4 pb-4">
-                            <div className="text-xs text-muted-foreground mb-1">Marge réelle actualisée</div>
+                            <div className="text-[10px] text-muted-foreground mb-1">Marge réelle actualisée</div>
                             <div 
                               className="text-lg font-bold" 
                               style={{

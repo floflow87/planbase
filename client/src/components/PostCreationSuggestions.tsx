@@ -81,7 +81,7 @@ export function PostCreationSuggestions({
   const billingMode = project.billingModeSuggested || 'forfait';
   const projectType = project.projectTypeInferred || 'autre';
 
-  const btnClass = "flex items-center gap-1 sm:gap-1.5 text-xs font-medium bg-white/15 hover:bg-white/30 text-white border border-white/30 rounded px-2 sm:px-3 py-1.5 sm:py-2 transition-colors cursor-pointer";
+  const btnClass = "flex items-center gap-1 sm:gap-1.5 text-[11px] font-medium bg-white/15 hover:bg-white/30 text-white border border-white/30 rounded px-1.5 sm:px-2 py-1 sm:py-1.5 transition-colors cursor-pointer";
 
   const DismissButton = () => (
     <div className="shrink-0 ml-auto flex items-center gap-1">
