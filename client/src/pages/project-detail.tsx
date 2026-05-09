@@ -1025,7 +1025,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
             
             return (
               <div className={cn(
-                "mt-4 p-3 rounded-lg border-l-4 text-sm",
+                "mt-4 p-3 rounded-lg border-l-4 text-xs",
                 consumptionPercent >= 100 
                   ? "bg-red-50 dark:bg-red-950/30 border-l-red-500 text-red-800 dark:text-red-200"
                   : consumptionPercent >= 80 
@@ -1582,10 +1582,10 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
       <Sheet open={showTimeRecsDrawer} onOpenChange={setShowTimeRecsDrawer}>
         <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
-              <AlertTriangle className="h-5 w-5 text-amber-600" />
-              Recommandations temps
-              <Badge variant="outline" className="ml-2 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-amber-300 text-[10px]">
+            <SheetTitle className="flex items-center gap-2 flex-wrap text-amber-800 dark:text-amber-200 text-base">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+              <span>Recommandations temps</span>
+              <Badge variant="outline" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-amber-300 text-[10px]">
                 {timeRecommendationsData.length} alerte{timeRecommendationsData.length > 1 ? "s" : ""}
               </Badge>
             </SheetTitle>
@@ -1710,13 +1710,13 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <Clock className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm font-medium">
+                              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="text-xs font-medium">
                                 {format(new Date(entry.startTime), "dd MMM yyyy 'à' HH:mm", { locale: fr })}
                               </span>
                             </div>
                             {entry.description && (
-                              <p className="text-sm text-muted-foreground mt-1">{entry.description}</p>
+                              <p className="text-xs text-muted-foreground mt-1">{entry.description}</p>
                             )}
                             <div className="flex items-center flex-wrap gap-2 mt-2">
                               {user && (
@@ -2357,7 +2357,7 @@ function ScopeItemTimeTable({ scopeItems, timeEntries, paceProjection, scopeItem
         <Card>
           <CollapsibleTrigger asChild>
             <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-              <CardTitle className="text-base flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <List className="h-4 w-4" />
                   Temps par étape CDC
@@ -2370,7 +2370,7 @@ function ScopeItemTimeTable({ scopeItems, timeEntries, paceProjection, scopeItem
           <CollapsibleContent>
             <CardContent className="pt-0">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-2 px-2 font-medium">Étape</th>
@@ -3929,10 +3929,10 @@ export default function ProjectDetail() {
                   </Card>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="max-w-[260px] bg-white dark:bg-gray-900 text-foreground border shadow-md">
-                  <p className="font-semibold text-sm mb-1">Marge prévisionnelle</p>
-                  <p className="text-xs text-muted-foreground">Projection basée sur le devis : budget facturé moins les jours estimés au CDC multiplié par votre coût journalier interne.</p>
-                  <p className="text-xs text-muted-foreground mt-1 font-mono">= Budget − (jours CDC × coût/j interne)</p>
-                  <p className="text-xs text-muted-foreground mt-1">Se met à jour toutes les 30 secondes. Différent de la marge actualisée de l'onglet Facturation qui utilise les jours réellement travaillés.</p>
+                  <p className="font-semibold text-xs mb-1">Marge prévisionnelle</p>
+                  <p className="text-[11px] text-muted-foreground">Projection basée sur le devis : budget facturé moins les jours estimés au CDC multiplié par votre coût journalier interne.</p>
+                  <p className="text-[11px] text-muted-foreground mt-1 font-mono">= Budget − (jours CDC × coût/j interne)</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">Se met à jour toutes les 30 secondes. Différent de la marge actualisée de l'onglet Facturation qui utilise les jours réellement travaillés.</p>
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -5473,8 +5473,8 @@ export default function ProjectDetail() {
                               </div>
                             </TooltipTrigger>
                             <TooltipContent side="bottom" className="max-w-xs bg-white dark:bg-gray-800 text-foreground">
-                              <p className="text-sm">{isForfait ? "Taux journalier réel calculé sur ce projet." : "Taux journalier moyen défini pour ce projet."}</p>
-                              <p className="text-xs text-muted-foreground mt-1">{isForfait ? "Formule : Montant facturé ÷ Nombre de jours" : "Défini dans les paramètres du projet ou global"}</p>
+                              <p className="text-xs">{isForfait ? "Taux journalier réel calculé sur ce projet." : "Taux journalier moyen défini pour ce projet."}</p>
+                              <p className="text-[11px] text-muted-foreground mt-1">{isForfait ? "Formule : Montant facturé ÷ Nombre de jours" : "Défini dans les paramètres du projet ou global"}</p>
                             </TooltipContent>
                           </Tooltip>
                           <Tooltip>
@@ -5681,7 +5681,7 @@ export default function ProjectDetail() {
                   const effectiveBudget = parseFloat(project?.totalBilled?.toString() || project?.budget?.toString() || "0");
                   return effectiveBudget > 0 && (
                     <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between text-xs">
                         <span className="text-muted-foreground">Progression du paiement</span>
                         <span className="font-medium">
                           {totalPaid.toFixed(2)} € / {effectiveBudget.toFixed(2)} €
@@ -5952,7 +5952,7 @@ export default function ProjectDetail() {
 
                 {/* Payment history */}
                 <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-muted-foreground">Historique des paiements</h4>
+                  <h4 className="text-xs font-medium text-muted-foreground">Historique des paiements</h4>
                   {payments.length === 0 ? (
                     <p className="text-sm text-muted-foreground italic py-4 text-center">
                       Aucun paiement enregistré
