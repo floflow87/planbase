@@ -1433,6 +1433,11 @@ export default function Dashboard() {
           if (!project.billingStatus || !OPPORTUNITE_BILLING_STATUSES.includes(project.billingStatus)) return;
         }
         const projectPaymentList = paymentsByProject[project.id] || [];
+        // Cancelled project with no remaining unpaid payments → exclude from forecast
+        if (project.billingStatus === "annule") {
+          const remainingUnpaid = projectPaymentList.filter(p => !p.isPaid);
+          if (remainingUnpaid.length === 0) return;
+        }
 
         if (projectPaymentList.length > 0) {
           projectPaymentList.forEach(payment => {
@@ -1479,6 +1484,11 @@ export default function Dashboard() {
       projects.forEach(project => {
         if (project.stage === "prospection") return;
         const projectPaymentList = paymentsByProjectNormal[project.id] || [];
+        // Cancelled project with no remaining unpaid payments → exclude from revenue stats
+        if (project.billingStatus === "annule") {
+          const remainingUnpaid = projectPaymentList.filter(p => !p.isPaid);
+          if (remainingUnpaid.length === 0) return;
+        }
         // A payment is "received" if explicitly marked isPaid, OR if its date is in the past
         const today = new Date(); today.setHours(0, 0, 0, 0);
         const paidPayments = projectPaymentList.filter(p => p.isPaid || new Date(p.paymentDate) <= today);
