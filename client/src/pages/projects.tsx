@@ -1,6 +1,6 @@
 // Projects page with task management
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star, Columns3, FileText, Banknote, Settings2, Copy, Palette } from "lucide-react";
+import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star, Columns3, FileText, Banknote, Settings2, Copy, Palette, Activity } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -3134,74 +3134,20 @@ export default function Projects() {
                 />
               </div>
               <div className="flex items-center gap-2">
-                {/* Billing status filter dropdown with multi-select */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="default" className="w-9 sm:w-[160px] justify-center sm:justify-start text-xs bg-white dark:bg-card" data-testid="select-billing-filter">
-                      <Banknote className="h-3.5 w-3.5 sm:mr-2 text-muted-foreground" />
-                      <span className="hidden sm:inline truncate">
-                        {projectBillingFilters.length === 0 ? t.tasks.allStatuses : 
-                         projectBillingFilters.length === 1 ? getBillingStatusI18nLabel(projectBillingFilters[0]) : 
-                         `${projectBillingFilters.length} statuts`}
-                      </span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[200px] p-2" align="start">
-                    <div className="space-y-1">
-                      {billingStatusOptions.map((status) => {
-                        const toggleFilter = () => {
-                          setProjectBillingFilters(prev => 
-                            prev.includes(status.value)
-                              ? prev.filter(s => s !== status.value)
-                              : [...prev, status.value]
-                          );
-                        };
-                        return (
-                          <div 
-                            key={status.value}
-                            className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer"
-                            onClick={toggleFilter}
-                            data-testid={`row-billing-filter-${status.value}`}
-                          >
-                            <Checkbox 
-                              checked={projectBillingFilters.includes(status.value)}
-                              onCheckedChange={toggleFilter}
-                              onClick={(e) => e.stopPropagation()}
-                              data-testid={`checkbox-billing-filter-${status.value}`}
-                            />
-                            <span className="text-xs">{status.label}</span>
-                          </div>
-                        );
-                      })}
-                      {projectBillingFilters.length > 0 && (
-                        <div className="border-t pt-2 mt-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="w-full text-xs"
-                            onClick={() => setProjectBillingFilters([])}
-                            data-testid="button-clear-billing-filter"
-                          >
-                            Effacer le filtre
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                {/* Filters button with badge */}
-                <Button 
-                  variant="outline" 
-                  className="relative text-xs bg-white dark:bg-card"
+                {/* Filters button with badge (icon only) */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="relative bg-white dark:bg-card"
                   onClick={() => setIsFilterPanelOpen(true)}
                   data-testid="button-open-filters"
+                  title="Filtres"
                 >
-                  <Filter className="h-3.5 w-3.5 sm:mr-2" />
-                  <span className="hidden sm:inline">Filtres</span>
+                  <Filter className="h-3.5 w-3.5" />
                   {(projectStageFilters.length > 0 || projectBillingFilters.length > 0 || projectTypeFilter !== "all") && (
-                    <Badge 
-                      variant="default" 
-                      className="ml-1 sm:ml-2 h-4 w-4 p-0 flex items-center justify-center text-[9px]"
+                    <Badge
+                      variant="default"
+                      className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[9px]"
                     >
                       {projectStageFilters.length + projectBillingFilters.length + (projectTypeFilter !== "all" ? 1 : 0)}
                     </Badge>
@@ -4086,20 +4032,21 @@ export default function Projects() {
                               health: (() => {
                                 const status = projectHealthMap.get(project.id);
                                 let label = "Non renseigné";
-                                let cls = "bg-muted text-muted-foreground border-transparent";
+                                let colorCls = "text-muted-foreground";
                                 if (status === 'profitable') {
                                   label = "En bonne voie";
-                                  cls = "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800";
+                                  colorCls = "text-green-600 dark:text-green-400";
                                 } else if (status === 'at_risk' || status === 'deficit') {
                                   label = "À risque";
-                                  cls = "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800";
+                                  colorCls = "text-amber-600 dark:text-amber-400";
                                 }
                                 return (
                                   <TableCell key="health" className="max-w-[140px]">
                                     <span
-                                      className={`inline-flex items-center rounded-md border font-medium whitespace-nowrap text-[10px] px-1.5 py-0.5 ${cls}`}
+                                      className={`inline-flex items-center gap-1 font-medium whitespace-nowrap text-[11px] ${colorCls}`}
                                       data-testid={`badge-project-health-${project.id}`}
                                     >
+                                      <Activity className="h-3.5 w-3.5" />
                                       {label}
                                     </span>
                                   </TableCell>
@@ -4740,7 +4687,7 @@ export default function Projects() {
 
             {/* Billing Status Filters */}
             <div>
-              <Label className="text-sm font-medium mb-2 block">{t.projects.billingStatusTitle}</Label>
+              <Label className="text-sm font-medium mb-2 block">Statut du projet</Label>
               <div className="space-y-2">
                 {[
                   { value: "brouillon", label: t.projects.billingStatus.brouillon },

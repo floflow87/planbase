@@ -1192,7 +1192,7 @@ function SortableTab({ tab, isActive, showClose, onTabClick, onCloseTab, tooltip
           )}
         </div>
       </TooltipTrigger>
-      <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">
+      <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border text-[10px] px-2 py-1">
         {tooltipContent}
       </TooltipContent>
     </Tooltip>
