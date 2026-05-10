@@ -19,6 +19,7 @@ import {
   Calendar,
   BookOpen,
   Settings,
+  LifeBuoy,
 } from "lucide-react";
 import {
   Sheet,
@@ -48,6 +49,7 @@ const REMAINING_MODULES: ModuleItem[] = [
   { label: "Emails",           icon: Mail,         href: "/emails",    color: "bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-400" },
   { label: "Calendrier",       icon: Calendar,     href: "/calendar",  color: "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400" },
   { label: "Réglages",         icon: Settings,     href: "/settings",  color: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-300" },
+  { label: "Support",          icon: LifeBuoy,     href: "/settings?tab=support", color: "bg-pink-100 text-pink-600 dark:bg-pink-900/40 dark:text-pink-400" },
 ];
 
 export function MobileBottomNav() {

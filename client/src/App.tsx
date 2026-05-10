@@ -540,6 +540,8 @@ function QuickCreateMenu() {
     { label: t.nav.notes, icon: StickyNote, color: "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400", onClick: () => createNoteMutation.mutate({ title: "", clientId: null, projectId: null, noteDate: null }), testId: "dropdown-new-note", disabled: false },
     { label: t.common.appointment, icon: CalendarPlus, color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400", onClick: () => setIsAppointmentPanelOpen(true), testId: "dropdown-new-appointment", disabled: false },
     { label: t.nav.emails, icon: Mail, color: gmailConnected ? "bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-400" : "bg-muted text-muted-foreground", onClick: () => { setComposeInitial({ to: "", subject: "", body: "" }); setIsComposeOpen(true); }, testId: "dropdown-new-email", disabled: !gmailConnected },
+    { label: "Time tracker", icon: Timer, color: "bg-primary/10 text-primary", onClick: () => { const btn = document.querySelector<HTMLElement>('[data-testid="button-time-tracker"]'); btn?.click(); }, testId: "dropdown-time-tracker", disabled: false },
+    { label: t.nav.calendar, icon: Calendar, color: "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400", onClick: () => setLocation("/calendar"), testId: "dropdown-calendar", disabled: false },
   ];
 
   return (
@@ -1619,21 +1621,9 @@ function AppLayout() {
         <div className="flex flex-col flex-1 overflow-hidden bg-card">
           <header className="flex items-center justify-between h-14 px-2 sm:px-4 border-b border-border bg-card shrink-0">
             <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
-              {/* Mobile: custom bottom-sheet sidebar trigger */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden flex-shrink-0 h-9 w-9"
-                onClick={() => setIsMobileSidebarOpen(true)}
-                data-testid="button-sidebar-trigger-mobile"
-              >
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-muted-foreground" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-                  <line x1="2" y1="4.5" x2="16" y2="4.5" />
-                  <line x1="2" y1="9" x2="16" y2="9" />
-                  <line x1="2" y1="13.5" x2="16" y2="13.5" />
-                </svg>
-              </Button>
-              <GlobalSearch />
+              <div className="hidden md:contents">
+                <GlobalSearch />
+              </div>
               {/* Tab System — drag-and-drop reorderable */}
               <DndContext sensors={tabSensors} collisionDetection={closestCenter} onDragEnd={handleReorderTabs}>
                 <SortableContext items={tabs.map(t => t.id)} strategy={horizontalListSortingStrategy}>
@@ -1668,7 +1658,13 @@ function AppLayout() {
               </DndContext>
             </div>
             <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
-              <QuickCreateMenu />
+              <div className="hidden md:contents">
+                <QuickCreateMenu />
+              </div>
+              {/* Mounted invisibly on mobile so its sheets stay reachable via the bottom nav "+" event */}
+              <div className="md:hidden hidden">
+                <QuickCreateMenu />
+              </div>
               {/* Desktop: individual icons */}
               {/* TimeTracker: visible on desktop, zero-width (but in DOM) on mobile so its popover still works */}
               {isTimeTrackingEnabled && (
@@ -1688,16 +1684,7 @@ function AppLayout() {
               >
                 <Calendar className="w-4 h-4 text-primary dark:text-white" />
               </Button>
-              {/* Mobile: bottom sheet */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="sm:hidden"
-                onClick={() => setIsMobileMoreOpen(true)}
-                data-testid="button-header-more"
-              >
-                <MoreVertical className="w-4 h-4" />
-              </Button>
+              {/* Mobile: bottom sheet (kept mounted but hidden — surfaced via bottom nav) */}
               <Sheet open={isMobileMoreOpen} onOpenChange={setIsMobileMoreOpen}>
                 <SheetContent side="bottom" className="h-auto rounded-t-xl bg-card pb-8" data-testid="sheet-mobile-more">
                   <SheetHeader className="pb-2">
