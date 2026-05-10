@@ -193,6 +193,11 @@ function DraggableKanbanCard({
                   <span className="text-xs text-muted-foreground truncate">{client.company}</span>
                 </div>
               )}
+              {client.notes && (
+                <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2 leading-tight">
+                  {client.notes}
+                </p>
+              )}
             </div>
           </div>
           <DropdownMenu>

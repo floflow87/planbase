@@ -1911,12 +1911,13 @@ export default function Tasks() {
                 </PopoverTrigger>
                 <PopoverContent className="w-[300px] p-0">
                   <Command>
-                    <CommandInput placeholder={t.common.ph.searchProject} />
-                    <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                    <CommandInput placeholder={t.common.ph.searchProject} className="text-xs" />
+                    <CommandEmpty className="text-xs">Aucun projet trouvé.</CommandEmpty>
                     <CommandGroup className="max-h-[300px] overflow-y-auto">
                       <CommandItem
                         onSelect={() => toggleProjectSelection("all")}
                         data-testid="option-project-all"
+                        className="text-xs"
                       >
                         <Checkbox
                           checked={selectedProjectIds.includes("all")}
@@ -1929,13 +1930,14 @@ export default function Tasks() {
                           key={project.id}
                           onSelect={() => toggleProjectSelection(project.id)}
                           data-testid={`option-project-${project.id}`}
+                          className="text-xs"
                         >
                           <Checkbox
                             checked={selectedProjectIds.includes(project.id)}
                             className="mr-2"
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="font-light truncate">{project.name}</div>
+                            <div className="font-light truncate text-xs">{project.name}</div>
                           </div>
                         </CommandItem>
                       ))}
