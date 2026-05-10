@@ -163,7 +163,7 @@ function DraggableKanbanCard({
   const cardContent = (
     <Card 
       ref={!isDragOverlay ? setNodeRef : undefined}
-      style={!isDragOverlay ? { ...style, ...(columnHex ? { borderLeft: `4px solid ${columnHex}` } : {}) } : (columnHex ? { borderLeft: `4px solid ${columnHex}` } : undefined)}
+      style={!isDragOverlay ? { ...style, ...(columnHex ? { borderLeft: `3px solid ${columnHex}` } : {}) } : (columnHex ? { borderLeft: `3px solid ${columnHex}` } : undefined)}
       className={`hover-elevate cursor-grab bg-white dark:bg-card border-border/50 ${isDragging && !isDragOverlay ? 'opacity-50' : ''}`}
       data-testid={`kanban-card-${client.id}`}
       {...(!isDragOverlay ? { ...attributes, ...listeners } : {})}
