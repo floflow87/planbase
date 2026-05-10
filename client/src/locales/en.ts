@@ -440,6 +440,7 @@ const en: TranslationKeys = {
       activityFeed: "Activity",
       recentProjects: "Recent projects",
       myDay: "My day",
+      dailyDigest: "My day",
       recentNotes: "Recent notes",
       recentBacklog: "Recent backlog",
     },

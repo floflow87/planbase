@@ -402,6 +402,7 @@ function SortableBlockItem({
           checked={block.visible}
           onCheckedChange={(checked) => onToggle(block.id, checked)}
           data-testid={`toggle-block-${block.id}`}
+          className="h-4 w-7 [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-3 [&>span[data-state=unchecked]]:translate-x-0"
         />
       </div>
     </div>
@@ -692,7 +693,7 @@ export default function Dashboard() {
         // Ensure all new blocks are present
         const allBlocks = DEFAULT_DASHBOARD_BLOCKS.map(defaultBlock => {
           const existing = parsed.find((b: DashboardBlockConfig) => b.id === defaultBlock.id);
-          return existing ? { ...defaultBlock, ...existing } : defaultBlock;
+          return existing ? { ...defaultBlock, ...existing, label: defaultBlock.label } : defaultBlock;
         });
         // Preserve order from saved config, add new blocks at end
         // Filter out removed blocks (e.g. 'myDay' which was merged into 'dailyDigest')

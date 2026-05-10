@@ -438,6 +438,7 @@ const fr = {
       activityFeed: "Activité",
       recentProjects: "Projets récents",
       myDay: "Ma journée",
+      dailyDigest: "Ma journée",
       recentNotes: "Notes récentes",
       recentBacklog: "Backlog récent",
     },
