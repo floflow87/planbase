@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Loader } from "@/components/Loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MobileCollapsibleSearch } from "@/components/MobileCollapsibleSearch";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -999,16 +1000,13 @@ export default function Notes() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           {/* Mobile: Single row with search, new button, and filter */}
           <div className="flex md:hidden items-center gap-2 w-full">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder={t.common.ph.search}
-                className="pl-9 w-full placeholder:text-[10px] bg-white dark:bg-background"
-                data-testid="input-rechercher-mobile"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+            <MobileCollapsibleSearch
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder={t.common.ph.search}
+              testId="input-rechercher-mobile"
+              desktopWidthClass=""
+            />
             <Can module="notes" action="create">
               <Button
                 size="icon"

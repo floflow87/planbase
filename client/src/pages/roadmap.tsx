@@ -24,6 +24,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { MobileCollapsibleSearch } from "@/components/MobileCollapsibleSearch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -1091,24 +1092,13 @@ export default function RoadmapPage() {
           {!selectedRoadmapId && (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-3">
-                <div className="relative w-56">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Rechercher une roadmap..."
-                    value={homeSearchQuery}
-                    onChange={(e) => setHomeSearchQuery(e.target.value)}
-                    className="pl-9 h-9 placeholder:text-[10px] bg-white dark:bg-background"
-                    data-testid="input-search-home-roadmaps"
-                  />
-                  {homeSearchQuery && (
-                    <button
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      onClick={() => setHomeSearchQuery("")}
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
+                <MobileCollapsibleSearch
+                  value={homeSearchQuery}
+                  onChange={setHomeSearchQuery}
+                  placeholder="Rechercher une roadmap..."
+                  testId="input-search-home-roadmaps"
+                  desktopWidthClass="sm:w-56"
+                />
                 {canCreate && (
                   <Button
                     size="sm"

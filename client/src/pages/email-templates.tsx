@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MobileCollapsibleSearch } from "@/components/MobileCollapsibleSearch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -287,16 +288,13 @@ function EmailTemplatesInner() {
 
       {/* Filters */}
       <div className="px-6 py-3 border-b flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher…"
-            className="pl-9 text-xs h-8"
-            data-testid="input-template-search"
-          />
-        </div>
+        <MobileCollapsibleSearch
+          value={search}
+          onChange={setSearch}
+          placeholder="Rechercher…"
+          testId="input-template-search"
+          desktopWidthClass="sm:max-w-xs"
+        />
         <Select value={filterCat} onValueChange={setFilterCat}>
           <SelectTrigger className="w-44 text-xs h-8" data-testid="select-template-filter">
             <SelectValue placeholder="Catégorie" />

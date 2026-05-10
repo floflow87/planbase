@@ -2,6 +2,7 @@ import { FileText, ArrowLeft, Search } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MobileCollapsibleSearch } from "@/components/MobileCollapsibleSearch";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -101,17 +102,13 @@ export default function DocumentTemplates() {
         </p>
         
         {/* Barre de recherche */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Rechercher un modèle..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-            data-testid="input-search-templates"
-          />
-        </div>
+        <MobileCollapsibleSearch
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Rechercher un modèle..."
+          testId="input-search-templates"
+          desktopWidthClass="sm:max-w-md"
+        />
       </div>
 
       <div className="flex-1 overflow-auto p-6">

@@ -44,6 +44,7 @@ import {
   Flame
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { MobileCollapsibleSearch } from "@/components/MobileCollapsibleSearch";
 import { Link } from "wouter";
 import { ScoreRing } from "@/components/ScoreRing";
 import type { Project } from "@shared/schema";
@@ -1745,16 +1746,13 @@ function FinanceInner() {
 
         <TabsContent value="projects" className="space-y-6">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 flex-wrap">
-            <div className="relative flex-1 min-w-0 sm:min-w-[200px] sm:max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder={t.common.ph.search}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-                data-testid="input-search-project"
-              />
-            </div>
+            <MobileCollapsibleSearch
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder={t.common.ph.search}
+              testId="input-search-project"
+              desktopWidthClass="sm:max-w-sm"
+            />
             <div className="flex items-center gap-2 flex-wrap">
               <Select value={selectedFilter} onValueChange={(v) => setSelectedFilter(v as any)}>
                 <SelectTrigger className="w-full sm:w-40" data-testid="select-filter">
@@ -1814,16 +1812,13 @@ function FinanceInner() {
             <>
               {/* Barre de recherche et tri */}
               <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
-                <div className="relative flex-1 min-w-0 sm:min-w-[200px] sm:max-w-sm">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    placeholder={t.common.ph.search}
-                    value={recoSearchQuery}
-                    onChange={(e) => setRecoSearchQuery(e.target.value)}
-                    className="pl-9"
-                    data-testid="input-search-recommendations"
-                  />
-                </div>
+                <MobileCollapsibleSearch
+                  value={recoSearchQuery}
+                  onChange={setRecoSearchQuery}
+                  placeholder={t.common.ph.search}
+                  testId="input-search-recommendations"
+                  desktopWidthClass="sm:max-w-sm"
+                />
                 <div className="flex items-center gap-2 flex-wrap">
                   <Select value={recoFilterType} onValueChange={(v) => setRecoFilterType(v as typeof recoFilterType)}>
                     <SelectTrigger className="w-[100px] sm:w-[130px] text-xs" data-testid="select-reco-filter-type">

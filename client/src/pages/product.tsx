@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { MobileCollapsibleSearch } from "@/components/MobileCollapsibleSearch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -519,16 +520,13 @@ export default function Product() {
 
         {/* Search and Actions bar */}
         <div className="flex items-center gap-2">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={t.product.searchBacklog}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9 placeholder:text-[10px] bg-white dark:bg-background"
-              data-testid="input-search-backlogs"
-            />
-          </div>
+          <MobileCollapsibleSearch
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder={t.product.searchBacklog}
+            testId="input-search-backlogs"
+            desktopWidthClass="sm:max-w-sm"
+          />
           <div className="flex items-center ml-auto border rounded-md" data-testid="container-view-toggle">
             <Button 
               variant={viewMode === "grid" ? "secondary" : "ghost"} 

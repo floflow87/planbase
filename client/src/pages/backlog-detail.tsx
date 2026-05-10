@@ -24,6 +24,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetTrigger
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { MobileCollapsibleSearch } from "@/components/MobileCollapsibleSearch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -2122,17 +2123,13 @@ export default function BacklogDetail() {
         {/* ── Mobile Toolbar (single line) ── */}
         <div className="flex md:hidden items-center gap-2 px-3 py-2.5 border-b bg-background sticky top-0 z-10">
           {/* Search */}
-          <div className="relative flex-1 min-w-0">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder={t.common.ph.search}
-              value={ticketSearch}
-              onChange={(e) => setTicketSearch(e.target.value)}
-              className="pl-8 h-8 w-full text-xs placeholder:text-xs bg-white dark:bg-card"
-              data-testid="input-ticket-search"
-            />
-          </div>
+          <MobileCollapsibleSearch
+            value={ticketSearch}
+            onChange={setTicketSearch}
+            placeholder={t.common.ph.search}
+            testId="input-ticket-search"
+            desktopWidthClass=""
+          />
           {/* Create dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

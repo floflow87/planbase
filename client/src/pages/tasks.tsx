@@ -10,6 +10,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MobileCollapsibleSearch } from "@/components/MobileCollapsibleSearch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -1948,31 +1949,15 @@ export default function Tasks() {
                 </PopoverContent>
               </Popover>
             )}
-            <div className={`relative h-9 transition-[width,max-width,flex] duration-300 ease-in-out ${searchFocused ? "flex-1 w-full sm:max-w-none" : "w-9 shrink-0"}`}>
-              <Search
-                className={`absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none transition-all duration-300 ${searchFocused ? "left-2.5" : "left-1/2 -translate-x-1/2"}`}
-              />
-              <Input
-                value={taskSearchQuery}
-                onChange={(e) => setTaskSearchQuery(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => { if (!taskSearchQuery) setSearchFocused(false); }}
-                placeholder={searchFocused ? t.common.ph.searchTask : ""}
-                className={`h-9 w-full text-[12px] placeholder:text-[10px] bg-white dark:bg-background transition-all duration-300 ${searchFocused ? "pl-8 pr-8" : "pl-0 pr-0 cursor-pointer text-transparent caret-transparent"}`}
-                data-testid="input-task-search"
-                aria-label="Rechercher une tâche"
-              />
-              {(taskSearchQuery || searchFocused) && (
-                <button
-                  onClick={() => { setTaskSearchQuery(""); setSearchFocused(false); }}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  data-testid="button-clear-task-search"
-                  aria-label="Effacer la recherche"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
+            <MobileCollapsibleSearch
+              value={taskSearchQuery}
+              onChange={setTaskSearchQuery}
+              onFocusChange={setSearchFocused}
+              placeholder={t.common.ph.searchTask}
+              testId="input-task-search"
+              ariaLabel="Rechercher une tâche"
+              desktopWidthClass="sm:max-w-[200px]"
+            />
           </div>
           <div className="flex items-center justify-end gap-2 flex-wrap w-full sm:w-auto">
             {/* Automation — placed at the left of the row, before the filter button */}

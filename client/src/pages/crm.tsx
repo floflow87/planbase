@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MobileCollapsibleSearch } from "@/components/MobileCollapsibleSearch";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1062,16 +1063,14 @@ export default function CRM() {
         {/* Filters bar with search, status filter, view toggles, export and new client button */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex flex-row sm:flex-row items-center gap-2 flex-1 w-full sm:w-auto">
-            <div className="relative flex-1 sm:max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Rechercher un contact..."
-                className="pl-9 placeholder:text-[10px] bg-white dark:bg-background"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                data-testid="input-search-clients"
-              />
-            </div>
+            <MobileCollapsibleSearch
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Rechercher un contact..."
+              testId="input-search-clients"
+              ariaLabel="Rechercher un contact"
+              desktopWidthClass="sm:max-w-sm"
+            />
             {/* Mobile filter button */}
             <Button
               variant="outline"

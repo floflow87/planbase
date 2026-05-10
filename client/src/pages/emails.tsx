@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
+import { MobileCollapsibleSearch } from "@/components/MobileCollapsibleSearch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1018,16 +1019,13 @@ export default function Emails() {
           </Tooltip>
           <div className="flex-1" />
           <div className="flex items-center gap-1 shrink-0">
-            <div className="relative w-32">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-              <Input
-                className="pl-8 pr-2 text-xs h-8 bg-white dark:bg-background placeholder:text-[10px]"
-                placeholder={t.common.ph.search}
-                value={searchInput}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                data-testid="input-email-search"
-              />
-            </div>
+            <MobileCollapsibleSearch
+              value={searchInput}
+              onChange={handleSearchChange}
+              placeholder={t.common.ph.search}
+              testId="input-email-search"
+              desktopWidthClass="sm:w-32"
+            />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" data-testid="button-search-field">
