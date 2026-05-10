@@ -232,9 +232,13 @@
       height: 100%;
       overflow: hidden;
     }
-    /* Reserve space at the bottom of every page so the floating bottom nav
-       (≈56px tall + 12px offset + safe-area) never covers the last items. */
-    main {
+    /* Reserve space at the bottom of every scrollable page area so the
+       floating bottom nav (~68px + safe area) never covers the last items.
+       We pad inside the actual scroll containers rather than the <main>
+       element itself, so no empty band appears under the nav. */
+    main [class*="overflow-y-auto"],
+    main [class*="overflow-y-scroll"],
+    main [class*="overflow-auto"] {
       padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 88px);
     }
   }
