@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -139,6 +140,7 @@ function DraggableKanbanCard({
   totalBudget,
   onEdit,
   onDelete,
+  onHide,
   isDragOverlay = false,
   columnHex,
 }: { 
@@ -147,10 +149,12 @@ function DraggableKanbanCard({
   totalBudget: number;
   onEdit: () => void;
   onDelete: () => void;
+  onHide?: () => void;
   isDragOverlay?: boolean;
   columnHex?: string;
 }) {
   const { can: canDo } = usePermissions();
+  const [, navigate] = useLocation();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `client-${client.id}`,
     data: { client },
@@ -257,7 +261,35 @@ function DraggableKanbanCard({
     </Card>
   );
 
-  return cardContent;
+  if (isDragOverlay) return cardContent;
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{cardContent}</ContextMenuTrigger>
+      <ContextMenuContent className="bg-card">
+        <ContextMenuItem onSelect={() => navigate(`/crm/${client.id}`)} data-testid={`ctx-open-${client.id}`}>
+          <Building2 className="w-3.5 h-3.5 mr-2" />
+          Ouvrir
+        </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={() => window.open(`/crm/${client.id}`, "_blank", "noopener,noreferrer")}
+          data-testid={`ctx-open-newtab-${client.id}`}
+        >
+          <Eye className="w-3.5 h-3.5 mr-2" />
+          Ouvrir dans un nouvel onglet
+        </ContextMenuItem>
+        {onHide && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem onSelect={() => onHide()} data-testid={`ctx-hide-${client.id}`}>
+              <EyeOff className="w-3.5 h-3.5 mr-2" />
+              Masquer
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
+  );
 }
 
 // Composant Kanban Column (droppable)
@@ -268,6 +300,7 @@ function DroppableKanbanColumn({
   projects,
   onEditClient,
   onDeleteClient,
+  onHideClient,
   isCollapsed,
   onToggleCollapse,
   onAddClient,
@@ -278,6 +311,7 @@ function DroppableKanbanColumn({
   projects: Project[];
   onEditClient: (client: Client) => void;
   onDeleteClient: (clientId: string) => void;
+  onHideClient?: (clientId: string) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   onAddClient?: () => void;
@@ -367,6 +401,7 @@ function DroppableKanbanColumn({
                 totalBudget={clientBudget}
                 onEdit={() => onEditClient(client)}
                 onDelete={() => onDeleteClient(client.id)}
+                onHide={onHideClient ? () => onHideClient(client.id) : undefined}
                 columnHex={status.hex}
               />
             );
@@ -453,6 +488,19 @@ export default function CRM() {
   useEffect(() => {
     localStorage.setItem('crmKanbanColumnVisibility', JSON.stringify(kanbanColumnVisibility));
   }, [kanbanColumnVisibility]);
+
+  // Hidden client IDs (per-user, kanban view) with localStorage persistence
+  const [hiddenClientIds, setHiddenClientIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('crmHiddenClientIds');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  useEffect(() => {
+    localStorage.setItem('crmHiddenClientIds', JSON.stringify(hiddenClientIds));
+  }, [hiddenClientIds]);
+  const hideClient = (id: string) => setHiddenClientIds(prev => prev.includes(id) ? prev : [...prev, id]);
+  const restoreHiddenClients = () => setHiddenClientIds([]);
 
   // Kanban column collapsed state (show header only) with localStorage persistence
   const [kanbanColumnCollapsed, setKanbanColumnCollapsed] = useState<Record<string, boolean>>(() => {
@@ -1509,13 +1557,27 @@ export default function CRM() {
                       </Popover>
                     </div>
                     
+                    {hiddenClientIds.length > 0 && (
+                      <div className="flex justify-end mb-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-7"
+                          onClick={restoreHiddenClients}
+                          data-testid="button-restore-hidden-clients"
+                        >
+                          <Eye className="w-3 h-3 mr-1.5" />
+                          Afficher les {hiddenClientIds.length} client(s) masqué(s)
+                        </Button>
+                      </div>
+                    )}
                     {/* Kanban board with visible scrollbar */}
                     <div 
                       className="flex gap-4 pb-4 overflow-x-auto kanban-scrollbar" 
                       data-testid="kanban-board"
                     >
                       {KANBAN_STATUSES.filter(status => kanbanColumnVisibility[status.id] !== false).map((status) => {
-                        const statusClients = filteredClients.filter(c => c.status === status.id);
+                        const statusClients = filteredClients.filter(c => c.status === status.id && !hiddenClientIds.includes(c.id));
                         return (
                           <DroppableKanbanColumn
                             key={status.id}
@@ -1528,6 +1590,7 @@ export default function CRM() {
                               setClientToDelete(clientId);
                               setIsDeleteDialogOpen(true);
                             }}
+                            onHideClient={hideClient}
                             isCollapsed={!!kanbanColumnCollapsed[status.id]}
                             onToggleCollapse={() => toggleColumnCollapse(status.id)}
                             onAddClient={() => {

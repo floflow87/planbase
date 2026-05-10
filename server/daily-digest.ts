@@ -116,10 +116,12 @@ export async function generateDailyDigest(accountId: string, maxTasks = 5): Prom
   try {
     const completed = (await db.execute(sql`
       SELECT ri.id, ri.title, ri.end_date, ri.status,
-             p.name as project_name, p.id as project_id
+             COALESCE(p.name, rp.name) as project_name,
+             COALESCE(p.id, rp.id) as project_id
       FROM roadmap_items ri
       JOIN roadmaps r ON r.id = ri.roadmap_id
       LEFT JOIN projects p ON p.id = ri.project_id
+      LEFT JOIN projects rp ON rp.id = r.project_id
       WHERE r.account_id = ${accountId}
         AND ri.type IN ('milestone','deliverable')
         AND ri.status IN ('done','completed','terminé')
@@ -139,10 +141,12 @@ export async function generateDailyDigest(accountId: string, maxTasks = 5): Prom
 
     const upcoming = (await db.execute(sql`
       SELECT ri.id, ri.title, ri.end_date, ri.status,
-             p.name as project_name, p.id as project_id
+             COALESCE(p.name, rp.name) as project_name,
+             COALESCE(p.id, rp.id) as project_id
       FROM roadmap_items ri
       JOIN roadmaps r ON r.id = ri.roadmap_id
       LEFT JOIN projects p ON p.id = ri.project_id
+      LEFT JOIN projects rp ON rp.id = r.project_id
       WHERE r.account_id = ${accountId}
         AND ri.type IN ('milestone','deliverable')
         AND ri.status NOT IN ('done','completed','terminé')
@@ -213,13 +217,15 @@ export async function generateDailyDigest(accountId: string, maxTasks = 5): Prom
   try {
     const rows = (await db.execute(sql`
       SELECT s.id, s.name as sprint_name, b.name as backlog_name, b.id as backlog_id,
-             COUNT(bt.id) FILTER (WHERE bt.state NOT IN ('done','completed','testing','to_fix')) as remaining
+             COUNT(bt.id) FILTER (WHERE bt.state NOT IN ('termine','done','completed')) as remaining,
+             COUNT(bt.id) as total
       FROM sprints s
       JOIN backlogs b ON b.id = s.backlog_id
       LEFT JOIN backlog_tasks bt ON bt.sprint_id = s.id
       WHERE b.account_id = ${accountId} AND s.status = 'en_cours'
       GROUP BY s.id, s.name, b.name, b.id
-      HAVING COUNT(bt.id) FILTER (WHERE bt.state NOT IN ('done','completed','testing','to_fix')) <= 3
+      HAVING COUNT(bt.id) > 0
+        AND COUNT(bt.id) FILTER (WHERE bt.state NOT IN ('termine','done','completed')) <= 3
       LIMIT 2
     `)) as any[];
     for (const s of rows) {
