@@ -92,8 +92,8 @@ export function MobileRadialNav() {
 
   const items = allItems.filter((i) => canAccess(i.url));
 
-  const radius = 110;
-  const buttonSize = 48;
+  const radius = 78;
+  const buttonSize = 40;
   const count = items.length;
 
   const movedRef = useRef(false);
@@ -195,11 +195,12 @@ export function MobileRadialNav() {
                 <button
                   key={item.url}
                   type="button"
-                  className="absolute top-1/2 left-1/2 flex items-center justify-center rounded-full bg-card border border-border shadow-md hover-elevate active-elevate-2 transition-transform"
+                  className="radial-nav-item absolute top-1/2 left-1/2 flex items-center justify-center rounded-full bg-card border border-border shadow-md hover-elevate active-elevate-2"
                   style={{
                     width: buttonSize,
                     height: buttonSize,
                     transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
+                    animationDelay: `${idx * 30}ms`,
                   }}
                   onClick={() => {
                     setLocation(item.url);
@@ -209,7 +210,7 @@ export function MobileRadialNav() {
                   title={item.title}
                   aria-label={item.title}
                 >
-                  <Icon className="w-5 h-5 text-foreground" />
+                  <Icon className="w-4 h-4 text-foreground" />
                 </button>
               );
             })}

@@ -877,3 +877,10 @@
     animation: none;
   }
 }
+@keyframes radial-nav-pop {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.radial-nav-item {
+  animation: radial-nav-pop 220ms ease-out backwards;
+}
