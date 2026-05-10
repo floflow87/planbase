@@ -2327,6 +2327,20 @@ export default function Dashboard() {
               <div className="w-full overflow-visible">
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={revenueDataWithTVA}>
+                    <defs>
+                      {revenueDataWithTVA.map((entry, index) => {
+                        const maxRev = Math.max(...revenueDataWithTVA.map(e => e.revenue || 0), 1);
+                        const ratio = Math.min(1, Math.max(0, (entry.revenue || 0) / maxRev));
+                        const topL = 70 - ratio * 35;
+                        const botL = 82 - ratio * 10;
+                        return (
+                          <linearGradient key={`grad-${index}`} id={`revBarGrad-${index}`} x1="0" y1="1" x2="0" y2="0">
+                            <stop offset="0%" stopColor={`hsl(262, 80%, ${botL}%)`} />
+                            <stop offset="100%" stopColor={`hsl(262, 75%, ${topL}%)`} />
+                          </linearGradient>
+                        );
+                      })}
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis
                       dataKey="month"
@@ -2356,13 +2370,13 @@ export default function Dashboard() {
                       wrapperStyle={{ zIndex: 200, pointerEvents: 'none' }}
                       cursor={{ fill: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}
                     />
-                    <Bar dataKey="revenue" stackId="a" radius={showHypotheses ? [0, 0, 0, 0] : [4, 4, 0, 0]}>
+                    <Bar dataKey="revenue" stackId="a" radius={showHypotheses ? [0, 0, 0, 0] : [50, 50, 0, 0]}>
                       {revenueDataWithTVA.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                        <Cell key={`cell-${index}`} fill={`url(#revBarGrad-${index})`} />
                       ))}
                     </Bar>
                     {showHypotheses && (
-                      <Bar dataKey="hypothesesRevenue" stackId="a" radius={[4, 4, 0, 0]} fill="rgb(6, 182, 212)" opacity={0.45} />
+                      <Bar dataKey="hypothesesRevenue" stackId="a" radius={[50, 50, 0, 0]} fill="rgb(6, 182, 212)" opacity={0.45} />
                     )}
                     {tvaCrossingMonthForecast && (
                       <ReferenceLine

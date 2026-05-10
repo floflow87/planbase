@@ -11,6 +11,13 @@ import {
   ArrowUpRight, Sun, Calendar, Video, X,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import { ExternalLink, ArrowRight } from "lucide-react";
 
 interface DigestTask {
   id: string;
@@ -196,6 +203,20 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
     return url;
   };
   const navigate = (url: string) => { onOpenChange(false); setLocation(normalizeUrl(url)); };
+  const openInNewTab = (url: string) => { window.open(normalizeUrl(url), "_blank", "noopener,noreferrer"); };
+
+  const ItemMenu = ({ url }: { url: string }) => (
+    <ContextMenuContent className="w-52">
+      <ContextMenuItem onSelect={() => navigate(url)}>
+        <ArrowRight className="w-3 h-3 mr-2" />
+        Ouvrir
+      </ContextMenuItem>
+      <ContextMenuItem onSelect={() => openInNewTab(url)}>
+        <ExternalLink className="w-3 h-3 mr-2" />
+        Ouvrir dans un nouvel onglet
+      </ContextMenuItem>
+    </ContextMenuContent>
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -262,8 +283,9 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
                 ) : (
                   <div className="space-y-2">
                     {digest.topTasks.map((task) => (
+                      <ContextMenu key={task.id}>
+                        <ContextMenuTrigger asChild>
                       <div
-                        key={task.id}
                         className="flex items-start gap-3 p-3 rounded-md border border-border hover-elevate active-elevate-2 cursor-pointer"
                         onClick={() => navigate(task.url)}
                         data-testid={`digest-task-${task.id}`}
@@ -290,6 +312,9 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
                         </div>
                         <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
                       </div>
+                        </ContextMenuTrigger>
+                        <ItemMenu url={task.url} />
+                      </ContextMenu>
                     ))}
                   </div>
                 )}
@@ -307,8 +332,9 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
                       const end = appt.endDateTime ? new Date(appt.endDateTime) : null;
                       const fmt = (d: Date) => d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
                       return (
+                        <ContextMenu key={appt.id}>
+                          <ContextMenuTrigger asChild>
                         <div
-                          key={appt.id}
                           className="flex items-start gap-3 p-3 rounded-md border border-border hover-elevate active-elevate-2 cursor-pointer"
                           onClick={() => navigate("/calendar")}
                           data-testid={`digest-appointment-${appt.id}`}
@@ -343,6 +369,9 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
                           </div>
                           <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
                         </div>
+                          </ContextMenuTrigger>
+                          <ItemMenu url="/calendar" />
+                        </ContextMenu>
                       );
                     })}
                   </div>
@@ -364,8 +393,9 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
                         </p>
                         <div className="space-y-1.5">
                           {digest.roadmap.upcomingNext7Days.map((m) => (
+                            <ContextMenu key={m.id}>
+                              <ContextMenuTrigger asChild>
                             <div
-                              key={m.id}
                               className="flex items-center gap-2 p-2 rounded-md border border-border hover-elevate active-elevate-2 cursor-pointer"
                               onClick={() => navigate(m.url)}
                               data-testid={`digest-milestone-upcoming-${m.id}`}
@@ -382,6 +412,9 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
                               </div>
                               <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
                             </div>
+                              </ContextMenuTrigger>
+                              <ItemMenu url={m.url} />
+                            </ContextMenu>
                           ))}
                         </div>
                       </div>
@@ -394,8 +427,9 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
                         </p>
                         <div className="space-y-1.5">
                           {digest.roadmap.completedLast7Days.map((m) => (
+                            <ContextMenu key={m.id}>
+                              <ContextMenuTrigger asChild>
                             <div
-                              key={m.id}
                               className="flex items-center gap-2 p-2 rounded-md border border-border hover-elevate active-elevate-2 cursor-pointer"
                               onClick={() => navigate(m.url)}
                               data-testid={`digest-milestone-done-${m.id}`}
@@ -409,6 +443,9 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
                               </div>
                               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">Terminé</Badge>
                             </div>
+                              </ContextMenuTrigger>
+                              <ItemMenu url={m.url} />
+                            </ContextMenu>
                           ))}
                         </div>
                       </div>
@@ -425,8 +462,9 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
                 ) : (
                   <div className="space-y-2">
                     {digest.billingProjects.map((p) => (
+                      <ContextMenu key={p.id}>
+                        <ContextMenuTrigger asChild>
                       <div
-                        key={p.id}
                         className="flex items-start gap-3 p-3 rounded-md border border-border hover-elevate active-elevate-2 cursor-pointer"
                         onClick={() => navigate(p.url)}
                         data-testid={`digest-billing-${p.id}`}
@@ -444,6 +482,9 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
                         </div>
                         <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
                       </div>
+                        </ContextMenuTrigger>
+                        <ItemMenu url={p.url} />
+                      </ContextMenu>
                     ))}
                   </div>
                 )}
@@ -457,8 +498,9 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
                 ) : (
                   <div className="space-y-2">
                     {digest.recommendations.map((r) => (
+                      <ContextMenu key={r.id}>
+                        <ContextMenuTrigger asChild>
                       <div
-                        key={r.id}
                         className="flex items-start gap-3 p-3 rounded-md border border-border hover-elevate active-elevate-2 cursor-pointer"
                         onClick={() => navigate(r.url)}
                         data-testid={`digest-reco-${r.id}`}
@@ -473,6 +515,9 @@ export function DailyDigestDrawer({ open, onOpenChange }: Props) {
                         </div>
                         <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
                       </div>
+                        </ContextMenuTrigger>
+                        <ItemMenu url={r.url} />
+                      </ContextMenu>
                     ))}
                   </div>
                 )}

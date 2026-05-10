@@ -1457,27 +1457,25 @@ function KanbanStageColumn({
 
   return (
     <div
-      ref={setNodeRef}
-      className={`flex flex-col rounded-lg border min-w-[250px] shrink-0 bg-card/50 dark:bg-card/30 ${isOver ? 'ring-2 ring-primary' : ''}`}
+      className={`flex flex-col rounded-lg min-w-[250px] shrink-0 ${isOver ? 'ring-2 ring-primary' : ''}`}
     >
-      <div className={`px-3 py-2 rounded-t-lg ${stage.headerBg}`}>
-        <div className="flex items-center justify-between">
-          <h3 className={`font-medium text-xs ${stage.textColor}`}>{stage.label}</h3>
-          <Badge variant="secondary" className="text-[10px]">
+      <div className={`flex items-center justify-between p-3 rounded-t-lg border-b ${stage.headerBg} border-border/30`}>
+        <div className="flex items-center gap-2 min-w-0">
+          <h3 className="text-[11px] font-semibold truncate">{stage.label}</h3>
+          <Badge variant="secondary" className="text-xs h-5 px-1.5 shrink-0">
             {projects.length}
           </Badge>
         </div>
         {totalBilled > 0 && (
-          <div className={`text-xs mt-1 font-medium ${stage.textColor}`}>
-            {totalBilled.toLocaleString("fr-FR", {
-              style: "currency",
-              currency: "EUR",
-              minimumFractionDigits: 0,
-            })}
-          </div>
+          <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+            {totalBilled.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })}
+          </span>
         )}
       </div>
-      <div className="flex-1 p-2 space-y-2 min-h-[200px] max-h-[calc(100vh-300px)] overflow-y-auto">
+      <div
+        ref={setNodeRef}
+        className={`flex-1 p-2 space-y-2 rounded-b-lg border ${stage.headerBg} border-border/30 min-h-[200px] max-h-[calc(100vh-300px)] overflow-y-auto`}
+      >
         <SortableContext
           items={projects.map(p => p.id)}
           strategy={verticalListSortingStrategy}
@@ -1568,16 +1566,11 @@ function DraggableProjectCard({
     !completedColumn || t.columnId !== completedColumn.id
   ).length;
 
-  // Extract base color for very pastel effect (e.g., bg-yellow-100 -> bg-yellow-50/60)
-  const pastelCardColor = cardColor 
-    ? cardColor.replace(/bg-(\w+)-100/g, 'bg-$1-50/50').replace(/dark:bg-(\w+)-900\/30/g, 'dark:bg-$1-950/20')
-    : 'bg-popover';
-
   return (
     <Card
       ref={setNodeRef}
       style={style}
-      className={`hover-elevate active-elevate-2 cursor-grab ${pastelCardColor} ${isDragging ? 'shadow-lg' : ''}`}
+      className={`hover-elevate active-elevate-2 cursor-grab bg-card ${isDragging ? 'shadow-lg' : ''}`}
       {...attributes}
       {...listeners}
       data-testid={`kanban-project-card-${project.id}`}
@@ -1710,7 +1703,7 @@ function ProjectKanbanView({
     value: s.key,
     label: s.label,
     color: s.colorClass,
-    headerBg: s.colorClass,
+    headerBg: s.colorClass.split(/\s+/).filter((c) => !/^(?:dark:)?text-/.test(c)).join(" "),
     textColor: "",
   }));
   
