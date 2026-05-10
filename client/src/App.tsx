@@ -582,15 +582,7 @@ function QuickCreateMenu() {
         </PopoverContent>
       </Popover>
 
-      {/* Mobile: bottom sheet */}
-      <Button
-        size="icon"
-        className="sm:hidden"
-        onClick={() => setIsMobileCreateOpen(true)}
-        data-testid="button-quick-create-mobile"
-      >
-        <Plus className="w-4 h-4" />
-      </Button>
+      {/* Mobile sheet — opened via the bottom nav "+" (no header trigger) */}
       <Sheet open={isMobileCreateOpen} onOpenChange={setIsMobileCreateOpen}>
         <SheetContent side="bottom" className="h-auto rounded-t-xl bg-card pb-8" data-testid="sheet-mobile-create">
           <SheetHeader className="pb-2">
@@ -1658,13 +1650,7 @@ function AppLayout() {
               </DndContext>
             </div>
             <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
-              <div className="hidden md:contents">
-                <QuickCreateMenu />
-              </div>
-              {/* Mounted invisibly on mobile so its sheets stay reachable via the bottom nav "+" event */}
-              <div className="md:hidden hidden">
-                <QuickCreateMenu />
-              </div>
+              <QuickCreateMenu />
               {/* Desktop: individual icons */}
               {/* TimeTracker: visible on desktop, zero-width (but in DOM) on mobile so its popover still works */}
               {isTimeTrackingEnabled && (
