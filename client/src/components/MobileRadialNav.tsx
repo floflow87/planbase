@@ -17,9 +17,9 @@ import {
   Network,
   Wallet,
   X,
+  Rocket as RocketIcon,
 } from "lucide-react";
 import type { RbacModule } from "@shared/schema";
-import planbaseLogo from "@assets/planbase-logo.png";
 
 const URL_TO_MODULE: Record<string, RbacModule | null> = {
   "/": null,
@@ -92,8 +92,8 @@ export function MobileRadialNav() {
 
   const items = allItems.filter((i) => canAccess(i.url));
 
-  const radius = 78;
-  const buttonSize = 40;
+  const radius = 72;
+  const buttonSize = 38;
   const count = items.length;
 
   const movedRef = useRef(false);
@@ -227,14 +227,9 @@ export function MobileRadialNav() {
           aria-expanded={isOpen}
         >
           {isOpen ? (
-            <X className="w-6 h-6 text-primary-foreground" />
+            <X className="w-4 h-4 text-primary-foreground" />
           ) : (
-            <img
-              src={planbaseLogo}
-              alt="Planbase"
-              className="w-9 h-9 rounded-full object-contain brightness-0 invert"
-              draggable={false}
-            />
+            <RocketIcon className="w-6 h-6 text-primary-foreground" />
           )}
         </button>
       </div>
