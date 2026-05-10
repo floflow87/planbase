@@ -1902,7 +1902,7 @@ export default function Tasks() {
                     variant="outline"
                     role="combobox"
                     aria-expanded={projectSelectorOpen}
-                    className="w-full sm:w-[280px] justify-between text-[12px] bg-white dark:bg-card"
+                    className="w-full sm:w-[220px] h-9 justify-between text-[12px] bg-white dark:bg-card"
                     data-testid="select-project"
                   >
                     {getSelectedProjectsText()}
@@ -1978,17 +1978,16 @@ export default function Tasks() {
             >
               <SlidersHorizontal className="h-4 w-4" />
             </Button>
-            {/* Group by dropdown — only in list view, hidden on mobile */}
+            {/* Group by dropdown — icon-only on desktop, hidden on mobile */}
             {viewMode === "list" && (
               <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
                 <SelectTrigger
-                  className="hidden sm:flex sm:w-44 bg-white dark:bg-card text-xs font-normal shrink-0"
+                  className="hidden sm:flex h-9 w-9 p-0 justify-center bg-white dark:bg-card shrink-0 [&>svg]:hidden"
                   data-testid="select-group-by"
+                  aria-label="Groupement"
+                  title="Groupement"
                 >
-                  <div className="flex items-center gap-1.5">
-                    <Layers className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="truncate"><SelectValue /></span>
-                  </div>
+                  <Layers className="h-4 w-4 text-muted-foreground" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="status" className="text-xs">{t.tasks.groupByStatus}</SelectItem>
@@ -1997,16 +1996,17 @@ export default function Tasks() {
                 </SelectContent>
               </Select>
             )}
-            {/* Nouveau livrable button — only in list+deliverable view with a single project */}
+            {/* Nouveau livrable — icon only */}
             {viewMode === "list" && groupBy === "deliverable" && singleProjectId && (
               <Button
                 variant="default"
-                size="default"
+                size="icon"
                 onClick={() => setIsNewLivrableDialogOpen(true)}
                 data-testid="button-new-livrable"
-                className="text-xs"
+                title="Nouveau livrable"
+                aria-label="Nouveau livrable"
               >
-                + Livrable
+                <Plus className="h-4 w-4" />
               </Button>
             )}
             {viewMode !== "kanban" && (
@@ -2014,13 +2014,15 @@ export default function Tasks() {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
+                    size="icon"
                     role="combobox"
                     aria-expanded={statusSelectorOpen}
-                    className="hidden sm:flex sm:w-44 sm:justify-between bg-white dark:bg-card text-xs font-normal shrink-0"
+                    className="hidden sm:inline-flex h-9 w-9 bg-white dark:bg-card shrink-0"
                     data-testid="select-status-filter"
+                    aria-label="Filtrer par statut"
+                    title={getStatusFilterLabel()}
                   >
-                    <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                    <span className="truncate ml-1.5">{getStatusFilterLabel()}</span>
+                    <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[220px] p-0">
@@ -2095,13 +2097,13 @@ export default function Tasks() {
                 </PopoverContent>
               </Popover>
             )}
-            {/* Hide completed tasks toggle */}
+            {/* Hide completed tasks toggle — desktop only (mobile lives inside the filter drawer) */}
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setHideCompletedTasks(!hideCompletedTasks)}
               data-testid="button-hide-completed"
-              className={hideCompletedTasks ? "text-primary" : "text-muted-foreground"}
+              className={`hidden sm:inline-flex ${hideCompletedTasks ? "text-primary" : "text-muted-foreground"}`}
               title={hideCompletedTasks ? t.tasks.showCompleted : t.tasks.hideCompleted}
             >
               {hideCompletedTasks ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -2176,32 +2178,51 @@ export default function Tasks() {
             />
             {canCreate && !selectedProjectIds.includes("all") && selectedProjectIds.length === 1 && (
               <>
-                <Button
-                  onClick={() => setIsCreateTaskDialogOpen(true)}
-                  data-testid="button-new-task"
-                  className="flex-1 sm:flex-none md:hidden"
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
-                <Button
-                  onClick={() => viewMode === "list" ? setIsCreateTaskDialogOpen(true) : setIsCreateColumnDialogOpen(true)}
-                  data-testid={viewMode === "list" ? "button-new-task" : "button-new-column"}
-                  className="hidden md:flex"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  <span className="text-xs">{viewMode === "list" ? "Tâche" : "Nouvelle Colonne"}</span>
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      onClick={() => setIsCreateTaskDialogOpen(true)}
+                      data-testid="button-new-task"
+                      className="h-9 w-9 md:hidden shrink-0"
+                      aria-label="Nouvelle tâche"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Nouvelle tâche</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      onClick={() => viewMode === "list" ? setIsCreateTaskDialogOpen(true) : setIsCreateColumnDialogOpen(true)}
+                      data-testid={viewMode === "list" ? "button-new-task" : "button-new-column"}
+                      className="hidden md:inline-flex h-9 w-9 shrink-0"
+                      aria-label={viewMode === "list" ? "Nouvelle tâche" : "Nouvelle colonne"}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{viewMode === "list" ? "Nouvelle tâche" : "Nouvelle colonne"}</TooltipContent>
+                </Tooltip>
               </>
             )}
             {canCreate && (selectedProjectIds.includes("all") || selectedProjectIds.length !== 1) && (
-              <Button
-                onClick={() => setIsCreateTaskDialogOpen(true)}
-                data-testid="button-new-task"
-                className="flex-1 sm:flex-none"
-              >
-                <Plus className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline text-[12px]">Tâche</span>
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    onClick={() => setIsCreateTaskDialogOpen(true)}
+                    data-testid="button-new-task"
+                    className="h-9 w-9 shrink-0"
+                    aria-label="Nouvelle tâche"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Nouvelle tâche</TooltipContent>
+              </Tooltip>
             )}
           </div>
         </div>
