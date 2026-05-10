@@ -490,7 +490,7 @@ export default function Product() {
 
   return (
     <PermissionGuard module="product" fallbackPath="/">
-      <div className="h-full overflow-auto bg-[#F8FAFC] dark:bg-background">
+      <div className="h-full overflow-y-auto overflow-x-hidden bg-[#F8FAFC] dark:bg-background">
       <div className="p-6 space-y-6" data-testid="backlog-board">
         <ReadOnlyBanner module="product" />
         {/* KPIs - Style CRM */}
@@ -585,7 +585,7 @@ export default function Product() {
             {filteredBacklogs.map((backlog) => (
               <Card 
                 key={backlog.id} 
-                className="hover-elevate cursor-pointer group"
+                className="hover-elevate cursor-pointer group min-w-0 overflow-hidden"
                 onClick={() => navigate(`/product/backlog/${backlog.id}`)}
                 data-testid={`card-backlog-${backlog.id}`}
               >
@@ -601,9 +601,9 @@ export default function Product() {
                     </Badge>
                   </div>
                   {backlog.project && (
-                    <Badge variant="outline" className="flex items-center gap-1 text-[10px] shrink-0" onClick={(e) => e.stopPropagation()}>
-                      <Folder className="h-2.5 w-2.5" />
-                      {backlog.project.name}
+                    <Badge variant="outline" className="flex items-center gap-1 text-[10px] shrink min-w-0 max-w-[55%]" onClick={(e) => e.stopPropagation()}>
+                      <Folder className="h-2.5 w-2.5 shrink-0" />
+                      <span className="truncate">{backlog.project.name}</span>
                     </Badge>
                   )}
                   <DropdownMenu>
@@ -645,7 +645,7 @@ export default function Product() {
                   
                   {/* Ticket counts */}
                   {backlog.ticketCounts && backlog.ticketCounts.total > 0 && (
-                    <div className="flex items-center gap-1.5 mt-2" data-testid={`container-ticket-counts-${backlog.id}`}>
+                    <div className="flex items-center gap-1.5 mt-2 flex-wrap" data-testid={`container-ticket-counts-${backlog.id}`}>
                       <Badge variant="outline" className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-[10px]">
                         {backlog.ticketCounts.todo} à faire
                       </Badge>
@@ -711,7 +711,7 @@ export default function Product() {
           </div>
         ) : (
           <DndContext sensors={sensors} onDragEnd={handleColumnDragEnd}>
-            <div className="border rounded-lg overflow-hidden bg-white dark:bg-gray-900">
+            <div className="border rounded-lg overflow-x-auto bg-white dark:bg-gray-900">
               <table className="w-full">
                 <thead className="bg-muted/50">
                   <tr className="text-left text-xs font-medium text-muted-foreground">
