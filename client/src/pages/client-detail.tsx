@@ -3332,23 +3332,23 @@ export default function ClientDetail() {
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Type</Label>
+                  <Label className="text-xs">Type</Label>
                   <Select value={clientInfoForm.type} onValueChange={(v: "company" | "person") => setClientInfoForm({ ...clientInfoForm, type: v })}>
-                    <SelectTrigger data-testid="select-edit-type"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="text-xs" data-testid="select-edit-type"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="company">{t.common.company}</SelectItem>
-                      <SelectItem value="person">{t.common.person}</SelectItem>
+                      <SelectItem value="company" className="text-xs">{t.common.company}</SelectItem>
+                      <SelectItem value="person" className="text-xs">{t.common.person}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label>Civilité</Label>
+                  <Label className="text-xs">Civilité</Label>
                   <Select value={clientInfoForm.civility} onValueChange={(v) => setClientInfoForm({ ...clientInfoForm, civility: v })}>
-                    <SelectTrigger data-testid="select-edit-civility"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                    <SelectTrigger className="text-xs" data-testid="select-edit-civility"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="M">M</SelectItem>
-                      <SelectItem value="Mme">Mme</SelectItem>
-                      <SelectItem value="Dr">Dr</SelectItem>
+                      <SelectItem value="M" className="text-xs">M</SelectItem>
+                      <SelectItem value="Mme" className="text-xs">Mme</SelectItem>
+                      <SelectItem value="Dr" className="text-xs">Dr</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -3356,104 +3356,104 @@ export default function ClientDetail() {
               {clientInfoForm.type === "person" && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Prénom</Label>
-                    <Input value={clientInfoForm.firstName} onChange={(e) => setClientInfoForm({ ...clientInfoForm, firstName: e.target.value })} data-testid="input-edit-firstName" />
+                    <Label className="text-xs">Prénom</Label>
+                    <Input className="text-xs placeholder:text-xs" value={clientInfoForm.firstName} onChange={(e) => setClientInfoForm({ ...clientInfoForm, firstName: e.target.value })} data-testid="input-edit-firstName" />
                   </div>
                   <div>
-                    <Label>Nom</Label>
-                    <Input value={clientInfoForm.lastName} onChange={(e) => setClientInfoForm({ ...clientInfoForm, lastName: e.target.value })} data-testid="input-edit-lastName" />
+                    <Label className="text-xs">Nom</Label>
+                    <Input className="text-xs placeholder:text-xs" value={clientInfoForm.lastName} onChange={(e) => setClientInfoForm({ ...clientInfoForm, lastName: e.target.value })} data-testid="input-edit-lastName" />
                   </div>
                 </div>
               )}
               <div>
-                <Label>Nom / Raison sociale *</Label>
-                <Input value={clientInfoForm.name} onChange={(e) => setClientInfoForm({ ...clientInfoForm, name: e.target.value })} data-testid="input-edit-name" />
+                <Label className="text-xs">Nom / Raison sociale *</Label>
+                <Input className="text-xs placeholder:text-xs" value={clientInfoForm.name} onChange={(e) => setClientInfoForm({ ...clientInfoForm, name: e.target.value })} data-testid="input-edit-name" />
               </div>
               {clientInfoForm.type === "company" && (
                 <div>
-                  <Label>Société</Label>
-                  <Input value={clientInfoForm.company} onChange={(e) => setClientInfoForm({ ...clientInfoForm, company: e.target.value })} data-testid="input-edit-company" />
+                  <Label className="text-xs">Société</Label>
+                  <Input className="text-xs placeholder:text-xs" value={clientInfoForm.company} onChange={(e) => setClientInfoForm({ ...clientInfoForm, company: e.target.value })} data-testid="input-edit-company" />
                 </div>
               )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Email</Label>
-                  <Input type="email" value={clientInfoForm.email} onChange={(e) => setClientInfoForm({ ...clientInfoForm, email: e.target.value })} data-testid="input-edit-email" />
+                  <Label className="text-xs">Email</Label>
+                  <Input className="text-xs placeholder:text-xs" type="email" value={clientInfoForm.email} onChange={(e) => setClientInfoForm({ ...clientInfoForm, email: e.target.value })} data-testid="input-edit-email" />
                 </div>
                 <div>
-                  <Label>Téléphone</Label>
-                  <Input type="tel" value={clientInfoForm.phone} onChange={(e) => setClientInfoForm({ ...clientInfoForm, phone: e.target.value })} data-testid="input-edit-phone" />
+                  <Label className="text-xs">Téléphone</Label>
+                  <Input className="text-xs placeholder:text-xs" type="tel" value={clientInfoForm.phone} onChange={(e) => setClientInfoForm({ ...clientInfoForm, phone: e.target.value })} data-testid="input-edit-phone" />
                 </div>
               </div>
               <div>
-                <Label>Adresse</Label>
-                <Input value={clientInfoForm.address} onChange={(e) => setClientInfoForm({ ...clientInfoForm, address: e.target.value })} data-testid="input-edit-address" />
+                <Label className="text-xs">Adresse</Label>
+                <Input className="text-xs placeholder:text-xs" value={clientInfoForm.address} onChange={(e) => setClientInfoForm({ ...clientInfoForm, address: e.target.value })} data-testid="input-edit-address" />
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <Label>Code postal</Label>
-                  <Input value={clientInfoForm.postalCode} onChange={(e) => setClientInfoForm({ ...clientInfoForm, postalCode: e.target.value })} data-testid="input-edit-postalCode" />
+                  <Label className="text-xs">Code postal</Label>
+                  <Input className="text-xs placeholder:text-xs" value={clientInfoForm.postalCode} onChange={(e) => setClientInfoForm({ ...clientInfoForm, postalCode: e.target.value })} data-testid="input-edit-postalCode" />
                 </div>
                 <div className="col-span-2">
-                  <Label>Ville</Label>
-                  <Input value={clientInfoForm.city} onChange={(e) => setClientInfoForm({ ...clientInfoForm, city: e.target.value })} data-testid="input-edit-city" />
+                  <Label className="text-xs">Ville</Label>
+                  <Input className="text-xs placeholder:text-xs" value={clientInfoForm.city} onChange={(e) => setClientInfoForm({ ...clientInfoForm, city: e.target.value })} data-testid="input-edit-city" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Pays</Label>
-                  <Input value={clientInfoForm.country} onChange={(e) => setClientInfoForm({ ...clientInfoForm, country: e.target.value })} data-testid="input-edit-country" />
+                  <Label className="text-xs">Pays</Label>
+                  <Input className="text-xs placeholder:text-xs" value={clientInfoForm.country} onChange={(e) => setClientInfoForm({ ...clientInfoForm, country: e.target.value })} data-testid="input-edit-country" />
                 </div>
                 <div>
-                  <Label>Nationalité</Label>
-                  <Input value={clientInfoForm.nationality} onChange={(e) => setClientInfoForm({ ...clientInfoForm, nationality: e.target.value })} data-testid="input-edit-nationality" />
+                  <Label className="text-xs">Nationalité</Label>
+                  <Input className="text-xs placeholder:text-xs" value={clientInfoForm.nationality} onChange={(e) => setClientInfoForm({ ...clientInfoForm, nationality: e.target.value })} data-testid="input-edit-nationality" />
                 </div>
               </div>
               <div>
-                <Label>Budget (€)</Label>
-                <Input type="number" value={clientInfoForm.budget} onChange={(e) => setClientInfoForm({ ...clientInfoForm, budget: e.target.value })} data-testid="input-edit-budget" />
+                <Label className="text-xs">Budget (€)</Label>
+                <Input className="text-xs placeholder:text-xs" type="number" value={clientInfoForm.budget} onChange={(e) => setClientInfoForm({ ...clientInfoForm, budget: e.target.value })} data-testid="input-edit-budget" />
               </div>
               <div>
-                <Label>Site web</Label>
-                <Input type="url" placeholder="https://..." value={clientInfoForm.website} onChange={(e) => setClientInfoForm({ ...clientInfoForm, website: e.target.value })} data-testid="input-edit-website" />
+                <Label className="text-xs">Site web</Label>
+                <Input className="text-xs placeholder:text-xs" type="url" placeholder="https://..." value={clientInfoForm.website} onChange={(e) => setClientInfoForm({ ...clientInfoForm, website: e.target.value })} data-testid="input-edit-website" />
               </div>
               <div>
-                <Label>Source d'acquisition</Label>
+                <Label className="text-xs">Source d'acquisition</Label>
                 <Select value={clientInfoForm.source} onValueChange={(v) => setClientInfoForm({ ...clientInfoForm, source: v })}>
-                  <SelectTrigger data-testid="select-edit-source">
+                  <SelectTrigger className="text-xs" data-testid="select-edit-source">
                     <SelectValue placeholder="— Non renseigné —" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="organic">
+                    <SelectItem value="organic" className="text-xs">
                       <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />{(t.crm.sources as Record<string,string>).organic}</span>
                     </SelectItem>
-                    <SelectItem value="paid">
+                    <SelectItem value="paid" className="text-xs">
                       <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />{(t.crm.sources as Record<string,string>).paid}</span>
                     </SelectItem>
-                    <SelectItem value="referral">
+                    <SelectItem value="referral" className="text-xs">
                       <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />{(t.crm.sources as Record<string,string>).referral}</span>
                     </SelectItem>
-                    <SelectItem value="outbound">
+                    <SelectItem value="outbound" className="text-xs">
                       <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-violet-500 shrink-0" />{(t.crm.sources as Record<string,string>).outbound}</span>
                     </SelectItem>
-                    <SelectItem value="platform">
+                    <SelectItem value="platform" className="text-xs">
                       <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-cyan-500 shrink-0" />{(t.crm.sources as Record<string,string>).platform}</span>
                     </SelectItem>
-                    <SelectItem value="partner">
+                    <SelectItem value="partner" className="text-xs">
                       <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />{(t.crm.sources as Record<string,string>).partner}</span>
                     </SelectItem>
-                    <SelectItem value="event">
+                    <SelectItem value="event" className="text-xs">
                       <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-pink-500 shrink-0" />{(t.crm.sources as Record<string,string>).event}</span>
                     </SelectItem>
-                    <SelectItem value="other">
+                    <SelectItem value="other" className="text-xs">
                       <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />{(t.crm.sources as Record<string,string>).other}</span>
                     </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Notes</Label>
-                <Textarea value={clientInfoForm.notes} onChange={(e) => setClientInfoForm({ ...clientInfoForm, notes: e.target.value })} rows={3} data-testid="input-edit-notes" />
+                <Label className="text-xs">Notes</Label>
+                <Textarea className="text-xs placeholder:text-xs" value={clientInfoForm.notes} onChange={(e) => setClientInfoForm({ ...clientInfoForm, notes: e.target.value })} rows={3} data-testid="input-edit-notes" />
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <Button variant="outline" onClick={() => setIsEditClientSidebarOpen(false)} data-testid="button-cancel-edit-client">

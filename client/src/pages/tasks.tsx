@@ -1989,9 +1989,9 @@ export default function Tasks() {
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="status">{t.tasks.groupByStatus}</SelectItem>
-                  <SelectItem value="deliverable">{t.tasks.groupByDeliverable}</SelectItem>
-                  <SelectItem value="none">Aucun groupement</SelectItem>
+                  <SelectItem value="status" className="text-xs">{t.tasks.groupByStatus}</SelectItem>
+                  <SelectItem value="deliverable" className="text-xs">{t.tasks.groupByDeliverable}</SelectItem>
+                  <SelectItem value="none" className="text-xs">Aucun groupement</SelectItem>
                 </SelectContent>
               </Select>
             )}
@@ -2023,12 +2023,13 @@ export default function Tasks() {
                 </PopoverTrigger>
                 <PopoverContent className="w-[220px] p-0">
                   <Command>
-                    <CommandInput placeholder={t.common.ph.searchStatus} />
-                    <CommandEmpty>Aucun statut trouvé.</CommandEmpty>
+                    <CommandInput placeholder={t.common.ph.searchStatus} className="text-xs" />
+                    <CommandEmpty className="text-xs">Aucun statut trouvé.</CommandEmpty>
                     <CommandGroup className="max-h-[300px] overflow-y-auto">
                       <CommandItem
                         onSelect={() => toggleStatusSelection("all")}
                         data-testid="option-status-all"
+                        className="text-xs"
                       >
                         <Checkbox
                           checked={statusFilter.includes("all")}
@@ -2053,6 +2054,7 @@ export default function Tasks() {
                               key={column.id}
                               onSelect={() => toggleStatusSelection(column.id)}
                               data-testid={`option-status-${column.id}`}
+                              className="text-xs"
                             >
                               <Checkbox
                                 checked={statusFilter.includes(column.id)}
@@ -2072,6 +2074,7 @@ export default function Tasks() {
                             key={column.id}
                             onSelect={() => toggleStatusSelection(column.id)}
                             data-testid={`option-status-${column.id}`}
+                            className="text-xs"
                           >
                             <Checkbox
                               checked={statusFilter.includes(column.id)}
@@ -2212,13 +2215,13 @@ export default function Tasks() {
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Groupement</Label>
                   <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
-                    <SelectTrigger className="w-full h-9 text-sm" data-testid="select-group-by-mobile">
+                    <SelectTrigger className="w-full h-9 text-xs" data-testid="select-group-by-mobile">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="status">{t.tasks.groupByStatus}</SelectItem>
-                      <SelectItem value="deliverable">{t.tasks.groupByDeliverable}</SelectItem>
-                      <SelectItem value="none">Aucun groupement</SelectItem>
+                      <SelectItem value="status" className="text-xs">{t.tasks.groupByStatus}</SelectItem>
+                      <SelectItem value="deliverable" className="text-xs">{t.tasks.groupByDeliverable}</SelectItem>
+                      <SelectItem value="none" className="text-xs">Aucun groupement</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -2232,7 +2235,7 @@ export default function Tasks() {
                       onClick={() => toggleStatusSelection("all")}
                     >
                       <Checkbox checked={statusFilter.includes("all")} />
-                      <span className="text-sm">Tous les statuts</span>
+                      <span className="text-xs">Tous les statuts</span>
                     </div>
                     {taskColumns
                       .filter((col: TaskColumn) => selectedProjectIds.includes("all") || (col.projectId && selectedProjectIds.includes(col.projectId)))
@@ -2244,7 +2247,7 @@ export default function Tasks() {
                         >
                           <Checkbox checked={statusFilter.includes(column.id)} />
                           <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: column.color }} />
-                          <span className="text-sm">{column.name}</span>
+                          <span className="text-xs">{column.name}</span>
                         </div>
                       ))}
                   </div>
