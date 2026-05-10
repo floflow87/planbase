@@ -349,7 +349,7 @@ export default function RoadmapPage() {
     return backlogTasks.filter(task => !task.userStoryId);
   }, [backlogTasks]);
 
-  const { data: allRoadmaps = [] } = useQuery<Roadmap[]>({
+  const { data: allRoadmaps = [], isLoading: isLoadingAllRoadmaps } = useQuery<Roadmap[]>({
     queryKey: ['/api/roadmaps', 'all'],
     queryFn: async () => {
       const res = await apiRequest('/api/roadmaps', 'GET');
@@ -1111,16 +1111,17 @@ export default function RoadmapPage() {
                 </div>
                 {canCreate && (
                   <Button
+                    size="sm"
                     onClick={() => { setCreateFromHome(true); setIsCreateDialogOpen(true); }}
                     data-testid="button-create-roadmap-home-header"
-                    className="text-[13px]"
+                    className="text-[11px]"
                   >
-                    <Plus className="h-4 w-4 mr-2" />
+                    <Plus className="h-3.5 w-3.5 mr-1.5" />
                     Nouvelle roadmap
                   </Button>
                 )}
               </div>
-              {isLoadingRoadmaps ? (
+              {isLoadingAllRoadmaps ? (
                 <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 200px)" }}>
                   <Loader />
                 </div>

@@ -1,5 +1,5 @@
 // Projects page with task management
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star, Columns3, FileText, Banknote, Settings2, Copy, Palette, Activity } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -32,6 +32,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   Select,
   SelectContent,
@@ -2157,6 +2158,50 @@ export default function Projects() {
   });
   const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
 
+  // Top scrollbar synchronization for the desktop projects table
+  const desktopTableContainerRef = useRef<HTMLDivElement>(null);
+  const topScrollbarRef = useRef<HTMLDivElement>(null);
+  const [tableScrollWidth, setTableScrollWidth] = useState(0);
+
+  useEffect(() => {
+    const container = desktopTableContainerRef.current;
+    if (!container) return;
+    const tableWrapper = container.querySelector(".overflow-auto") as HTMLDivElement | null;
+    const topBar = topScrollbarRef.current;
+    if (!tableWrapper || !topBar) return;
+
+    const updateWidth = () => {
+      const inner = tableWrapper.querySelector("table") as HTMLTableElement | null;
+      setTableScrollWidth(inner?.scrollWidth || tableWrapper.scrollWidth);
+    };
+    updateWidth();
+    const ro = new ResizeObserver(updateWidth);
+    ro.observe(tableWrapper);
+    const inner = tableWrapper.querySelector("table");
+    if (inner) ro.observe(inner);
+
+    let syncing = false;
+    const onTopScroll = () => {
+      if (syncing) return;
+      syncing = true;
+      tableWrapper.scrollLeft = topBar.scrollLeft;
+      syncing = false;
+    };
+    const onTableScroll = () => {
+      if (syncing) return;
+      syncing = true;
+      topBar.scrollLeft = tableWrapper.scrollLeft;
+      syncing = false;
+    };
+    topBar.addEventListener("scroll", onTopScroll);
+    tableWrapper.addEventListener("scroll", onTableScroll);
+    return () => {
+      ro.disconnect();
+      topBar.removeEventListener("scroll", onTopScroll);
+      tableWrapper.removeEventListener("scroll", onTableScroll);
+    };
+  }, [projectViewMode]);
+
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState<"low" | "medium" | "high">("medium");
@@ -3887,8 +3932,17 @@ export default function Projects() {
                     onDragStart={handleProjectColumnDragStart}
                     onDragEnd={handleProjectColumnDragEnd}
                   >
-                    <Card className="hidden md:block">
+                    <Card className="hidden md:block" ref={desktopTableContainerRef as any}>
                       <CardContent className="p-0">
+                        {/* Top horizontal scrollbar synced with the table */}
+                        <div
+                          ref={topScrollbarRef}
+                          className="overflow-x-auto overflow-y-hidden border-b"
+                          style={{ height: 12 }}
+                          data-testid="projects-table-top-scrollbar"
+                        >
+                          <div style={{ width: tableScrollWidth || 1, height: 1 }} />
+                        </div>
                         <Table>
                         <TableHeader>
                           <SortableContext
@@ -4631,17 +4685,19 @@ export default function Projects() {
                 <Label htmlFor={`toggle-${column.id}`} className="text-sm">
                   {column.label}
                 </Label>
-                <Switch
-                  id={`toggle-${column.id}`}
-                  checked={columnVisibility[column.id] ?? true}
-                  disabled={column.disabled}
-                  onCheckedChange={(checked) => {
-                    const newVisibility = { ...columnVisibility, [column.id]: checked };
-                    setColumnVisibility(newVisibility);
-                    localStorage.setItem("projectColumnVisibility", JSON.stringify(newVisibility));
-                  }}
-                  data-testid={`toggle-column-${column.id}`}
-                />
+                <div className="scale-[0.7] origin-right -mr-2">
+                  <Switch
+                    id={`toggle-${column.id}`}
+                    checked={columnVisibility[column.id] ?? true}
+                    disabled={column.disabled}
+                    onCheckedChange={(checked) => {
+                      const newVisibility = { ...columnVisibility, [column.id]: checked };
+                      setColumnVisibility(newVisibility);
+                      localStorage.setItem("projectColumnVisibility", JSON.stringify(newVisibility));
+                    }}
+                    data-testid={`toggle-column-${column.id}`}
+                  />
+                </div>
               </div>
             ))}
           </div>
@@ -4658,92 +4714,115 @@ export default function Projects() {
           <SheetHeader className="mb-4">
             <SheetTitle>Filtres</SheetTitle>
           </SheetHeader>
-          <div className="space-y-6 pb-6">
-            {/* Stage Filters */}
-            <div>
-              <Label className="text-sm font-medium mb-2 block">Étape du projet</Label>
-              <div className="space-y-2">
-                {allStages.map((stage) => (
-                  <div 
-                    key={stage.key} 
-                    className="flex items-center gap-2 px-2 py-1.5 rounded hover-elevate cursor-pointer"
-                    onClick={() => {
-                      setProjectStageFilters(prev => 
-                        prev.includes(stage.key)
-                          ? prev.filter(s => s !== stage.key)
-                          : [...prev, stage.key]
-                      );
-                    }}
-                  >
-                    <Checkbox 
-                      checked={projectStageFilters.includes(stage.key)}
-                      data-testid={`checkbox-filter-stage-${stage.key}`}
-                    />
-                    <span className="text-xs">{stage.label}</span>
+          <div className="pb-6">
+            <Accordion type="multiple" className="w-full">
+              {/* Stage Filters */}
+              <AccordionItem value="stage">
+                <AccordionTrigger className="text-sm font-medium py-2" data-testid="accordion-filter-stage">
+                  Étape du projet
+                  {projectStageFilters.length > 0 && (
+                    <Badge variant="secondary" className="ml-auto mr-2 h-4 px-1.5 text-[9px]">{projectStageFilters.length}</Badge>
+                  )}
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2 pt-1">
+                    {allStages.map((stage) => (
+                      <div
+                        key={stage.key}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded hover-elevate cursor-pointer"
+                        onClick={() => {
+                          setProjectStageFilters(prev =>
+                            prev.includes(stage.key)
+                              ? prev.filter(s => s !== stage.key)
+                              : [...prev, stage.key]
+                          );
+                        }}
+                      >
+                        <Checkbox
+                          checked={projectStageFilters.includes(stage.key)}
+                          data-testid={`checkbox-filter-stage-${stage.key}`}
+                        />
+                        <span className="text-xs">{stage.label}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            {/* Billing Status Filters */}
-            <div>
-              <Label className="text-sm font-medium mb-2 block">Statut du projet</Label>
-              <div className="space-y-2">
-                {[
-                  { value: "brouillon", label: t.projects.billingStatus.brouillon },
-                  { value: "devis_envoye", label: t.projects.billingStatus.devis_envoye },
-                  { value: "devis_accepte", label: t.projects.billingStatus.devis_accepte },
-                  { value: "bon_commande", label: t.projects.billingStatus.bon_commande },
-                  { value: "facture", label: t.projects.billingStatus.facture },
-                  { value: "paye", label: t.projects.billingStatus.paye },
-                  { value: "partiel", label: t.projects.billingStatus.partiel },
-                  { value: "annule", label: t.projects.billingStatus.annule },
-                  { value: "retard", label: t.projects.billingStatus.retard }
-                ].map((status) => (
-                  <div 
-                    key={status.value} 
-                    className="flex items-center gap-2 px-2 py-1.5 rounded hover-elevate cursor-pointer"
-                    onClick={() => {
-                      setProjectBillingFilters(prev => 
-                        prev.includes(status.value)
-                          ? prev.filter(s => s !== status.value)
-                          : [...prev, status.value]
-                      );
-                    }}
-                  >
-                    <Checkbox 
-                      checked={projectBillingFilters.includes(status.value)}
-                      data-testid={`checkbox-filter-billing-${status.value}`}
-                    />
-                    <span className="text-xs">{status.label}</span>
+              {/* Billing Status Filters */}
+              <AccordionItem value="billing">
+                <AccordionTrigger className="text-sm font-medium py-2" data-testid="accordion-filter-billing">
+                  Statut de facturation
+                  {projectBillingFilters.length > 0 && (
+                    <Badge variant="secondary" className="ml-auto mr-2 h-4 px-1.5 text-[9px]">{projectBillingFilters.length}</Badge>
+                  )}
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2 pt-1">
+                    {[
+                      { value: "brouillon", label: t.projects.billingStatus.brouillon },
+                      { value: "devis_envoye", label: t.projects.billingStatus.devis_envoye },
+                      { value: "devis_accepte", label: t.projects.billingStatus.devis_accepte },
+                      { value: "bon_commande", label: t.projects.billingStatus.bon_commande },
+                      { value: "facture", label: t.projects.billingStatus.facture },
+                      { value: "paye", label: t.projects.billingStatus.paye },
+                      { value: "partiel", label: t.projects.billingStatus.partiel },
+                      { value: "annule", label: t.projects.billingStatus.annule },
+                      { value: "retard", label: t.projects.billingStatus.retard }
+                    ].map((status) => (
+                      <div
+                        key={status.value}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded hover-elevate cursor-pointer"
+                        onClick={() => {
+                          setProjectBillingFilters(prev =>
+                            prev.includes(status.value)
+                              ? prev.filter(s => s !== status.value)
+                              : [...prev, status.value]
+                          );
+                        }}
+                      >
+                        <Checkbox
+                          checked={projectBillingFilters.includes(status.value)}
+                          data-testid={`checkbox-filter-billing-${status.value}`}
+                        />
+                        <span className="text-xs">{status.label}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            {/* Type de projet Filter */}
-            <div>
-              <Label className="text-sm font-medium mb-2 block">Type de projet</Label>
-              <div className="space-y-2">
-                {[
-                  { value: "all", label: "Tous les types" },
-                  { value: "client", label: "Client" },
-                  { value: "internal", label: "Interne" },
-                ].map((opt) => (
-                  <div
-                    key={opt.value}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded hover-elevate cursor-pointer"
-                    onClick={() => setProjectTypeFilter(opt.value)}
-                  >
-                    <Checkbox
-                      checked={projectTypeFilter === opt.value}
-                      data-testid={`checkbox-filter-type-${opt.value}`}
-                    />
-                    <span className="text-xs">{opt.label}</span>
+              {/* Type de projet Filter */}
+              <AccordionItem value="type">
+                <AccordionTrigger className="text-sm font-medium py-2" data-testid="accordion-filter-type">
+                  Type de projet
+                  {projectTypeFilter !== "all" && (
+                    <Badge variant="secondary" className="ml-auto mr-2 h-4 px-1.5 text-[9px]">1</Badge>
+                  )}
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2 pt-1">
+                    {[
+                      { value: "all", label: "Tous les types" },
+                      { value: "client", label: "Client" },
+                      { value: "internal", label: "Interne" },
+                    ].map((opt) => (
+                      <div
+                        key={opt.value}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded hover-elevate cursor-pointer"
+                        onClick={() => setProjectTypeFilter(opt.value)}
+                      >
+                        <Checkbox
+                          checked={projectTypeFilter === opt.value}
+                          data-testid={`checkbox-filter-type-${opt.value}`}
+                        />
+                        <span className="text-xs">{opt.label}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
 
             {/* Clear Filters Button */}
             {(projectStageFilters.length > 0 || projectBillingFilters.length > 0 || projectTypeFilter !== "all") && (
