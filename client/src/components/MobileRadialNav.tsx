@@ -184,8 +184,8 @@ export function MobileRadialNav() {
         {isOpen && (
           <div className="absolute inset-0" style={{ width: 64, height: 64 }}>
             {items.map((item, idx) => {
-              // Distribute on the upper half-circle (180° from -210° to -30°)
-              const baseAngle = -180 + (idx * 180) / Math.max(count - 1, 1);
+              // Distribute around the full circle, starting from the top (-90°)
+              const baseAngle = -90 + (idx * 360) / Math.max(count, 1);
               const angleDeg = baseAngle + rotation;
               const angleRad = (angleDeg * Math.PI) / 180;
               const x = Math.cos(angleRad) * radius;
@@ -220,18 +220,18 @@ export function MobileRadialNav() {
         <button
           type="button"
           onClick={() => setIsOpen((v) => !v)}
-          className="absolute inset-0 flex items-center justify-center rounded-full bg-card border border-border shadow-lg hover-elevate active-elevate-2"
+          className="absolute inset-0 flex items-center justify-center rounded-full bg-primary border border-primary shadow-lg hover-elevate active-elevate-2"
           data-testid="button-mobile-radial-toggle"
           aria-label={isOpen ? "Fermer le menu de navigation" : "Ouvrir le menu de navigation"}
           aria-expanded={isOpen}
         >
           {isOpen ? (
-            <X className="w-6 h-6 text-foreground" />
+            <X className="w-6 h-6 text-primary-foreground" />
           ) : (
             <img
               src={planbaseLogo}
               alt="Planbase"
-              className="w-9 h-9 rounded-full object-contain dark:invert"
+              className="w-9 h-9 rounded-full object-contain brightness-0 invert"
               draggable={false}
             />
           )}
