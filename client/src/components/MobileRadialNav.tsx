@@ -92,9 +92,6 @@ export function MobileRadialNav() {
 
   const items = allItems.filter((i) => canAccess(i.url));
 
-  // Hide on auth screens / when no user
-  if (!user) return null;
-
   const radius = 110;
   const buttonSize = 48;
   const count = items.length;
@@ -151,6 +148,9 @@ export function MobileRadialNav() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen]);
+
+  // Hide on auth screens / when no user — placed after all hooks
+  if (!user) return null;
 
   return (
     <>
