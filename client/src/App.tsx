@@ -346,6 +346,12 @@ function QuickCreateMenu() {
   const [composeInitial, setComposeInitial] = useState<any>({});
   const [isMobileCreateOpen, setIsMobileCreateOpen] = useState(false);
 
+  useEffect(() => {
+    const handler = () => setIsMobileCreateOpen(true);
+    window.addEventListener("planbase:open-quick-create", handler);
+    return () => window.removeEventListener("planbase:open-quick-create", handler);
+  }, []);
+
   const { data: gmailStatus } = useQuery<{ connected: boolean; email?: string; canSend?: boolean }>({
     queryKey: ["/api/gmail/status"],
     enabled: !!user,
@@ -1772,7 +1778,7 @@ function AppLayout() {
       />
 
       {/* Mobile bottom navigation — floating pill bar */}
-      <MobileBottomNav onOpenMore={() => setIsMobileSidebarOpen(true)} />
+      <MobileBottomNav />
     </SidebarProvider>
   );
 }

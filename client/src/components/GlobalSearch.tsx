@@ -70,6 +70,12 @@ export function GlobalSearch() {
   const { user } = useAuth();
   const isAuthed = !!user;
 
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener("planbase:open-global-search", handler);
+    return () => window.removeEventListener("planbase:open-global-search", handler);
+  }, []);
+
   const { data: clients = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/clients"], enabled: isAuthed });
   const { data: projects = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/projects"], enabled: isAuthed });
   const { data: notes = [] } = useQuery<{ id: string; title: string }[]>({ queryKey: ["/api/notes"], enabled: isAuthed });
