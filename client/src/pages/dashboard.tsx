@@ -445,28 +445,40 @@ interface GoogleEvent {
 }
 
 function MiniBarChart({ heights, color }: { heights: number[]; color: string }) {
-  const maxH = 32;
-  const barW = 7;
-  const gap = 3;
-  const totalW = heights.length * (barW + gap) - gap;
+  const w = 72;
+  const h = 32;
+  const pad = 2;
+  const n = heights.length;
+  if (n < 2) return <svg width={w} height={h} />;
+  const min = Math.min(...heights);
+  const max = Math.max(...heights);
+  const range = max - min || 1;
+  const stepX = (w - pad * 2) / (n - 1);
+  const points = heights.map((v, i) => {
+    const x = pad + i * stepX;
+    const y = pad + (1 - (v - min) / range) * (h - pad * 2);
+    return [x, y] as const;
+  });
+  const path = points
+    .map((p, i) => {
+      if (i === 0) return `M ${p[0]} ${p[1]}`;
+      const prev = points[i - 1];
+      const cx = (prev[0] + p[0]) / 2;
+      return `Q ${prev[0]} ${prev[1]} ${cx} ${(prev[1] + p[1]) / 2} T ${p[0]} ${p[1]}`;
+    })
+    .join(" ");
+  const gradId = `spark-grad-${color.replace(/[^a-z0-9]/gi, "")}`;
+  const areaPath = `${path} L ${points[n - 1][0]} ${h} L ${points[0][0]} ${h} Z`;
   return (
-    <svg width={totalW} height={maxH} viewBox={`0 0 ${totalW} ${maxH}`} style={{ display: "block" }}>
-      {heights.map((h, i) => {
-        const barH = Math.max(3, (h / 100) * maxH);
-        const x = i * (barW + gap);
-        return (
-          <rect
-            key={i}
-            x={x}
-            y={maxH - barH}
-            width={barW}
-            height={barH}
-            rx={2}
-            fill={color}
-            opacity={0.4 + (i / (heights.length - 1)) * 0.6}
-          />
-        );
-      })}
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ display: "block" }}>
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+          <stop offset="100%" stopColor={color} stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#${gradId})`} />
+      <path d={path} fill="none" stroke={color} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -1701,8 +1713,19 @@ export default function Dashboard() {
     return sum + paidAmount;
   }, 0);
   
-  // Paiements en attente = CA global - montants encaissés
-  const pendingPayments = Math.max(0, globalRevenue - totalPaid);
+  // Paiements en attente = somme des règlements enregistrés non réglés
+  // sur les projets signés ET facturés (billingStatus dans facture/partiel/retard/bon_commande)
+  const billedStatuses = new Set(["facture", "partiel", "retard", "bon_commande"]);
+  const signedBilledProjectIds = new Set(
+    projectsHorsProspection
+      .filter(p => billedStatuses.has(p.billingStatus || ""))
+      .map(p => p.id)
+  );
+  const pendingPayments = payments.reduce((sum, p) => {
+    if (p.isPaid) return sum;
+    if (!signedBilledProjectIds.has(p.projectId)) return sum;
+    return sum + parseFloat(p.amount || "0");
+  }, 0);
 
   // KPI data from real data - Ordre: CA, Paiements en attente, Tâches, Projets
   const kpis: Array<{
