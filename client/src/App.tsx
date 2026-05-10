@@ -62,6 +62,7 @@ import { TrialBanner, TrialExpiredGate } from "@/components/billing/PremiumGate"
 import { AiAssistant } from "@/components/ai/AiAssistant";
 import { AppointmentPanel } from "@/components/appointment-panel";
 import { MobileSidebarSheet } from "@/components/MobileSidebarSheet";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useState, useEffect, useRef } from "react";
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
@@ -1769,6 +1770,9 @@ function AppLayout() {
         open={isMobileSidebarOpen}
         onClose={() => setIsMobileSidebarOpen(false)}
       />
+
+      {/* Mobile bottom navigation — floating pill bar */}
+      <MobileBottomNav onOpenMore={() => setIsMobileSidebarOpen(true)} />
     </SidebarProvider>
   );
 }
