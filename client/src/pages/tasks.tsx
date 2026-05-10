@@ -828,13 +828,14 @@ function SortableColumn({
           </SortableContext>
           <Button
             variant="ghost"
-            size="sm"
-            className="w-full text-xs"
+            size="icon"
+            className="w-full h-8"
             onClick={() => onAddTask(column.id)}
             data-testid={`button-add-task-${column.id}`}
+            aria-label="Ajouter une tâche"
+            title="Ajouter une tâche"
           >
-            <Plus className="h-3 w-3 mr-1" />
-            Ajouter une tâche
+            <Plus className="h-4 w-4" />
           </Button>
         </CardContent>
       </Card>
@@ -897,6 +898,7 @@ export default function Tasks() {
   });
   const [statusSelectorOpen, setStatusSelectorOpen] = useState(false);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
   const [quickAddTaskTitle, setQuickAddTaskTitle] = useState("");
   const [isQuickAddingTask, setIsQuickAddingTask] = useState(false);
 
@@ -1894,7 +1896,7 @@ export default function Tasks() {
           <ReadOnlyBanner module="tasks" />
           {/* Header with project selector and buttons */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-2 sm:gap-4 flex-1 w-full sm:w-auto">
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 w-full sm:w-auto min-w-0">
             {projects.length > 0 && (
               <Popover open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
                 <PopoverTrigger asChild>
@@ -1902,10 +1904,10 @@ export default function Tasks() {
                     variant="outline"
                     role="combobox"
                     aria-expanded={projectSelectorOpen}
-                    className="w-full sm:w-[220px] h-9 justify-between text-[12px] bg-white dark:bg-card"
+                    className={`h-9 justify-between text-[12px] bg-white dark:bg-card transition-all duration-200 ${searchFocused ? "hidden" : "flex w-full sm:w-[170px]"}`}
                     data-testid="select-project"
                   >
-                    {getSelectedProjectsText()}
+                    <span className="truncate">{getSelectedProjectsText()}</span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -1946,18 +1948,20 @@ export default function Tasks() {
                 </PopoverContent>
               </Popover>
             )}
-            <div className="relative flex-1 sm:max-w-[280px]">
+            <div className={`relative transition-all duration-200 ${searchFocused ? "flex-1 w-full sm:max-w-none" : "flex-1 sm:max-w-[200px]"}`}>
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 value={taskSearchQuery}
                 onChange={(e) => setTaskSearchQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => { if (!taskSearchQuery) setSearchFocused(false); }}
                 placeholder={t.common.ph.searchTask}
-                className="pl-8 pr-8 text-[12px] placeholder:text-[10px] bg-white dark:bg-background"
+                className="pl-8 pr-8 h-9 text-[12px] placeholder:text-[10px] bg-white dark:bg-background"
                 data-testid="input-task-search"
               />
-              {taskSearchQuery && (
+              {(taskSearchQuery || searchFocused) && (
                 <button
-                  onClick={() => setTaskSearchQuery("")}
+                  onClick={() => { setTaskSearchQuery(""); setSearchFocused(false); }}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   data-testid="button-clear-task-search"
                 >
@@ -1966,7 +1970,13 @@ export default function Tasks() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+          <div className="flex items-center justify-end gap-2 flex-wrap w-full sm:w-auto">
+            {/* Automation — placed at the left of the row, before the filter button */}
+            <AutomationButton
+              scopeType="project"
+              scopeId={singleProjectId ?? undefined}
+              scopeLabel={singleProjectId ? "Tâches" : "Tâches (global)"}
+            />
             {/* Mobile filter button - only on mobile */}
             <Button
               variant="outline"
@@ -2171,11 +2181,6 @@ export default function Tasks() {
                 </Tooltip>
               ) : null;
             })()}
-            <AutomationButton
-              scopeType="project"
-              scopeId={singleProjectId ?? undefined}
-              scopeLabel={singleProjectId ? "Tâches" : "Tâches (global)"}
-            />
             {canCreate && !selectedProjectIds.includes("all") && selectedProjectIds.length === 1 && (
               <>
                 <Tooltip>
@@ -2372,8 +2377,8 @@ export default function Tasks() {
                   <div className="flex flex-col items-center justify-center py-16 text-center">
                     <Package className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground mb-3">Aucun livrable pour ce projet.</p>
-                    <Button variant="default" size="default" className="text-xs" onClick={() => setIsNewLivrableDialogOpen(true)}>
-                      + Livrable
+                    <Button variant="default" size="icon" className="h-9 w-9" onClick={() => setIsNewLivrableDialogOpen(true)} aria-label="Nouveau livrable" title="Nouveau livrable">
+                      <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                 );
@@ -2382,8 +2387,8 @@ export default function Tasks() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">{projectScopeItems.length} livrable{projectScopeItems.length > 1 ? "s" : ""}</span>
-                    <Button variant="default" size="default" className="text-xs" onClick={() => setIsNewLivrableDialogOpen(true)}>
-                      + Livrable
+                    <Button variant="default" size="icon" className="h-9 w-9" onClick={() => setIsNewLivrableDialogOpen(true)} aria-label="Nouveau livrable" title="Nouveau livrable">
+                      <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
