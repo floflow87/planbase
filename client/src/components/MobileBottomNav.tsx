@@ -41,8 +41,6 @@ const REMAINING_MODULES: ModuleItem[] = [
   { label: "Projets",          icon: FolderKanban, href: "/projects",  color: "bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400" },
   { label: "Product",          icon: Package,      href: "/product",   color: "bg-fuchsia-100 text-fuchsia-600 dark:bg-fuchsia-900/40 dark:text-fuchsia-400" },
   { label: "Roadmap",          icon: Rocket,       href: "/roadmap",   color: "bg-rose-100 text-rose-600 dark:bg-rose-900/40 dark:text-rose-400" },
-  { label: "Whiteboards",      icon: Network,      href: "/mindmaps",  color: "bg-cyan-100 text-cyan-600 dark:bg-cyan-900/40 dark:text-cyan-400" },
-  { label: "Documents",        icon: BookOpen,     href: "/documents", color: "bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400" },
   { label: "Fichiers",         icon: FolderOpen,   href: "/files",     color: "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400" },
   { label: "Cashflow",         icon: Wallet,       href: "/cashflow",  color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400" },
   { label: "Finance",          icon: DollarSign,   href: "/finance",   color: "bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400" },

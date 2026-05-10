@@ -502,7 +502,7 @@ function CustomRevenueTooltip({ active, payload, label }: any) {
   const seuilCrossedThisMonth = hasTVA && cumulative >= seuilTVA && (cumulative - revenue) < seuilTVA;
   const alreadyOverSeuil = hasTVA && cumulative >= seuilTVA && !seuilCrossedThisMonth;
   return (
-    <div className="bg-card border border-border rounded-md shadow-md p-3 text-sm min-w-[180px] max-w-[280px]">
+    <div className="bg-card border border-border rounded-md shadow-md p-3 text-sm min-w-[160px] max-w-[min(240px,calc(100vw-2rem))] sm:max-w-[280px]">
       <div className="font-semibold text-foreground mb-2">{label}</div>
       {confirmed.length > 0 && (
         <>
@@ -2391,7 +2391,7 @@ export default function Dashboard() {
                     <YAxis tick={{ fill: "hsl(var(--muted-foreground))" }} />
                     <Tooltip
                       content={<CustomRevenueTooltip />}
-                      allowEscapeViewBox={{ x: true, y: true }}
+                      allowEscapeViewBox={{ x: false, y: true }}
                       wrapperStyle={{ zIndex: 200, pointerEvents: 'none' }}
                       cursor={{ fill: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}
                     />
