@@ -180,7 +180,7 @@ function DraggableKanbanCard({
             <div className="flex-1 min-w-0">
               <Link href={`/crm/${client.id}`}>
                 <h4 
-                  className="text-sm font-semibold text-foreground truncate hover:text-primary cursor-pointer transition-colors"
+                  className="text-xs font-semibold text-foreground truncate hover:text-primary cursor-pointer transition-colors"
                   onPointerDown={(e) => e.stopPropagation()}
                   data-testid={`link-client-${client.id}`}
                 >
