@@ -149,6 +149,29 @@ export function MobileRadialNav() {
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen]);
 
+  // Freeze background scroll while menu is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    const prevTouch = document.body.style.touchAction;
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.body.style.touchAction = prevTouch;
+    };
+  }, [isOpen]);
+
+  // Prevent native touch scroll/zoom while rotating
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevent = (e: TouchEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("touchmove", prevent, { passive: false });
+    return () => window.removeEventListener("touchmove", prevent);
+  }, [isOpen]);
+
   // Hide on auth screens / when no user — placed after all hooks
   if (!user) return null;
 
@@ -184,8 +207,8 @@ export function MobileRadialNav() {
         {isOpen && (
           <div className="absolute inset-0" style={{ width: 64, height: 64 }}>
             {items.map((item, idx) => {
-              // Distribute around the full circle, starting from the top (-90°)
-              const baseAngle = -90 + (idx * 360) / Math.max(count, 1);
+              // Distribute on the upper half-circle (180°), since the button sits at the bottom of the screen
+              const baseAngle = -180 + (idx * 180) / Math.max(count - 1, 1);
               const angleDeg = baseAngle + rotation;
               const angleRad = (angleDeg * Math.PI) / 180;
               const x = Math.cos(angleRad) * radius;
