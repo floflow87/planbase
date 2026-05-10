@@ -326,7 +326,7 @@ function DroppableKanbanColumn({
         /* Expanded: normal header */
         <div className={`flex items-center justify-between p-3 rounded-t-lg border-b ${status.headerBg} border-border/30`}>
           <div className="flex items-center gap-2">
-            <h3 className={`text-sm font-semibold ${status.textColor}`}>{getStatusLabel(status.id)}</h3>
+            <h3 className="text-[11px] font-semibold text-white">{getStatusLabel(status.id)}</h3>
             <Badge variant="secondary" className="text-xs h-5 px-1.5">{clients.length}</Badge>
           </div>
           <div className="flex items-center gap-2">
