@@ -2093,10 +2093,26 @@ export default function Projects() {
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
   
   // Column order state for project list view
-  const defaultColumnOrder = ["name", "client", "stage", "progress", "category", "startDate", "budget", "billingStatus", "actions"];
+  const defaultColumnOrder = ["name", "client", "stage", "health", "progress", "category", "startDate", "budget", "billingStatus", "actions"];
   const [projectColumnOrder, setProjectColumnOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem("projectColumnOrder");
-    return saved ? JSON.parse(saved) : defaultColumnOrder;
+    if (!saved) return defaultColumnOrder;
+    try {
+      const parsed: string[] = JSON.parse(saved);
+      // Ensure new columns appear (e.g. "health") for users with persisted order
+      const merged = [...parsed];
+      defaultColumnOrder.forEach((col, idx) => {
+        if (!merged.includes(col)) {
+          // insert before "actions" if present, else append
+          const actionsIdx = merged.indexOf("actions");
+          if (actionsIdx >= 0) merged.splice(actionsIdx, 0, col);
+          else merged.push(col);
+        }
+      });
+      return merged;
+    } catch {
+      return defaultColumnOrder;
+    }
   });
   const [activeProjectColumnId, setActiveProjectColumnId] = useState<string | null>(null);
   
@@ -2124,16 +2140,19 @@ export default function Projects() {
   // Column visibility state
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
     const saved = localStorage.getItem("projectColumnVisibility");
-    return saved ? JSON.parse(saved) : {
+    const parsed = saved ? JSON.parse(saved) : null;
+    return {
       name: true,
       client: true,
       stage: true,
+      health: true,
       progress: true,
       category: true,
       startDate: true,
       budget: true,
       billingStatus: true,
       actions: true,
+      ...(parsed || {}),
     };
   });
   const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
@@ -2185,6 +2204,21 @@ export default function Projects() {
   const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
   });
+
+  // Profitability summary used to derive per-project health (En bonne voie / À risque)
+  const { data: profitabilitySummary } = useQuery<{
+    projects: Array<{ projectId: string; metrics: { status: 'profitable' | 'at_risk' | 'deficit' } }>;
+  }>({
+    queryKey: ["/api/profitability/summary"],
+  });
+
+  const projectHealthMap = useMemo(() => {
+    const map = new Map<string, 'profitable' | 'at_risk' | 'deficit'>();
+    profitabilitySummary?.projects?.forEach((p) => {
+      map.set(p.projectId, p.metrics.status);
+    });
+    return map;
+  }, [profitabilitySummary]);
 
   const { data: users = [] } = useQuery<AppUser[]>({
     queryKey: ["/api/accounts", accountId, "users"],
@@ -3921,6 +3955,7 @@ export default function Projects() {
                                   name: "Projet",
                                   client: "Client",
                                   stage: "Étape",
+                                  health: "Santé",
                                   progress: "Progression tâches",
                                   category: "Catégorie",
                                   startDate: "Début",
@@ -3929,11 +3964,12 @@ export default function Projects() {
                                   actions: "Actions",
                                 };
                                 
-                                const isSortableColumn = !["progress", "actions"].includes(columnId);
+                                const isSortableColumn = !["progress", "actions", "health"].includes(columnId);
                                 
                                 const columnClasses: Record<string, string> = {
                                   name: "max-w-[250px]",
                                   category: "max-w-[120px]",
+                                  health: "max-w-[140px]",
                                   budget: "text-right",
                                   billingStatus: "max-w-[130px]",
                                   actions: "w-[80px] bg-card",
@@ -4047,6 +4083,28 @@ export default function Projects() {
                                   </div>
                                 </TableCell>
                               ),
+                              health: (() => {
+                                const status = projectHealthMap.get(project.id);
+                                let label = "Non renseigné";
+                                let cls = "bg-muted text-muted-foreground border-transparent";
+                                if (status === 'profitable') {
+                                  label = "En bonne voie";
+                                  cls = "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800";
+                                } else if (status === 'at_risk' || status === 'deficit') {
+                                  label = "À risque";
+                                  cls = "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800";
+                                }
+                                return (
+                                  <TableCell key="health" className="max-w-[140px]">
+                                    <span
+                                      className={`inline-flex items-center rounded-md border font-medium whitespace-nowrap text-[10px] px-1.5 py-0.5 ${cls}`}
+                                      data-testid={`badge-project-health-${project.id}`}
+                                    >
+                                      {label}
+                                    </span>
+                                  </TableCell>
+                                );
+                              })(),
                               category: (
                                 <TableCell key="category" className="max-w-[120px]">
                                   <Popover
@@ -4614,6 +4672,7 @@ export default function Projects() {
               { id: "name", label: "Projet", disabled: true },
               { id: "client", label: "Client" },
               { id: "stage", label: "Étape" },
+              { id: "health", label: "Santé" },
               { id: "progress", label: "Progression tâches" },
               { id: "category", label: "Catégorie" },
               { id: "startDate", label: "Début" },

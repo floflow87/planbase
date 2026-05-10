@@ -394,16 +394,17 @@ function SortableBlockItem({
       </div>
       <div className="flex items-center gap-2">
         {block.visible ? (
-          <Eye className="w-4 h-4 text-muted-foreground" />
+          <Eye className="w-3.5 h-3.5 text-muted-foreground" />
         ) : (
-          <EyeOff className="w-4 h-4 text-muted-foreground" />
+          <EyeOff className="w-3.5 h-3.5 text-muted-foreground" />
         )}
-        <Switch
-          checked={block.visible}
-          onCheckedChange={(checked) => onToggle(block.id, checked)}
-          data-testid={`toggle-block-${block.id}`}
-          className="h-4 w-7 [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-3 [&>span[data-state=unchecked]]:translate-x-0"
-        />
+        <div className="scale-[0.7] origin-right -mr-2">
+          <Switch
+            checked={block.visible}
+            onCheckedChange={(checked) => onToggle(block.id, checked)}
+            data-testid={`toggle-block-${block.id}`}
+          />
+        </div>
       </div>
     </div>
   );
