@@ -3968,7 +3968,7 @@ export default function Projects() {
                                 
                                 const columnClasses: Record<string, string> = {
                                   name: "max-w-[250px]",
-                                  category: "max-w-[120px]",
+                                  category: "max-w-[125px]",
                                   health: "max-w-[140px]",
                                   budget: "text-right",
                                   billingStatus: "max-w-[130px]",
@@ -4107,7 +4107,7 @@ export default function Projects() {
                                 );
                               })(),
                               category: (
-                                <TableCell key="category" className="max-w-[120px]">
+                                <TableCell key="category" className="max-w-[125px] overflow-hidden">
                                   <Popover
                                     open={categoryPopoverOpen && editingCategoryProjectId === project.id}
                                     onOpenChange={(open) => {
@@ -4127,12 +4127,12 @@ export default function Projects() {
                                         data-testid={`button-edit-category-${project.id}`}
                                       >
                                         {project.category ? (
-                                          <div className="flex items-center gap-1">
-                                            <Badge variant="outline" className="cursor-pointer text-[10px]">
-                                              {project.category}
+                                          <div className="flex items-center gap-1 max-w-[110px]">
+                                            <Badge variant="outline" className="cursor-pointer text-[10px] max-w-full truncate inline-block">
+                                              <span className="truncate block">{project.category}</span>
                                             </Badge>
                                             {isCoreCategory(project.category) && (
-                                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-700">
+                                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-700 flex-shrink-0">
                                                 Core
                                               </Badge>
                                             )}
@@ -4718,7 +4718,7 @@ export default function Projects() {
             <Accordion type="multiple" className="w-full">
               {/* Stage Filters */}
               <AccordionItem value="stage">
-                <AccordionTrigger className="text-sm font-medium py-2" data-testid="accordion-filter-stage">
+                <AccordionTrigger className="text-xs font-light py-2 text-muted-foreground" data-testid="accordion-filter-stage">
                   Étape du projet
                   {projectStageFilters.length > 0 && (
                     <Badge variant="secondary" className="ml-auto mr-2 h-4 px-1.5 text-[9px]">{projectStageFilters.length}</Badge>
@@ -4751,7 +4751,7 @@ export default function Projects() {
 
               {/* Billing Status Filters */}
               <AccordionItem value="billing">
-                <AccordionTrigger className="text-sm font-medium py-2" data-testid="accordion-filter-billing">
+                <AccordionTrigger className="text-xs font-light py-2 text-muted-foreground" data-testid="accordion-filter-billing">
                   Statut de facturation
                   {projectBillingFilters.length > 0 && (
                     <Badge variant="secondary" className="ml-auto mr-2 h-4 px-1.5 text-[9px]">{projectBillingFilters.length}</Badge>
@@ -4794,7 +4794,7 @@ export default function Projects() {
 
               {/* Type de projet Filter */}
               <AccordionItem value="type">
-                <AccordionTrigger className="text-sm font-medium py-2" data-testid="accordion-filter-type">
+                <AccordionTrigger className="text-xs font-light py-2 text-muted-foreground" data-testid="accordion-filter-type">
                   Type de projet
                   {projectTypeFilter !== "all" && (
                     <Badge variant="secondary" className="ml-auto mr-2 h-4 px-1.5 text-[9px]">1</Badge>

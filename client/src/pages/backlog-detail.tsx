@@ -3659,35 +3659,42 @@ function UserStoryRow({
   
   return (
     <Collapsible open={expanded} onOpenChange={onToggle}>
-      <div className="rounded-lg border bg-card p-3 py-4">
-        <div className="flex items-center gap-3">
+      <div className="rounded-lg border bg-card p-3 py-4 md:py-4">
+        {/* Top row: chevron + priority + title (full width on mobile) + actions on desktop */}
+        <div className="flex items-start gap-2 md:items-center md:gap-3">
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" data-testid={`button-toggle-story-${story.id}`}>
               {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </Button>
           </CollapsibleTrigger>
           {story.priority && (
-            <div 
-              className="h-3 w-3 rounded-full flex-shrink-0"
+            <div
+              className="h-3 w-3 rounded-full flex-shrink-0 mt-1.5 md:mt-0"
               style={{ backgroundColor: getPriorityColor(story.priority) }}
               title={story.priority}
             />
           )}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-medium truncate" data-testid={`text-story-title-${story.id}`}>{story.title}</span>
+            <div className="flex items-start gap-2 flex-wrap">
+              <span className="font-medium text-sm leading-snug break-words md:truncate" data-testid={`text-story-title-${story.id}`}>{story.title}</span>
               {story.complexity && (
-                <Badge variant="outline" className="text-xs">{story.complexity}</Badge>
+                <Badge variant="outline" className="text-xs hidden md:inline-flex">{story.complexity}</Badge>
               )}
             </div>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge 
-                variant="secondary" 
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <Badge
+                variant="secondary"
                 className="text-xs"
                 style={{ backgroundColor: getStateColor(story.state || "a_faire") }}
               >
                 {getStateLabel(story.state || "a_faire")}
               </Badge>
+              {story.complexity && (
+                <Badge variant="outline" className="text-[10px] md:hidden">{story.complexity}</Badge>
+              )}
+              {story.estimatePoints && (
+                <Badge variant="secondary" className="text-[10px] md:hidden">{story.estimatePoints} pts</Badge>
+              )}
               {(story.tasks?.length ?? 0) > 0 && (
                 <span className="text-xs text-muted-foreground">
                   {story.tasks?.filter(t => t.state === "termine").length ?? 0}/{story.tasks?.length ?? 0} tâches
@@ -3696,7 +3703,7 @@ function UserStoryRow({
             </div>
           </div>
           {story.estimatePoints && (
-            <Badge variant="secondary" className="text-xs flex-shrink-0">{story.estimatePoints} pts</Badge>
+            <Badge variant="secondary" className="text-xs flex-shrink-0 hidden md:inline-flex">{story.estimatePoints} pts</Badge>
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
