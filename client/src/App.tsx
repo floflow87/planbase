@@ -1169,7 +1169,7 @@ function SortableTab({ tab, isActive, showClose, onTabClick, onCloseTab, tooltip
               ? 'bg-primary/10 text-primary dark:text-white border border-primary/20'
               : 'text-muted-foreground hover:bg-muted hover:text-foreground'
             }
-            ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}
+            ${isDragging ? 'cursor-grabbing' : 'cursor-pointer active:cursor-grabbing'}
           `}
           onClick={() => onTabClick(tab)}
           data-testid={`tab-${tab.id}`}

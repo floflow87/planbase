@@ -2125,7 +2125,7 @@ export default function Notes() {
                       </ContextMenuItem>
                       <ContextMenuItem
                         className="text-[11px] py-1"
-                        onClick={() => window.dispatchEvent(new CustomEvent("planbase-open-tab", { detail: { path: `/notes/${note.id}` } }))}
+                        onClick={() => window.open(`/notes/${note.id}`, "_blank", "noopener,noreferrer")}
                         data-testid={`ctx-open-newtab-note-${note.id}`}
                       >
                         <ExternalLink className="w-3 h-3 mr-2 shrink-0" />
