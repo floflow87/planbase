@@ -74,7 +74,7 @@ export function MobileBottomNav() {
   return (
     <div
       className="md:hidden fixed left-0 right-0 z-50 flex items-center justify-center gap-2 px-3 pointer-events-none"
-      style={{ bottom: "max(8px, env(safe-area-inset-bottom, 8px))" }}
+      style={{ bottom: "4px" }}
     >
       {/* Main pill */}
       <div
