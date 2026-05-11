@@ -97,8 +97,8 @@ export function MobileBottomNav() {
     >
       {/* Main pill */}
       <div
-        className={`pointer-events-auto flex items-center gap-2 rounded-full border bg-background/95 backdrop-blur-md px-3 py-2 transition-all duration-300 ease-out ${
-          isSearchExpanded ? "opacity-0 scale-95 pointer-events-none -translate-x-2" : "opacity-100 scale-100"
+        className={`pointer-events-auto flex items-center gap-2 rounded-full border bg-background/95 backdrop-blur-md py-2 transition-all duration-300 ease-out overflow-hidden ${
+          isSearchExpanded ? "max-w-0 opacity-0 px-0 border-transparent -ml-2 pointer-events-none" : "max-w-full opacity-100 px-3"
         }`}
         style={{
           boxShadow:
@@ -149,8 +149,8 @@ export function MobileBottomNav() {
 
       {/* Separate search pill (expands right-to-left like iOS) */}
       <div
-        className={`pointer-events-auto absolute right-3 flex items-center rounded-full border bg-background/95 backdrop-blur-md transition-all duration-300 ease-out ${
-          isSearchExpanded ? "p-1.5 pl-4 left-3" : "p-2"
+        className={`pointer-events-auto flex items-center rounded-full border bg-background/95 backdrop-blur-md py-2 transition-all duration-300 ease-out ${
+          isSearchExpanded ? "flex-1 px-4 gap-2" : "px-2"
         }`}
         style={{
           boxShadow:
@@ -173,7 +173,7 @@ export function MobileBottomNav() {
               }}
               placeholder="Rechercher..."
               data-testid="input-mobile-nav-search"
-              className="flex-1 min-w-0 bg-transparent outline-none border-0 text-sm px-3 py-1 text-foreground placeholder:text-muted-foreground"
+              className="flex-1 min-w-0 bg-transparent outline-none border-0 text-sm py-1 text-foreground placeholder:text-muted-foreground"
             />
             <button
               type="button"
@@ -186,13 +186,15 @@ export function MobileBottomNav() {
             </button>
           </>
         ) : (
-          <NavButton
-            label="Rechercher"
-            icon={Search}
-            active={false}
+          <button
+            type="button"
+            aria-label="Rechercher"
             onClick={() => setIsSearchExpanded(true)}
-            testId="button-mobile-nav-search"
-          />
+            data-testid="button-mobile-nav-search"
+            className="flex h-12 w-12 items-center justify-center rounded-full text-muted-foreground hover-elevate active-elevate-2"
+          >
+            <Search className="h-5 w-5" />
+          </button>
         )}
       </div>
 
