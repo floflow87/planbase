@@ -1038,8 +1038,8 @@ export default function CRM() {
         <div className="flex items-center justify-between">
           <ReadOnlyBadge module="crm" />
         </div>
-        {/* KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="crm-kpis">
+        {/* KPIs (hidden on mobile) */}
+        <div className="hidden sm:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="crm-kpis">
           {kpis.map((kpi, index) => {
             const Icon = kpi.icon;
             return (
@@ -1100,10 +1100,11 @@ export default function CRM() {
             </Select>
           </div>
           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
-            <Button variant="outline" size="icon" onClick={() => setViewMode("table")} data-testid="button-view-table">
+            {/* View toggles, column settings, export and automation hidden on mobile */}
+            <Button variant="outline" size="icon" onClick={() => setViewMode("table")} data-testid="button-view-table" className="hidden sm:flex">
               <Table2 className={`w-4 h-4 ${viewMode === "table" ? "text-primary" : ""}`} />
             </Button>
-            <Button variant="outline" size="icon" onClick={() => setViewMode("kanban")} data-testid="button-view-kanban">
+            <Button variant="outline" size="icon" onClick={() => setViewMode("kanban")} data-testid="button-view-kanban" className="hidden sm:flex">
               <Columns3 className={`w-4 h-4 ${viewMode === "kanban" ? "text-primary" : ""}`} />
             </Button>
             {viewMode === "table" && (
@@ -1142,14 +1143,19 @@ export default function CRM() {
                 </PopoverContent>
               </Popover>
             )}
-            <Button variant="outline" size="icon" data-testid="button-export" title={t.crm.export}>
+            <Button variant="outline" size="icon" data-testid="button-export" title={t.crm.export} className="hidden sm:flex">
               <Download className="w-4 h-4" />
             </Button>
-            <AutomationButton scopeType="crm" scopeLabel="CRM" />
+            <div className="hidden sm:flex">
+              <AutomationButton scopeType="crm" scopeLabel="CRM" />
+            </div>
             <Can module="crm" action="create">
-              <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-new-client">
-                <Plus className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline text-[12px]">{t.crm.newClient}</span>
+              <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-new-client-mobile" size="icon" className="sm:hidden">
+                <Plus className="w-4 h-4" />
+              </Button>
+              <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-new-client" className="hidden sm:inline-flex">
+                <Plus className="w-4 h-4 mr-2" />
+                <span className="text-[12px]">{t.crm.newClient}</span>
               </Button>
             </Can>
           </div>
@@ -1287,8 +1293,8 @@ export default function CRM() {
               </div>
             ) : (
               <>
-                {/* Mobile micro-cards - only on mobile, always shown */}
-                <div className="grid grid-cols-2 gap-2 p-2 md:hidden">
+                {/* Mobile cards - only on mobile, one per line for readability */}
+                <div className="grid grid-cols-1 gap-2 p-2 md:hidden">
                   {filteredClients.map((client) => {
                     const clientProjects = projects.filter((p: any) => p.clientId === client.id);
                     const totalBudget = clientProjects.reduce((sum: number, p: any) => sum + parseFloat(p.totalBilled || "0"), 0);
@@ -1296,27 +1302,29 @@ export default function CRM() {
                     return (
                       <Link key={client.id} href={`/crm/${client.id}`}>
                         <Card className="hover-elevate active-elevate-2 cursor-pointer h-full" data-testid={`micro-card-${client.id}`}>
-                          <CardContent className="p-2.5 space-y-1.5">
-                            <div className="flex items-center gap-1.5">
-                              <Avatar className="w-6 h-6 shrink-0">
+                          <CardContent className="p-4 space-y-2">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="w-10 h-10 shrink-0">
                                 <AvatarImage src={(client as any).logoUrl || ""} alt={client.name} />
-                                <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
+                                <AvatarFallback className="text-xs bg-primary/10 text-primary">
                                   {((client as any).company || client.name).substring(0, 2).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
-                              <p className="text-xs font-semibold text-foreground truncate leading-tight">{client.name}</p>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-foreground truncate leading-tight">{client.name}</p>
+                                {(client as any).company && (client as any).company !== client.name && (
+                                  <p className="text-xs text-muted-foreground truncate mt-0.5">{(client as any).company}</p>
+                                )}
+                              </div>
                             </div>
-                            {(client as any).company && (client as any).company !== client.name && (
-                              <p className="text-[10px] text-muted-foreground truncate">{(client as any).company}</p>
-                            )}
-                            <div className="flex items-center justify-between gap-1 flex-wrap">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
                               {status && (
-                                <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${status.textColor} bg-current/10`} style={{ background: `${status.hex}20`, color: status.hex }}>
+                                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full`} style={{ background: `${status.hex}20`, color: status.hex }}>
                                   {(t.crm.pipeline_stages as Record<string, string>)[status.id] || status.label}
                                 </span>
                               )}
                               {totalBudget > 0 && (
-                                <span className="text-[10px] font-bold text-primary">€{totalBudget.toLocaleString()}</span>
+                                <span className="text-sm font-bold text-primary">€{totalBudget.toLocaleString()}</span>
                               )}
                             </div>
                           </CardContent>

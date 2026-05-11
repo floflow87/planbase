@@ -685,7 +685,7 @@ export function TicketDetailPanel({
     <div className="w-full md:w-[400px] border-l bg-card fixed top-0 right-0 h-[100dvh] flex flex-col z-[9999] shadow-lg" style={{ height: '100dvh' }} data-testid="ticket-detail-panel">
       <div
         className="flex items-center justify-between px-4 pb-3 border-b"
-        style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
       >
         {readOnly ? (
           <div className="flex items-center gap-2">
