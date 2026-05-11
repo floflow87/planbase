@@ -1082,6 +1082,17 @@ export default function CRM() {
             >
               <SlidersHorizontal className="h-4 w-4" />
             </Button>
+            {/* Mobile new client button — same line as search */}
+            <Can module="crm" action="create">
+              <Button
+                onClick={() => setIsCreateDialogOpen(true)}
+                data-testid="button-new-client-mobile"
+                size="icon"
+                className="sm:hidden shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </Can>
             {/* Desktop status filter */}
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="hidden sm:flex w-[180px] bg-card text-xs" data-testid="select-filter-status">
@@ -1150,9 +1161,6 @@ export default function CRM() {
               <AutomationButton scopeType="crm" scopeLabel="CRM" />
             </div>
             <Can module="crm" action="create">
-              <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-new-client-mobile" size="icon" className="sm:hidden">
-                <Plus className="w-4 h-4" />
-              </Button>
               <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-new-client" className="hidden sm:inline-flex">
                 <Plus className="w-4 h-4 mr-2" />
                 <span className="text-[12px]">{t.crm.newClient}</span>
@@ -1294,41 +1302,39 @@ export default function CRM() {
             ) : (
               <>
                 {/* Mobile cards - only on mobile, one per line for readability */}
-                <div className="grid grid-cols-1 gap-2 p-2 md:hidden">
+                <div className="grid grid-cols-1 gap-3 p-2 md:hidden">
                   {filteredClients.map((client) => {
                     const clientProjects = projects.filter((p: any) => p.clientId === client.id);
                     const totalBudget = clientProjects.reduce((sum: number, p: any) => sum + parseFloat(p.totalBilled || "0"), 0);
                     const status = KANBAN_STATUSES.find(s => s.id === client.status);
                     return (
                       <Link key={client.id} href={`/crm/${client.id}`}>
-                        <Card className="hover-elevate active-elevate-2 cursor-pointer h-full" data-testid={`micro-card-${client.id}`}>
-                          <CardContent className="p-4 space-y-2">
-                            <div className="flex items-center gap-3">
-                              <Avatar className="w-10 h-10 shrink-0">
-                                <AvatarImage src={(client as any).logoUrl || ""} alt={client.name} />
-                                <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                                  {((client as any).company || client.name).substring(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-foreground truncate leading-tight">{client.name}</p>
-                                {(client as any).company && (client as any).company !== client.name && (
-                                  <p className="text-xs text-muted-foreground truncate mt-0.5">{(client as any).company}</p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between gap-2 flex-wrap">
-                              {status && (
-                                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full`} style={{ background: `${status.hex}20`, color: status.hex }}>
-                                  {(t.crm.pipeline_stages as Record<string, string>)[status.id] || status.label}
-                                </span>
-                              )}
-                              {totalBudget > 0 && (
-                                <span className="text-sm font-bold text-primary">€{totalBudget.toLocaleString()}</span>
+                        <div className="cursor-pointer space-y-2 px-1 py-1" data-testid={`micro-card-${client.id}`}>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-10 h-10 shrink-0">
+                              <AvatarImage src={(client as any).logoUrl || ""} alt={client.name} />
+                              <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                {((client as any).company || client.name).substring(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-foreground truncate leading-tight">{client.name}</p>
+                              {(client as any).company && (client as any).company !== client.name && (
+                                <p className="text-xs text-muted-foreground truncate mt-0.5">{(client as any).company}</p>
                               )}
                             </div>
-                          </CardContent>
-                        </Card>
+                            {totalBudget > 0 && (
+                              <span className="text-sm font-bold text-primary shrink-0">€{totalBudget.toLocaleString()}</span>
+                            )}
+                          </div>
+                          {status && (
+                            <div className="pl-[3.25rem]">
+                              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: `${status.hex}20`, color: status.hex }}>
+                                {(t.crm.pipeline_stages as Record<string, string>)[status.id] || status.label}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </Link>
                     );
                   })}
@@ -1756,34 +1762,8 @@ export default function CRM() {
                     <SelectItem value="quote_sent">Devis envoyé</SelectItem>
                     <SelectItem value="quote_approved">Devis validé</SelectItem>
                     <SelectItem value="won">Gagné</SelectItem>
-                    <SelectItem value="lost">Perdu</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Affichage</Label>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant={viewMode === "table" ? "default" : "outline"}
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => { setViewMode("table"); setCrmMobileFilterOpen(false); }}
-                    data-testid="button-view-table-mobile"
-                  >
-                    <Table2 className="w-4 h-4 mr-2" />
-                    Tableau
-                  </Button>
-                  <Button
-                    variant={viewMode === "kanban" ? "default" : "outline"}
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => { setViewMode("kanban"); setCrmMobileFilterOpen(false); }}
-                    data-testid="button-view-kanban-mobile"
-                  >
-                    <Columns3 className="w-4 h-4 mr-2" />
-                    Kanban
-                  </Button>
-                </div>
               </div>
             </div>
           </SheetContent>
