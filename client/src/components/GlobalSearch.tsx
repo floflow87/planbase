@@ -71,9 +71,13 @@ export function GlobalSearch() {
   const isAuthed = !!user;
 
   useEffect(() => {
-    const handler = () => setOpen(true);
-    window.addEventListener("planbase:open-global-search", handler);
-    return () => window.removeEventListener("planbase:open-global-search", handler);
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ query?: string }>).detail;
+      if (detail?.query !== undefined) setQuery(detail.query);
+      setOpen(true);
+    };
+    window.addEventListener("planbase:open-global-search", handler as EventListener);
+    return () => window.removeEventListener("planbase:open-global-search", handler as EventListener);
   }, []);
 
   const { data: clients = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/clients"], enabled: isAuthed });

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   CheckSquare,
@@ -54,6 +54,16 @@ export function MobileBottomNav() {
   const [location, setLocation] = useLocation();
   const { user } = useAuth();
   const [isModulesOpen, setIsModulesOpen] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isSearchExpanded) {
+      const t = setTimeout(() => searchInputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [isSearchExpanded]);
 
   if (!user) return null;
   if (location === "/login" || location === "/signup") return null;
@@ -67,18 +77,29 @@ export function MobileBottomNav() {
     window.dispatchEvent(new CustomEvent("planbase:open-quick-create"));
   };
 
-  const openSearch = () => {
-    window.dispatchEvent(new CustomEvent("planbase:open-global-search"));
+  const collapseSearch = () => {
+    setIsSearchExpanded(false);
+    setSearchQuery("");
+  };
+
+  const submitSearch = () => {
+    const q = searchQuery.trim();
+    window.dispatchEvent(
+      new CustomEvent("planbase:open-global-search", { detail: { query: q } }),
+    );
+    collapseSearch();
   };
 
   return (
     <div
       className="md:hidden fixed left-0 right-0 z-50 flex items-center justify-center gap-2 px-3 pointer-events-none"
-      style={{ bottom: "4px" }}
+      style={{ bottom: "max(6px, calc(env(safe-area-inset-bottom, 0px) - 20px))" }}
     >
       {/* Main pill */}
       <div
-        className="pointer-events-auto flex items-center gap-2 rounded-full border bg-background/95 backdrop-blur-md px-3 py-2"
+        className={`pointer-events-auto flex items-center gap-2 rounded-full border bg-background/95 backdrop-blur-md px-3 py-2 transition-all duration-300 ease-out ${
+          isSearchExpanded ? "opacity-0 scale-95 pointer-events-none -translate-x-2" : "opacity-100 scale-100"
+        }`}
         style={{
           boxShadow:
             "0 8px 24px -8px rgba(0,0,0,0.18), 0 2px 6px -2px rgba(0,0,0,0.08)",
@@ -126,21 +147,53 @@ export function MobileBottomNav() {
         />
       </div>
 
-      {/* Separate search pill */}
+      {/* Separate search pill (expands right-to-left like iOS) */}
       <div
-        className="pointer-events-auto flex items-center rounded-full border bg-background/95 backdrop-blur-md p-2"
+        className={`pointer-events-auto absolute right-3 flex items-center rounded-full border bg-background/95 backdrop-blur-md transition-all duration-300 ease-out ${
+          isSearchExpanded ? "p-1.5 pl-4 left-3" : "p-2"
+        }`}
         style={{
           boxShadow:
             "0 8px 24px -8px rgba(0,0,0,0.18), 0 2px 6px -2px rgba(0,0,0,0.08)",
         }}
       >
-        <NavButton
-          label="Rechercher"
-          icon={Search}
-          active={false}
-          onClick={openSearch}
-          testId="button-mobile-nav-search"
-        />
+        {isSearchExpanded ? (
+          <>
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              inputMode="search"
+              enterKeyHint="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitSearch();
+                if (e.key === "Escape") collapseSearch();
+              }}
+              placeholder="Rechercher..."
+              data-testid="input-mobile-nav-search"
+              className="flex-1 min-w-0 bg-transparent outline-none border-0 text-sm px-3 py-1 text-foreground placeholder:text-muted-foreground"
+            />
+            <button
+              type="button"
+              onClick={collapseSearch}
+              aria-label="Fermer la recherche"
+              data-testid="button-mobile-nav-search-close"
+              className="shrink-0 text-sm font-medium text-primary px-2 py-1 rounded-full hover-elevate active-elevate-2"
+            >
+              Annuler
+            </button>
+          </>
+        ) : (
+          <NavButton
+            label="Rechercher"
+            icon={Search}
+            active={false}
+            onClick={() => setIsSearchExpanded(true)}
+            testId="button-mobile-nav-search"
+          />
+        )}
       </div>
 
       {/* Modules sheet — same visual style as the header "+" popover */}
