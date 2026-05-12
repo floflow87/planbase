@@ -2367,9 +2367,9 @@ export default function Notes() {
       <Sheet open={isColumnSettingsOpen} onOpenChange={setIsColumnSettingsOpen}>
         <SheetContent className="w-80" data-testid="sheet-column-settings">
           <SheetHeader>
-            <SheetTitle>Personnaliser les colonnes</SheetTitle>
+            <SheetTitle className="text-base">Personnaliser les colonnes</SheetTitle>
           </SheetHeader>
-          <div className="py-4 space-y-4">
+          <div className="py-4 space-y-3">
             {[
               { id: "favorite", label: "Favoris" },
               { id: "title", label: "Titre", disabled: true },
@@ -2381,7 +2381,7 @@ export default function Notes() {
               { id: "project", label: "Projet rattaché" },
             ].map((column) => (
               <div key={column.id} className="flex items-center justify-between">
-                <Label htmlFor={`toggle-note-${column.id}`} className="text-sm">
+                <Label htmlFor={`toggle-note-${column.id}`} className="text-xs">
                   {column.label}
                 </Label>
                 <Switch
