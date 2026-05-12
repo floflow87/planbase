@@ -1920,7 +1920,7 @@ export function SprintSection({
         )} 
         data-testid={`sprint-section-${sprint.id}`}
       >
-        <div className="flex items-center gap-3 px-4 py-3 bg-violet-50 dark:bg-violet-950/30 border-b">
+        <div className="flex items-center gap-3 px-4 py-1.5 bg-[#F3F3F5] dark:bg-[#292A35] border-b">
           {/* Select all checkbox for this sprint */}
           {checkedTickets && onCheckChange && tickets.length > 0 && (
             <Checkbox
@@ -1941,7 +1941,7 @@ export function SprintSection({
           
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="font-semibold cursor-default" data-testid={`sprint-name-${sprint.id}`}>
+              <span className="text-sm font-semibold cursor-default" data-testid={`sprint-name-${sprint.id}`}>
                 {sprint.name}
               </span>
             </TooltipTrigger>
@@ -2369,7 +2369,7 @@ export function BacklogPool({
         )} 
         data-testid="backlog-pool-section"
       >
-        <div className="flex items-center gap-3 px-4 py-3 bg-violet-50 dark:bg-violet-950/30 border-b">
+        <div className="flex items-center gap-3 px-4 py-1.5 bg-[#F3F3F5] dark:bg-[#292A35] border-b">
           {/* Select all checkbox for backlog pool */}
           {checkedTickets && onCheckChange && tickets.length > 0 && (
             <Checkbox

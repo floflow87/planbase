@@ -740,11 +740,17 @@ function SortableColumn({
     return (
       <div ref={setNodeRef} style={style} {...attributes}>
         <Card
-          className="flex flex-col h-full min-h-[500px] w-8 cursor-pointer items-center border-t-4"
-          style={{
-            backgroundColor: hexToRgba(column.color || getColumnDefaultColor(column.name), isDark ? 0.30 : 0.18),
-            borderTopColor: column.color || getColumnDefaultColor(column.name),
-          }}
+          className="flex flex-col h-full min-h-[500px] w-8 cursor-pointer items-center"
+          style={
+            column.color
+              ? {
+                  backgroundColor: `${column.color}12`,
+                  borderTop: `3px solid ${column.color}`,
+                }
+              : {
+                  backgroundColor: isDark ? '#23242F' : '#E3E3E8',
+                }
+          }
           data-testid={`column-hidden-${column.id}`}
           onClick={() => onToggleHidden?.(column.id)}
           title={`Afficher "${column.name}"`}
@@ -776,11 +782,17 @@ function SortableColumn({
   return (
     <div ref={setNodeRef} style={style} {...attributes} className="w-full">
       <Card
-        className={`flex flex-col h-full min-h-[500px] w-full border-t-4 ${showDropIndicator ? 'ring-2 ring-primary ring-offset-2' : ''}`}
-        style={{
-          backgroundColor: hexToRgba(column.color || getColumnDefaultColor(column.name), isDark ? 0.30 : 0.18),
-          borderTopColor: column.color || getColumnDefaultColor(column.name),
-        }}
+        className={`flex flex-col h-full min-h-[500px] w-full ${showDropIndicator ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+        style={
+          column.color
+            ? {
+                backgroundColor: `${column.color}12`,
+                borderTop: `3px solid ${column.color}`,
+              }
+            : {
+                backgroundColor: isDark ? '#23242F' : '#E3E3E8',
+              }
+        }
         data-testid={`column-${column.id}`}
       >
         <CardHeader className="px-2 py-2" {...listeners}>
