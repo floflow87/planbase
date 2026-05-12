@@ -490,6 +490,18 @@ export default function CRM() {
     localStorage.setItem('crmKanbanColumnVisibility', JSON.stringify(kanbanColumnVisibility));
   }, [kanbanColumnVisibility]);
 
+  // Extra kanban filters with localStorage persistence
+  const [hideEmptyKanbanColumns, setHideEmptyKanbanColumns] = useState<boolean>(() => {
+    return localStorage.getItem('crmHideEmptyKanbanColumns') === 'true';
+  });
+  const [budgetMin, setBudgetMin] = useState<string>(() => localStorage.getItem('crmBudgetMin') || '');
+  const [budgetMax, setBudgetMax] = useState<string>(() => localStorage.getItem('crmBudgetMax') || '');
+  const [lastActivityFilter, setLastActivityFilter] = useState<string>(() => localStorage.getItem('crmLastActivityFilter') || 'all');
+  useEffect(() => { localStorage.setItem('crmHideEmptyKanbanColumns', String(hideEmptyKanbanColumns)); }, [hideEmptyKanbanColumns]);
+  useEffect(() => { localStorage.setItem('crmBudgetMin', budgetMin); }, [budgetMin]);
+  useEffect(() => { localStorage.setItem('crmBudgetMax', budgetMax); }, [budgetMax]);
+  useEffect(() => { localStorage.setItem('crmLastActivityFilter', lastActivityFilter); }, [lastActivityFilter]);
+
   // Hidden client IDs (per-user, kanban view) with localStorage persistence
   const [hiddenClientIds, setHiddenClientIds] = useState<string[]>(() => {
     try {
@@ -851,6 +863,10 @@ export default function CRM() {
   });
 
   // Filter and search clients
+  const minB = budgetMin === '' ? null : parseFloat(budgetMin);
+  const maxB = budgetMax === '' ? null : parseFloat(budgetMax);
+  const activityCutoffDays = lastActivityFilter === 'all' ? null : parseInt(lastActivityFilter, 10);
+  const now = Date.now();
   let filteredClients = clients.filter((client) => {
     const matchesStatus = filterStatus === "all" || client.status === filterStatus;
     const searchLower = searchQuery.toLowerCase();
@@ -858,7 +874,26 @@ export default function CRM() {
       client.name.toLowerCase().includes(searchLower) ||
       (client.company && client.company.toLowerCase().includes(searchLower)) ||
       (client.email && client.email.toLowerCase().includes(searchLower));
-    return matchesStatus && matchesSearch;
+    // Budget filter (sum of project totalBilled for this client)
+    const clientBudget = projects
+      .filter((p: any) => p.clientId === client.id)
+      .reduce((sum: number, p: any) => sum + parseFloat(p.totalBilled || "0"), 0);
+    const matchesBudget =
+      (minB === null || isNaN(minB) || clientBudget >= minB) &&
+      (maxB === null || isNaN(maxB) || clientBudget <= maxB);
+    // Last activity filter (uses updatedAt, fallback createdAt)
+    let matchesActivity = true;
+    if (activityCutoffDays !== null) {
+      const tsRaw = (client as any).updatedAt || (client as any).createdAt;
+      const ts = tsRaw ? new Date(tsRaw).getTime() : 0;
+      const ageDays = (now - ts) / (1000 * 60 * 60 * 24);
+      if (lastActivityFilter === 'over60') {
+        matchesActivity = ageDays > 60;
+      } else {
+        matchesActivity = ageDays < activityCutoffDays;
+      }
+    }
+    return matchesStatus && matchesSearch && matchesBudget && matchesActivity;
   });
 
   // Handle sorting
@@ -1136,20 +1171,94 @@ export default function CRM() {
                     <Settings2 className="w-4 h-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-56 bg-card" align="end">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium mb-3">{t.crm.visibleColumns}</p>
-                    {KANBAN_STATUSES.map(status => (
-                      <div key={status.id} className="flex items-center gap-2">
-                        <Checkbox 
-                          id={`kanban-col-${status.id}`}
-                          checked={kanbanColumnVisibility[status.id] !== false}
-                          onCheckedChange={(checked) => setKanbanColumnVisibility(prev => ({...prev, [status.id]: !!checked}))}
-                          data-testid={`checkbox-kanban-column-${status.id}`}
+                <PopoverContent className="w-72 bg-card p-0" align="end">
+                  <div className="divide-y divide-border">
+                    {/* Colonnes visibles - nested popover */}
+                    <div className="p-3">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="w-full flex items-center justify-between gap-2 text-xs font-medium rounded-md px-2 py-1.5 hover-elevate active-elevate-2"
+                            data-testid="button-visible-columns-submenu"
+                          >
+                            <span>{t.crm.visibleColumns}</span>
+                            <span className="text-muted-foreground text-[11px]">
+                              {Object.values(kanbanColumnVisibility).filter(v => v !== false).length}/{KANBAN_STATUSES.length}
+                            </span>
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-56 bg-card" align="start" side="left" sideOffset={8}>
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium mb-2">{t.crm.visibleColumns}</p>
+                            {KANBAN_STATUSES.map(status => (
+                              <div key={status.id} className="flex items-center gap-2">
+                                <Checkbox
+                                  id={`kanban-col-${status.id}`}
+                                  checked={kanbanColumnVisibility[status.id] !== false}
+                                  onCheckedChange={(checked) => setKanbanColumnVisibility(prev => ({...prev, [status.id]: !!checked}))}
+                                  data-testid={`checkbox-kanban-column-${status.id}`}
+                                />
+                                <Label htmlFor={`kanban-col-${status.id}`} className="text-xs cursor-pointer">
+                                  {(t.crm.pipeline_stages as Record<string, string>)[status.id] || status.label}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    {/* Masquer si vide */}
+                    <div className="p-3 flex items-center justify-between">
+                      <Label htmlFor="hide-empty-cols" className="text-xs cursor-pointer">Masquer si vide</Label>
+                      <Switch
+                        id="hide-empty-cols"
+                        checked={hideEmptyKanbanColumns}
+                        onCheckedChange={setHideEmptyKanbanColumns}
+                        data-testid="switch-hide-empty-columns"
+                      />
+                    </div>
+                    {/* Budget range */}
+                    <div className="p-3 space-y-2">
+                      <Label className="text-xs text-muted-foreground">Budget</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          placeholder="Min"
+                          value={budgetMin}
+                          onChange={(e) => setBudgetMin(e.target.value)}
+                          className="h-8 text-xs"
+                          data-testid="input-budget-min"
                         />
-                        <Label htmlFor={`kanban-col-${status.id}`} className="text-sm cursor-pointer">{(t.crm.pipeline_stages as Record<string, string>)[status.id] || status.label}</Label>
+                        <span className="text-xs text-muted-foreground">—</span>
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          placeholder="Max"
+                          value={budgetMax}
+                          onChange={(e) => setBudgetMax(e.target.value)}
+                          className="h-8 text-xs"
+                          data-testid="input-budget-max"
+                        />
                       </div>
-                    ))}
+                    </div>
+                    {/* Dernière activité */}
+                    <div className="p-3 space-y-2">
+                      <Label className="text-xs text-muted-foreground">Dernière activité</Label>
+                      <Select value={lastActivityFilter} onValueChange={setLastActivityFilter}>
+                        <SelectTrigger className="h-8 text-xs" data-testid="select-last-activity">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-card">
+                          <SelectItem value="all" className="text-xs">Toutes</SelectItem>
+                          <SelectItem value="7" className="text-xs">Moins de 7 jours</SelectItem>
+                          <SelectItem value="30" className="text-xs">Moins de 30 jours</SelectItem>
+                          <SelectItem value="60" className="text-xs">Moins de 60 jours</SelectItem>
+                          <SelectItem value="over60" className="text-xs">Plus de 60 jours</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </PopoverContent>
               </Popover>
@@ -1553,7 +1662,7 @@ export default function CRM() {
                         </PopoverTrigger>
                         <PopoverContent className="w-56 bg-card" align="start">
                           <div className="space-y-2">
-                            <p className="text-sm font-medium mb-3">Colonnes visibles</p>
+                            <p className="text-xs font-medium mb-2">Colonnes visibles</p>
                             {KANBAN_STATUSES.map(status => (
                               <div key={status.id} className="flex items-center gap-2">
                                 <Checkbox 
@@ -1562,7 +1671,7 @@ export default function CRM() {
                                   onCheckedChange={(checked) => setKanbanColumnVisibility(prev => ({...prev, [status.id]: !!checked}))}
                                   data-testid={`checkbox-kanban-column-mobile-${status.id}`}
                                 />
-                                <Label htmlFor={`kanban-col-mobile-${status.id}`} className="text-sm cursor-pointer">{(t.crm.pipeline_stages as Record<string, string>)[status.id] || status.label}</Label>
+                                <Label htmlFor={`kanban-col-mobile-${status.id}`} className="text-xs cursor-pointer">{(t.crm.pipeline_stages as Record<string, string>)[status.id] || status.label}</Label>
                               </div>
                             ))}
                           </div>
@@ -1589,7 +1698,14 @@ export default function CRM() {
                       className="flex gap-4 pb-4 overflow-x-auto kanban-scrollbar" 
                       data-testid="kanban-board"
                     >
-                      {KANBAN_STATUSES.filter(status => kanbanColumnVisibility[status.id] !== false).map((status) => {
+                      {KANBAN_STATUSES
+                        .filter(status => kanbanColumnVisibility[status.id] !== false)
+                        .filter(status => {
+                          if (!hideEmptyKanbanColumns) return true;
+                          const cnt = filteredClients.filter(c => c.status === status.id && !hiddenClientIds.includes(c.id)).length;
+                          return cnt > 0;
+                        })
+                        .map((status) => {
                         const statusClients = filteredClients.filter(c => c.status === status.id && !hiddenClientIds.includes(c.id));
                         return (
                           <DroppableKanbanColumn
