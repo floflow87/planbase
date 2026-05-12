@@ -1034,7 +1034,7 @@ export default function CRM() {
           <Loader size="lg" />
         </div>
       ) : (
-      <div className="p-6 space-y-6">
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
         <div className="flex items-center justify-between">
           <ReadOnlyBadge module="crm" />
         </div>
@@ -1294,7 +1294,7 @@ export default function CRM() {
         </Sheet>
 
         {/* Clients Table/Cards - No card wrapper for table view */}
-        <div className="bg-card rounded-lg">
+        <div className="md:bg-card md:rounded-lg">
             {filteredClients.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 Aucun client trouvé
@@ -1302,14 +1302,14 @@ export default function CRM() {
             ) : (
               <>
                 {/* Mobile cards - only on mobile, one per line for readability */}
-                <div className="grid grid-cols-1 gap-3 p-2 md:hidden">
+                <div className="flex flex-col gap-5 py-2 md:hidden divide-y divide-border/40">
                   {filteredClients.map((client) => {
                     const clientProjects = projects.filter((p: any) => p.clientId === client.id);
                     const totalBudget = clientProjects.reduce((sum: number, p: any) => sum + parseFloat(p.totalBilled || "0"), 0);
                     const status = KANBAN_STATUSES.find(s => s.id === client.status);
                     return (
                       <Link key={client.id} href={`/crm/${client.id}`}>
-                        <div className="cursor-pointer space-y-2 px-1 py-1" data-testid={`micro-card-${client.id}`}>
+                        <div className="cursor-pointer space-y-2 pt-3 first:pt-0" data-testid={`micro-card-${client.id}`}>
                           <div className="flex items-center gap-3">
                             <Avatar className="w-10 h-10 shrink-0">
                               <AvatarImage src={(client as any).logoUrl || ""} alt={client.name} />
