@@ -2675,7 +2675,7 @@ export default function Tasks() {
                   onDragOver={handleDragOver}
                   onDragEnd={handleDragEnd}
                 >
-                  <div className="flex gap-3 pb-4 min-w-max">
+                  <div className="flex gap-3 pb-4 w-full">
                     <SortableContext
                       items={sortedColumns.map((c) => c.id)}
                       strategy={horizontalListSortingStrategy}
@@ -2687,11 +2687,11 @@ export default function Tasks() {
                         const isHidden = hiddenColumnIds.has(column.id);
                         
                         return (
-                          <div key={column.id} className="flex items-stretch">
+                          <div key={column.id} className={`flex items-stretch ${isHidden ? 'shrink-0' : 'flex-1 min-w-[250px]'}`}>
                             {showBeforeIndicator && (
                               <div className="w-1 bg-primary rounded-full mx-2 animate-pulse" />
                             )}
-                            <div className={`shrink-0 transition-all duration-200 ${isHidden ? 'w-8' : 'w-[250px]'}`}>
+                            <div className={`transition-all duration-200 ${isHidden ? 'shrink-0 w-8' : 'flex-1 min-w-0'}`}>
                               <SortableColumn
                                 column={column}
                                 tasks={columnTasks}
