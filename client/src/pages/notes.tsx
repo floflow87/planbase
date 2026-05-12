@@ -1459,10 +1459,10 @@ export default function Notes() {
                             variant="outline"
                             className={`text-[10px] ${
                               note.status === "draft"
-                                ? "bg-gray-50 text-gray-700 border-gray-200"
+                                ? "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-800"
                                 : note.status === "active"
-                                ? "bg-green-50 text-green-700 border-green-200"
-                                : "bg-orange-50 text-orange-700 border-orange-200"
+                                ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-900"
+                                : "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-900"
                             }`}
                           >
                             {note.status === "draft" ? "Brouillon" : note.status === "active" ? "Publiée" : "Archivée"}
@@ -1471,16 +1471,16 @@ export default function Notes() {
                             variant="outline"
                             className={`text-[10px] ${
                               note.visibility === "private"
-                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900"
                                 : note.visibility === "account"
-                                ? "bg-purple-50 text-purple-700 border-purple-200"
-                                : "bg-cyan-50 text-cyan-700 border-cyan-200"
+                                ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900"
+                                : "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-900"
                             }`}
                           >
                             {note.visibility === "private" ? "Privée" : note.visibility === "account" ? "Équipe" : "Client"}
                           </Badge>
                           {linkedProject && (
-                            <Badge variant="outline" className="text-[10px] bg-card text-violet-700 border-violet-200">
+                            <Badge variant="outline" className="text-[10px] bg-card text-violet-700 border-violet-200 dark:text-violet-300 dark:border-violet-900">
                               {linkedProject.name}
                             </Badge>
                           )}
@@ -1819,10 +1819,10 @@ export default function Notes() {
                             variant="outline"
                             className={`text-[10px] cursor-pointer hover-elevate ${
                               note.status === "draft"
-                                ? "bg-gray-50 text-gray-700 border-gray-200"
+                                ? "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/40 dark:text-gray-300 dark:border-gray-800"
                                 : note.status === "active"
-                                ? "bg-green-50 text-green-700 border-green-200"
-                                : "bg-orange-50 text-orange-700 border-orange-200"
+                                ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-900"
+                                : "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-900"
                             }`}
                             data-testid={`badge-status-${note.id}`}
                           >
@@ -1875,10 +1875,10 @@ export default function Notes() {
                             variant="outline"
                             className={`text-[10px] cursor-pointer hover-elevate ${
                               note.visibility === "private"
-                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900"
                                 : note.visibility === "account"
-                                ? "bg-purple-50 text-purple-700 border-purple-200"
-                                : "bg-cyan-50 text-cyan-700 border-cyan-200"
+                                ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900"
+                                : "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-900"
                             }`}
                             data-testid={`badge-visibility-${note.id}`}
                           >
