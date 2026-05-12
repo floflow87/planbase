@@ -741,7 +741,7 @@ function SortableColumn({
       <div ref={setNodeRef} style={style} {...attributes}>
         <Card
           className="flex flex-col h-full min-h-[500px] w-8 cursor-pointer items-center"
-          style={{ backgroundColor: isDark ? undefined : column.color }}
+          style={{ backgroundColor: hexToRgba(column.color || getColumnDefaultColor(column.name), isDark ? 0.18 : 0.12) }}
           data-testid={`column-hidden-${column.id}`}
           onClick={() => onToggleHidden?.(column.id)}
           title={`Afficher "${column.name}"`}
@@ -774,7 +774,7 @@ function SortableColumn({
     <div ref={setNodeRef} style={style} {...attributes} className="w-full">
       <Card
         className={`flex flex-col h-full min-h-[500px] w-full ${showDropIndicator ? 'ring-2 ring-primary ring-offset-2' : ''}`}
-        style={{ backgroundColor: isDark ? undefined : column.color }}
+        style={{ backgroundColor: hexToRgba(column.color || getColumnDefaultColor(column.name), isDark ? 0.18 : 0.12) }}
         data-testid={`column-${column.id}`}
       >
         <CardHeader className="px-2 py-2" {...listeners}>
