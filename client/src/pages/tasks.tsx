@@ -771,9 +771,9 @@ function SortableColumn({
   }
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div ref={setNodeRef} style={style} {...attributes} className="w-full">
       <Card
-        className={`flex flex-col h-full min-h-[500px] ${showDropIndicator ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+        className={`flex flex-col h-full min-h-[500px] w-full ${showDropIndicator ? 'ring-2 ring-primary ring-offset-2' : ''}`}
         style={{ backgroundColor: isDark ? undefined : column.color }}
         data-testid={`column-${column.id}`}
       >
