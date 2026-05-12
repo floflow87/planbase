@@ -1143,7 +1143,7 @@ export default function Notes() {
 
         {/* Advanced Filter Drawer */}
         <Sheet open={showFilterPanel} onOpenChange={setShowFilterPanel}>
-          <SheetContent side="right" className="w-[320px] bg-white dark:bg-gray-900" data-testid="filter-panel">
+          <SheetContent side="right" className="w-[320px] bg-white dark:bg-[#191A24]" data-testid="filter-panel">
             <SheetHeader>
               <SheetTitle className="flex items-center justify-between">
                 <span>{t.notes.advancedFilters}</span>
