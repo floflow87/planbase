@@ -13,7 +13,8 @@ import {
   CheckSquare, BarChart3, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2,
   ArrowUp, ArrowDown, ArrowUpDown, Lock, FlaskConical, MessageSquare, X,
   Wrench, Bug, Sparkles, ExternalLink, Filter, HelpCircle, XCircle, AlertTriangle,
-  FileText, Eye, Ticket, Bot, Loader2, ChevronUp, CheckCheck, ThumbsUp
+  FileText, Eye, Ticket, Bot, Loader2, ChevronUp, CheckCheck, ThumbsUp,
+  SlidersHorizontal
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -221,6 +222,22 @@ export default function BacklogDetail() {
   });
   const [epicFilter, setEpicFilter] = useState<string[]>([]);
   const [versionFilter, setVersionFilter] = useState<string>("all");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [showPriorityColumn, setShowPriorityColumn] = useState<boolean>(() => {
+    const saved = localStorage.getItem('backlog-show-priority-column');
+    return saved !== 'false';
+  });
+  const [showAssigneeColumn, setShowAssigneeColumn] = useState<boolean>(() => {
+    const saved = localStorage.getItem('backlog-show-assignee-column');
+    return saved !== 'false';
+  });
+  const [showPointsColumn, setShowPointsColumn] = useState<boolean>(() => {
+    const saved = localStorage.getItem('backlog-show-points-column');
+    return saved !== 'false';
+  });
+  useEffect(() => { localStorage.setItem('backlog-show-priority-column', showPriorityColumn.toString()); }, [showPriorityColumn]);
+  useEffect(() => { localStorage.setItem('backlog-show-assignee-column', showAssigneeColumn.toString()); }, [showAssigneeColumn]);
+  useEffect(() => { localStorage.setItem('backlog-show-points-column', showPointsColumn.toString()); }, [showPointsColumn]);
   const [epicToDelete, setEpicToDelete] = useState<Epic | null>(null);
   const [epicSearchQuery, setEpicSearchQuery] = useState("");
   const [showGenerateEpicsDialog, setShowGenerateEpicsDialog] = useState(false);
@@ -1164,6 +1181,15 @@ export default function BacklogDetail() {
         result = result.filter(t => !t.version);
       } else {
         result = result.filter(t => t.version === versionFilter);
+      }
+    }
+    
+    // Apply assignee filter
+    if (assigneeFilter !== "all") {
+      if (assigneeFilter === "none") {
+        result = result.filter(t => !t.assigneeId);
+      } else {
+        result = result.filter(t => t.assigneeId === assigneeFilter);
       }
     }
     
@@ -2323,154 +2349,166 @@ export default function BacklogDetail() {
             <AutomationButton scopeType="backlog" scopeId={backlog.id} scopeLabel={backlog.name} />
           </div>
           
-          {/* Right: Filters and Sort */}
-          <div className="flex flex-wrap items-end gap-3">
-            {/* Stats panel toggle */}
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs text-muted-foreground invisible">Stats</Label>
-              <Button
-                size="icon"
-                variant={showStatsPanel ? "secondary" : "outline"}
-                className="h-8 w-8"
-                onClick={() => { if (showStatsPanel) { closeStatsPanel(); } else { setShowStatsPanel(true); } }}
-                data-testid="button-toggle-stats"
-              >
-                <BarChart3 className="h-4 w-4" />
-              </Button>
-            </div>
-            {/* Epic column toggle - left aligned with icon and text centered */}
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs text-muted-foreground invisible">Epic</Label>
-              <div className="flex items-center gap-2 h-8">
-                <Checkbox 
-                  id="show-epic-column" 
-                  checked={showEpicColumn}
-                  onCheckedChange={(checked) => setShowEpicColumn(checked === true)}
-                  data-testid="checkbox-show-epic-column"
-                />
-                <label 
-                  htmlFor="show-epic-column" 
-                  className="text-xs text-muted-foreground cursor-pointer flex items-center gap-1"
-                >
-                  <Layers className="h-3.5 w-3.5" />
-                  Epic
-                </label>
-              </div>
-            </div>
-            
-            {/* Priority filter */}
-            <div className="flex flex-col gap-1">
-              <Label className="text-[10px] text-muted-foreground">Priorité</Label>
-              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger className="w-[130px] h-8 text-xs" data-testid="select-priority-filter">
-                  <SelectValue placeholder={t.common.ph.allF} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Toutes</SelectItem>
-                  {backlogPriorityOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {/* Epic filter (multi-select) */}
-            <div className="flex flex-col gap-1">
-              <Label className="text-[10px] text-muted-foreground">Epic</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-[150px] h-8 justify-between bg-white dark:bg-card text-gray-900 dark:text-foreground text-xs"
-                    data-testid="button-epic-filter"
-                  >
-                    <span className="flex items-center gap-1 truncate">
-                      <Layers className="h-3.5 w-3.5" />
-                      {epicFilter.length === 0 
-                        ? "Toutes" 
-                        : epicFilter.length === 1 
-                          ? backlog.epics.find(e => e.id === epicFilter[0])?.title?.substring(0, 12) || "1 sélectionné"
-                          : `${epicFilter.length} sélectionnées`}
-                    </span>
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[200px] p-2 bg-white dark:bg-card" align="start">
-                  <div className="space-y-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start text-sm"
-                      onClick={() => setEpicFilter([])}
-                    >
-                      <Check className={cn("h-4 w-4 mr-2", epicFilter.length === 0 ? "opacity-100" : "opacity-0")} />
-                      Toutes les Epics
-                    </Button>
-                    {backlog.epics.map(epic => (
-                      <Button
-                        key={epic.id}
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start text-sm"
-                        onClick={() => {
-                          setEpicFilter(prev => 
-                            prev.includes(epic.id) 
-                              ? prev.filter(id => id !== epic.id)
-                              : [...prev, epic.id]
-                          );
-                        }}
-                      >
-                        <Check className={cn("h-4 w-4 mr-2", epicFilter.includes(epic.id) ? "opacity-100" : "opacity-0")} />
-                        <span 
-                          className="w-2 h-2 rounded-full mr-2 flex-shrink-0" 
-                          style={{ backgroundColor: epic.color || "#8B5CF6" }}
-                        />
-                        <span className="truncate">{epic.title}</span>
-                      </Button>
-                    ))}
+          {/* Right: Stats + consolidated filter button */}
+          <div className="flex items-center gap-2">
+            <Button
+              size="icon"
+              variant={showStatsPanel ? "secondary" : "outline"}
+              className="h-8 w-8"
+              onClick={() => { if (showStatsPanel) { closeStatsPanel(); } else { setShowStatsPanel(true); } }}
+              data-testid="button-toggle-stats"
+              title="Statistiques"
+            >
+              <BarChart3 className="h-4 w-4" />
+            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon" className="h-8 w-8" data-testid="button-backlog-filters" title="Filtres et tri">
+                  <SlidersHorizontal className="w-4 h-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 bg-card dark:bg-[#191A24] p-0" align="end">
+                <div className="divide-y divide-border max-h-[70vh] overflow-y-auto">
+                  {/* Filtrer par priorité */}
+                  <div className="p-3 space-y-2">
+                    <Label className="text-xs text-muted-foreground">Filtrer par priorité</Label>
+                    <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                      <SelectTrigger className="h-8 text-xs" data-testid="select-priority-filter">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card">
+                        <SelectItem value="all" className="text-xs">Toutes</SelectItem>
+                        {backlogPriorityOptions.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-            
-            {/* Version filter */}
-            {uniqueVersions.length > 0 && (
-              <div className="flex flex-col gap-1">
-                <Label className="text-[10px] text-muted-foreground">Version</Label>
-                <Select value={versionFilter} onValueChange={setVersionFilter}>
-                  <SelectTrigger className="w-[150px] h-8 text-xs" data-testid="select-version-filter">
-                    <SelectValue placeholder={t.common.ph.allVersions} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Toutes les versions</SelectItem>
-                    <SelectItem value="none">Sans version</SelectItem>
-                    {uniqueVersions.map(version => (
-                      <SelectItem key={version} value={version}>{version}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            
-            {/* Sort by */}
-            <div className="flex flex-col gap-1">
-              <Label className="text-[10px] text-muted-foreground">Trier par</Label>
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-[150px] h-8 text-xs" data-testid="select-sort-by">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="state">État</SelectItem>
-                  <SelectItem value="priority_desc">Priorité décroissante</SelectItem>
-                  <SelectItem value="priority_asc">Priorité croissante</SelectItem>
-                  <SelectItem value="points_desc">Points décroissants</SelectItem>
-                  <SelectItem value="points_asc">Points croissants</SelectItem>
-                  <SelectItem value="title">Titre (A-Z)</SelectItem>
-                  <SelectItem value="epic">Epic</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                  {/* Filtrer par Epics */}
+                  {backlog.epics.length > 0 && (
+                    <div className="p-3 space-y-2">
+                      <Label className="text-xs text-muted-foreground">Filtrer par Epics</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="w-full h-8 justify-between text-xs font-normal" data-testid="button-epic-filter">
+                            <span className="flex items-center gap-1 truncate">
+                              <Layers className="h-3.5 w-3.5" />
+                              {epicFilter.length === 0
+                                ? "Toutes les Epics"
+                                : epicFilter.length === 1
+                                  ? backlog.epics.find(e => e.id === epicFilter[0])?.title || "1 sélectionnée"
+                                  : `${epicFilter.length} sélectionnées`}
+                            </span>
+                            <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[220px] p-2 bg-card" align="start" side="left" sideOffset={8}>
+                          <div className="space-y-1 max-h-64 overflow-y-auto">
+                            <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7" onClick={() => setEpicFilter([])}>
+                              <Check className={cn("h-3.5 w-3.5 mr-2", epicFilter.length === 0 ? "opacity-100" : "opacity-0")} />
+                              Toutes les Epics
+                            </Button>
+                            {backlog.epics.map(epic => (
+                              <Button
+                                key={epic.id}
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-start text-xs h-7"
+                                onClick={() => {
+                                  setEpicFilter(prev =>
+                                    prev.includes(epic.id) ? prev.filter(id => id !== epic.id) : [...prev, epic.id]
+                                  );
+                                }}
+                              >
+                                <Check className={cn("h-3.5 w-3.5 mr-2", epicFilter.includes(epic.id) ? "opacity-100" : "opacity-0")} />
+                                <span className="w-2 h-2 rounded-full mr-2 flex-shrink-0" style={{ backgroundColor: epic.color || "#8B5CF6" }} />
+                                <span className="truncate">{epic.title}</span>
+                              </Button>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  )}
+                  {/* Filtrer par version */}
+                  {uniqueVersions.length > 0 && (
+                    <div className="p-3 space-y-2">
+                      <Label className="text-xs text-muted-foreground">Filtrer par version</Label>
+                      <Select value={versionFilter} onValueChange={setVersionFilter}>
+                        <SelectTrigger className="h-8 text-xs" data-testid="select-version-filter">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-card">
+                          <SelectItem value="all" className="text-xs">Toutes les versions</SelectItem>
+                          <SelectItem value="none" className="text-xs">Sans version</SelectItem>
+                          {uniqueVersions.map(version => (
+                            <SelectItem key={version} value={version} className="text-xs">{version}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {/* Filtrer par assigné */}
+                  <div className="p-3 space-y-2">
+                    <Label className="text-xs text-muted-foreground">Filtrer par assigné</Label>
+                    <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+                      <SelectTrigger className="h-8 text-xs" data-testid="select-assignee-filter">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card">
+                        <SelectItem value="all" className="text-xs">Tous</SelectItem>
+                        <SelectItem value="none" className="text-xs">Non assigné</SelectItem>
+                        {users?.map(u => (
+                          <SelectItem key={u.id} value={u.id} className="text-xs">
+                            {u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Trier par */}
+                  <div className="p-3 space-y-2">
+                    <Label className="text-xs text-muted-foreground">Trier par</Label>
+                    <Select value={sortBy} onValueChange={setSortBy}>
+                      <SelectTrigger className="h-8 text-xs" data-testid="select-sort-by">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card">
+                        <SelectItem value="state" className="text-xs">État</SelectItem>
+                        <SelectItem value="priority_desc" className="text-xs">Priorité décroissante</SelectItem>
+                        <SelectItem value="priority_asc" className="text-xs">Priorité croissante</SelectItem>
+                        <SelectItem value="points_desc" className="text-xs">Points décroissants</SelectItem>
+                        <SelectItem value="points_asc" className="text-xs">Points croissants</SelectItem>
+                        <SelectItem value="title" className="text-xs">Titre (A-Z)</SelectItem>
+                        <SelectItem value="epic" className="text-xs">Epic</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Afficher / masquer les colonnes */}
+                  <div className="p-3 space-y-2">
+                    <Label className="text-xs text-muted-foreground">Colonnes visibles</Label>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Checkbox id="show-epic-col" checked={showEpicColumn} onCheckedChange={(c) => setShowEpicColumn(c === true)} data-testid="checkbox-show-epic-column" />
+                        <label htmlFor="show-epic-col" className="text-xs cursor-pointer">Epic</label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox id="show-priority-col" checked={showPriorityColumn} onCheckedChange={(c) => setShowPriorityColumn(c === true)} data-testid="checkbox-show-priority-column" />
+                        <label htmlFor="show-priority-col" className="text-xs cursor-pointer">Priorité</label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox id="show-assignee-col" checked={showAssigneeColumn} onCheckedChange={(c) => setShowAssigneeColumn(c === true)} data-testid="checkbox-show-assignee-column" />
+                        <label htmlFor="show-assignee-col" className="text-xs cursor-pointer">Assigné</label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox id="show-points-col" checked={showPointsColumn} onCheckedChange={(c) => setShowPointsColumn(c === true)} data-testid="checkbox-show-points-column" />
+                        <label htmlFor="show-points-col" className="text-xs cursor-pointer">Estimate points</label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 
@@ -2564,6 +2602,9 @@ export default function BacklogDetail() {
                       sprints={backlog.sprints}
                       epics={backlog.epics}
                       showEpicColumn={showEpicColumn}
+                      showPriorityColumn={showPriorityColumn}
+                      showAssigneeColumn={showAssigneeColumn}
+                      showPointsColumn={showPointsColumn}
                       roadmapItems={roadmapItemsData}
                       isExpanded={isSprintExpanded(sprint.id)}
                       onToggle={() => toggleSprint(sprint.id)}
@@ -2610,6 +2651,9 @@ export default function BacklogDetail() {
                   sprints={backlog.sprints}
                   epics={backlog.epics}
                   showEpicColumn={showEpicColumn}
+                  showPriorityColumn={showPriorityColumn}
+                  showAssigneeColumn={showAssigneeColumn}
+                  showPointsColumn={showPointsColumn}
                   isExpanded={backlogPoolExpanded}
                   onToggle={toggleBacklogPool}
                   onSelectTicket={handleSelectTicket}

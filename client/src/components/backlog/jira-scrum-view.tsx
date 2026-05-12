@@ -361,6 +361,9 @@ interface TicketRowProps {
   sprints?: Sprint[];
   epics?: Epic[];
   showEpicColumn?: boolean;
+  showPriorityColumn?: boolean;
+  showAssigneeColumn?: boolean;
+  showPointsColumn?: boolean;
   onSelect: (ticket: FlatTicket) => void;
   onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
   onUpdateField?: (ticketId: string, type: TicketType, field: string, value: any) => void;
@@ -375,7 +378,7 @@ interface TicketRowProps {
   ticketGlobalIndex?: number;
 }
 
-export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSelect, onUpdateState, onUpdateField, onConvertType, onTicketAction, isSelected, isDraggable = true, isChecked = false, onCheckChange, showCheckbox = false, backlogPrefix, ticketGlobalIndex }: TicketRowProps) {
+export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, showPriorityColumn = true, showAssigneeColumn = true, showPointsColumn = true, onSelect, onUpdateState, onUpdateField, onConvertType, onTicketAction, isSelected, isDraggable = true, isChecked = false, onCheckChange, showCheckbox = false, backlogPrefix, ticketGlobalIndex }: TicketRowProps) {
   const typeColor = ticketTypeColor(ticket.type, ticket.color);
   const pastelColors = ticketTypePastelColors(ticket.type, ticket.color);
   const assignee = users?.find(u => u.id === ticket.assigneeId);
@@ -618,7 +621,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
         </div>
       )}
       {/* Inline Points Editor with Tooltip */}
-      {onUpdateField ? (
+      {showPointsColumn && (onUpdateField ? (
         <Popover open={pointsPopoverOpen} onOpenChange={setPointsPopoverOpen}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -663,10 +666,10 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
         <Badge variant="outline" className="text-xs px-1.5" data-testid={`ticket-points-${ticket.id}`}>
           {ticket.estimatePoints || "-"}
         </Badge>
-      )}
+      ))}
       
       {/* Inline Priority Editor with Tooltip */}
-      {onUpdateField ? (
+      {showPriorityColumn && (onUpdateField ? (
         <Popover open={priorityPopoverOpen} onOpenChange={setPriorityPopoverOpen}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -709,10 +712,10 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
         </Popover>
       ) : (
         getPriorityIcon(ticket.priority)
-      )}
+      ))}
       
       {/* Inline Assignee Editor with Tooltip */}
-      {onUpdateField && !isCompleted ? (
+      {showAssigneeColumn && (onUpdateField && !isCompleted ? (
         <Popover open={assigneePopoverOpen} onOpenChange={setAssigneePopoverOpen}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -796,7 +799,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
             <User className="h-3 w-3 text-muted-foreground/50" />
           </div>
         )
-      )}
+      ))}
       
       {/* Inline Epic Editor */}
       {showEpicColumn && ticket.type !== "epic" && onUpdateField ? (
@@ -864,10 +867,10 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                   }}
                 >
                   <div 
-                    className="h-3 w-3 rounded-full flex-shrink-0" 
+                    className="h-2 w-2 rounded-full flex-shrink-0" 
                     style={{ backgroundColor: epic.color || "#8B5CF6" }}
                   />
-                  <span className="truncate">{epic.title}</span>
+                  <span className="truncate text-[10px]">{epic.title}</span>
                 </Button>
               ))}
             </div>
@@ -1710,6 +1713,9 @@ interface SprintSectionProps {
   epics?: Epic[];
   roadmapItems?: RoadmapItem[];
   showEpicColumn?: boolean;
+  showPriorityColumn?: boolean;
+  showAssigneeColumn?: boolean;
+  showPointsColumn?: boolean;
   isExpanded: boolean;
   onToggle: () => void;
   onSelectTicket: (ticket: FlatTicket) => void;
@@ -1743,6 +1749,9 @@ export function SprintSection({
   epics,
   roadmapItems,
   showEpicColumn,
+  showPriorityColumn,
+  showAssigneeColumn,
+  showPointsColumn,
   isExpanded, 
   onToggle, 
   onSelectTicket, 
@@ -1920,7 +1929,7 @@ export function SprintSection({
         )} 
         data-testid={`sprint-section-${sprint.id}`}
       >
-        <div className="flex items-center gap-3 px-4 py-1.5 bg-[#F3F3F5] dark:bg-[#292A35] border-b">
+        <div className="flex items-center gap-3 px-4 py-1.5 bg-[#ECECF0] dark:bg-[#1A1B22] border-b">
           {/* Select all checkbox for this sprint */}
           {checkedTickets && onCheckChange && tickets.length > 0 && (
             <Checkbox
@@ -1941,7 +1950,7 @@ export function SprintSection({
           
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="text-sm font-semibold cursor-default" data-testid={`sprint-name-${sprint.id}`}>
+              <span className="text-xs font-semibold cursor-default" data-testid={`sprint-name-${sprint.id}`}>
                 {sprint.name}
               </span>
             </TooltipTrigger>
@@ -1952,7 +1961,7 @@ export function SprintSection({
             )}
           </Tooltip>
           
-          <Badge variant="outline" className={cn("text-xs", statusColor)}>
+          <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", statusColor)}>
             {statusLabel}
           </Badge>
           
@@ -2161,6 +2170,9 @@ export function SprintSection({
                 sprints={sprints}
                 epics={epics}
                 showEpicColumn={showEpicColumn}
+                showPriorityColumn={showPriorityColumn}
+                showAssigneeColumn={showAssigneeColumn}
+                showPointsColumn={showPointsColumn}
                 onSelect={onSelectTicket}
                 onUpdateState={onUpdateState}
                 onUpdateField={onUpdateField}
@@ -2280,6 +2292,9 @@ interface BacklogPoolProps {
   sprints?: Sprint[];
   epics?: Epic[];
   showEpicColumn?: boolean;
+  showPriorityColumn?: boolean;
+  showAssigneeColumn?: boolean;
+  showPointsColumn?: boolean;
   isExpanded: boolean;
   onToggle: () => void;
   onSelectTicket: (ticket: FlatTicket) => void;
@@ -2303,6 +2318,9 @@ export function BacklogPool({
   sprints,
   epics,
   showEpicColumn,
+  showPriorityColumn,
+  showAssigneeColumn,
+  showPointsColumn,
   isExpanded, 
   onToggle, 
   onSelectTicket, 
@@ -2369,7 +2387,7 @@ export function BacklogPool({
         )} 
         data-testid="backlog-pool-section"
       >
-        <div className="flex items-center gap-3 px-4 py-1.5 bg-[#F3F3F5] dark:bg-[#292A35] border-b">
+        <div className="flex items-center gap-3 px-4 py-1.5 bg-[#ECECF0] dark:bg-[#1A1B22] border-b">
           {/* Select all checkbox for backlog pool */}
           {checkedTickets && onCheckChange && tickets.length > 0 && (
             <Checkbox
@@ -2443,6 +2461,9 @@ export function BacklogPool({
                     sprints={sprints}
                     epics={epics}
                     showEpicColumn={showEpicColumn}
+                    showPriorityColumn={showPriorityColumn}
+                    showAssigneeColumn={showAssigneeColumn}
+                    showPointsColumn={showPointsColumn}
                     onSelect={onSelectTicket}
                     onUpdateState={onUpdateState}
                     onUpdateField={onUpdateField}
