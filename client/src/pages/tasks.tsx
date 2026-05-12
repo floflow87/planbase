@@ -740,8 +740,11 @@ function SortableColumn({
     return (
       <div ref={setNodeRef} style={style} {...attributes}>
         <Card
-          className="flex flex-col h-full min-h-[500px] w-8 cursor-pointer items-center"
-          style={{ backgroundColor: hexToRgba(column.color || getColumnDefaultColor(column.name), isDark ? 0.18 : 0.12) }}
+          className="flex flex-col h-full min-h-[500px] w-8 cursor-pointer items-center border-t-4"
+          style={{
+            backgroundColor: hexToRgba(column.color || getColumnDefaultColor(column.name), isDark ? 0.30 : 0.18),
+            borderTopColor: column.color || getColumnDefaultColor(column.name),
+          }}
           data-testid={`column-hidden-${column.id}`}
           onClick={() => onToggleHidden?.(column.id)}
           title={`Afficher "${column.name}"`}
@@ -773,8 +776,11 @@ function SortableColumn({
   return (
     <div ref={setNodeRef} style={style} {...attributes} className="w-full">
       <Card
-        className={`flex flex-col h-full min-h-[500px] w-full ${showDropIndicator ? 'ring-2 ring-primary ring-offset-2' : ''}`}
-        style={{ backgroundColor: hexToRgba(column.color || getColumnDefaultColor(column.name), isDark ? 0.18 : 0.12) }}
+        className={`flex flex-col h-full min-h-[500px] w-full border-t-4 ${showDropIndicator ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+        style={{
+          backgroundColor: hexToRgba(column.color || getColumnDefaultColor(column.name), isDark ? 0.30 : 0.18),
+          borderTopColor: column.color || getColumnDefaultColor(column.name),
+        }}
         data-testid={`column-${column.id}`}
       >
         <CardHeader className="px-2 py-2" {...listeners}>
@@ -3182,12 +3188,16 @@ export default function Tasks() {
             <DialogFooter>
               <Button
                 variant="outline"
+                size="sm"
+                className="text-xs"
                 onClick={() => setIsColorColumnDialogOpen(false)}
                 data-testid="button-cancel-color"
               >
                 Annuler
               </Button>
               <Button
+                size="sm"
+                className="text-xs"
                 onClick={handleSaveColor}
                 disabled={updateColumnMutation.isPending}
                 data-testid="button-submit-color"

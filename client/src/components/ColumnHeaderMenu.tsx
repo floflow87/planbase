@@ -40,6 +40,7 @@ export function ColumnHeaderMenu({
         <DropdownMenuItem
           onClick={() => onRename(column)}
           disabled={isLocked}
+          className="text-xs"
           data-testid="menu-item-rename"
         >
           <Edit3 className="mr-2 h-4 w-4" />
@@ -49,6 +50,7 @@ export function ColumnHeaderMenu({
         <DropdownMenuItem
           onClick={() => onChangeColor(column)}
           disabled={isLocked}
+          className="text-xs"
           data-testid="menu-item-change-color"
         >
           <Palette className="mr-2 h-4 w-4" />
@@ -60,7 +62,7 @@ export function ColumnHeaderMenu({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => onDelete(column)}
-              className="text-destructive"
+              className="text-destructive text-xs"
               data-testid="menu-item-delete"
             >
               <Trash2 className="mr-2 h-4 w-4" />
