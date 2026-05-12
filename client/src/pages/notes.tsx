@@ -1201,7 +1201,7 @@ export default function Notes() {
                     <Button
                       variant="outline"
                       role="combobox"
-                      className="w-full justify-between bg-white dark:bg-gray-900 font-normal"
+                      className="w-full justify-between bg-white dark:bg-gray-900 font-normal text-xs"
                       data-testid="select-filter-project"
                     >
                       <span className="truncate">
