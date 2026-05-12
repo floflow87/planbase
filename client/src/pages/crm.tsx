@@ -1302,14 +1302,14 @@ export default function CRM() {
             ) : (
               <>
                 {/* Mobile cards - only on mobile, one per line for readability */}
-                <div className="flex flex-col gap-5 py-2 md:hidden divide-y divide-border/40">
+                <div className="flex flex-col gap-3 py-2 md:hidden">
                   {filteredClients.map((client) => {
                     const clientProjects = projects.filter((p: any) => p.clientId === client.id);
                     const totalBudget = clientProjects.reduce((sum: number, p: any) => sum + parseFloat(p.totalBilled || "0"), 0);
                     const status = KANBAN_STATUSES.find(s => s.id === client.status);
                     return (
                       <Link key={client.id} href={`/crm/${client.id}`}>
-                        <div className="cursor-pointer space-y-2 pt-3 first:pt-0" data-testid={`micro-card-${client.id}`}>
+                        <div className="cursor-pointer space-y-2 rounded-lg border bg-card p-3 hover-elevate active-elevate-2" data-testid={`micro-card-${client.id}`}>
                           <div className="flex items-center gap-3">
                             <Avatar className="w-10 h-10 shrink-0">
                               <AvatarImage src={(client as any).logoUrl || ""} alt={client.name} />
