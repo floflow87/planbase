@@ -2020,6 +2020,7 @@ export default function Notes() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" >
                           <DropdownMenuItem
+                            className="text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
                               updateNoteMutation.mutate({ noteId: note.id, data: { status: "active" } });
@@ -2031,6 +2032,7 @@ export default function Notes() {
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
+                            className="text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDuplicateNote(note.id);
@@ -2048,7 +2050,7 @@ export default function Notes() {
                                   e.stopPropagation();
                                   handleDeleteNote(note.id);
                                 }}
-                                className="text-destructive"
+                                className="text-destructive text-xs"
                                 data-testid={`dropdown-delete-note-${note.id}`}
                               >
                                 <Trash2 className="w-4 h-4 mr-2" />
