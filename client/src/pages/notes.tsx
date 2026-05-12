@@ -1831,6 +1831,7 @@ export default function Notes() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent >
                           <DropdownMenuItem
+                            className="text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
                               updateNoteMutation.mutate({ 
@@ -1842,6 +1843,7 @@ export default function Notes() {
                             Brouillon
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            className="text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
                               updateNoteMutation.mutate({ 
@@ -1853,6 +1855,7 @@ export default function Notes() {
                             Publiée
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            className="text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
                               updateNoteMutation.mutate({ 
@@ -1887,6 +1890,7 @@ export default function Notes() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent >
                           <DropdownMenuItem
+                            className="text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
                               updateNoteMutation.mutate({ 
@@ -1898,6 +1902,7 @@ export default function Notes() {
                             Privée
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            className="text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
                               updateNoteMutation.mutate({ 
@@ -1909,6 +1914,7 @@ export default function Notes() {
                             Équipe
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            className="text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
                               updateNoteMutation.mutate({ 
