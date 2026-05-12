@@ -592,7 +592,7 @@ function SortableTaskCard({
           )}
           <div className="flex items-center justify-between gap-2 ml-6">
             <div className="flex items-center gap-2 flex-1 flex-wrap">
-              <Badge className={`text-[10px] ${getPriorityColor(task.priority)}`}>
+              <Badge className={`text-[9px] px-1.5 py-0 leading-tight ${getPriorityColor(task.priority)}`}>
                 {getPriorityLabel(task.priority)}
               </Badge>
               {task.effort != null && task.effort > 0 && (
