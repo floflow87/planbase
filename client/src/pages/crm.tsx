@@ -1171,7 +1171,7 @@ export default function CRM() {
                     <Settings2 className="w-4 h-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-72 bg-card p-0" align="end">
+                <PopoverContent className="w-72 bg-card dark:bg-[#191A24] p-0" align="end">
                   <div className="divide-y divide-border">
                     {/* Colonnes visibles - nested popover */}
                     <div className="p-3">
