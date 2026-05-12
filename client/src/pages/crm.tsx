@@ -1825,9 +1825,9 @@ export default function CRM() {
         <Sheet open={isColumnSettingsOpen} onOpenChange={setIsColumnSettingsOpen}>
           <SheetContent className="w-80" data-testid="sheet-column-settings">
             <SheetHeader>
-              <SheetTitle>{t.crm.customizeColumns}</SheetTitle>
+              <SheetTitle className="text-base">{t.crm.customizeColumns}</SheetTitle>
             </SheetHeader>
-            <div className="py-4 space-y-4">
+            <div className="py-4 space-y-3">
               {[
                 { id: "client", label: "Client", disabled: true },
                 { id: "contacts", label: "Contacts" },
@@ -1837,7 +1837,7 @@ export default function CRM() {
                 { id: "creation", label: "Date de création" },
               ].map((column) => (
                 <div key={column.id} className="flex items-center justify-between">
-                  <Label htmlFor={`toggle-crm-${column.id}`} className="text-sm">
+                  <Label htmlFor={`toggle-crm-${column.id}`} className="text-xs">
                     {column.label}
                   </Label>
                   <Switch
