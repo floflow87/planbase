@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Settings, Network, HelpCircle, ChevronsLeft, ChevronsRight, Wallet, Zap, Bot, Sparkles, ChevronDown } from "lucide-react";
+import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Settings, Network, HelpCircle, ChevronsLeft, ChevronsRight, Wallet, Zap, Bot } from "lucide-react";
+import { APP_VERSION, APP_DEPLOYED_AT } from "@/lib/version";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -272,29 +273,6 @@ export function AppSidebar() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <SidebarMenuButton
-                    className="justify-center"
-                    data-testid="button-nouveautes"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                  </SidebarMenuButton>
-                </TooltipTrigger>
-                <TooltipContent side="right">Nouveautés</TooltipContent>
-              </Tooltip>
-            ) : (
-              <SidebarMenuButton data-testid="button-nouveautes">
-                <Sparkles className="w-4 h-4" />
-                <span className="flex-1">Nouveautés</span>
-                <Badge className="bg-cyan-400 hover:bg-cyan-400 text-slate-900 border-0 text-[10px] px-1.5 py-0 font-semibold">
-                  NEW
-                </Badge>
-              </SidebarMenuButton>
-            )}
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            {isCollapsed ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <SidebarMenuButton
                     onClick={handleHelpClick}
                     className="justify-center"
                     data-testid="button-aide-support"
@@ -367,7 +345,7 @@ export function AppSidebar() {
               </TooltipContent>
             </Tooltip>
           ) : (
-            <div className="flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/40 px-2 py-1.5 hover-elevate cursor-pointer" data-testid="button-user-profile">
+            <div className="flex items-center gap-2 rounded-md border border-violet-300 dark:border-violet-700/60 bg-violet-100 dark:bg-violet-900/30 px-2 py-1.5 hover-elevate cursor-pointer" data-testid="button-user-profile">
               <Avatar className="w-7 h-7">
                 <AvatarImage src={userProfile?.avatarUrl || defaultAvatar} />
                 <AvatarFallback className="bg-violet-600 text-white text-[10px] font-medium">
@@ -376,26 +354,26 @@ export function AppSidebar() {
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-sidebar-foreground truncate">
+                <p className="text-xs font-medium text-violet-900 dark:text-violet-100 truncate">
                   {userProfile?.firstName && userProfile?.lastName 
                     ? `${userProfile.firstName} ${userProfile.lastName}`
                     : user?.email || 'Utilisateur'}
                 </p>
-                <p className="text-[10px] text-muted-foreground truncate">
+                <p className="text-[10px] text-violet-700/80 dark:text-violet-300/80 truncate">
                   {role === 'admin' ? 'Admin' : 
                    role === 'member' ? 'Membre' : 
                    role === 'guest' ? 'Invité' : 
                    userProfile?.position || 'Membre'}
                 </p>
               </div>
-              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" data-testid="icon-settings" />
+              <Settings className="w-3.5 h-3.5 text-violet-700 dark:text-violet-300 flex-shrink-0" data-testid="icon-settings" />
             </div>
           )}
         </Link>
         {!isCollapsed && (
           <div className="flex flex-col items-center pt-2 pb-1 text-center">
-            <p className="text-[10px] text-muted-foreground leading-tight">Version 1.10.0</p>
-            <p className="text-[10px] text-muted-foreground leading-tight">22/04/2026</p>
+            <p className="text-[10px] text-muted-foreground leading-tight">Version {APP_VERSION}</p>
+            <p className="text-[9px] text-muted-foreground/70 leading-tight">{APP_DEPLOYED_AT}</p>
           </div>
         )}
       </SidebarFooter>
