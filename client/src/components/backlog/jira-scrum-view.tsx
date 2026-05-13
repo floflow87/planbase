@@ -628,7 +628,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, showP
               <PopoverTrigger asChild>
                 <Badge 
                   variant="outline" 
-                  className="text-xs px-1.5 cursor-pointer hover:bg-muted"
+                  className="text-[10px] px-1.5 py-0 cursor-pointer hover:bg-muted"
                   onClick={(e) => e.stopPropagation()}
                   onPointerDown={(e) => e.stopPropagation()}
                   data-testid={`ticket-points-${ticket.id}`}
@@ -663,7 +663,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, showP
           </PopoverContent>
         </Popover>
       ) : (
-        <Badge variant="outline" className="text-xs px-1.5" data-testid={`ticket-points-${ticket.id}`}>
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0" data-testid={`ticket-points-${ticket.id}`}>
           {ticket.estimatePoints || "-"}
         </Badge>
       ))}
