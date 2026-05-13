@@ -2063,10 +2063,10 @@ export function SprintSection({
             <Button 
               size="sm" 
               onClick={() => onStartSprint(sprint.id)}
-              className="bg-violet-600 hover:bg-violet-700 text-white"
+              className="bg-violet-600 hover:bg-violet-700 text-white text-[11px] h-7 px-2"
               data-testid={`button-start-sprint-${sprint.id}`}
             >
-              <Play className="h-3.5 w-3.5 mr-1" />
+              <Play className="h-3 w-3 mr-1" />
               Démarrer
             </Button>
           )}
@@ -2075,10 +2075,10 @@ export function SprintSection({
             <Button 
               size="sm" 
               onClick={() => onCompleteSprint(sprint.id)}
-              className="bg-violet-600 hover:bg-violet-700 text-white"
+              className="bg-violet-600 hover:bg-violet-700 text-white text-[11px] h-7 px-2"
               data-testid={`button-complete-sprint-${sprint.id}`}
             >
-              <Check className="h-3.5 w-3.5 mr-1" />
+              <Check className="h-3 w-3 mr-1" />
               Terminer le sprint
             </Button>
           )}
@@ -2096,13 +2096,13 @@ export function SprintSection({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-white dark:bg-card">
-              <DropdownMenuItem onClick={() => setIsCreating(true)} className="text-foreground">
-                <Plus className="h-4 w-4 mr-2" />
+              <DropdownMenuItem onClick={() => setIsCreating(true)} className="text-foreground text-xs">
+                <Plus className="h-3.5 w-3.5 mr-2" />
                 Créer un ticket
               </DropdownMenuItem>
               {onEditSprint && (
-                <DropdownMenuItem onClick={() => onEditSprint(sprint)} className="text-foreground" data-testid={`button-edit-sprint-${sprint.id}`}>
-                  <Pencil className="h-4 w-4 mr-2" />
+                <DropdownMenuItem onClick={() => onEditSprint(sprint)} className="text-foreground text-xs" data-testid={`button-edit-sprint-${sprint.id}`}>
+                  <Pencil className="h-3.5 w-3.5 mr-2" />
                   Modifier le sprint
                 </DropdownMenuItem>
               )}
@@ -2112,20 +2112,20 @@ export function SprintSection({
                   {onMoveSprintUp && !isFirstSprint && (
                     <DropdownMenuItem 
                       onClick={() => onMoveSprintUp(sprint.id)} 
-                      className="text-foreground"
+                      className="text-foreground text-xs"
                       data-testid={`button-move-sprint-up-${sprint.id}`}
                     >
-                      <ArrowUp className="h-4 w-4 mr-2" />
+                      <ArrowUp className="h-3.5 w-3.5 mr-2" />
                       Déplacer vers le haut
                     </DropdownMenuItem>
                   )}
                   {onMoveSprintDown && !isLastSprint && (
                     <DropdownMenuItem 
                       onClick={() => onMoveSprintDown(sprint.id)} 
-                      className="text-foreground"
+                      className="text-foreground text-xs"
                       data-testid={`button-move-sprint-down-${sprint.id}`}
                     >
-                      <ArrowDown className="h-4 w-4 mr-2" />
+                      <ArrowDown className="h-3.5 w-3.5 mr-2" />
                       Déplacer vers le bas
                     </DropdownMenuItem>
                   )}
@@ -2136,10 +2136,10 @@ export function SprintSection({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
                     onClick={() => onDeleteSprint(sprint.id)} 
-                    className="text-red-600"
+                    className="text-red-600 text-xs"
                     data-testid={`button-delete-sprint-${sprint.id}`}
                   >
-                    <Trash2 className="h-4 w-4 mr-2" />
+                    <Trash2 className="h-3.5 w-3.5 mr-2" />
                     Supprimer le sprint
                   </DropdownMenuItem>
                 </>
