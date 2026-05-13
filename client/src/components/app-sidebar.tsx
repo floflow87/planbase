@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Settings, Network, HelpCircle, ChevronsLeft, ChevronsRight, Wallet, Zap, Bot } from "lucide-react";
+import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Settings, Network, HelpCircle, ChevronsLeft, ChevronsRight, Wallet, Zap, Bot, Sparkles, ChevronDown } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -237,7 +237,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Assistant IA + Aide et support - above the footer */}
+      {/* Assistant IA + Nouveautés + Aide et support - above the footer */}
       <div className="border-t border-sidebar-border px-2 py-1">
         <SidebarMenu>
           {aiAssistant.hasAccess && (
@@ -267,6 +267,29 @@ export function AppSidebar() {
               )}
             </SidebarMenuItem>
           )}
+          <SidebarMenuItem>
+            {isCollapsed ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SidebarMenuButton
+                    className="justify-center"
+                    data-testid="button-nouveautes"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                  </SidebarMenuButton>
+                </TooltipTrigger>
+                <TooltipContent side="right">Nouveautés</TooltipContent>
+              </Tooltip>
+            ) : (
+              <SidebarMenuButton data-testid="button-nouveautes">
+                <Sparkles className="w-4 h-4" />
+                <span className="flex-1">Nouveautés</span>
+                <Badge className="bg-cyan-400 hover:bg-cyan-400 text-slate-900 border-0 text-[10px] px-1.5 py-0 font-semibold">
+                  NEW
+                </Badge>
+              </SidebarMenuButton>
+            )}
+          </SidebarMenuItem>
           <SidebarMenuItem>
             {isCollapsed ? (
               <Tooltip>
@@ -322,15 +345,15 @@ export function AppSidebar() {
         </div>
       )}
 
-      <SidebarFooter className={`border-t border-sidebar-border bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500 ${isCollapsed ? 'p-2' : 'p-4'}`}>
+      <SidebarFooter className={`border-t border-sidebar-border ${isCollapsed ? 'p-2' : 'px-2 py-2'}`}>
         <Link href="/settings" onClick={handleNavigation}>
           {isCollapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center justify-center hover:bg-white/10 rounded-md p-2 cursor-pointer" data-testid="button-user-profile">
+                <div className="flex items-center justify-center hover-elevate rounded-md p-2 cursor-pointer" data-testid="button-user-profile">
                   <Avatar className="w-8 h-8">
                     <AvatarImage src={userProfile?.avatarUrl || defaultAvatar} />
-                    <AvatarFallback className="bg-white/20 text-white text-[10px] font-medium">
+                    <AvatarFallback className="bg-violet-600 text-white text-[10px] font-medium">
                       {userProfile?.firstName?.[0] || user?.email?.[0].toUpperCase() || 'U'}
                       {userProfile?.lastName?.[0] || ''}
                     </AvatarFallback>
@@ -344,31 +367,37 @@ export function AppSidebar() {
               </TooltipContent>
             </Tooltip>
           ) : (
-            <div className="flex items-center gap-3 hover:bg-white/10 rounded-md p-2 cursor-pointer" data-testid="button-user-profile">
-              <Avatar className="w-8 h-8">
+            <div className="flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/40 px-2 py-1.5 hover-elevate cursor-pointer" data-testid="button-user-profile">
+              <Avatar className="w-7 h-7">
                 <AvatarImage src={userProfile?.avatarUrl || defaultAvatar} />
-                <AvatarFallback className="bg-white/20 text-white text-[10px] font-medium">
+                <AvatarFallback className="bg-violet-600 text-white text-[10px] font-medium">
                   {userProfile?.firstName?.[0] || user?.email?.[0].toUpperCase() || 'U'}
                   {userProfile?.lastName?.[0] || ''}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-white truncate">
+                <p className="text-xs font-medium text-sidebar-foreground truncate">
                   {userProfile?.firstName && userProfile?.lastName 
                     ? `${userProfile.firstName} ${userProfile.lastName}`
                     : user?.email || 'Utilisateur'}
                 </p>
-                <Badge variant="secondary" className="text-[10px] mt-0.5 bg-white/20 text-white border-0">
+                <p className="text-[10px] text-muted-foreground truncate">
                   {role === 'admin' ? 'Admin' : 
                    role === 'member' ? 'Membre' : 
                    role === 'guest' ? 'Invité' : 
                    userProfile?.position || 'Membre'}
-                </Badge>
+                </p>
               </div>
-              <Settings className="w-4 h-4 text-white flex-shrink-0" data-testid="icon-settings" />
+              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" data-testid="icon-settings" />
             </div>
           )}
         </Link>
+        {!isCollapsed && (
+          <div className="flex flex-col items-center pt-2 pb-1 text-center">
+            <p className="text-[10px] text-muted-foreground leading-tight">Version 1.10.0</p>
+            <p className="text-[10px] text-muted-foreground leading-tight">22/04/2026</p>
+          </div>
+        )}
       </SidebarFooter>
 
       <HelpDrawer
