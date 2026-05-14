@@ -237,7 +237,7 @@ const RUBRIQUES: Array<{ key: string; label: string; type: "income" | "expense" 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const fmt = (n: number) =>
-  new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
+  new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
 
 const STATUS_LABELS: Record<string, string> = {
   planned: "Prévu",
