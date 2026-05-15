@@ -2428,7 +2428,7 @@ function BoardCard({
         <div className="flex items-center gap-1.5 shrink-0 min-w-0">
           {epic && (
             <span
-              className="text-[10px] text-muted-foreground truncate max-w-[110px]"
+              className="text-[10px] text-primary truncate max-w-[110px]"
               title={epic.title}
             >
               {epic.title}
