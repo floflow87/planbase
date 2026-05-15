@@ -1764,20 +1764,32 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     }
   };
 
-  // Close column context menu on outside click
+  // Close column context menu on outside click or any scroll
   useEffect(() => {
     if (!colContextMenu) return;
     const close = () => setColContextMenu(null);
     window.addEventListener("click", close);
-    return () => window.removeEventListener("click", close);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("wheel", close, { passive: true });
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("wheel", close);
+    };
   }, [colContextMenu]);
 
-  // Close multi-cell context menu on outside click
+  // Close multi-cell context menu on outside click or any scroll
   useEffect(() => {
     if (!multiCtxMenu) return;
     const close = () => setMultiCtxMenu(null);
     window.addEventListener("click", close);
-    return () => window.removeEventListener("click", close);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("wheel", close, { passive: true });
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("wheel", close);
+    };
   }, [multiCtxMenu]);
 
   useEffect(() => {
