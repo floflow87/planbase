@@ -813,7 +813,7 @@ function PlanCell({
           </button>
           {hasValue && planMode === "static" && (
             <div
-              onMouseDown={(e) => { e.preventDefault(); onFillDragStart(); }}
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onFillDragStart(); }}
               className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 bg-primary rounded-sm cursor-crosshair opacity-0 group-hover/cell:opacity-100 transition-opacity z-10 flex items-center justify-center"
               title="Glisser pour étirer la valeur"
               data-testid={`fill-handle-${lineId}-${periodKey}`}
@@ -1053,6 +1053,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   // Multi-cell selection
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
   const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
+  const [dragSelect, setDragSelect] = useState<{ lineId: string; pIdx: number } | null>(null);
   const [multiCtxMenu, setMultiCtxMenu] = useState<{ x: number; y: number } | null>(null);
 
   const mkCellKey = (lineId: string, periodKey: string) => `${lineId}:::${periodKey}`;
@@ -1216,6 +1217,38 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
       setSelectionAnchor(key);
       setSelectedCell({ lineId, periodKey });
     }
+  };
+
+  // Drag-to-select: start on plain left mousedown
+  const handleCellMouseDown = (e: React.MouseEvent, lineId: string, pIdx: number, periodKey: string) => {
+    if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey) return;
+    if (editingCell) return;
+    const key = mkCellKey(lineId, periodKey);
+    setDragSelect({ lineId, pIdx });
+    setSelectionAnchor(key);
+    setSelectedCells(new Set([key]));
+    setSelectedCell({ lineId, periodKey });
+  };
+
+  // Drag-to-select: extend rectangle while dragging over cells
+  const handleCellDragEnter = (lineId: string, pIdx: number) => {
+    if (!dragSelect) return;
+    const ancLineIdx = allLineIdsInOrder.indexOf(dragSelect.lineId);
+    const thisLineIdx = allLineIdsInOrder.indexOf(lineId);
+    if (ancLineIdx < 0 || thisLineIdx < 0) return;
+    const minLine = Math.min(ancLineIdx, thisLineIdx);
+    const maxLine = Math.max(ancLineIdx, thisLineIdx);
+    const minP = Math.min(dragSelect.pIdx, pIdx);
+    const maxP = Math.max(dragSelect.pIdx, pIdx);
+    const newSel = new Set<string>();
+    for (let li = minLine; li <= maxLine; li++) {
+      for (let pi = minP; pi <= maxP; pi++) {
+        if (allLineIdsInOrder[li] && periods[pi]) {
+          newSel.add(mkCellKey(allLineIdsInOrder[li], periods[pi].key));
+        }
+      }
+    }
+    setSelectedCells(newSel);
   };
 
   // Multi-cell: fill year (each selected line fills from its earliest selected period to end of year)
@@ -1746,6 +1779,13 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     window.addEventListener("click", close);
     return () => window.removeEventListener("click", close);
   }, [multiCtxMenu]);
+
+  useEffect(() => {
+    if (!dragSelect) return;
+    const onUp = () => setDragSelect(null);
+    window.addEventListener("mouseup", onUp);
+    return () => window.removeEventListener("mouseup", onUp);
+  }, [dragSelect]);
 
   useEffect(() => {
     if (!fillDrag) return;
@@ -2709,7 +2749,11 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                                 <td
                                   key={p.key}
                                   className={cn("py-0.5 px-1 relative", p.isCurrent ? "bg-primary/5" : "", isFillRange ? "bg-blue-50 dark:bg-blue-900/20" : "", getColClass(p.key))}
-                                  onMouseEnter={() => { if (fillDrag?.lineId === line.id) setFillEndIdx(pIdx); }}
+                                  onMouseEnter={() => {
+                                    if (fillDrag?.lineId === line.id) setFillEndIdx(pIdx);
+                                    if (dragSelect) handleCellDragEnter(line.id, pIdx);
+                                  }}
+                                  onMouseDown={(e) => handleCellMouseDown(e, line.id, pIdx, p.key)}
                                 >
                                   {isEditing ? (
                                     <input
@@ -3006,6 +3050,32 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
             </tbody>
           </table>
         </div>
+        {selectedCells.size > 0 && (() => {
+          let sum = 0;
+          let nonEmpty = 0;
+          for (const key of selectedCells) {
+            const { lineId, periodKey } = parseCellKey(key);
+            const v = getCellValue(lineId, periodKey);
+            if (v !== 0) { sum += v; nonEmpty++; }
+          }
+          const avg = nonEmpty > 0 ? sum / nonEmpty : 0;
+          return (
+            <div
+              className="border-t border-border bg-muted/40 px-4 py-1.5 text-[11px] text-muted-foreground flex items-center justify-end gap-6 tabular-nums"
+              data-testid="plan-selection-summary"
+            >
+              <span>
+                Moyenne&nbsp;: <span className="font-semibold text-foreground" data-testid="text-selection-average">{fmt(avg)}</span>
+              </span>
+              <span>
+                Nb (non vides)&nbsp;: <span className="font-semibold text-foreground" data-testid="text-selection-count">{nonEmpty}</span>
+              </span>
+              <span>
+                Somme&nbsp;: <span className="font-semibold text-foreground" data-testid="text-selection-sum">{fmt(sum)}</span>
+              </span>
+            </div>
+          );
+        })()}
       </Card>
 
       {/* Column context menu */}
