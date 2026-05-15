@@ -1942,6 +1942,37 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     setUndoStack((prev) => [...prev, entries]);
   };
 
+  const handleDeleteSelectedCells = () => {
+    if (editingCell || selectedCells.size === 0) return;
+    const allCellsPayload: CellPayload[] = [];
+    const allSnapshots: CellSnapshot[] = [];
+    const localUpdates: Record<string, Record<string, number>> = {};
+    const formulaClears: Array<{ lineId: string; periodKey: string }> = [];
+    for (const key of selectedCells) {
+      const { lineId, periodKey } = parseCellKey(key);
+      const prevAmount = getCellValue(lineId, periodKey);
+      const hadFormula = !!localFormulas[lineId]?.[periodKey];
+      if (prevAmount === 0 && !hadFormula) continue;
+      allSnapshots.push({ lineId, periodKey, prevAmount, nextAmount: 0 });
+      allCellsPayload.push({ lineId, periodKey, amount: 0, formula: null });
+      if (!localUpdates[lineId]) localUpdates[lineId] = {};
+      localUpdates[lineId][periodKey] = 0;
+      formulaClears.push({ lineId, periodKey });
+    }
+    if (allCellsPayload.length === 0) return;
+    setLocalCells((prev) => {
+      const next = { ...prev };
+      for (const [lid, periodMap] of Object.entries(localUpdates)) {
+        next[lid] = { ...(next[lid] ?? {}), ...periodMap };
+      }
+      return next;
+    });
+    clearFormulasForEntries(formulaClears);
+    saveCellMutation.mutate(allCellsPayload);
+    setUndoStack((prev) => [...prev, allSnapshots]);
+    setRedoStack([]);
+  };
+
   const handleDeleteSelectedCell = () => {
     if (!selectedCell || editingCell) return;
     const { lineId, periodKey } = selectedCell;
@@ -2019,11 +2050,18 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
         }
         return;
       }
-      // Delete/Suppr = clear selected cell (only when not editing)
-      if ((e.key === "Delete") && !isInput && selectedCell && !editingCell) {
-        e.preventDefault();
-        handleDeleteSelectedCell();
-        return;
+      // Delete/Suppr/Backspace = clear selected cell or selected cell range
+      if ((e.key === "Delete" || e.key === "Backspace") && !isInput && !editingCell) {
+        if (selectedCells.size > 0) {
+          e.preventDefault();
+          handleDeleteSelectedCells();
+          return;
+        }
+        if (selectedCell) {
+          e.preventDefault();
+          handleDeleteSelectedCell();
+          return;
+        }
       }
       // Enter or F2 = open editor on selected cell (formula-first, consistent with double-click)
       if ((e.key === "Enter" || e.key === "F2") && !isInput && selectedCell && !editingCell) {
@@ -2044,7 +2082,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [undoStack, redoStack, selectedCell, editingCell, cellClipboard, localFormulas, localColors, localCells]);
+  }, [undoStack, redoStack, selectedCell, selectedCells, editingCell, cellClipboard, localFormulas, localColors, localCells]);
 
   if (isLoading) {
     return (
