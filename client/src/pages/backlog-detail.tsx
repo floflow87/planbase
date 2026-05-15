@@ -245,6 +245,20 @@ export default function BacklogDetail() {
   
   // Multi-select state for bulk actions
   const [checkedTickets, setCheckedTickets] = useState<Set<string>>(new Set());
+
+  // View mode (List vs Board) — applied to every sprint
+  const [viewMode, setViewMode] = useState<"list" | "board">(() => {
+    const saved = localStorage.getItem(`backlog-view-mode-${id}`);
+    return saved === "board" ? "board" : "list";
+  });
+  useEffect(() => { if (id) localStorage.setItem(`backlog-view-mode-${id}`, viewMode); }, [id, viewMode]);
+
+  // Hide empty status columns (only effective in Board view)
+  const [hideEmptyStatusColumns, setHideEmptyStatusColumns] = useState<boolean>(() => {
+    const saved = localStorage.getItem(`backlog-hide-empty-${id}`);
+    return saved === "true";
+  });
+  useEffect(() => { if (id) localStorage.setItem(`backlog-hide-empty-${id}`, hideEmptyStatusColumns.toString()); }, [id, hideEmptyStatusColumns]);
   
   // New backlog form state
   const [newBacklogName, setNewBacklogName] = useState("");
@@ -1952,7 +1966,7 @@ export default function BacklogDetail() {
       createBacklogMutation.mutate({
         name: newBacklogName,
         description: newBacklogDescription || undefined,
-        mode: newBacklogMode,
+        mode: "scrum",
         projectId: newBacklogProjectId,
       });
     };
@@ -1972,37 +1986,6 @@ export default function BacklogDetail() {
               <CardTitle>Créer un nouveau backlog</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Mode selection */}
-              <div className="space-y-2">
-                <Label>Mode de gestion</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  {backlogModeOptions.map((option) => (
-                    <div
-                      key={option.value}
-                      className={`relative flex flex-col items-center p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                        newBacklogMode === option.value
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                      onClick={() => setNewBacklogMode(option.value as BacklogMode)}
-                      data-testid={`button-mode-${option.value}`}
-                    >
-                      {option.value === "kanban" ? (
-                        <Layers className="h-8 w-8 mb-2 text-primary" />
-                      ) : (
-                        <ListTodo className="h-8 w-8 mb-2 text-primary" />
-                      )}
-                      <span className="font-medium">{option.label}</span>
-                      <span className="text-xs text-muted-foreground text-center mt-1">
-                        {option.value === "kanban" 
-                          ? "Gestion visuelle par colonnes"
-                          : "Gestion par sprints et itérations"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               {/* Name */}
               <div className="space-y-2">
                 <Label>Nom *</Label>
@@ -2112,9 +2095,6 @@ export default function BacklogDetail() {
             <p className="text-sm text-muted-foreground truncate hidden md:block">{backlog.description}</p>
           )}
         </div>
-        <Badge variant="secondary" className="capitalize">
-          {backlog.mode}
-        </Badge>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden min-h-0">
@@ -2168,18 +2148,10 @@ export default function BacklogDetail() {
                 <FileText className="w-4 h-4 text-primary" />
                 <span>Créer une US</span>
               </DropdownMenuItem>
-              {backlog.mode === "scrum" && (
-                <DropdownMenuItem onClick={() => setShowSprintDialog(true)} data-testid="button-add-sprint-mobile">
-                  <Play className="w-4 h-4 text-violet-600" />
-                  <span>Créer un sprint</span>
-                </DropdownMenuItem>
-              )}
-              {backlog.mode === "kanban" && (
-                <DropdownMenuItem onClick={() => setShowColumnDialog(true)} data-testid="button-add-column-mobile">
-                  <Layers className="w-4 h-4 text-primary" />
-                  <span>Créer une colonne</span>
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem onClick={() => setShowSprintDialog(true)} data-testid="button-add-sprint-mobile">
+                <Play className="w-4 h-4 text-violet-600" />
+                <span>Créer un sprint</span>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           {/* Filters/Sort Sheet */}
@@ -2334,23 +2306,40 @@ export default function BacklogDetail() {
               <Plus className="h-4 w-4 mr-1" />
               User Story
             </Button>
-            {backlog.mode === "scrum" && (
-              <Button size="sm" className="bg-violet-600 hover:bg-violet-700 text-white" onClick={() => setShowSprintDialog(true)} data-testid="button-add-sprint">
-                <Plus className="h-4 w-4 mr-1" />
-                Sprint
-              </Button>
-            )}
-            {backlog.mode === "kanban" && (
-              <Button size="sm" variant="outline" onClick={() => setShowColumnDialog(true)} data-testid="button-add-column">
-                <Plus className="h-4 w-4 mr-1" />
-                Colonne
-              </Button>
-            )}
+            <Button size="sm" className="bg-violet-600 hover:bg-violet-700 text-white" onClick={() => setShowSprintDialog(true)} data-testid="button-add-sprint">
+              <Plus className="h-4 w-4 mr-1" />
+              Sprint
+            </Button>
             <AutomationButton scopeType="backlog" scopeId={backlog.id} scopeLabel={backlog.name} />
           </div>
           
-          {/* Right: Stats + consolidated filter button */}
+          {/* Right: View toggle + Stats + consolidated filter button */}
           <div className="flex items-center gap-2">
+            {/* View toggle: List / Board */}
+            <div className="inline-flex rounded-md border border-input bg-background p-0.5 h-8" data-testid="backlog-view-toggle">
+              <Button
+                size="sm"
+                variant={viewMode === "list" ? "secondary" : "ghost"}
+                className="h-7 px-2 text-[11px] gap-1"
+                onClick={() => setViewMode("list")}
+                data-testid="button-view-list"
+                title="Vue liste"
+              >
+                <ListTodo className="h-3.5 w-3.5" />
+                List
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === "board" ? "secondary" : "ghost"}
+                className="h-7 px-2 text-[11px] gap-1"
+                onClick={() => setViewMode("board")}
+                data-testid="button-view-board"
+                title="Vue board (Kanban)"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                Board
+              </Button>
+            </div>
             <Button
               size="icon"
               variant={showStatsPanel ? "secondary" : "outline"}
@@ -2506,6 +2495,23 @@ export default function BacklogDetail() {
                       </div>
                     </div>
                   </div>
+                  {/* Options de la vue Board */}
+                  {viewMode === "board" && (
+                    <div className="p-3 space-y-2">
+                      <Label className="text-xs text-muted-foreground">Options board</Label>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="hide-empty-status"
+                          checked={hideEmptyStatusColumns}
+                          onCheckedChange={(c) => setHideEmptyStatusColumns(c === true)}
+                          data-testid="checkbox-hide-empty-status"
+                        />
+                        <label htmlFor="hide-empty-status" className="text-xs cursor-pointer">
+                          Masquer si vide
+                        </label>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </PopoverContent>
             </Popover>
@@ -2515,8 +2521,8 @@ export default function BacklogDetail() {
         {/* Scrollable Content Area - flex-row to allow stats panel side-by-side */}
         <div className="flex-1 overflow-hidden flex flex-row">
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:px-6 md:py-4 min-w-0">
-          {/* Kanban Board View */}
-        {backlog.mode === "kanban" && (
+          {/* Legacy custom Kanban columns view (no longer exposed in UI) */}
+        {false && backlog.mode === "kanban" && (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleKanbanDragEnd}>
             <div className="flex gap-4 overflow-x-auto pb-4" data-testid="kanban-board">
               {backlog.columns.sort((a, b) => a.order - b.order).map(column => (
@@ -2551,8 +2557,8 @@ export default function BacklogDetail() {
           </DndContext>
         )}
 
-        {/* Jira-style Scrum Backlog View */}
-        {backlog.mode === "scrum" && (
+        {/* Jira-style Sprint Backlog View (toujours actif, peu importe `backlog.mode`) */}
+        {true && (
           <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
             <div className="flex gap-0 h-full min-w-0">
               <div className={`flex-1 min-w-0 overflow-x-hidden space-y-4 ${selectedTicket ? 'pr-0' : ''}`}>
@@ -2629,6 +2635,8 @@ export default function BacklogDetail() {
                       onCheckChange={handleCheckChange}
                       onBulkAction={handleBulkAction}
                       onClearSelection={handleClearSelection}
+                      viewMode={viewMode}
+                      hideEmptyStatusColumns={hideEmptyStatusColumns}
                     />
                   ));
                 })()}

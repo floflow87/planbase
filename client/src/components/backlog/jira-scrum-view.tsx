@@ -1739,6 +1739,8 @@ interface SprintSectionProps {
   onClearSelection?: () => void;
   backlogPrefix?: string;
   ticketIndexMap?: Record<string, number>;
+  viewMode?: "list" | "board";
+  hideEmptyStatusColumns?: boolean;
 }
 
 export function SprintSection({ 
@@ -1774,7 +1776,9 @@ export function SprintSection({
   onBulkAction,
   onClearSelection,
   backlogPrefix,
-  ticketIndexMap
+  ticketIndexMap,
+  viewMode = "list",
+  hideEmptyStatusColumns = false,
 }: SprintSectionProps) {
   const { t } = useLanguage();
   const [isCreating, setIsCreating] = useState(false);
@@ -2161,6 +2165,19 @@ export function SprintSection({
               onClearSelection={onClearSelection}
             />
           )}
+          {viewMode === "board" && tickets.length > 0 ? (
+            <SprintBoardView
+              tickets={tickets}
+              users={users}
+              epics={epics}
+              hideEmpty={hideEmptyStatusColumns}
+              onSelectTicket={onSelectTicket}
+              onUpdateState={onUpdateState}
+              selectedTicketId={selectedTicketId}
+              backlogPrefix={backlogPrefix}
+              ticketIndexMap={ticketIndexMap}
+            />
+          ) : (
           <div className="divide-y divide-border/50 overflow-x-hidden">
             {tickets.map(ticket => (
               <TicketRow 
@@ -2268,6 +2285,7 @@ export function SprintSection({
               </div>
             )}
           </div>
+          )}
           
           {!isCreating && tickets.length > 0 && !isTemporarySprint && (
             <button
@@ -2283,6 +2301,128 @@ export function SprintSection({
       </div>
     </Collapsible>
     </>
+  );
+}
+
+// ============ Sprint Board (Kanban) View ============
+interface SprintBoardViewProps {
+  tickets: FlatTicket[];
+  users?: AppUser[];
+  epics?: Epic[];
+  hideEmpty?: boolean;
+  onSelectTicket: (ticket: FlatTicket) => void;
+  onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
+  selectedTicketId?: string | null;
+  backlogPrefix?: string;
+  ticketIndexMap?: Record<string, number>;
+}
+
+function SprintBoardView({
+  tickets,
+  users,
+  epics,
+  hideEmpty = false,
+  onSelectTicket,
+  onUpdateState,
+  selectedTicketId,
+  backlogPrefix,
+  ticketIndexMap,
+}: SprintBoardViewProps) {
+  const visibleColumns = hideEmpty
+    ? backlogItemStateOptions.filter(opt => tickets.some(t => (t.state || "a_faire") === opt.value))
+    : [...backlogItemStateOptions];
+
+  return (
+    <div className="overflow-x-auto p-3 bg-muted/20" data-testid="sprint-board-view">
+      <div className="flex gap-3 min-h-[200px]">
+        {visibleColumns.map(col => {
+          const colTickets = tickets.filter(t => (t.state || "a_faire") === col.value);
+          return (
+            <div
+              key={col.value}
+              className="flex flex-col w-[260px] shrink-0 rounded-md bg-background border border-border/60"
+              data-testid={`board-column-${col.value}`}
+            >
+              <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
+                  <span className="text-xs font-medium text-foreground truncate uppercase tracking-wide">{col.label}</span>
+                </div>
+                <Badge variant="secondary" className="text-[10px] h-5">
+                  {colTickets.length}
+                </Badge>
+              </div>
+              <div className="flex flex-col gap-2 p-2 min-h-[60px]">
+                {colTickets.map(ticket => {
+                  const assignee = users?.find(u => u.id === ticket.assigneeId);
+                  const epic = epics?.find(e => e.id === ticket.epicId);
+                  const idx = ticketIndexMap?.[ticket.id];
+                  const ref = backlogPrefix && idx !== undefined ? `${backlogPrefix}-${idx + 1}` : null;
+                  const isSelected = selectedTicketId === ticket.id;
+                  return (
+                    <button
+                      key={`${ticket.type}-${ticket.id}`}
+                      onClick={() => onSelectTicket(ticket)}
+                      className={`text-left rounded-md border bg-card p-2 hover-elevate active-elevate-2 ${isSelected ? "border-primary" : "border-border/60"}`}
+                      data-testid={`board-card-${ticket.id}`}
+                    >
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <div
+                          className="h-3.5 w-3.5 rounded flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: ticketTypeColor(ticket.type) }}
+                        >
+                          <span className="text-white scale-[0.55]">{ticketTypeIcon(ticket.type)}</span>
+                        </div>
+                        {ref && (
+                          <span className="text-[10px] text-muted-foreground font-mono">{ref}</span>
+                        )}
+                        {ticket.priority && (
+                          <span className="text-[10px] text-muted-foreground ml-auto">
+                            {backlogPriorityOptions.find(p => p.value === ticket.priority)?.label || ticket.priority}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-foreground line-clamp-2 mb-1.5">
+                        {ticket.title}
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        {epic ? (
+                          <span className="text-[10px] text-muted-foreground truncate max-w-[140px]" title={epic.title}>
+                            {epic.title}
+                          </span>
+                        ) : <span />}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {ticket.complexity && (
+                            <Badge variant="outline" className="text-[9px] h-4 px-1">{ticket.complexity}</Badge>
+                          )}
+                          {assignee ? (
+                            <Avatar className="h-5 w-5">
+                              {assignee.avatarUrl && <AvatarImage src={assignee.avatarUrl} />}
+                              <AvatarFallback className="text-[9px]">
+                                {(assignee.fullName || assignee.email || "?").charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                          ) : (
+                            <Avatar className="h-5 w-5">
+                              <AvatarFallback className="text-[9px] bg-muted text-muted-foreground">?</AvatarFallback>
+                            </Avatar>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+                {colTickets.length === 0 && (
+                  <div className="text-[11px] text-muted-foreground text-center py-3">
+                    Aucun ticket
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
