@@ -40,7 +40,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { useDraggable, useDroppable, DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import type { Epic, UserStory, BacklogTask, Sprint, AppUser, RoadmapItem } from "@shared/schema";
 import { backlogItemStateOptions, backlogPriorityOptions } from "@shared/schema";
@@ -2206,11 +2206,11 @@ export function SprintSection({
             
             {tickets.length === 0 && !isCreating && !isTemporarySprint && (
               <button
-                className="w-full px-4 py-4 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center justify-center gap-2"
+                className="w-full px-4 py-3 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center justify-center gap-1.5"
                 onClick={() => setIsCreating(true)}
                 data-testid={`button-inline-create-empty-${sprint.id}`}
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-3 w-3" />
                 Ce sprint est vide. Cliquez pour créer un ticket.
               </button>
             )}
@@ -2289,11 +2289,11 @@ export function SprintSection({
           
           {!isCreating && tickets.length > 0 && !isTemporarySprint && (
             <button
-              className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center gap-2 mb-2"
+              className="w-full px-4 py-1.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center gap-1.5 mb-2"
               onClick={() => setIsCreating(true)}
               data-testid={`button-inline-create-${sprint.id}`}
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-3 w-3" />
               Créer un ticket
             </button>
           )}
@@ -2317,6 +2317,190 @@ interface SprintBoardViewProps {
   ticketIndexMap?: Record<string, number>;
 }
 
+function BoardCard({
+  ticket,
+  users,
+  epics,
+  selectedTicketId,
+  backlogPrefix,
+  ticketIndexMap,
+  onSelectTicket,
+}: {
+  ticket: FlatTicket;
+  users?: AppUser[];
+  epics?: Epic[];
+  selectedTicketId?: string | null;
+  backlogPrefix?: string;
+  ticketIndexMap?: Record<string, number>;
+  onSelectTicket: (ticket: FlatTicket) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `board-card-${ticket.type}-${ticket.id}`,
+    data: { ticketId: ticket.id, ticketType: ticket.type, fromState: ticket.state || "a_faire" },
+  });
+  const draggedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (isDragging) {
+      draggedRef.current = true;
+    } else if (draggedRef.current) {
+      const t = setTimeout(() => { draggedRef.current = false; }, 200);
+      return () => clearTimeout(t);
+    }
+  }, [isDragging]);
+  const style: React.CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.4 : 1,
+  };
+  const assignee = users?.find(u => u.id === ticket.assigneeId);
+  const epic = epics?.find(e => e.id === ticket.epicId);
+  const idx = ticketIndexMap?.[ticket.id];
+  const ref = backlogPrefix && idx !== undefined ? `${backlogPrefix}-${idx + 1}` : null;
+  const isSelected = selectedTicketId === ticket.id;
+  const tags = ticket.tags || [];
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onClick={(e) => {
+        if (isDragging || draggedRef.current) return;
+        e.preventDefault();
+        onSelectTicket(ticket);
+      }}
+      className={`text-left rounded-md border bg-card p-2 cursor-grab active:cursor-grabbing hover-elevate ${isSelected ? "border-primary" : "border-border/60"}`}
+      data-testid={`board-card-${ticket.id}`}
+    >
+      <div className="flex items-center gap-1.5 mb-1">
+        <div
+          className="h-3.5 w-3.5 rounded flex items-center justify-center shrink-0"
+          style={{ backgroundColor: ticketTypeColor(ticket.type) }}
+        >
+          <span className="text-white scale-[0.55]">{ticketTypeIcon(ticket.type)}</span>
+        </div>
+        {ref && (
+          <span className="text-[10px] text-muted-foreground font-mono">{ref}</span>
+        )}
+        {ticket.priority && (
+          <span className="ml-auto inline-flex items-center" title={backlogPriorityOptions.find(p => p.value === ticket.priority)?.label || ticket.priority}>
+            <PriorityIcon priority={ticket.priority} className="h-3.5 w-3.5" />
+          </span>
+        )}
+      </div>
+      <div className="text-xs text-foreground line-clamp-2 mb-1.5">
+        {ticket.title}
+      </div>
+      {epic && (
+        <div className="text-[10px] text-muted-foreground truncate mb-1.5" title={epic.title}>
+          {epic.title}
+        </div>
+      )}
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-1.5">
+          {tags.slice(0, 3).map(tag => (
+            <Badge key={tag} variant="outline" className="text-[9px] h-4 px-1 font-normal">
+              {tag}
+            </Badge>
+          ))}
+          {tags.length > 3 && (
+            <Badge variant="outline" className="text-[9px] h-4 px-1 font-normal">
+              +{tags.length - 3}
+            </Badge>
+          )}
+        </div>
+      )}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1 shrink-0">
+          {typeof ticket.estimatePoints === "number" && ticket.estimatePoints !== null && (
+            <Badge variant="secondary" className="text-[10px] h-4 px-1.5 font-medium" title="Points d'estimation">
+              {ticket.estimatePoints}
+            </Badge>
+          )}
+          {ticket.complexity && (
+            <Badge variant="outline" className="text-[9px] h-4 px-1">{ticket.complexity}</Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {assignee ? (
+            <Avatar className="h-5 w-5">
+              {assignee.avatarUrl && <AvatarImage src={assignee.avatarUrl} />}
+              <AvatarFallback className="text-[9px]">
+                {(assignee.fullName || assignee.email || "?").charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          ) : (
+            <Avatar className="h-5 w-5">
+              <AvatarFallback className="text-[9px] bg-muted text-muted-foreground">?</AvatarFallback>
+            </Avatar>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BoardColumn({
+  col,
+  colTickets,
+  users,
+  epics,
+  selectedTicketId,
+  backlogPrefix,
+  ticketIndexMap,
+  onSelectTicket,
+}: {
+  col: typeof backlogItemStateOptions[number];
+  colTickets: FlatTicket[];
+  users?: AppUser[];
+  epics?: Epic[];
+  selectedTicketId?: string | null;
+  backlogPrefix?: string;
+  ticketIndexMap?: Record<string, number>;
+  onSelectTicket: (ticket: FlatTicket) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `board-col-${col.value}`,
+    data: { state: col.value },
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex flex-col w-[260px] shrink-0 rounded-md border transition-colors ${isOver ? "bg-primary/5 border-primary" : "bg-background border-border/60"}`}
+      data-testid={`board-column-${col.value}`}
+    >
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
+          <span className="text-xs font-medium text-foreground truncate uppercase tracking-wide">{col.label}</span>
+        </div>
+        <Badge variant="secondary" className="text-[10px] h-5">
+          {colTickets.length}
+        </Badge>
+      </div>
+      <div className="flex flex-col gap-2 p-2 min-h-[60px]">
+        {colTickets.map(ticket => (
+          <BoardCard
+            key={`${ticket.type}-${ticket.id}`}
+            ticket={ticket}
+            users={users}
+            epics={epics}
+            selectedTicketId={selectedTicketId}
+            backlogPrefix={backlogPrefix}
+            ticketIndexMap={ticketIndexMap}
+            onSelectTicket={onSelectTicket}
+          />
+        ))}
+        {colTickets.length === 0 && (
+          <div className="text-[11px] text-muted-foreground text-center py-3">
+            Aucun ticket
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SprintBoardView({
   tickets,
   users,
@@ -2328,101 +2512,45 @@ function SprintBoardView({
   backlogPrefix,
   ticketIndexMap,
 }: SprintBoardViewProps) {
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const visibleColumns = hideEmpty
     ? backlogItemStateOptions.filter(opt => tickets.some(t => (t.state || "a_faire") === opt.value))
     : [...backlogItemStateOptions];
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+    const overData = over.data.current as { state?: string } | undefined;
+    const activeData = active.data.current as { ticketId?: string; ticketType?: TicketType; fromState?: string } | undefined;
+    const newState = overData?.state;
+    if (!newState || !activeData?.ticketId || !activeData?.ticketType) return;
+    if (newState === activeData.fromState) return;
+    onUpdateState?.(activeData.ticketId, activeData.ticketType, newState);
+  };
+
   return (
-    <div className="overflow-x-auto p-3 bg-muted/20" data-testid="sprint-board-view">
-      <div className="flex gap-3 min-h-[200px]">
-        {visibleColumns.map(col => {
-          const colTickets = tickets.filter(t => (t.state || "a_faire") === col.value);
-          return (
-            <div
-              key={col.value}
-              className="flex flex-col w-[260px] shrink-0 rounded-md bg-background border border-border/60"
-              data-testid={`board-column-${col.value}`}
-            >
-              <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
-                  <span className="text-xs font-medium text-foreground truncate uppercase tracking-wide">{col.label}</span>
-                </div>
-                <Badge variant="secondary" className="text-[10px] h-5">
-                  {colTickets.length}
-                </Badge>
-              </div>
-              <div className="flex flex-col gap-2 p-2 min-h-[60px]">
-                {colTickets.map(ticket => {
-                  const assignee = users?.find(u => u.id === ticket.assigneeId);
-                  const epic = epics?.find(e => e.id === ticket.epicId);
-                  const idx = ticketIndexMap?.[ticket.id];
-                  const ref = backlogPrefix && idx !== undefined ? `${backlogPrefix}-${idx + 1}` : null;
-                  const isSelected = selectedTicketId === ticket.id;
-                  return (
-                    <button
-                      key={`${ticket.type}-${ticket.id}`}
-                      onClick={() => onSelectTicket(ticket)}
-                      className={`text-left rounded-md border bg-card p-2 hover-elevate active-elevate-2 ${isSelected ? "border-primary" : "border-border/60"}`}
-                      data-testid={`board-card-${ticket.id}`}
-                    >
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <div
-                          className="h-3.5 w-3.5 rounded flex items-center justify-center shrink-0"
-                          style={{ backgroundColor: ticketTypeColor(ticket.type) }}
-                        >
-                          <span className="text-white scale-[0.55]">{ticketTypeIcon(ticket.type)}</span>
-                        </div>
-                        {ref && (
-                          <span className="text-[10px] text-muted-foreground font-mono">{ref}</span>
-                        )}
-                        {ticket.priority && (
-                          <span className="text-[10px] text-muted-foreground ml-auto">
-                            {backlogPriorityOptions.find(p => p.value === ticket.priority)?.label || ticket.priority}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-foreground line-clamp-2 mb-1.5">
-                        {ticket.title}
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        {epic ? (
-                          <span className="text-[10px] text-muted-foreground truncate max-w-[140px]" title={epic.title}>
-                            {epic.title}
-                          </span>
-                        ) : <span />}
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {ticket.complexity && (
-                            <Badge variant="outline" className="text-[9px] h-4 px-1">{ticket.complexity}</Badge>
-                          )}
-                          {assignee ? (
-                            <Avatar className="h-5 w-5">
-                              {assignee.avatarUrl && <AvatarImage src={assignee.avatarUrl} />}
-                              <AvatarFallback className="text-[9px]">
-                                {(assignee.fullName || assignee.email || "?").charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                          ) : (
-                            <Avatar className="h-5 w-5">
-                              <AvatarFallback className="text-[9px] bg-muted text-muted-foreground">?</AvatarFallback>
-                            </Avatar>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-                {colTickets.length === 0 && (
-                  <div className="text-[11px] text-muted-foreground text-center py-3">
-                    Aucun ticket
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <div className="overflow-x-auto p-3 bg-muted/20" data-testid="sprint-board-view">
+        <div className="flex gap-3 min-h-[200px]">
+          {visibleColumns.map(col => {
+            const colTickets = tickets.filter(t => (t.state || "a_faire") === col.value);
+            return (
+              <BoardColumn
+                key={col.value}
+                col={col}
+                colTickets={colTickets}
+                users={users}
+                epics={epics}
+                selectedTicketId={selectedTicketId}
+                backlogPrefix={backlogPrefix}
+                ticketIndexMap={ticketIndexMap}
+                onSelectTicket={onSelectTicket}
+              />
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </DndContext>
   );
 }
 
@@ -2622,11 +2750,11 @@ export function BacklogPool({
             
             {tickets.length === 0 && !isCreating && (
               <button
-                className="w-full px-4 py-4 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center justify-center gap-2"
+                className="w-full px-4 py-3 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center justify-center gap-1.5"
                 onClick={() => setIsCreating(true)}
                 data-testid="button-inline-create-empty-backlog"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-3 w-3" />
                 Votre backlog est vide. Cliquez pour créer un ticket.
               </button>
             )}
@@ -2698,11 +2826,11 @@ export function BacklogPool({
           
           {!isCreating && tickets.length > 0 && (
             <button
-              className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center gap-2 mb-2"
+              className="w-full px-4 py-1.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center gap-1.5 mb-2"
               onClick={() => setIsCreating(true)}
               data-testid="button-inline-create-backlog"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-3 w-3" />
               Créer un ticket
             </button>
           )}
