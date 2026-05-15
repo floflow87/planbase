@@ -4543,7 +4543,7 @@ function SprintSheet({
               value={name} 
               onChange={(e) => setName(e.target.value)} 
               placeholder={t.common.ph.sprintName}
-              className="placeholder:text-xs"
+              className="text-xs placeholder:text-xs"
               data-testid="input-sprint-name" 
             />
           </div>
@@ -4565,7 +4565,7 @@ function SprintSheet({
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left font-normal"
+                    className="w-full justify-start text-left font-normal text-xs"
                     data-testid="input-sprint-start"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 text-violet-500" />
@@ -4592,7 +4592,7 @@ function SprintSheet({
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left font-normal"
+                    className="w-full justify-start text-left font-normal text-xs"
                     data-testid="input-sprint-end"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 text-violet-500" />
