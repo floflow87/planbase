@@ -3164,29 +3164,47 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
             <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide border-b border-border/50 mb-1">
               {selectedCells.size} cellule{selectedCells.size > 1 ? "s" : ""} sélectionnée{selectedCells.size > 1 ? "s" : ""}
             </div>
-            {planMode === "dynamic" && (
-              <>
-                <button
-                  className="w-full text-left px-3 py-1.5 text-[12px] hover-elevate flex items-center gap-2"
-                  onClick={() => { multiSetDynamicStatus("paid"); closeMenu(); }}
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> Marquer comme payé
-                </button>
-                <button
-                  className="w-full text-left px-3 py-1.5 text-[12px] hover-elevate flex items-center gap-2"
-                  onClick={() => { multiSetDynamicStatus("deferred"); closeMenu(); }}
-                >
-                  <Clock className="h-3.5 w-3.5 text-gray-500" /> Marquer comme reporté
-                </button>
-                <button
-                  className="w-full text-left px-3 py-1.5 text-[12px] hover-elevate flex items-center gap-2 text-muted-foreground"
-                  onClick={() => { multiSetDynamicStatus(null); closeMenu(); }}
-                >
-                  <X className="h-3.5 w-3.5" /> Réinitialiser les statuts
-                </button>
-                <div className="border-t border-border/50 my-1" />
-              </>
-            )}
+            {planMode === "dynamic" && (() => {
+              const allPaid = [...selectedCells].every((k) => {
+                const { lineId, periodKey } = parseCellKey(k);
+                return dynamicStatuses[lineId]?.[periodKey] === "paid";
+              });
+              const allDeferred = [...selectedCells].every((k) => {
+                const { lineId, periodKey } = parseCellKey(k);
+                return dynamicStatuses[lineId]?.[periodKey] === "deferred";
+              });
+              const anyStatus = [...selectedCells].some((k) => {
+                const { lineId, periodKey } = parseCellKey(k);
+                return dynamicStatuses[lineId]?.[periodKey] != null;
+              });
+              return (
+                <>
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover-elevate flex items-center gap-2"
+                    onClick={() => { multiSetDynamicStatus(allPaid ? null : "paid"); closeMenu(); }}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                    {allPaid ? "Annuler le statut payé" : "Marquer comme payé"}
+                  </button>
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-[12px] hover-elevate flex items-center gap-2"
+                    onClick={() => { multiSetDynamicStatus(allDeferred ? null : "deferred"); closeMenu(); }}
+                  >
+                    <Clock className="h-3.5 w-3.5 text-gray-500" />
+                    {allDeferred ? "Annuler le statut reporté" : "Marquer comme reporté"}
+                  </button>
+                  {anyStatus && !allPaid && !allDeferred && (
+                    <button
+                      className="w-full text-left px-3 py-1.5 text-[12px] hover-elevate flex items-center gap-2 text-muted-foreground"
+                      onClick={() => { multiSetDynamicStatus(null); closeMenu(); }}
+                    >
+                      <X className="h-3.5 w-3.5" /> Réinitialiser les statuts
+                    </button>
+                  )}
+                  <div className="border-t border-border/50 my-1" />
+                </>
+              );
+            })()}
             <button
               className="w-full text-left px-3 py-1.5 text-[12px] hover-elevate flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
               disabled={!hasFirstCellValue}
