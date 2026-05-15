@@ -304,28 +304,28 @@ function PriorityIcon({ priority, className }: { priority: string | null | undef
     case "critical":
       // Two red chevrons UP stacked (highest priority)
       return (
-        <div className={cn("flex flex-col items-center -space-y-2.5", className)}>
-          <ChevronUp className="h-[18px] w-[18px] text-red-500" />
-          <ChevronUp className="h-[18px] w-[18px] text-red-500" />
+        <div className={cn("flex flex-col items-center -space-y-2", className)}>
+          <ChevronUp className="h-3.5 w-3.5 text-red-500" />
+          <ChevronUp className="h-3.5 w-3.5 text-red-500" />
         </div>
       );
     case "high":
       // One orange chevron UP
-      return <ChevronUp className={cn("h-[18px] w-[18px] text-orange-500", className)} />;
+      return <ChevronUp className={cn("h-3.5 w-3.5 text-orange-500", className)} />;
     case "medium":
       // Yellow horizontal line
       return (
-        <div className={cn("flex items-center justify-center w-[18px] h-[18px]", className)}>
-          <div className="w-3 h-0.5 bg-yellow-500 rounded-full" />
+        <div className={cn("flex items-center justify-center w-3.5 h-3.5", className)}>
+          <div className="w-2.5 h-0.5 bg-yellow-500 rounded-full" />
         </div>
       );
     case "low":
     default:
       // Two violet chevrons DOWN stacked (lowest priority)
       return (
-        <div className={cn("flex flex-col items-center -space-y-2.5", className)}>
-          <ChevronDown className="h-[18px] w-[18px] text-violet-500" />
-          <ChevronDown className="h-[18px] w-[18px] text-violet-500" />
+        <div className={cn("flex flex-col items-center -space-y-2", className)}>
+          <ChevronDown className="h-3.5 w-3.5 text-violet-500" />
+          <ChevronDown className="h-3.5 w-3.5 text-violet-500" />
         </div>
       );
   }
@@ -2353,6 +2353,7 @@ function BoardCard({
   };
   const assignee = users?.find(u => u.id === ticket.assigneeId);
   const epic = epics?.find(e => e.id === ticket.epicId);
+  const pastelColors = ticketTypePastelColors(ticket.type, ticket.color);
   const idx = ticketIndexMap?.[ticket.id];
   const ref = backlogPrefix && idx !== undefined ? `${backlogPrefix}-${idx + 1}` : null;
   const isSelected = selectedTicketId === ticket.id;
@@ -2374,17 +2375,18 @@ function BoardCard({
     >
       <div className="flex items-center gap-1.5 mb-1">
         <div
-          className="h-3.5 w-3.5 rounded flex items-center justify-center shrink-0"
-          style={{ backgroundColor: ticketTypeColor(ticket.type) }}
+          className="flex items-center justify-center h-5 w-5 rounded shrink-0 dark:!bg-transparent"
+          style={{ backgroundColor: pastelColors.bg }}
         >
-          <span className="text-white scale-[0.55]">{ticketTypeIcon(ticket.type)}</span>
+          <span style={{ color: pastelColors.text }} className="dark:hidden">{ticketTypeIcon(ticket.type)}</span>
+          <span style={{ color: pastelColors.bg }} className="hidden dark:inline">{ticketTypeIcon(ticket.type)}</span>
         </div>
         {ref && (
           <span className="text-[10px] text-muted-foreground font-mono">{ref}</span>
         )}
         {ticket.priority && (
           <span className="ml-auto inline-flex items-center" title={backlogPriorityOptions.find(p => p.value === ticket.priority)?.label || ticket.priority}>
-            <PriorityIcon priority={ticket.priority} className="h-3.5 w-3.5" />
+            <PriorityIcon priority={ticket.priority} />
           </span>
         )}
       </div>
@@ -2399,12 +2401,19 @@ function BoardCard({
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-1.5">
           {tags.slice(0, 3).map(tag => (
-            <Badge key={tag} variant="outline" className="text-[9px] h-4 px-1 font-normal">
+            <Badge
+              key={tag}
+              variant="outline"
+              className="text-[10px] px-1.5 py-0 border-cyan-400 text-cyan-600 dark:text-cyan-400 dark:border-cyan-500 max-w-[80px] truncate font-normal"
+            >
               {tag}
             </Badge>
           ))}
           {tags.length > 3 && (
-            <Badge variant="outline" className="text-[9px] h-4 px-1 font-normal">
+            <Badge
+              variant="outline"
+              className="text-[10px] px-1.5 py-0 border-cyan-400 text-cyan-600 dark:text-cyan-400 dark:border-cyan-500 font-normal"
+            >
               +{tags.length - 3}
             </Badge>
           )}
