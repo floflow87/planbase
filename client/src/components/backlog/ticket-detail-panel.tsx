@@ -762,7 +762,7 @@ export function TicketDetailPanel({
         
         <div className="flex items-center gap-2">
           {ticketIdLabel && (
-            <Badge variant="outline" className="text-xs font-mono" data-testid="text-ticket-id">
+            <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono" data-testid="text-ticket-id">
               {ticketIdLabel}
             </Badge>
           )}
