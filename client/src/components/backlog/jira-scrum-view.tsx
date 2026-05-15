@@ -2393,11 +2393,6 @@ function BoardCard({
       <div className="text-xs text-foreground line-clamp-2 mb-1.5">
         {ticket.title}
       </div>
-      {epic && (
-        <div className="text-[10px] text-muted-foreground truncate mb-1.5" title={epic.title}>
-          {epic.title}
-        </div>
-      )}
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-1.5">
           {tags.slice(0, 3).map(tag => (
@@ -2430,7 +2425,15 @@ function BoardCard({
             <Badge variant="outline" className="text-[9px] h-4 px-1">{ticket.complexity}</Badge>
           )}
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0 min-w-0">
+          {epic && (
+            <span
+              className="text-[10px] text-muted-foreground truncate max-w-[110px]"
+              title={epic.title}
+            >
+              {epic.title}
+            </span>
+          )}
           {assignee ? (
             <Avatar className="h-5 w-5">
               {assignee.avatarUrl && <AvatarImage src={assignee.avatarUrl} />}
