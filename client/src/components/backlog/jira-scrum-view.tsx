@@ -2483,7 +2483,7 @@ function BoardColumn({
     >
       <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
+          <StatusIcon state={col.value} size={14} />
           <span className="text-xs font-medium text-foreground truncate uppercase tracking-wide">{col.label}</span>
         </div>
         <Badge variant="secondary" className="text-[10px] h-5">
