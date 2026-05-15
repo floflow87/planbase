@@ -762,22 +762,23 @@ function PlanCell({
 }) {
   const colorDef = cellColor ? CELL_COLORS.find((c) => c.key === cellColor) : null;
 
-  // Dynamic mode overrides static cell color
-  const dynamicStyle =
-    planMode === "dynamic" && dynamicStatus === "paid"
-      ? { backgroundColor: "#dcfce7", color: "#15803d" }
-      : planMode === "dynamic" && dynamicStatus === "deferred"
-      ? { backgroundColor: "#f3f4f6", color: "#9ca3af" }
-      : null;
-
-  const cellStyle = dynamicStyle ?? (colorDef ? { backgroundColor: colorDef.bg, color: colorDef.text } : undefined);
   const isDeferred = planMode === "dynamic" && dynamicStatus === "deferred";
   const isPaid = planMode === "dynamic" && dynamicStatus === "paid";
+
+  // Dynamic mode overrides static cell color (use Tailwind classes for dark-mode adaptation)
+  const dynamicClass = isPaid
+    ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+    : isDeferred
+    ? "bg-gray-100 text-gray-400 dark:bg-gray-800/60 dark:text-gray-500"
+    : "";
+
+  const hasDynamicStyle = isPaid || isDeferred;
+  const cellStyle = !hasDynamicStyle && colorDef ? { backgroundColor: colorDef.bg, color: colorDef.text } : undefined;
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div className="relative group/cell" style={cellStyle ? { borderRadius: 3 } : undefined}>
+        <div className="relative group/cell" style={(cellStyle || hasDynamicStyle) ? { borderRadius: 3 } : undefined}>
           <button
             onClick={(e) => onSelect(e)}
             onDoubleClick={onStartEdit}
@@ -795,7 +796,7 @@ function PlanCell({
                 ? "ring-1 ring-blue-400 bg-blue-50 dark:bg-blue-900/30"
                 : isSelected
                 ? "ring-1 ring-primary bg-primary/10"
-                : !cellStyle ? "hover:bg-muted/60" : "",
+                : hasDynamicStyle ? dynamicClass : !cellStyle ? "hover:bg-muted/60" : "",
               isDeferred ? "line-through opacity-60" : "",
             )}
             style={{ minWidth: colW - 8, ...(cellStyle && !isSelected && !isMultiSelected ? cellStyle : {}) }}
@@ -807,7 +808,7 @@ function PlanCell({
               {value !== 0 ? (
                 <span>{fmt(value)}</span>
               ) : (
-                <span className={isSelected ? "text-muted-foreground/60" : cellStyle ? "" : "text-border/50"}>—</span>
+                <span className={isSelected ? "text-muted-foreground/60" : (cellStyle || hasDynamicStyle) ? "" : "text-border/50"}>—</span>
               )}
             </span>
           </button>
