@@ -324,15 +324,8 @@ export default function Product() {
         return (
           <td className="px-4 py-2" key={columnId}>
             <div className="flex flex-col">
-              <div className="flex items-center gap-1.5 group/modetip">
+              <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-black dark:text-white">{backlog.name}</span>
-                <Badge
-                  variant="secondary"
-                  className="flex items-center gap-1 w-fit text-[10px] shrink-0 invisible group-hover/modetip:visible"
-                >
-                  {getModeIcon(backlog.mode)}
-                  {getModeLabel(backlog.mode)}
-                </Badge>
               </div>
               {backlog.description && (
                 <span className="text-xs text-muted-foreground line-clamp-1">{backlog.description}</span>
@@ -590,15 +583,8 @@ export default function Product() {
                 data-testid={`card-backlog-${backlog.id}`}
               >
                 <CardHeader className="flex flex-row items-center gap-2 p-3 pb-1">
-                  <div className="flex-1 min-w-0 flex items-center gap-1.5 group/modetip">
+                  <div className="flex-1 min-w-0 flex items-center gap-1.5">
                     <CardTitle className="text-[14px] font-bold text-foreground truncate min-w-0">{backlog.name}</CardTitle>
-                    <Badge
-                      variant="secondary"
-                      className="flex items-center gap-1 text-[10px] shrink-0 invisible group-hover/modetip:visible"
-                    >
-                      {getModeIcon(backlog.mode)}
-                      {getModeLabel(backlog.mode)}
-                    </Badge>
                   </div>
                   {backlog.project && (
                     <Badge variant="outline" className="flex items-center gap-1 text-[10px] shrink min-w-0 max-w-[55%]" onClick={(e) => e.stopPropagation()}>
