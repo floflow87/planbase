@@ -715,10 +715,10 @@ export function TicketDetailPanel({
                 <ChevronDown className="h-3 w-3 text-muted-foreground" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="bg-white dark:bg-white">
+            <DropdownMenuContent align="start">
               <DropdownMenuItem 
                 onClick={() => ticket.type !== "epic" && onConvertType?.(ticket.id, ticket.type, "epic")}
-                className={cn("text-gray-900", ticket.type === "epic" && "opacity-50")}
+                className={cn(ticket.type === "epic" && "opacity-50")}
                 disabled={ticket.type === "epic"}
               >
                 <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-purple-500">
@@ -728,7 +728,7 @@ export function TicketDetailPanel({
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={() => ticket.type !== "user_story" && onConvertType?.(ticket.id, ticket.type, "user_story")}
-                className={cn("text-gray-900", ticket.type === "user_story" && "opacity-50")}
+                className={cn(ticket.type === "user_story" && "opacity-50")}
                 disabled={ticket.type === "user_story"}
               >
                 <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-green-500">
@@ -738,7 +738,7 @@ export function TicketDetailPanel({
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={() => ticket.type !== "task" && onConvertType?.(ticket.id, ticket.type, "task")}
-                className={cn("text-gray-900", ticket.type === "task" && "opacity-50")}
+                className={cn(ticket.type === "task" && "opacity-50")}
                 disabled={ticket.type === "task"}
               >
                 <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-blue-500">
@@ -748,7 +748,7 @@ export function TicketDetailPanel({
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={() => ticket.type !== "bug" && onConvertType?.(ticket.id, ticket.type, "bug")}
-                className={cn("text-gray-900", ticket.type === "bug" && "opacity-50")}
+                className={cn(ticket.type === "bug" && "opacity-50")}
                 disabled={ticket.type === "bug"}
               >
                 <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-red-500">
@@ -865,10 +865,10 @@ export function TicketDetailPanel({
                   ) : <span className="text-gray-500">Aucun epic</span>}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-white">
-                <SelectItem value="none" className="text-gray-900">Aucun</SelectItem>
+              <SelectContent>
+                <SelectItem value="none">Aucun</SelectItem>
                 {epics.map(epic => (
-                  <SelectItem key={epic.id} value={epic.id} className="text-gray-900">
+                  <SelectItem key={epic.id} value={epic.id}>
                     <div className="flex items-center gap-2">
                       <div 
                         className="h-2 w-2 rounded-full" 
@@ -932,11 +932,11 @@ export function TicketDetailPanel({
                   })()}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-white">
+              <SelectContent>
                 {backlogItemStateOptions.map(opt => {
                   const style = getStateStyle(opt.value);
                   return (
-                    <SelectItem key={opt.value} value={opt.value} className="text-gray-900 cursor-pointer">
+                    <SelectItem key={opt.value} value={opt.value} className="cursor-pointer">
                       <div className="flex items-center gap-2">
                         <StatusIcon state={opt.value} size={14} />
                         <span className={style.text}>{opt.label}</span>
@@ -966,9 +966,9 @@ export function TicketDetailPanel({
                   </div>
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-white">
+              <SelectContent>
                 {backlogPriorityOptions.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value} className="text-gray-900">
+                  <SelectItem key={opt.value} value={opt.value}>
                     <div className="flex items-center gap-2">
                       <PriorityIcon priority={opt.value} />
                       <span>{opt.label}</span>
@@ -1006,10 +1006,10 @@ export function TicketDetailPanel({
                   ) : "Non assigné"}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-white">
-                <SelectItem value="none" className="text-gray-900">Non assigné</SelectItem>
+              <SelectContent>
+                <SelectItem value="none">Non assigné</SelectItem>
                 {users.map(user => (
-                  <SelectItem key={user.id} value={user.id} className="text-gray-900">
+                  <SelectItem key={user.id} value={user.id}>
                     {user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email}
                   </SelectItem>
                 ))}
@@ -1045,10 +1045,10 @@ export function TicketDetailPanel({
                     ) : "Non défini"}
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-white">
-                  <SelectItem value="none" className="text-gray-900">Non défini</SelectItem>
+                <SelectContent>
+                  <SelectItem value="none">Non défini</SelectItem>
                   {users.map(user => (
-                    <SelectItem key={user.id} value={user.id} className="text-gray-900">
+                    <SelectItem key={user.id} value={user.id}>
                       {user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email}
                     </SelectItem>
                   ))}
@@ -1073,9 +1073,9 @@ export function TicketDetailPanel({
                 <SelectTrigger className={cn("w-[140px] h-7 text-xs", readOnly && "opacity-60")} data-testid="select-points">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-white">
+                <SelectContent>
                   {[0, 0.25, 0.5, 1, 2, 3, 5, 8, 13, 21].map(pts => (
-                    <SelectItem key={pts} value={String(pts)} className="text-gray-900">
+                    <SelectItem key={pts} value={String(pts)}>
                       {pts === 0 ? "Non estimé" : `${pts} pts`}
                     </SelectItem>
                   ))}
@@ -1101,10 +1101,10 @@ export function TicketDetailPanel({
                   {currentSprint?.name || "Backlog"}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-white">
-                <SelectItem value="backlog" className="text-gray-900">Backlog</SelectItem>
+              <SelectContent>
+                <SelectItem value="backlog">Backlog</SelectItem>
                 {sprints.map(sprint => (
-                  <SelectItem key={sprint.id} value={sprint.id} className="text-gray-900">
+                  <SelectItem key={sprint.id} value={sprint.id}>
                     {sprint.name}
                   </SelectItem>
                 ))}
@@ -1130,15 +1130,15 @@ export function TicketDetailPanel({
                   {ticket.version || "Aucune"}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-white">
-                <SelectItem value="none" className="text-gray-900">Aucune</SelectItem>
-                <SelectItem value="1.0.0" className="text-gray-900">1.0.0</SelectItem>
-                <SelectItem value="1.1.0" className="text-gray-900">1.1.0</SelectItem>
-                <SelectItem value="1.2.0" className="text-gray-900">1.2.0</SelectItem>
-                <SelectItem value="2.0.0" className="text-gray-900">2.0.0</SelectItem>
-                <SelectItem value="MVP" className="text-gray-900">MVP</SelectItem>
-                <SelectItem value="Beta" className="text-gray-900">Beta</SelectItem>
-                <SelectItem value="Alpha" className="text-gray-900">Alpha</SelectItem>
+              <SelectContent>
+                <SelectItem value="none">Aucune</SelectItem>
+                <SelectItem value="1.0.0">1.0.0</SelectItem>
+                <SelectItem value="1.1.0">1.1.0</SelectItem>
+                <SelectItem value="1.2.0">1.2.0</SelectItem>
+                <SelectItem value="2.0.0">2.0.0</SelectItem>
+                <SelectItem value="MVP">MVP</SelectItem>
+                <SelectItem value="Beta">Beta</SelectItem>
+                <SelectItem value="Alpha">Alpha</SelectItem>
               </SelectContent>
             </Select>
           </div>}
