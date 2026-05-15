@@ -4530,7 +4530,7 @@ function SprintSheet({
           <SheetTitle className="flex items-center gap-2">
             {sprint ? "Modifier le Sprint" : "Nouveau Sprint"}
             {sprint?.identifier && (
-              <span className="text-sm font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+              <span className="text-[10px] font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
                 {sprint.identifier}
               </span>
             )}
