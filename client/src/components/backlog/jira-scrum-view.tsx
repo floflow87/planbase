@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, type ReactNode } from "react";
+import { useState, useMemo, useRef, useEffect, type ReactNode } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { 
   ChevronDown, ChevronRight, ChevronUp, Plus, MoreVertical, 
@@ -2338,8 +2338,8 @@ function BoardCard({
     id: `board-card-${ticket.type}-${ticket.id}`,
     data: { ticketId: ticket.id, ticketType: ticket.type, fromState: ticket.state || "a_faire" },
   });
-  const draggedRef = React.useRef(false);
-  React.useEffect(() => {
+  const draggedRef = useRef(false);
+  useEffect(() => {
     if (isDragging) {
       draggedRef.current = true;
     } else if (draggedRef.current) {
