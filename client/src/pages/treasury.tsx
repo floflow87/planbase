@@ -68,7 +68,23 @@ import {
   BadgePercent,
   CircleAlert,
   CheckCheck,
+  GripVertical,
 } from "lucide-react";
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   Dialog,
   DialogContent,
@@ -735,6 +751,45 @@ function TxPanel({
         </Button>
       </div>
     </aside>
+  );
+}
+
+// ── Sortable table row wrapper for plan lines (drag-and-drop reorder) ────────
+
+function SortableLineTR({
+  id,
+  className,
+  children,
+}: {
+  id: string;
+  className?: string;
+  children: (handle: {
+    setActivatorNodeRef: (el: HTMLElement | null) => void;
+    listeners: any;
+    attributes: any;
+    isDragging: boolean;
+  }) => React.ReactNode;
+}) {
+  const {
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+    listeners,
+    attributes,
+  } = useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    position: "relative",
+    zIndex: isDragging ? 20 : undefined,
+  };
+  return (
+    <tr ref={setNodeRef} style={style} className={className}>
+      {children({ setActivatorNodeRef, listeners, attributes, isDragging })}
+    </tr>
   );
 }
 
@@ -1544,6 +1599,48 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
       toast({ title: "Ligne déplacée", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600" });
     },
   });
+
+  const reorderLinesMutation = useMutation({
+    mutationFn: (orderedIds: string[]) =>
+      apiRequest("/api/treasury/plan/lines/reorder", "POST", { orderedIds }),
+    onMutate: async (orderedIds: string[]) => {
+      await queryClient.cancelQueries({ queryKey: planQueryKey });
+      const prev = queryClient.getQueryData<PlanData>(planQueryKey);
+      if (prev) {
+        const indexMap = new Map(orderedIds.map((id, i) => [id, i]));
+        queryClient.setQueryData<PlanData>(planQueryKey, {
+          ...prev,
+          lines: prev.lines.map((l) =>
+            indexMap.has(l.id) ? { ...l, position: indexMap.get(l.id)! } : l
+          ),
+        });
+      }
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(planQueryKey, ctx.prev);
+      toast({
+        title: "Réordonnancement échoué",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: planQueryKey }),
+  });
+
+  const sortSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  const handleLinesDragEnd = (rubriqueKey: string) => (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const rubLines = (planData?.lines ?? [])
+      .filter((l) => l.rubrique === rubriqueKey)
+      .sort((a, b) => a.position - b.position);
+    const oldIdx = rubLines.findIndex((l) => l.id === active.id);
+    const newIdx = rubLines.findIndex((l) => l.id === over.id);
+    if (oldIdx < 0 || newIdx < 0) return;
+    const reordered = arrayMove(rubLines, oldIdx, newIdx).map((l) => l.id);
+    reorderLinesMutation.mutate(reordered);
+  };
 
   const duplicateLineMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/treasury/plan/lines/${id}/duplicate`, "POST", {}),
@@ -2547,7 +2644,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
             </thead>
             <tbody>
               {RUBRIQUES.map((rubrique) => {
-                const lines = (planData?.lines ?? []).filter((l) => l.rubrique === rubrique.key);
+                const lines = (planData?.lines ?? []).filter((l) => l.rubrique === rubrique.key).sort((a, b) => a.position - b.position);
                 const isExpanded = expandedRubriques.has(rubrique.key);
                 return (
                   <Fragment key={rubrique.key}>
@@ -2676,11 +2773,34 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
 
                     {/* Child lines */}
                     {isExpanded && (
-                      <>
+                      <DndContext
+                        sensors={sortSensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleLinesDragEnd(rubrique.key)}
+                      >
+                        <SortableContext
+                          items={lines.map((l) => l.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
                         {lines.map((line) => (
-                          <tr key={line.id} className="border-t border-border/20 group hover:bg-muted/5 transition-colors">
+                          <SortableLineTR
+                            key={line.id}
+                            id={line.id}
+                            className="border-t border-border/20 group hover:bg-muted/5 transition-colors"
+                          >
+                            {({ setActivatorNodeRef, listeners, attributes }) => (<>
                             <td className="py-1 px-3 sticky left-0 bg-card z-10 group-hover:bg-muted">
-                              <div className="flex items-center gap-1 pl-5">
+                              <div className="flex items-center gap-1 pl-1">
+                                <button
+                                  ref={setActivatorNodeRef}
+                                  {...listeners}
+                                  {...attributes}
+                                  className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-foreground transition-colors touch-none"
+                                  title="Glisser pour réordonner"
+                                  data-testid={`drag-handle-plan-line-${line.id}`}
+                                >
+                                  <GripVertical className="h-3 w-3" />
+                                </button>
                                 {editingLineId === line.id ? (
                                   <input
                                     value={editingLineLabel}
@@ -2929,10 +3049,16 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                                 return t !== 0 ? <span className="text-foreground">{fmt(t)}</span> : <span className="text-border/50">—</span>;
                               })()}
                             </td>
-                          </tr>
+                            </>)}
+                          </SortableLineTR>
                         ))}
+                        </SortableContext>
+                      </DndContext>
+                    )}
 
-                        {/* Add line */}
+                    {/* Add line */}
+                    {isExpanded && (
+                      <>
                         {addingToRubrique === rubrique.key ? (
                           <tr className="border-t border-border/20 bg-muted/5">
                             <td className="py-1.5 px-3 sticky left-0 bg-card z-10">

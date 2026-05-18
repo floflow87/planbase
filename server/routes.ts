@@ -16019,6 +16019,42 @@ app.get("/config/feature-flags", async (_req, res) => {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  app.post("/api/treasury/plan/lines/reorder", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { orderedIds } = req.body as { orderedIds: string[] };
+      if (!Array.isArray(orderedIds) || orderedIds.length === 0 || !orderedIds.every((id) => typeof id === "string" && id.length > 0)) {
+        return res.status(400).json({ error: "orderedIds required (non-empty string array)" });
+      }
+      // Validate that all ids belong to same account + same rubrique + same scenario
+      const check = await db.execute(sql`
+        SELECT id, rubrique, scenario_id FROM treasury_plan_lines
+        WHERE account_id = ${accountId} AND id = ANY(${orderedIds}::uuid[])
+      `);
+      const rows = (check as any).rows ?? check;
+      if (!rows || rows.length !== orderedIds.length) {
+        return res.status(400).json({ error: "Some line ids are invalid or not in this account" });
+      }
+      const firstRub = rows[0].rubrique;
+      const firstScen = rows[0].scenario_id;
+      if (!rows.every((r: any) => r.rubrique === firstRub && r.scenario_id === firstScen)) {
+        return res.status(400).json({ error: "All lines must belong to the same rubrique and scenario" });
+      }
+      await db.transaction(async (tx) => {
+        for (let i = 0; i < orderedIds.length; i++) {
+          await tx.execute(sql`
+            UPDATE treasury_plan_lines SET position = ${i}
+            WHERE id = ${orderedIds[i]} AND account_id = ${accountId}
+          `);
+        }
+      });
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("❌ POST /api/treasury/plan/lines/reorder error:", e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.post("/api/treasury/plan/lines/:id/duplicate", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const accountId = req.accountId!;
