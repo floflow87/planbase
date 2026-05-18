@@ -1454,132 +1454,6 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
         </CardContent>
       </Card>
 
-      {/* Pace Projection Card */}
-      {paceProjection && totalEstimatedDays > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Projection "à ce rythme"
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {!paceProjection.available ? (
-              <p className="text-sm text-muted-foreground" data-testid="text-projection-unavailable">
-                {paceProjection.reason}
-              </p>
-            ) : paceProjection.alreadyExceeded ? (
-              <div className="flex items-center gap-3 p-3 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800" data-testid="alert-already-exceeded">
-                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0" />
-                <div>
-                  <p className="font-medium text-red-800 dark:text-red-200">Budget temps déjà dépassé</p>
-                  <p className="text-sm text-red-600 dark:text-red-400">
-                    Dépassement de {paceProjection.exceededBy?.toFixed(1)}j
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Fin estimée</p>
-                  <p className="text-lg font-semibold" data-testid="text-estimated-end-date">
-                    {paceProjection.estimatedEndDate?.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Dans {paceProjection.calendarDaysNeeded}j calendaire{paceProjection.calendarDaysNeeded > 1 ? 's' : ''}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Rythme actuel</p>
-                  <p className="text-lg font-semibold" data-testid="text-current-pace">
-                    {(paceProjection.pacePerDay * 8).toFixed(1)}h/j
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Basé sur {paceProjection.windowLabel}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Dépassement projeté</p>
-                  {(() => {
-                    // Use pre-calculated projectedOverage (same as trajectory status)
-                    const overagePercent = totalEstimatedDays > 0 ? (projectedOverage / totalEstimatedDays) * 100 : 0;
-                    const isOverBudget = projectedOverage > 0.05;
-                    const hasDeadline = !!project?.endDate;
-                    
-                    return (
-                      <>
-                        <p className={`text-lg font-semibold ${isOverBudget ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`} data-testid="text-projected-overage">
-                          {isOverBudget ? `+${projectedOverage.toFixed(1)}j` : "Aucun"}
-                        </p>
-                        {isOverBudget ? (
-                          <p className="text-xs text-red-600 dark:text-red-400">
-                            +{overagePercent.toFixed(0)}% du budget
-                          </p>
-                        ) : hasDeadline ? (
-                          <p className="text-xs text-muted-foreground">
-                            Livraison en temps
-                          </p>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">
-                            Budget temps respecté
-                          </p>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Trajectoire</p>
-                  <div className="flex flex-col gap-1">
-                    <Badge 
-                      className={cn("w-fit", trajectoryStatus.bg)}
-                      variant={trajectoryStatus.status === "exceeded" || trajectoryStatus.status === "critical" ? "destructive" : "default"}
-                      data-testid="badge-trajectory"
-                    >
-                      {trajectoryStatus.label}
-                    </Badge>
-                    {/* Show "Sur X étape(s) localisée(s)" with hover list for critical/warning items */}
-                    {(() => {
-                      const criticalItems = scopeItemProjections.filter(p => p.projection?.isCritical && !p.projection.exceeded && !p.projection.insufficientData);
-                      const warningItems = scopeItemProjections.filter(p => p.projection?.isWarning && !p.projection.insufficientData);
-                      const itemsAtRisk = [...criticalItems, ...warningItems.filter(w => !criticalItems.some(c => c.item.id === w.item.id))];
-                      
-                      if (itemsAtRisk.length === 0) return null;
-                      
-                      return (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <p className="text-xs text-red-600 dark:text-red-400 cursor-help underline decoration-dotted">
-                              Sur {itemsAtRisk.length} étape{itemsAtRisk.length > 1 ? 's' : ''} localisée{itemsAtRisk.length > 1 ? 's' : ''}
-                            </p>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom" className="max-w-xs">
-                            <div className="space-y-1">
-                              <p className="font-medium text-xs">Étapes à risque :</p>
-                              <ul className="text-xs space-y-0.5">
-                                {itemsAtRisk.map(item => (
-                                  <li key={item.item.id} className="flex items-center gap-1">
-                                    <span className={item.projection?.isCritical ? "text-red-500" : "text-orange-500"}>
-                                      {item.projection?.isCritical ? "Critique" : "Attention"}
-                                    </span>
-                                    <span>- {item.item.label}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    })()}
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-
       {/* Time Recommendations - rendered as a side drawer triggered from header */}
       <Sheet open={showTimeRecsDrawer} onOpenChange={setShowTimeRecsDrawer}>
         <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
@@ -1592,6 +1466,128 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
               </Badge>
             </SheetTitle>
           </SheetHeader>
+
+          {/* Section 1 : Projection à ce rythme */}
+          {paceProjection && totalEstimatedDays > 0 && (
+            <div className="mt-6 space-y-3">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-semibold text-sm">Projection "à ce rythme"</h3>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Extrapolation du temps restant en fonction du rythme observé jusqu'à aujourd'hui.
+                Permet d'anticiper la date de fin probable et un éventuel dépassement avant qu'il ne se produise.
+              </p>
+
+              {!paceProjection.available ? (
+                <p className="text-xs text-muted-foreground" data-testid="text-projection-unavailable">
+                  {paceProjection.reason}
+                </p>
+              ) : paceProjection.alreadyExceeded ? (
+                <div className="flex items-center gap-3 p-3 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800" data-testid="alert-already-exceeded">
+                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0" />
+                  <div>
+                    <p className="font-medium text-red-800 dark:text-red-200 text-sm">Budget temps déjà dépassé</p>
+                    <p className="text-xs text-red-600 dark:text-red-400">
+                      Dépassement de {paceProjection.exceededBy?.toFixed(1)}j
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-0.5 rounded-md border p-3">
+                    <p className="text-[11px] text-muted-foreground">Fin estimée</p>
+                    <p className="text-base font-semibold" data-testid="text-estimated-end-date">
+                      {paceProjection.estimatedEndDate?.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Dans {paceProjection.calendarDaysNeeded}j calendaire{(paceProjection.calendarDaysNeeded ?? 0) > 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <div className="space-y-0.5 rounded-md border p-3">
+                    <p className="text-[11px] text-muted-foreground">Rythme actuel</p>
+                    <p className="text-base font-semibold" data-testid="text-current-pace">
+                      {(paceProjection.pacePerDay * 8).toFixed(1)}h/j
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Basé sur {paceProjection.windowLabel}
+                    </p>
+                  </div>
+                  <div className="space-y-0.5 rounded-md border p-3">
+                    <p className="text-[11px] text-muted-foreground">Dépassement projeté</p>
+                    {(() => {
+                      const overagePercent = totalEstimatedDays > 0 ? (projectedOverage / totalEstimatedDays) * 100 : 0;
+                      const isOverBudget = projectedOverage > 0.05;
+                      const hasDeadline = !!project?.endDate;
+                      return (
+                        <>
+                          <p className={`text-base font-semibold ${isOverBudget ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`} data-testid="text-projected-overage">
+                            {isOverBudget ? `+${projectedOverage.toFixed(1)}j` : "Aucun"}
+                          </p>
+                          {isOverBudget ? (
+                            <p className="text-[11px] text-red-600 dark:text-red-400">
+                              +{overagePercent.toFixed(0)}% du budget
+                            </p>
+                          ) : hasDeadline ? (
+                            <p className="text-[11px] text-muted-foreground">Livraison en temps</p>
+                          ) : (
+                            <p className="text-[11px] text-muted-foreground">Budget temps respecté</p>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <div className="space-y-0.5 rounded-md border p-3">
+                    <p className="text-[11px] text-muted-foreground">Trajectoire</p>
+                    <div className="flex flex-col gap-1">
+                      <Badge
+                        className={cn("w-fit", trajectoryStatus.bg)}
+                        variant={trajectoryStatus.status === "exceeded" || trajectoryStatus.status === "critical" ? "destructive" : "default"}
+                        data-testid="badge-trajectory"
+                      >
+                        {trajectoryStatus.label}
+                      </Badge>
+                      {(() => {
+                        const criticalItems = scopeItemProjections.filter(p => p.projection?.isCritical && !p.projection.exceeded && !p.projection.insufficientData);
+                        const warningItems = scopeItemProjections.filter(p => p.projection?.isWarning && !p.projection.insufficientData);
+                        const itemsAtRisk = [...criticalItems, ...warningItems.filter(w => !criticalItems.some(c => c.item.id === w.item.id))];
+                        if (itemsAtRisk.length === 0) return null;
+                        return (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <p className="text-[11px] text-red-600 dark:text-red-400 cursor-help underline decoration-dotted">
+                                Sur {itemsAtRisk.length} étape{itemsAtRisk.length > 1 ? 's' : ''} localisée{itemsAtRisk.length > 1 ? 's' : ''}
+                              </p>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-xs">
+                              <div className="space-y-1">
+                                <p className="font-medium text-xs">Étapes à risque :</p>
+                                <ul className="text-xs space-y-0.5">
+                                  {itemsAtRisk.map(item => (
+                                    <li key={item.item.id} className="flex items-center gap-1">
+                                      <span className={item.projection?.isCritical ? "text-red-500" : "text-orange-500"}>
+                                        {item.projection?.isCritical ? "Critique" : "Attention"}
+                                      </span>
+                                      <span>- {item.item.label}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="border-t pt-4 mt-4">
+                <h3 className="font-semibold text-sm">Recommandations</h3>
+              </div>
+            </div>
+          )}
+
           {(() => {
             const getSeverityStyles = (severity: TimeRecommendation["severity"]) => {
               switch (severity) {
