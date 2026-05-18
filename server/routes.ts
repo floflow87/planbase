@@ -16027,24 +16027,25 @@ app.get("/config/feature-flags", async (_req, res) => {
         return res.status(400).json({ error: "orderedIds required (non-empty string array)" });
       }
       // Validate that all ids belong to the same account + rubrique + plan scenario
+      const idList = sql.join(orderedIds.map((id) => sql`${id}::uuid`), sql`, `);
       const check = await db.execute(sql`
-        SELECT id, rubrique, plan_scenario_id FROM treasury_plan_lines
-        WHERE account_id = ${accountId} AND id = ANY(${orderedIds}::uuid[])
+        SELECT id::text AS id, rubrique, plan_scenario_id FROM treasury_plan_lines
+        WHERE account_id = ${accountId} AND id IN (${idList})
       `);
-      const rows = (check as any).rows ?? check;
+      const rows = ((check as any).rows ?? check) as Array<{ id: string; rubrique: string; plan_scenario_id: string | null }>;
       if (!rows || rows.length !== orderedIds.length) {
         return res.status(400).json({ error: "Some line ids are invalid or not in this account" });
       }
       const firstRub = rows[0].rubrique;
       const firstScen = rows[0].plan_scenario_id ?? null;
-      if (!rows.every((r: any) => r.rubrique === firstRub && (r.plan_scenario_id ?? null) === firstScen)) {
+      if (!rows.every((r) => r.rubrique === firstRub && (r.plan_scenario_id ?? null) === firstScen)) {
         return res.status(400).json({ error: "All lines must belong to the same rubrique and scenario" });
       }
       await db.transaction(async (tx) => {
         for (let i = 0; i < orderedIds.length; i++) {
           await tx.execute(sql`
             UPDATE treasury_plan_lines SET position = ${i}
-            WHERE id = ${orderedIds[i]} AND account_id = ${accountId}
+            WHERE id = ${orderedIds[i]}::uuid AND account_id = ${accountId}
           `);
         }
       });
