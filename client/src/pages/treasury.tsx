@@ -239,6 +239,7 @@ type PlanData = {
   cells: PlanCell[];
   settings: PlanSettings;
   planScenarios: PlanScenario[];
+  basePlanName?: string | null;
 };
 
 const RUBRIQUES: Array<{ key: string; label: string; type: "income" | "expense" }> = [
@@ -1153,7 +1154,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
       params.set("endYear", String(endYear));
       const scenarioName = activePlanScenarioId
         ? (planData?.planScenarios?.find((s) => s.id === activePlanScenarioId)?.name ?? "scenario")
-        : "base";
+        : (planData?.basePlanName?.trim() || "base");
       params.set("scenarioName", scenarioName);
       const endpoint = format === "pdf"
         ? `/api/treasury/plan/export/pdf?${params.toString()}`
@@ -1182,6 +1183,8 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
   const [deletePlanScenarioConfirm, setDeletePlanScenarioConfirm] = useState<{ id: string; name: string } | null>(null);
   const [renamePlanScenarioId, setRenamePlanScenarioId] = useState<string | null>(null);
   const [renamePlanScenarioName, setRenamePlanScenarioName] = useState("");
+  const [renameBasePlan, setRenameBasePlan] = useState(false);
+  const [renameBasePlanName, setRenameBasePlanName] = useState("");
 
   // Sync entrées dialog
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
@@ -1508,6 +1511,17 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
       setRenamePlanScenarioId(null);
       setRenamePlanScenarioName("");
       toast({ title: "Scénario renommé", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100" });
+    },
+    onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+  });
+
+  const renameBasePlanMutation = useMutation({
+    mutationFn: (name: string) => apiRequest("/api/treasury/plan/base-name", "PATCH", { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] });
+      setRenameBasePlan(false);
+      setRenameBasePlanName("");
+      toast({ title: "Plan renommé", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100" });
     },
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
@@ -2396,20 +2410,54 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                 {activePlanScenarioId && <MapPin className="h-2.5 w-2.5 text-violet-500" />}
                 {activePlanScenarioId
                   ? (planData?.planScenarios?.find((s) => s.id === activePlanScenarioId)?.name ?? "Scénario")
-                  : "Plan de base"}
+                  : (planData?.basePlanName?.trim() || "Plan de base")}
                 <ChevronDown className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
               <DropdownMenuLabel className="text-[10px]">Scénarios du plan</DropdownMenuLabel>
               <DropdownMenuItem
-                onClick={() => setActivePlanScenarioId(null)}
-                className="text-xs gap-2"
+                onClick={() => { if (!renameBasePlan) setActivePlanScenarioId(null); }}
+                className="text-xs gap-2 justify-between group"
               >
-                {!activePlanScenarioId
-                  ? <MapPin className="h-3 w-3 text-violet-500" />
-                  : <span className="w-3" />}
-                <span className={!activePlanScenarioId ? "font-medium" : ""}>Plan de base</span>
+                {renameBasePlan ? (
+                  <div className="flex items-center gap-1 w-full" onClick={(e) => e.stopPropagation()}>
+                    <Input
+                      value={renameBasePlanName}
+                      onChange={(e) => setRenameBasePlanName(e.target.value)}
+                      className="h-5 text-[11px] flex-1 px-1"
+                      autoFocus
+                      placeholder="Plan de base"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") renameBasePlanMutation.mutate(renameBasePlanName.trim());
+                        if (e.key === "Escape") { setRenameBasePlan(false); setRenameBasePlanName(""); }
+                      }}
+                    />
+                    <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => renameBasePlanMutation.mutate(renameBasePlanName.trim())}>
+                      <Check className="h-2.5 w-2.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="flex items-center gap-2 flex-1 min-w-0">
+                      {!activePlanScenarioId
+                        ? <MapPin className="h-3 w-3 text-violet-500 shrink-0" />
+                        : <span className="w-3 shrink-0" />}
+                      <span className={`truncate ${!activePlanScenarioId ? "font-medium" : ""}`}>
+                        {planData?.basePlanName?.trim() || "Plan de base"}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+                      <Button size="icon" variant="ghost" className="h-4 w-4"
+                        onClick={(e) => { e.stopPropagation(); setRenameBasePlan(true); setRenameBasePlanName(planData?.basePlanName ?? ""); }}
+                        data-testid="btn-rename-base-plan"
+                        title="Renommer"
+                      >
+                        <Pencil className="h-2.5 w-2.5" />
+                      </Button>
+                    </span>
+                  </>
+                )}
               </DropdownMenuItem>
               {(planData?.planScenarios ?? []).map((s) => (
                 <DropdownMenuItem key={s.id} className="text-xs gap-2 justify-between group" onClick={() => { setActivePlanScenarioId(s.id); setRenamePlanScenarioId(null); }}>

@@ -2462,6 +2462,10 @@ export async function runStartupMigrations() {
     `);
     await db.execute(sql`
       ALTER TABLE treasury_settings
+        ADD COLUMN IF NOT EXISTS plan_base_name TEXT;
+    `);
+    await db.execute(sql`
+      ALTER TABLE treasury_settings
         ADD COLUMN IF NOT EXISTS period_tags JSONB DEFAULT '{}'::jsonb;
     `);
     await db.execute(sql`
@@ -3495,6 +3499,28 @@ async function runIncrementalMigrations() {
     }
   } catch (v61Err: any) {
     console.warn("⚠️  v6_1 tasks display_id unique migration (non-blocking):", v61Err.message);
+  }
+  // ── v7: treasury_settings.plan_base_name (rename "Plan de base") ────────
+  const V7_KEY = "planbase_v7_plan_base_name";
+  try {
+    const v7Check = await db.execute(
+      sql`SELECT 1 FROM schema_migrations_tracking WHERE key = ${V7_KEY}`
+    );
+    const v7Rows: unknown[] = Array.isArray(v7Check)
+      ? v7Check
+      : ((v7Check as any).rows ?? []);
+    if (v7Rows.length === 0) {
+      await db.execute(sql`
+        ALTER TABLE treasury_settings
+          ADD COLUMN IF NOT EXISTS plan_base_name TEXT
+      `);
+      console.log("✅ treasury_settings.plan_base_name column ensured");
+      await db.execute(
+        sql`INSERT INTO schema_migrations_tracking (key) VALUES (${V7_KEY}) ON CONFLICT DO NOTHING`
+      );
+    }
+  } catch (v7Err: any) {
+    console.warn("⚠️  v7 plan_base_name migration (non-blocking):", v7Err.message);
   }
   // ─────────────────────────────────────────────────────────────────────────
 }
