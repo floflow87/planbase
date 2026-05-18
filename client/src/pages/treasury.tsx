@@ -812,7 +812,7 @@ function PlanCell({
               )}
             </span>
           </button>
-          {hasValue && planMode === "static" && (
+          {hasValue && (
             <div
               onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onFillDragStart(); }}
               className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 bg-primary rounded-sm cursor-crosshair opacity-0 group-hover/cell:opacity-100 transition-opacity z-10 flex items-center justify-center"
