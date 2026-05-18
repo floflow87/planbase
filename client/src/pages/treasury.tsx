@@ -237,7 +237,7 @@ const RUBRIQUES: Array<{ key: string; label: string; type: "income" | "expense" 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const fmt = (n: number) =>
-  new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
+  new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
 
 const STATUS_LABELS: Record<string, string> = {
   planned: "Prévu",
@@ -1908,7 +1908,10 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
 
   const evalFormula = (raw: string): number => {
     const trimmed = raw.trim();
-    if (!trimmed.startsWith("=")) return parseFloat(trimmed) || 0;
+    if (!trimmed.startsWith("=")) {
+      const n = parseFloat(trimmed.replace(/\s/g, "").replace(",", "."));
+      return isFinite(n) ? Math.round(n * 100) / 100 : 0;
+    }
     const expr = trimmed.slice(1).replace(/,/g, ".");
     if (!/^[\d\s+\-*/().%]+$/.test(expr)) return 0;
     try {
