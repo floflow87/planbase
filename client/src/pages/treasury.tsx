@@ -2788,7 +2788,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                             id={line.id}
                             className="border-t border-border/20 group hover:bg-muted/5 transition-colors"
                           >
-                            {({ setActivatorNodeRef, listeners, attributes }) => (<>
+                            {({ setActivatorNodeRef, listeners, attributes }) => (<Fragment>
                             <td className="py-1 px-3 sticky left-0 bg-card z-10 group-hover:bg-muted">
                               <div className="flex items-center gap-1 pl-1">
                                 <button
@@ -3049,7 +3049,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
                                 return t !== 0 ? <span className="text-foreground">{fmt(t)}</span> : <span className="text-border/50">—</span>;
                               })()}
                             </td>
-                            </>)}
+                            </Fragment>)}
                           </SortableLineTR>
                         ))}
                         </SortableContext>
