@@ -1519,14 +1519,22 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                       const overagePercent = totalEstimatedDays > 0 ? (projectedOverage / totalEstimatedDays) * 100 : 0;
                       const isOverBudget = projectedOverage > 0.05;
                       const hasDeadline = !!project?.endDate;
+                      const criticalItems = scopeItemProjections.filter(p => p.projection?.isCritical && !p.projection.exceeded && !p.projection.insufficientData);
+                      const warningItems = scopeItemProjections.filter(p => p.projection?.isWarning && !p.projection.insufficientData);
+                      const atRiskCount = criticalItems.length + warningItems.length;
+                      const isAnticipated = !isOverBudget && atRiskCount > 0;
                       return (
                         <>
-                          <p className={`text-base font-semibold ${isOverBudget ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`} data-testid="text-projected-overage">
-                            {isOverBudget ? `+${projectedOverage.toFixed(1)}j` : "Aucun"}
+                          <p className={`text-base font-semibold ${isOverBudget ? "text-red-600 dark:text-red-400" : isAnticipated ? "text-orange-600 dark:text-orange-400" : "text-green-600 dark:text-green-400"}`} data-testid="text-projected-overage">
+                            {isOverBudget ? `+${projectedOverage.toFixed(1)}j` : isAnticipated ? "Anticipé" : "Aucun"}
                           </p>
                           {isOverBudget ? (
                             <p className="text-[11px] text-red-600 dark:text-red-400">
-                              +{overagePercent.toFixed(0)}% du budget
+                              +{overagePercent.toFixed(0)}% du budget déjà constaté
+                            </p>
+                          ) : isAnticipated ? (
+                            <p className="text-[11px] text-orange-600 dark:text-orange-400">
+                              {atRiskCount} étape{atRiskCount > 1 ? "s" : ""} à risque au rythme actuel
                             </p>
                           ) : hasDeadline ? (
                             <p className="text-[11px] text-muted-foreground">Livraison en temps</p>
