@@ -536,7 +536,7 @@ function TxPanel({
       apiRequest(`/api/treasury/transactions/${editFlow?.manualId}`, "PATCH", d),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/treasury/flows"] });
-      toast({ title: "Flux mis à jour", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600" });
+      toast({ title: "Flux mis à jour", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100 dark:border-green-600" });
       onClose();
     },
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
@@ -572,7 +572,7 @@ function TxPanel({
       const count = dates.length;
       toast({
         title: count > 1 ? `${count} flux ajoutés` : "Flux ajouté",
-        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100 dark:border-green-600",
       });
       onClose();
     }
@@ -1489,7 +1489,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
       setActivePlanScenarioId(s.id);
       setNewPlanScenarioName("");
       setShowCreatePlanScenario(false);
-      toast({ title: `Scénario "${s.name}" créé`, className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100" });
+      toast({ title: `Scénario "${s.name}" créé`, className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100" });
     }),
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
@@ -1510,7 +1510,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
       queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] });
       setRenamePlanScenarioId(null);
       setRenamePlanScenarioName("");
-      toast({ title: "Scénario renommé", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100" });
+      toast({ title: "Scénario renommé", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100" });
     },
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
@@ -1521,7 +1521,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
       queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] });
       setRenameBasePlan(false);
       setRenameBasePlanName("");
-      toast({ title: "Plan renommé", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100" });
+      toast({ title: "Plan renommé", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100" });
     },
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
@@ -1531,7 +1531,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     onSuccess: (res: any) => res.json().then((s: PlanScenario) => {
       queryClient.invalidateQueries({ queryKey: ["/api/treasury/plan"] });
       setActivePlanScenarioId(s.id);
-      toast({ title: `Scénario "${s.name}" créé`, className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100" });
+      toast({ title: `Scénario "${s.name}" créé`, className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100" });
     }),
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
@@ -1562,7 +1562,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
       apiRequest("/api/treasury/plan/lines", "POST", body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: planQueryKey });
-      toast({ title: "Ligne ajoutée", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600" });
+      toast({ title: "Ligne ajoutée", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100 dark:border-green-600" });
       setAddingToRubrique(null);
       setNewLineLabel("");
     },
@@ -1610,7 +1610,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: planQueryKey });
-      toast({ title: "Ligne déplacée", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600" });
+      toast({ title: "Ligne déplacée", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100 dark:border-green-600" });
     },
   });
 
@@ -1678,7 +1678,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: planQueryKey });
-      toast({ title: "Ligne dupliquée", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600" });
+      toast({ title: "Ligne dupliquée", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100 dark:border-green-600" });
     },
   });
 
@@ -1750,7 +1750,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
       toast({
         title: `${count} ligne${count > 1 ? "s" : ""} importée${count > 1 ? "s" : ""}`,
         description: "Les entrées clients ont été synchronisées avec le plan.",
-        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100 dark:border-green-600",
       });
     },
     onError: (e: any) => toast({ title: "Erreur sync", description: e.message, variant: "destructive" }),
@@ -1805,7 +1805,7 @@ function TreasuryPlanView({ projects, flows }: { projects: Array<{ id: string; n
       toast({
         title: `${count} ligne${count > 1 ? "s" : ""} importée${count > 1 ? "s" : ""}`,
         description: "Les ressources projets ont été synchronisées avec le plan.",
-        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100 dark:border-green-600",
+        className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100 dark:border-green-600",
       });
     },
     onError: (e: any) => toast({ title: "Erreur sync", description: e.message, variant: "destructive" }),
@@ -4152,7 +4152,7 @@ function TreasuryPageInner() {
       setSelectedScenarioId(s.id);
       setNewScenarioName("");
       setShowScenarioCreate(false);
-      toast({ title: `Scénario "${s.name}" créé`, className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100" });
+      toast({ title: `Scénario "${s.name}" créé`, className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100" });
     },
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
@@ -4174,7 +4174,7 @@ function TreasuryPageInner() {
       queryClient.invalidateQueries({ queryKey: ["/api/treasury/flows"] });
       setRenameScenarioId(null);
       setRenameScenarioName("");
-      toast({ title: "Scénario renommé", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100" });
+      toast({ title: "Scénario renommé", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100" });
     },
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
@@ -4184,7 +4184,7 @@ function TreasuryPageInner() {
       apiRequest(`/api/treasury/resources/${id}/payment-status`, "PATCH", { paymentStatus }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/treasury/flows"] });
-      toast({ title: "Statut mis à jour", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100" });
+      toast({ title: "Statut mis à jour", className: "border-green-500 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100" });
     },
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
