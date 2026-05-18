@@ -16026,9 +16026,9 @@ app.get("/config/feature-flags", async (_req, res) => {
       if (!Array.isArray(orderedIds) || orderedIds.length === 0 || !orderedIds.every((id) => typeof id === "string" && id.length > 0)) {
         return res.status(400).json({ error: "orderedIds required (non-empty string array)" });
       }
-      // Validate that all ids belong to same account + same rubrique + same scenario
+      // Validate that all ids belong to the same account + same rubrique
       const check = await db.execute(sql`
-        SELECT id, rubrique, scenario_id FROM treasury_plan_lines
+        SELECT id, rubrique FROM treasury_plan_lines
         WHERE account_id = ${accountId} AND id = ANY(${orderedIds}::uuid[])
       `);
       const rows = (check as any).rows ?? check;
@@ -16036,9 +16036,8 @@ app.get("/config/feature-flags", async (_req, res) => {
         return res.status(400).json({ error: "Some line ids are invalid or not in this account" });
       }
       const firstRub = rows[0].rubrique;
-      const firstScen = rows[0].scenario_id;
-      if (!rows.every((r: any) => r.rubrique === firstRub && r.scenario_id === firstScen)) {
-        return res.status(400).json({ error: "All lines must belong to the same rubrique and scenario" });
+      if (!rows.every((r: any) => r.rubrique === firstRub)) {
+        return res.status(400).json({ error: "All lines must belong to the same rubrique" });
       }
       await db.transaction(async (tx) => {
         for (let i = 0; i < orderedIds.length; i++) {
