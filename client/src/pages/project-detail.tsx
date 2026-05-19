@@ -879,7 +879,10 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
     if (consumptionPercent > 100) {
       recs.push({ id: "overflow-exceeded", horizon: "immediate", type: "overflow", title: "Budget temps dépassé", description: `Le temps prévu est dépassé de ${(consumptionPercent - 100).toFixed(0)}%. Renégociez le périmètre ou le budget.`, severity: "critical" });
     }
-    if (consumptionPercent < 50 && consumptionPercent > 0) {
+    // "Avance sur planning" : seulement si la trajectoire globale n'est ni critique ni à risque
+    // (sinon incohérent avec un dépassement projeté via la deadline)
+    const trajectoryHealthy = trajectoryStatus.status === "ok" || trajectoryStatus.status === "unknown";
+    if (consumptionPercent < 50 && consumptionPercent > 0 && trajectoryHealthy) {
       recs.push({ id: "ahead", horizon: "learning", type: "ahead", title: "Avance sur planning", description: `Seulement ${consumptionPercent.toFixed(0)}% du temps consommé. Documentez les bonnes pratiques.`, severity: "info" });
     }
 
@@ -914,7 +917,20 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
         const isLocal = warnItems.length === 1;
         recs.push({ id: "pace-warning", horizon: "adjustment", type: "drift", title: isLocal ? "Anticipation étape isolée" : "Anticipation multi-étapes", description: isLocal ? `L'étape "${warnItems[0].item.label}" approche de son enveloppe. Impact limité si traité rapidement.` : `${warnItems.length} étapes approchent de leur enveloppe : ${warnItems.map(i => `"${i.item.label}"`).slice(0, 2).join(", ")}${warnItems.length > 2 ? "..." : ""}`, severity: "warning" });
       }
-      const hasIssues = critItems.length > 0 || warnItems.length > 0 || imbalanced.length > 0 || consumptionPercent >= 80;
+      // Risque deadline : dépassement projeté lié à la date de fin, non couvert par les alertes étapes
+      const overagePercent = totalEstimatedDays > 0 ? (projectedOverage / totalEstimatedDays) * 100 : 0;
+      if (overagePercent > 10 && critItems.length === 0 && warnItems.length === 0) {
+        const isCritical = overagePercent > 20;
+        recs.push({
+          id: "deadline-risk",
+          horizon: "immediate",
+          type: "drift",
+          title: isCritical ? "Risque deadline critique" : "Risque deadline",
+          description: `Au rythme actuel (${(paceProjection.pacePerDay * 8).toFixed(1)}h/j), il manquera ~${projectedOverage.toFixed(1)}j (${overagePercent.toFixed(0)}% du budget) avant la date de fin. Augmentez la cadence ou décalez l'échéance.`,
+          severity: isCritical ? "critical" : "warning",
+        });
+      }
+      const hasIssues = critItems.length > 0 || warnItems.length > 0 || imbalanced.length > 0 || consumptionPercent >= 80 || !trajectoryHealthy;
       if (!hasIssues && totalTimeDays > 0) {
         recs.push({ id: "pace-good", horizon: "learning", type: "ahead", title: "Bonne trajectoire", description: `À ce rythme (${(paceProjection.pacePerDay * 8).toFixed(1)}h/j), le projet reste dans l'enveloppe prévue. Fin estimée: ${paceProjection.estimatedEndDate?.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}.`, severity: "info" });
       }
