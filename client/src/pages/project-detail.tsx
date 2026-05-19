@@ -899,11 +899,13 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
       recs.push({ id: "imbalance", horizon: "adjustment", type: "imbalance", title: isLocal ? "Dépassement étape isolée" : "Déséquilibre sur plusieurs étapes", description: isLocal ? `L'étape "${imbalanced[0].label}" a dépassé son enveloppe. Impact limité au périmètre de cette rubrique.` : `${imbalanced.length} étapes ont dépassé leur temps prévu : ${imbalanced.map(i => `"${i.label}"`).slice(0, 2).join(", ")}${imbalanced.length > 2 ? "..." : ""}`, severity: "warning" });
     }
 
-    const uncatSec = timeEntries.filter(e => !e.scopeItemId).reduce((s, e) => s + (e.duration || 0), 0);
+    const uncatEntries = timeEntries.filter(e => !e.scopeItemId);
+    const uncatSec = uncatEntries.reduce((s, e) => s + (e.duration || 0), 0);
     const uncatDays = uncatSec / 3600 / 8;
+    const uncatHours = uncatSec / 3600;
     const uncatPct = totalTimeDays > 0 ? (uncatDays / totalTimeDays) * 100 : 0;
-    if (uncatPct > 20) {
-      recs.push({ id: "uncategorized", horizon: "adjustment", type: "uncategorized", title: "Temps non catégorisé", description: `${uncatPct.toFixed(0)}% du temps n'est pas lié à une étape CDC. Catégorisez pour un meilleur suivi.`, severity: "info" });
+    if (uncatPct > 20 && uncatEntries.length > 0) {
+      recs.push({ id: "uncategorized", horizon: "adjustment", type: "uncategorized", title: "Temps non catégorisé", description: `${uncatPct.toFixed(0)}% du temps (${uncatHours.toFixed(1)}h sur ${uncatEntries.length} entrée${uncatEntries.length > 1 ? "s" : ""}) n'est pas lié à une étape CDC. Souvent des entrées créées avant l'ajout d'étapes ou rattachées à une étape supprimée. Catégorisez-les pour un meilleur suivi.`, severity: "info" });
     }
 
     if (paceProjection?.available && !paceProjection.alreadyExceeded) {
